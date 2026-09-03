@@ -88,6 +88,18 @@ export function requireGate(root, check) {
 
 function markup() {
   return `
+    <div class="gate__stadium" aria-hidden="true">
+      <span class="gate__endzone gate__endzone--top">Survivor</span>
+      <span class="gate__yard-number gate__yard-number--20"><i>20</i><i>20</i></span>
+      <span class="gate__yard-number gate__yard-number--40"><i>40</i><i>40</i></span>
+      <svg class="gate__midfield-ball" viewBox="0 0 54 34">
+        <path d="M3 17C9 4 20 1 27 1s18 3 24 16c-6 13-17 16-24 16S9 30 3 17Z" />
+        <path d="M19 17h16M23 12v10M27 11v12M31 12v10" />
+      </svg>
+      <span class="gate__yard-number gate__yard-number--opposing-40"><i>40</i><i>40</i></span>
+      <span class="gate__yard-number gate__yard-number--opposing-20"><i>20</i><i>20</i></span>
+      <span class="gate__endzone gate__endzone--bottom">Board</span>
+    </div>
     <form class="gate__card" autocomplete="off">
       <p class="gate__brand">Survivor Board</p>
       <label class="gate__label" for="gate-input">Passcode</label>
