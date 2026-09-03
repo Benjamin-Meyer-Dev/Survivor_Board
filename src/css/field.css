@@ -176,6 +176,26 @@ body::before {
   background: linear-gradient(90deg, var(--accent), var(--safe));
 }
 
+.meter .meter__fill--safe {
+  background: var(--safe);
+}
+
+.meter .meter__fill--solid {
+  background: var(--solid);
+}
+
+.meter .meter__fill--thin {
+  background: var(--thin);
+}
+
+.meter .meter__fill--close {
+  background: var(--close);
+}
+
+.meter .meter__fill--danger {
+  background: var(--danger);
+}
+
 /* --- week pips as yard markers ------------------------------------------- */
 
 .week-pips {
@@ -211,17 +231,6 @@ body::before {
 
 .burn__team {
   font-variant-numeric: tabular-nums;
-}
-
-.burn__team--spent {
-  /* Crossed off the sheet. */
-  background-image: linear-gradient(
-    100deg,
-    transparent 45%,
-    var(--chalk) 49%,
-    var(--chalk) 51%,
-    transparent 55%
-  );
 }
 
 /* --- end zone ------------------------------------------------------------ */

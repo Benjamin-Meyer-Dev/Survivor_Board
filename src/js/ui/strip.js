@@ -23,7 +23,7 @@ export function renderStrip(root, board) {
       // it never loses focus mid-second.
       value: `<span id="countdown">${escapeHtml(formatDuration(board.nextRefreshAt - Date.now()))}</span>`,
       raw: true,
-      note: `last ${timeAgo(board.updatedAt)}`,
+      note: `daily at ${refreshTime(board.nextRefreshAt)} local · last ${timeAgo(board.updatedAt)}`,
     },
   ];
 
@@ -39,6 +39,14 @@ export function renderStrip(root, board) {
     .join("");
 }
 
+/** The next run's clock time in the viewer's own timezone. */
+function refreshTime(nextRefreshAt) {
+  return new Date(nextRefreshAt).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function seasonSurvival(board) {
   if (board.eliminated) return { value: "Out", note: "run is over" };
   if (board.recommendationPending) return { value: "…", note: "working out the path" };
@@ -46,8 +54,14 @@ function seasonSurvival(board) {
     return { value: formatPercent(board.pathProbability), note: survivalNote(board) };
   }
 
+  const change =
+    board.previewPathProbability > board.pathProbability
+      ? "better"
+      : board.previewPathProbability < board.pathProbability
+        ? "worse"
+        : "even";
   return {
-    value: `<span>${formatPercent(board.pathProbability)}</span><span class="strip__arrow" aria-hidden="true">→</span><span class="strip__preview">${formatPercent(board.previewPathProbability)}</span>`,
+    value: `<span>${formatPercent(board.pathProbability)}</span><span class="strip__arrow" aria-hidden="true">→</span><span class="strip__preview strip__preview--${change}">${formatPercent(board.previewPathProbability)}</span>`,
     note: "current → if locked",
     raw: true,
     comparison: true,

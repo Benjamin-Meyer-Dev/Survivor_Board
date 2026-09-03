@@ -421,6 +421,40 @@ export function buildBoard({
     week.pathWinProb = onPath.length
       ? onPath.reduce((total, pick) => total * pick.winProb, 1)
       : null;
+    week.pathTier =
+      week.pathWinProb === null ? null : confidenceTier(week.pathWinProb, rules.tiers);
+  }
+
+  // Cumulative chance of being alive after each week on the visible path.
+  // Before the current week only committed history counts; from the current
+  // week onward this follows picks being weighed plus the coach's open slots.
+  // Running the shared survival model on each prefix keeps buy backs and known
+  // results identical to the headline calculation.
+  const cumulativePicks = [];
+  let pathComplete = true;
+  for (const week of board.weeks) {
+    const weekPath = week.picks.filter((pick) =>
+      week.week < board.currentWeek ? pick.status.locked && pick.onPath : pick.onPath,
+    );
+    if (week.week >= board.currentWeek && weekPath.length !== rules.picksPerWeek) {
+      pathComplete = false;
+    }
+    cumulativePicks.push(
+      ...weekPath.map((pick) => ({
+        week: week.week,
+        winProb: pick.onPath.winProb,
+        result: pick.status.result ?? null,
+      })),
+    );
+    week.seasonWinProb = pathComplete
+      ? survival({
+          picks: cumulativePicks,
+          buyBackWeeks: rules.buyBackWeeks,
+          buyBacks: rules.buyBacks,
+        }).probability
+      : null;
+    week.seasonTier =
+      week.seasonWinProb === null ? null : confidenceTier(week.seasonWinProb, rules.tiers);
   }
 
   // First price the visible path, including any unlocked picks. This is a

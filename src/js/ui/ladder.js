@@ -42,19 +42,20 @@ function rowMarkup(week, pick, board) {
       <td class="is-wide-only">${shown ? escapeHtml(formatMatchup(shown.site, shown.opponent)) : "—"}</td>
       <td class="is-narrow-only ladder__opponent">${shown ? escapeHtml(shown.opponent) : "—"}</td>
       <td class="is-wide-only" style="color:var(--ink-3)">${shown ? escapeHtml(shown.site) : "—"}</td>
-      <td class="ladder__num">${shown ? formatSpread(shown.spread) : "—"}</td>
+      <td class="ladder__num${shown ? ` confidence--${shown.tier}` : ""}">${shown ? formatSpread(shown.spread) : "—"}</td>
       <td class="is-wide-only" style="font-size:11.5px;color:var(--ink-3)">${shown ? (shown.source === "market" ? "Market" : "Projected") : "—"}</td>
-      <td class="ladder__num">${shown ? formatPercent(shown.winProb) : "—"}</td>
+      <td class="ladder__num${shown ? ` confidence--${shown.tier}` : ""}">${shown ? formatPercent(shown.winProb) : "—"}</td>
       <td class="is-wide-only">
         ${
           shown
             ? `<div class="meter" role="img" aria-label="${formatPercent(shown.winProb)} win probability">
-          <i class="meter__fill" style="width:${(shown.winProb * 100).toFixed(0)}%"></i>
+          <i class="meter__fill meter__fill--${shown.tier}" style="width:${(shown.winProb * 100).toFixed(0)}%"></i>
         </div>`
             : "—"
         }
       </td>
-      <td class="is-wide-only ladder__num">${isFirstSlot && week.pathWinProb !== null ? formatPercent(week.pathWinProb) : ""}</td>
+      <td class="is-wide-only ladder__num${isFirstSlot && week.pathTier ? ` confidence--${week.pathTier}` : ""}">${isFirstSlot && week.pathWinProb !== null ? formatPercent(week.pathWinProb) : ""}</td>
+      <td class="ladder__num ladder__season${isFirstSlot && week.seasonTier ? ` confidence--${week.seasonTier}` : ""}">${isFirstSlot && week.seasonWinProb !== null ? formatPercent(week.seasonWinProb) : ""}</td>
       <td>${statusChip(pick.status, kind)}</td>
     </tr>`;
 }

@@ -432,8 +432,8 @@ function renderOption(pick, option, canPick) {
 function numbers(line) {
   return `
       <div class="slot__numbers">
-        ${metric("Spread", line ? formatSpread(line.spread) : "—")}
-        ${metric("Win prob", line ? formatPercent(line.winProb) : "—")}
+        ${metric("Spread", line ? formatSpread(line.spread) : "—", false, line?.tier)}
+        ${metric("Win prob", line ? formatPercent(line.winProb) : "—", false, line?.tier)}
         ${metric("Line", line ? (line.source === "market" ? "Market" : "Projected") : "—", true)}
       </div>`;
 }
@@ -456,10 +456,10 @@ function formatStamp(at) {
   });
 }
 
-function metric(key, value, isText = false) {
+function metric(key, value, isText = false, tier = null) {
   return `<div>
     <div class="metric__key">${escapeHtml(key)}</div>
-    <div class="metric__value${isText ? " metric__value--text" : ""}">${escapeHtml(value)}</div>
+    <div class="metric__value${isText ? " metric__value--text" : ""}${tier ? ` confidence--${tier}` : ""}">${escapeHtml(value)}</div>
   </div>`;
 }
 

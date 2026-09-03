@@ -160,6 +160,18 @@
   color: var(--accent);
 }
 
+.strip__preview--better {
+  color: var(--safe);
+}
+
+.strip__preview--worse {
+  color: var(--danger);
+}
+
+.strip__preview--even {
+  color: var(--ink-2);
+}
+
 .strip__note {
   font-size: 11.5px;
   color: var(--ink-3);
@@ -173,7 +185,7 @@
 .league {
   position: relative;
   display: inline-flex;
-  padding: 2px;
+  padding: 3px;
   border: 1px solid var(--line);
   border-radius: 99px;
   background: var(--surface-2);
@@ -182,10 +194,10 @@
 
 .league__marker {
   position: absolute;
-  top: 2px;
-  bottom: 2px;
-  left: 2px;
-  width: calc((100% - 4px) / var(--n));
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / var(--n));
   border-radius: 99px;
   background: var(--accent);
   transform: translateX(calc(100% * var(--i)));
@@ -198,16 +210,16 @@
   position: relative;
   z-index: 1;
   flex: 1 1 0;
-  min-width: 62px;
-  min-height: 24px;
-  padding: 0 11px;
+  min-width: 80px;
+  min-height: 38px;
+  padding: 0 15px;
   border: 0;
   border-radius: 99px;
   background: none;
   color: var(--ink-3);
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 12.5px;
+  font-size: 14px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
@@ -851,6 +863,40 @@
   line-height: 1.56;
 }
 
+/* One confidence language everywhere a single game's spread or probability
+   appears. The season percentage uses change colors instead; it is the product
+   of a whole path and does not belong to a single-game tier. */
+.confidence--safe {
+  --confidence-color: var(--safe);
+  color: var(--confidence-color);
+}
+
+.confidence--solid {
+  --confidence-color: var(--solid);
+  color: var(--confidence-color);
+}
+
+.confidence--thin {
+  --confidence-color: var(--thin);
+  color: var(--confidence-color);
+}
+
+.confidence--close {
+  --confidence-color: var(--close);
+  color: var(--confidence-color);
+}
+
+.confidence--danger {
+  --confidence-color: var(--danger);
+  color: var(--confidence-color);
+}
+
+/* Ghost cards mute their general numbers, but confidence values retain their
+   semantic hue. Opacity still keeps the coach suggestion visually lighter. */
+.slot--empty .metric__value[class*="confidence--"] {
+  color: var(--confidence-color);
+}
+
 /* Each metric is a column; justifying to the end bottom-aligns the values
    across columns even though "Market" is smaller than "-35.5". */
 .slot__numbers > div {
@@ -1150,7 +1196,7 @@
 .ladder {
   border-collapse: collapse;
   width: 100%;
-  min-width: 720px;
+  min-width: 790px;
 }
 
 /* Roomier than the week deck: this is the view you sit back and read the
@@ -1233,6 +1279,12 @@
   color: var(--ink-3);
 }
 
+/* Row-state colors describe ownership; these two cells still describe game
+   confidence, so their semantic color wins in locked, picked and coach rows. */
+.ladder tr td[class*="confidence--"] {
+  color: var(--confidence-color);
+}
+
 .ladder__week {
   font-family: var(--font-mono);
   color: var(--ink-3);
@@ -1257,6 +1309,10 @@
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
+}
+
+.ladder__season {
+  font-weight: 600;
 }
 
 .meter {
@@ -1305,12 +1361,21 @@
 }
 
 .burn__team--spent {
-  background: var(--surface-2);
-  color: var(--ink-3);
+  color: var(--on-accent);
+  background: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent-ink);
 }
 
 .burn__team--spent span:first-child {
-  text-decoration: line-through;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.burn__team--spent span:first-child::before {
+  content: "✓";
+  margin-right: 6px;
+  font-family: var(--font-body);
+  font-weight: 700;
 }
 
 .burn__rating {
@@ -1320,7 +1385,8 @@
 }
 
 .burn__team--spent .burn__rating {
-  color: var(--accent);
+  color: inherit;
+  font-weight: 700;
   text-decoration: none;
 }
 

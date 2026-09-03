@@ -51,7 +51,17 @@ assert.equal(empty.spentCount, 0, "coach suggestions must not spend teams");
 assert.equal(empty.pickedCount, 0);
 assert.ok(first.suggestion?.team, "the coach suggests a team for an open slot");
 assert.equal(first.onPath?.kind, "coach", "the path shows the suggestion as the coach's");
+assert.equal(
+  empty.weeks[0].pathTier,
+  confidenceTier(empty.weeks[0].pathWinProb, plan.tiers),
+  "the combined weekly probability uses the same confidence scale",
+);
 assert.ok(empty.plannedCount > 0, "the coach path is represented separately");
+assert.equal(
+  empty.weeks.at(-1).seasonWinProb,
+  empty.pathProbability,
+  "the last cumulative week matches season survival",
+);
 assert.ok(
   first.options.some((option) => option.isCoach && option.team === first.suggestion.team),
   "the coach's call is badged in the team list",
@@ -99,6 +109,11 @@ assert.equal(
   "an unlocked pick must not change committed season survival",
 );
 assert.equal(typeof picked.previewPathProbability, "number");
+assert.equal(
+  picked.weeks.at(-1).seasonWinProb,
+  picked.previewPathProbability,
+  "cumulative survival previews an unlocked pick",
+);
 assert.ok(
   pickedSlot.options.some((option) => option.isCoach && option.team === coachTeam),
   "the coach's call stays badged while a different team is picked",
@@ -119,6 +134,11 @@ assert.equal(locked.spentTeams[other], first.week);
 assert.equal(lockedSlot.status.result, "W", "locked picks receive feed results");
 assert.equal(lockedSlot.status.resultSource, "final");
 assert.equal(locked.previewPathProbability, null, "the preview is adopted and cleared on lock");
+assert.equal(
+  locked.weeks.at(-1).seasonWinProb,
+  locked.pathProbability,
+  "cumulative survival adopts the locked path",
+);
 assert.equal(locked.plannedTeams[other], undefined, "a locked team is not a coach-plan team");
 assert.equal(locked.pickedTeams[other], undefined, "a locked team is no longer merely picked");
 assert.equal(lockedSlot.isRecommended, false, "a locked team earns no coach badge");

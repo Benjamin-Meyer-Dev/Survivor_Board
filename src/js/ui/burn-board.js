@@ -1,8 +1,8 @@
 /**
  * Depth chart: every eligible team, best first, marked with where it sits on
  * the path. Three marks, kept apart so a suggestion is never mistaken for a
- * pick: locked teams are crossed off, picked-but-unlocked teams are outlined,
- * and teams that are only in the coach's plan are ghosted.
+ * pick: locked teams are filled and checked, picked-but-unlocked teams are
+ * outlined, and teams that are only in the coach's plan are ghosted.
  *
  * The legend runs across the foot of the chart. Each swatch in it is a tile
  * drawn by the same classes as the chart, in the state it explains, so the key
@@ -67,7 +67,7 @@ function legendMarkup(board, open) {
       badge: "W3",
       key: "Locked",
       count: board.spentCount,
-      note: "crossed off, W and the week it was burned",
+      note: "confirmed, W and the week it is reserved",
     },
     {
       swatch: "burn__team--picked",
