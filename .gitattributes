@@ -1,0 +1,6 @@
+# Keep repository text consistent on every operating system. This matches
+# .editorconfig and overrides a user's global core.autocrlf setting.
+* text=auto eol=lf
+
+# Generated app artwork must never pass through line-ending normalization.
+*.png binary
