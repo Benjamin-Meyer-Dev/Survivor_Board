@@ -1,8 +1,15 @@
 /**
  * The full path, week by week. Read-only; clicking a row moves the week panel.
+ *
+ * A row shows whatever the slot holds on the path: a locked or picked team
+ * drawn solid, or the coach's suggestion drawn faint, so the season reads as
+ * one line while staying clear about which weeks are actually decided.
  */
 
 import { formatSpread, formatPercent, formatMatchup, escapeHtml } from "../core/format.js";
+
+/** What an open row says while the optimiser has not reported yet. */
+const PLANNING = "Working out the path…";
 
 export function renderLadder(tbody, board, onSelectWeek) {
   tbody.innerHTML = board.weeks
@@ -16,11 +23,13 @@ export function renderLadder(tbody, board, onSelectWeek) {
 
 function rowMarkup(week, pick, board) {
   const isFirstSlot = pick.slot === 0;
-  const shown = pick.coachPick;
+  const shown = pick.onPath;
+  const kind = shown?.kind ?? "empty";
+  const pending = !shown && board.recommendationPending && week.week >= board.currentWeek;
   const classes = [
     week.week === board.currentWeek ? "is-current" : "",
     pick.status.result ? "is-resolved" : "",
-    pick.status.selected ? "is-selected" : shown ? "is-planned" : "is-unselected",
+    `is-${kind}`,
   ]
     .filter(Boolean)
     .join(" ");
@@ -29,7 +38,7 @@ function rowMarkup(week, pick, board) {
     <tr class="${classes}" data-week="${week.week}">
       <td class="ladder__week">${isFirstSlot ? week.week : ""}</td>
       <td class="is-wide-only" style="color:var(--ink-3);font-size:12px">${isFirstSlot ? escapeHtml(week.labelFull) : ""}</td>
-      <td class="ladder__team">${shown ? escapeHtml(shown.team) : "No pick"}</td>
+      <td class="ladder__team">${shown ? escapeHtml(shown.team) : pending ? PLANNING : "No pick"}</td>
       <td class="is-wide-only">${shown ? escapeHtml(formatMatchup(shown.site, shown.opponent)) : "—"}</td>
       <td class="is-narrow-only ladder__opponent">${shown ? escapeHtml(shown.opponent) : "—"}</td>
       <td class="is-wide-only" style="color:var(--ink-3)">${shown ? escapeHtml(shown.site) : "—"}</td>
@@ -45,16 +54,16 @@ function rowMarkup(week, pick, board) {
             : "—"
         }
       </td>
-      <td class="is-wide-only ladder__num">${isFirstSlot && week.coachWinProb !== null ? formatPercent(week.coachWinProb) : ""}</td>
-      <td>${statusChip(pick.status, Boolean(shown))}</td>
+      <td class="is-wide-only ladder__num">${isFirstSlot && week.pathWinProb !== null ? formatPercent(week.pathWinProb) : ""}</td>
+      <td>${statusChip(pick.status, kind)}</td>
     </tr>`;
 }
 
-function statusChip(status, hasPlan) {
+function statusChip(status, kind) {
   if (status.result === "W") return '<span class="chip chip--safe">Won</span>';
   if (status.result === "L") return '<span class="chip chip--danger">Lost</span>';
-  if (status.selected) return '<span class="chip chip--selected">Selected</span>';
-  return hasPlan
-    ? '<span class="chip chip--planned">Coach plan</span>'
-    : '<span class="ladder__blank">No selection</span>';
+  if (kind === "locked") return '<span class="chip chip--locked">Locked</span>';
+  if (kind === "picked") return '<span class="chip chip--picked">Picked</span>';
+  if (kind === "coach") return '<span class="chip chip--coach">Coach plan</span>';
+  return '<span class="ladder__blank">No pick</span>';
 }

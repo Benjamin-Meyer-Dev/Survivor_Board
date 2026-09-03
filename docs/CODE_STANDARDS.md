@@ -66,8 +66,7 @@ Keep it that way. Anything structural belongs in `components.css`.
 Football vocabulary is content, not decoration, and lives where the content
 does: `TIER_LABEL` in `core/probability.js` (Lock / Solid / Shaky / Upset
 alert), the tab labels in `ui/tabs.js`, the strip keys in `ui/strip.js`. Never
-let a themed word cost clarity, "Swap this slot" stayed literal for that
-reason.
+let a themed word cost clarity, "Pick a team" stayed literal for that reason.
 
 ## Motion
 
@@ -80,8 +79,8 @@ noise:
 - **Feedback for an action is a one-shot keyframe applied after the render**
   that produced the new markup (`playEffect` in `app.js`, `applyPanels` in
   `ui/tabs.js`). Never put an entrance animation on something that re-renders
-  on every action, the recommendation band and the notices deliberately have
-  none, because they would flash on every tap.
+  on every action, the notices deliberately have none, because they would
+  flash on every tap.
 
 Everything is switched off by the `prefers-reduced-motion` block in
 `base.css`, and nothing in the app depends on an animation completing.
@@ -106,7 +105,9 @@ Everything is switched off by the `prefers-reduced-motion` block in
   state, let the next write retry.
 - Never put a secret in `src/`. The Supabase anon key is public by design and
   is protected by row-level security, not by hiding it. The Odds API key lives
-  only in GitHub secrets and is used only by `scripts/`.
+  only in GitHub secrets and is used only by `scripts/`. The pool passcode is
+  nowhere in the repo: `config.js` holds its digest, written by
+  `npm run passcode`, and `npm test` fails if a plain passcode comes back.
 
 ## Data files
 

@@ -2,9 +2,15 @@
  * Domain model.
  *
  * Three inputs come together here, all scoped to the league that is open:
- *   plan   - data/<league>/plan.json, the season path and the pool's rules
- *   odds   - data/<league>/odds.json, market overrides from the refresh workflow
- *   entry  - the shared user state (selections, results, swaps) from the store
+ *   plan   - data/<league>/plan.json: the pool's rules, the season calendar,
+ *            and an authored path that seeds the optimiser
+ *   odds   - data/<league>/odds.json, market lines from the refresh workflow
+ *   entry  - the shared user state (picks, locks, results) from the store
+ *
+ * Every slot on the board is user-picked. The coach never fills one: it makes
+ * suggestions, and those ride alongside the slot for the UI to badge or ghost.
+ * Locking a pick is what commits it, and the coach re-plans the rest of the
+ * season around whatever is locked.
  *
  * Everything the UI renders is derived from `buildBoard`, including how many
  * picks a week holds and whether a loss can be bought back. No module below
@@ -50,36 +56,63 @@ export function slotKey(week, slot) {
 
 /**
  * Key for a market line in data/odds.json. Keyed by team rather than by slot
- * so a line can be found for any team the user swaps to, not just the two the
- * plan happened to name.
+ * so a line can be found for any team the users pick, not just the ones the
+ * authored plan happened to name.
  */
 export function lineKey(week, team) {
   return `${week}|${team}`;
 }
 
 /**
- * Resolve one slot into the pick that is actually live, applying any market
- * line and any backup the users have swapped in.
+ * Resolve one slot into the pick it holds: the team the users put there, priced
+ * off the market line when there is one.
  *
- * @returns {{team:string, opponent:string, site:string, spread:number,
- *            source:string, winProb:number, tier:string, rationale:string,
- *            isSwapped:boolean, conference:string}}
+ * A slot nobody has picked is empty (`team: null`). The coach's suggestion for
+ * it is attached later, once the recommendation has run, and never becomes the
+ * pick by itself.
+ *
+ * @returns {{team:string|null, status:{picked:boolean, locked:boolean,
+ *            result:"W"|"L"|null, resultSource:"you"|"final"|null}}} plus, when
+ *   a team is held: opponent, site, conference, spread, source, winProb, tier.
  */
 function resolvePick({ weekPlan, odds, entry, teams, options, week, slot, tiers }) {
-  // A swap stores the chosen TEAM. Anything else (including the old numeric
-  // backup index) is treated as "no swap", so stale entries degrade quietly.
-  const swapped = entry.swaps?.[slotKey(week, slot)];
-  const chosen =
-    typeof swapped === "string" ? options.find((option) => option.team === swapped) : null;
-  const isSwapped = Boolean(chosen);
+  const key = slotKey(week, slot);
+  const saved = entry.picks?.[key] ?? {};
+  // `locked` is the persisted name for a committed pick. A result implies one:
+  // a game cannot be won or lost by a slot nobody picked.
+  const locked = Boolean(saved.locked || saved.result);
 
-  const planPick = weekPlan.picks[slot];
-  const base = chosen ?? options.find((option) => option.team === planPick.team) ?? planPick;
+  // `swaps` holds the team picked for each slot. The name predates slots being
+  // user-picked, when it held only departures from the authored plan, and is
+  // kept so saved entries keep loading. Anything that is not a team playing
+  // this week counts as no pick, so a stale entry degrades quietly.
+  const picked = entry.swaps?.[key];
+  let base =
+    typeof picked === "string" ? options.find((option) => option.team === picked) : undefined;
+
+  // Entries saved before slots were user-picked could lock the authored plan's
+  // team without storing it. That is still a lock on that team.
+  if (!base && locked) {
+    const planPick = weekPlan.picks?.[slot];
+    base = options.find((option) => option.team === planPick?.team) ?? planPick;
+  }
+
+  if (!base) {
+    return {
+      week,
+      slot,
+      team: null,
+      status: { picked: false, locked: false, result: null, resultSource: null },
+    };
+  }
 
   const line = odds.lines?.[lineKey(week, base.team)];
   const spread = line?.spread ?? base.spread;
-  const source = line ? "market" : (base.source ?? "projected");
   const winProb = line?.winProb ?? winProbFromSpread(spread);
+  // A result you set by hand always wins. Otherwise the refresh job's recorded
+  // final stands, so a locked pick keeps up on its own. An unlocked pick never
+  // receives one: the feed cannot commit a choice for you.
+  const fetched = locked ? (odds.results?.[lineKey(week, base.team)] ?? null) : null;
 
   return {
     week,
@@ -89,10 +122,16 @@ function resolvePick({ weekPlan, odds, entry, teams, options, week, slot, tiers 
     site: base.site,
     conference: conferenceOf(teams, base.team),
     spread,
-    source,
+    source: line ? "market" : (base.source ?? "projected"),
     winProb,
     tier: confidenceTier(winProb, tiers),
-    isSwapped,
+    status: {
+      ...saved,
+      picked: true,
+      locked,
+      result: saved.result ?? fetched,
+      resultSource: saved.result ? "you" : fetched ? "final" : null,
+    },
   };
 }
 
@@ -164,6 +203,12 @@ export function allTeams(teams) {
   return out;
 }
 
+/** The fields of a pick or an option that describe its game, and nothing else. */
+function lineOf(pick) {
+  const { team, opponent, site, conference, spread, source, winProb, tier } = pick;
+  return { team, opponent, site, conference, spread, source, winProb, tier };
+}
+
 /**
  * Build the full derived board the UI renders from.
  *
@@ -191,13 +236,12 @@ export function buildBoard({
   const rules = rulesOf(plan);
   const slots = Array.from({ length: rules.picksPerWeek }, (_, index) => index);
 
-  // Pass one: resolve what each slot actually holds. Options for a week are
-  // built once and shared by every slot in it.
+  // Pass one: resolve what each slot holds. Options for a week are built once
+  // and shared by every slot in it.
   const weeks = plan.weeks.map((weekPlan) => {
     const options = weekOptions({ schedule, ratings, teams, odds, week: weekPlan.week });
-
-    const picks = slots.map((slot) => {
-      const pick = resolvePick({
+    const picks = slots.map((slot) =>
+      resolvePick({
         weekPlan,
         odds,
         entry,
@@ -206,23 +250,8 @@ export function buildBoard({
         week: weekPlan.week,
         slot,
         tiers: rules.tiers,
-      });
-      const saved = entry.picks?.[slotKey(weekPlan.week, slot)] ?? {};
-      // `locked` is the persisted, backwards-compatible name for a user
-      // selection. A feed result only belongs to a selected team: the coach's
-      // untouched plan must never turn into an actual pick by itself.
-      const selected = Boolean(saved.locked || saved.result);
-      // A result you set by hand always wins. Otherwise the refresh job's
-      // recorded final stands, so a selected pick keeps up on its own.
-      const fetched = selected ? (odds.results?.[lineKey(weekPlan.week, pick.team)] ?? null) : null;
-      const status = {
-        ...saved,
-        selected,
-        result: saved.result ?? fetched,
-        resultSource: saved.result ? "you" : fetched ? "final" : null,
-      };
-      return { ...pick, status, planTeam: weekPlan.picks[slot].team };
-    });
+      }),
+    );
 
     return {
       week: weekPlan.week,
@@ -233,20 +262,18 @@ export function buildBoard({
       kickoff: weekPlan.kickoff,
       options,
       picks,
-      // Chance the week is survived outright. With one pick that is just the
-      // pick; with two it is both holding.
-      weekWinProb: picks.reduce((total, pick) => total * pick.winProb, 1),
       isBuyBack: rules.buyBackWeeks.includes(weekPlan.week),
     };
   });
 
-  // Only user selections spend teams. The authored path and live coach advice
-  // are proposals, so neither can burn a team or create a rule conflict.
+  // Only locked picks spend teams. An unlocked pick is still being weighed and
+  // the coach's advice is only advice, so neither can burn a team or create a
+  // rule conflict.
   const spentTeams = {};
   const conflicts = [];
   for (const week of weeks) {
     for (const pick of week.picks) {
-      if (!pick.status.selected) continue;
+      if (!pick.status.locked) continue;
       if (spentTeams[pick.team] !== undefined) {
         conflicts.push({ team: pick.team, weeks: [spentTeams[pick.team], week.week] });
       } else {
@@ -255,13 +282,16 @@ export function buildBoard({
     }
   }
 
-  // Pass two: now that every week is resolved, annotate each option with why
-  // it may not be available - taken by the other slot, or spent another week.
+  // Pass two: annotate each slot's options with why one may be unavailable -
+  // held by the other slot this week, or locked in another week. Whether the
+  // coach likes an option is filled in below, once the recommendation is known.
   for (const week of weeks) {
     for (const pick of week.picks) {
-      // Every other slot this week. Empty in a one-pick league.
+      // Every other slot's team this week. Empty in a one-pick league.
       const siblings = new Set(
-        week.picks.filter((other) => other.slot !== pick.slot).map((other) => other.team),
+        week.picks
+          .filter((other) => other.slot !== pick.slot && other.team)
+          .map((other) => other.team),
       );
       // Sorted by spread, but anything unavailable sinks to the bottom - the
       // top of the list should be teams you can actually take.
@@ -274,12 +304,12 @@ export function buildBoard({
             ...option,
             tier: confidenceTier(option.winProb, rules.tiers),
             isCurrent: option.team === pick.team,
-            isPlan: option.team === pick.planTeam,
+            isCoach: false,
             disabled: takenBySibling || usedElsewhere,
             reason: takenBySibling
               ? "other slot this week"
               : usedElsewhere
-                ? `used week ${spentWeek}`
+                ? `locked week ${spentWeek}`
                 : "",
           };
         })
@@ -291,15 +321,19 @@ export function buildBoard({
     }
   }
 
-  // Survival is not just the product of what is left: a buy back week can be
-  // lost and played through. core/survival.js owns that maths.
+  // Results live only on locked picks, so the record and the buy backs come
+  // from what the users hold. The season number is worked out further down,
+  // once the coach has filled in the open slots. core/survival.js owns the
+  // maths either way: a buy back week can be lost and played through.
   const outcome = survival({
     picks: weeks.flatMap((week) =>
-      week.picks.map((pick) => ({
-        week: week.week,
-        winProb: pick.winProb,
-        result: pick.status.result ?? null,
-      })),
+      week.picks
+        .filter((pick) => pick.team)
+        .map((pick) => ({
+          week: week.week,
+          winProb: pick.winProb,
+          result: pick.status.result ?? null,
+        })),
     ),
     buyBackWeeks: rules.buyBackWeeks,
     buyBacks: rules.buyBacks,
@@ -335,64 +369,64 @@ export function buildBoard({
   };
 
   // The recommendation is the expensive part of a build (a beam search over
-  // the remaining weeks), and it depends only on the week, what is committed,
-  // and the odds - NOT on the free selections you are still moving around. So
-  // it is memoised on those, and a swap re-renders instantly.
+  // the remaining weeks), and it depends only on the week, what is locked, and
+  // the odds - NOT on the unlocked picks you are still weighing. So it is
+  // memoised on those: locking or unlocking re-plans, picking does not.
   const cached = memoisedRecommendation(board, plan, odds, allowSearch);
   const recommendation = cached ?? { picks: {}, pathProbability: 0, shortfalls: [] };
   board.recommendation = recommendation;
   board.recommendationPending = cached === null;
 
   for (const week of board.weeks) {
-    const teams = recommendation.picks[week.week] ?? [];
-    week.recommended = teams.map((team) => week.options.find((o) => o.team === team) ?? { team });
+    const names = recommendation.picks[week.week] ?? [];
+    week.recommended = names.flatMap((team) => {
+      const option = week.options.find((o) => o.team === team);
+      return option ? [{ ...option, tier: confidenceTier(option.winProb, rules.tiers) }] : [];
+    });
+    const coachTeams = new Set(week.recommended.map((option) => option.team));
+
     for (const pick of week.picks) {
-      pick.isRecommended = teams.includes(pick.team);
+      // The badge belongs on an unlocked pick that agrees with the coach. A
+      // locked team is in the recommendation by construction - the search had
+      // to keep it - so it earns nothing.
+      pick.isRecommended = Boolean(pick.team) && !pick.status.locked && coachTeams.has(pick.team);
+      for (const option of pick.options) option.isCoach = coachTeams.has(option.team);
     }
 
-    // Give every unselected row one coach pick for read-only season views.
-    // Selected teams are removed first because the recommendation contains
-    // those fixed decisions as well as its advice for the remaining slots.
-    const selectedTeams = new Set(
-      week.picks.filter((pick) => pick.status.selected).map((pick) => pick.team),
-    );
-    const suggestions = week.recommended.filter((option) => !selectedTeams.has(option.team));
-    let suggestionIndex = 0;
+    // One suggestion per empty slot. Teams already in a slot this week come
+    // out first, because the recommendation holds those fixed decisions as
+    // well as its advice for the open slots.
+    const held = new Set(week.picks.filter((pick) => pick.team).map((pick) => pick.team));
+    const suggestions = week.recommended.filter((option) => !held.has(option.team));
+    let next = 0;
     for (const pick of week.picks) {
-      const suggestion = suggestions[suggestionIndex];
-      pick.coachPick = pick.status.selected
-        ? pick
-        : week.week < board.currentWeek
-          ? null
-          : suggestion
-            ? {
-                ...suggestion,
-                tier: confidenceTier(suggestion.winProb, rules.tiers),
-                planned: true,
-              }
-            : { ...pick, planned: true };
-      if (!pick.status.selected) suggestionIndex += 1;
+      pick.suggestion = pick.team ? null : (suggestions[next] ?? null);
+      if (!pick.team) next += 1;
     }
-    const coached = week.picks.map((pick) => pick.coachPick).filter(Boolean);
-    week.coachWinProb = coached.length
-      ? coached.reduce((total, pick) => total * pick.winProb, 1)
+
+    // What the slot holds on the season path: the users' team if there is one,
+    // else the coach's suggestion. `kind` tells the UI how solid to draw it.
+    for (const pick of week.picks) {
+      pick.onPath = pick.team
+        ? { ...lineOf(pick), kind: pick.status.locked ? "locked" : "picked" }
+        : pick.suggestion
+          ? { ...lineOf(pick.suggestion), kind: "coach" }
+          : null;
+    }
+    const onPath = week.picks.map((pick) => pick.onPath).filter(Boolean);
+    week.pathWinProb = onPath.length
+      ? onPath.reduce((total, pick) => total * pick.winProb, 1)
       : null;
   }
 
-  // Season survival follows the coach path for every open slot and the users'
-  // actual team for every selected slot. Advice can therefore move with the
-  // odds without rewriting a single user choice.
+  // Season survival follows the path: the users' team wherever they have put
+  // one, the coach's suggestion everywhere else. Advice can therefore move
+  // with the odds without rewriting a single user choice.
   board.pathProbability = survival({
     picks: board.weeks.flatMap((week) =>
       week.picks.flatMap((pick) =>
-        pick.coachPick
-          ? [
-              {
-                week: week.week,
-                winProb: pick.coachPick.winProb,
-                result: pick.status.selected ? (pick.status.result ?? null) : null,
-              },
-            ]
+        pick.onPath
+          ? [{ week: week.week, winProb: pick.onPath.winProb, result: pick.status.result ?? null }]
           : [],
       ),
     ),
@@ -400,20 +434,26 @@ export function buildBoard({
     buyBacks: rules.buyBacks,
   }).probability;
 
-  // The depth chart carries both truths at once: crossed-out teams were
-  // selected by users, while outlined teams are merely in the coach's plan.
+  // The depth chart carries all three truths: crossed-out teams are locked,
+  // outlined teams are picked but not yet locked, and ghosted teams are only
+  // in the coach's plan.
+  board.pickedTeams = {};
   board.plannedTeams = {};
   for (const week of board.weeks) {
+    if (week.week < board.currentWeek) continue;
     for (const pick of week.picks) {
-      if (week.week < board.currentWeek || pick.status.result) continue;
-      const candidate = pick.coachPick;
-      if (candidate?.spread > threshold) {
+      const candidate = pick.onPath;
+      if (!candidate || pick.status.result) continue;
+      if (candidate.spread > threshold) {
         board.flagged.push({ week: week.week, team: candidate.team, spread: candidate.spread });
       }
-      if (!candidate?.planned || board.spentTeams[candidate.team] !== undefined) continue;
-      board.plannedTeams[candidate.team] ??= week.week;
+      if (candidate.kind === "picked") board.pickedTeams[candidate.team] ??= week.week;
+      if (candidate.kind === "coach" && spentTeams[candidate.team] === undefined) {
+        board.plannedTeams[candidate.team] ??= week.week;
+      }
     }
   }
+  board.pickedCount = Object.keys(board.pickedTeams).length;
   board.plannedCount = Object.keys(board.plannedTeams).length;
 
   return board;
@@ -425,7 +465,7 @@ function memoisedRecommendation(board, plan, odds, allowSearch) {
   const committed = [];
   for (const week of board.weeks) {
     for (const pick of week.picks) {
-      if (pick.status.selected) {
+      if (pick.status.locked) {
         committed.push(`${week.week}:${pick.slot}:${pick.team}:${pick.status.result ?? "L"}`);
       }
     }
@@ -445,12 +485,16 @@ function memoisedRecommendation(board, plan, odds, allowSearch) {
   // Nothing cached for this board and the caller does not want to wait.
   if (!allowSearch) return null;
 
-  // Seeded with the authored plan rather than the live selection, so the
-  // result stays stable while you try swaps out.
+  // The authored plan competes as one more finalist, so the coach never comes
+  // back with a path worse than the one in plan.json. A locked slot takes the
+  // locked team instead: the plan is only a proposal for the slots still open.
   const seed = {};
-  for (const weekPlan of plan.weeks) {
-    if (weekPlan.week < board.currentWeek) continue;
-    seed[weekPlan.week] = weekPlan.picks.map((pick) => pick.team);
+  for (const week of board.weeks) {
+    if (week.week < board.currentWeek) continue;
+    const weekPlan = plan.weeks.find((entry) => entry.week === week.week);
+    seed[week.week] = week.picks.map((pick, slot) =>
+      pick.status.locked ? pick.team : (weekPlan?.picks[slot]?.team ?? null),
+    );
   }
 
   const value = recommendForBoard(board, seed);

@@ -13,8 +13,10 @@
 
     <!-- Installable to a phone home screen. Chrome needs the manifest's 192
          and 512 icons plus the service worker registered in app.js before it
-         will offer Install; iOS reads the apple-* tags instead. -->
+         will offer Install; iOS reads the apple-* tags instead. The icons are
+         the startup animation's football; `npm run icons` redraws them. -->
     <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="icon" href="./icons/icon-192.png" sizes="192x192" type="image/png" />
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -142,7 +144,8 @@
           hidden
         >
           <p class="view__note">
-            <span id="burn-count"></span>. W marks a selected pick; P marks the coach’s plan.
+            <span id="burn-count"></span>. W marks a pick, crossed out once it is locked; P marks
+            the coach’s plan.
           </p>
           <div class="burn" id="burn"></div>
         </section>

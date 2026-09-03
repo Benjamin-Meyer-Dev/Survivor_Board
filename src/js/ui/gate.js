@@ -9,8 +9,13 @@
 /**
  * Render the gate into `root` and resolve once `check` accepts an answer.
  *
+ * `check` may be async: deriving the passcode digest takes a moment on purpose,
+ * so the button is held disabled until it answers and a double tap cannot start
+ * a second derivation. If `check` throws, its message is shown in place of the
+ * wrong-answer line and the typed value is kept.
+ *
  * @param {HTMLElement} root
- * @param {(value: string) => boolean} check
+ * @param {(value: string) => boolean | Promise<boolean>} check
  * @returns {Promise<void>}
  */
 export function requireGate(root, check) {
@@ -20,8 +25,10 @@ export function requireGate(root, check) {
 
     const form = root.querySelector("form");
     const input = root.querySelector("input");
+    const submit = root.querySelector(".gate__btn");
     const error = root.querySelector(".gate__error");
     const visibility = root.querySelector(".gate__visibility");
+    let checking = false;
 
     visibility.addEventListener("click", () => {
       const showing = input.type === "text";
@@ -31,13 +38,37 @@ export function requireGate(root, check) {
       input.focus();
     });
 
-    form.addEventListener("submit", (event) => {
+    form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (checking) return;
 
-      if (check(input.value)) {
+      checking = true;
+      submit.disabled = true;
+      form.setAttribute("aria-busy", "true");
+      error.textContent = "";
+
+      let accepted = false;
+      let failure = null;
+      try {
+        accepted = await check(input.value);
+      } catch (cause) {
+        failure = cause;
+      }
+
+      checking = false;
+      submit.disabled = false;
+      form.removeAttribute("aria-busy");
+
+      if (accepted) {
         root.hidden = true;
         root.innerHTML = "";
         resolve();
+        return;
+      }
+
+      if (failure) {
+        error.textContent = failure.message;
+        input.focus();
         return;
       }
 

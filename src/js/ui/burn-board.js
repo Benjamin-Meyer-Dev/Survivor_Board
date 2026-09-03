@@ -1,6 +1,8 @@
 /**
- * Depth chart: selected teams are spent; coach-planned teams are advisory.
- * Both appear without conflating a suggestion with a user's actual pick.
+ * Depth chart: every eligible team, best first, marked with where it sits on
+ * the path. Three marks, kept apart so a suggestion is never mistaken for a
+ * pick: locked teams are crossed off, picked-but-unlocked teams are outlined,
+ * and teams that are only in the coach's plan are ghosted.
  */
 
 import { escapeHtml } from "../core/format.js";
@@ -15,31 +17,38 @@ export function renderBurnBoard(root, countEl, board, teams) {
 
   root.innerHTML = sorted
     .map(([team, { rating }], index) => {
-      const spentWeek = board.spentTeams[team];
-      const plannedWeek = board.plannedTeams[team];
-      const badge = spentWeek
-        ? `W${spentWeek}`
-        : plannedWeek
-          ? `P${plannedWeek}`
-          : `${rating > 0 ? "+" : ""}${rating}`;
-      const stateClass = spentWeek
-        ? " burn__team--spent"
-        : plannedWeek
-          ? " burn__team--planned"
-          : "";
-      const stateTitle = spentWeek
-        ? ` · selected week ${spentWeek}`
-        : plannedWeek
-          ? ` · coach plan week ${plannedWeek}`
-          : "";
+      const mark = markFor(board, team);
+      const badge = mark ? `${mark.letter}${mark.week}` : `${rating > 0 ? "+" : ""}${rating}`;
       return `
-        <div class="burn__team${stateClass}" style="--i:${index}"
-             title="${escapeHtml(team)} · ${escapeHtml(scale)} ${rating}${stateTitle}">
+        <div class="burn__team${mark ? ` burn__team--${mark.state}` : ""}" style="--i:${index}"
+             title="${escapeHtml(team)} · ${escapeHtml(scale)} ${rating}${mark ? ` · ${mark.title}` : ""}">
           <span>${escapeHtml(team)}</span>
           <span class="burn__rating">${escapeHtml(badge)}</span>
         </div>`;
     })
     .join("");
 
-  countEl.textContent = `${board.spentCount} selected · ${board.plannedCount} in coach plan`;
+  countEl.textContent = `${board.spentCount} locked · ${board.pickedCount} picked · ${board.plannedCount} in coach plan`;
+}
+
+/** Locked beats picked beats planned, so a team shows its firmest commitment. */
+function markFor(board, team) {
+  const spent = board.spentTeams[team];
+  if (spent !== undefined) {
+    return { state: "spent", letter: "W", week: spent, title: `locked week ${spent}` };
+  }
+  const picked = board.pickedTeams[team];
+  if (picked !== undefined) {
+    return {
+      state: "picked",
+      letter: "W",
+      week: picked,
+      title: `picked week ${picked}, not locked`,
+    };
+  }
+  const planned = board.plannedTeams[team];
+  if (planned !== undefined) {
+    return { state: "planned", letter: "P", week: planned, title: `coach plan week ${planned}` };
+  }
+  return null;
 }

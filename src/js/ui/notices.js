@@ -12,11 +12,11 @@ export function renderNotices(root, { store, board, message }) {
 
   if (!store.shared) {
     notices.push(
-      "Shared saving is off, so selections and results stay on this device only. The coach plan and odds are still current.",
+      "Shared saving is off, so picks, locks and results stay on this device only. The coach's suggestions and the odds are still current.",
     );
   }
 
-  // Unreachable once the passcode gate has passed, since the same value opens
+  // Unreachable once the passcode gate has passed, since the same digest opens
   // the store. Kept so a mismatch says something rather than greying out buttons.
   if (!store.canWrite) {
     notices.push("You are viewing in read-only mode. This device's passcode does not match.");

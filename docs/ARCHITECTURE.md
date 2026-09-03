@@ -28,7 +28,7 @@ A static site with no build step, one scheduled job, and one tiny database.
         │                    data/<league>/{plan,teams,schedule,
         │                                 ratings,odds}.json
         │                                  │
-        └──── locks / results / swaps ─────┴──▶ Supabase (realtime)
+        └──── picks / locks / results ─────┴──▶ Supabase (realtime)
                 one row per league
 ```
 
@@ -78,15 +78,23 @@ Keeping them separate is what lets a bot rewrite the numbers every day
 without ever touching the strategy or the markup. A merge conflict between the
 bot and a human edit is impossible because they never write the same file.
 
-## Recommendation vs selection
+## Suggestion vs pick
 
 Two different things, deliberately kept apart:
 
-- **Your selection** is what the board holds, the plan's pick, or whatever you
-  swapped in. It is the only thing stored in the shared entry.
-- **The recommendation** is what `core/recommend.js` computes from the current
-  odds. It is never written to state and never changes a pick on its own; it
-  sits above the two slots with a "Use these" button, and you decide.
+- **Your pick** is the team you put in a slot, and **locking** it is what
+  commits it. Picks, locks and results are the only things stored in the shared
+  entry. A slot nobody has picked is empty.
+- **The coach's suggestion** is what `core/recommend.js` computes from the
+  current odds. It is never written to state and never becomes a pick on its
+  own. It shows as a badge on the team in the list, as a ghosted stand-in where
+  a slot is empty, and as faint rows on the Gameplan tab, and you decide.
+
+Locking is the boundary. The coach plans as if every unlocked slot were open,
+so picking a team and changing your mind cost nothing; the moment a pick is
+locked or unlocked, the rest of the season is re-planned around what is now
+committed. `plan.json` still carries an authored path, but only as the
+optimiser's seed and the season calendar. It never fills a slot.
 
 The optimiser is a beam search over the remaining weeks (`BEAM_WIDTH` 160,
 `CANDIDATE_WIDTH` 12). Exact search is impossible, state is the set of teams
@@ -112,23 +120,23 @@ Three details make it work:
    one for week 12; the exact re-score is what decides whether that was
    actually better. Without buy backs there is one pass and nothing changes.
 
-Anything locked or already resolved is a hard constraint, the optimiser works
-around a decision you have committed to rather than pretending you can take it
-back.
+Anything locked is a hard constraint, the optimiser works around a decision you
+have committed to rather than pretending you can take it back. The seed takes
+the locked team in any locked slot for the same reason.
 
 The recommendation is memoised on `(league, currentWeek, buy backs left,
-odds.updatedAt, committed picks)`. It deliberately does NOT depend on your free
-selections, so trying swaps out re-renders instantly instead of re-running the
+odds.updatedAt, locked picks)`. It deliberately does NOT depend on unlocked
+picks, so trying teams out re-renders instantly instead of re-running the
 search on every tap. A memoised rebuild is a few milliseconds.
 
 The search itself is a few hundred milliseconds and cannot be interrupted, so
 a board it has never seen before is built in two passes.
 `buildBoard({allowSearch: false})` returns immediately with
-`recommendationPending` set; the board paints, the panel holds the band's place
-with "Working out the path", and the search runs on a timer once the entrance
-animation is over. Running it any earlier does not just delay the paint, it
-stalls whatever animation is mid-flight and makes it jump. This is what a first
-load and a league switch both do.
+`recommendationPending` set; the board paints, empty slots and open rows say
+"Working out the path", and the search runs on a timer once the animation in
+flight is over. Running it any earlier does not just delay the paint, it
+stalls whatever animation is mid-flight and makes it jump. A first load, a
+league switch, and a lock or unlock all go this way.
 
 Two optimisations keep that search near 400 ms rather than near two seconds,
 both in the expansion loop, where a two-pick week turns each of 160 beams into
@@ -150,8 +158,9 @@ not yet resolved. A resolved win drops out of the product (it happened); a
 resolved loss makes it zero, unless a buy back covers that week. So it moves on
 its own in three situations:
 
-1. **You swap a team.** The board rebuilds, the new team's probability
-   replaces the old one.
+1. **You pick or change a team.** The board rebuilds, the new team's
+   probability replaces the old one, or the coach's suggestion where a slot is
+   left empty.
 2. **You mark a pick won or lost.**
 3. **A game finishes.** The refresh job reads the Odds API scores endpoint and
    writes `results` into `data/odds.json`, keyed `"<week>|<team>"`. The board
@@ -189,7 +198,7 @@ them. New numbers in an early week can change the right answer in week 11, so
 the whole remaining path is recomputed, not just the current week. If the
 advice moved, the job says so in the run log and opens a GitHub issue.
 
-It still never edits `plan.json`. Advice is advice; the swap is yours.
+It still never edits `plan.json`. Advice is advice; the pick is yours.
 `scripts/validate-plan.mjs` enforces the pool rules in CI so a bad hand-edit
 cannot ship.
 
@@ -199,7 +208,7 @@ Three sources, merged in `core/plan.js` and nowhere else:
 
 - **plan**, what we intend to do
 - **odds**, what the market currently says
-- **entry**, what the two of us have actually done (locks, results, swaps)
+- **entry**, what the two of us have actually done (picks, locks, results)
 
 `buildBoard()` folds them into one derived object. Every module under
 `src/js/ui/` renders from that object and never reads the raw JSON. That is
@@ -225,5 +234,7 @@ any backend exists.
   the repo. The trade is that offline shows the last board this device loaded
   rather than a guaranteed-complete app.
 - **No auth.** A shared passcode gates the board once per device and unlocks
-  writes. It ships in the page, so it keeps out passers-by, not anyone
-  determined. Turn on Supabase Auth if the pool gets serious.
+  writes. Only its PBKDF2 digest ships in the page (`core/passcode.js`), so the
+  passcode cannot be read out of the repo, but the check still runs in the
+  browser, so it keeps out passers-by, not anyone determined. Turn on Supabase
+  Auth if the pool gets serious.

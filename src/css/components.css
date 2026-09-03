@@ -247,8 +247,12 @@
 }
 
 .startup__scene {
+  --startup-scene: min(72vw, 310px);
+  /* How far the ball travels, 20% to 80% of the scene, in the scene's own
+     unit so motion.css can move it with a transform rather than `left`. */
+  --startup-track: calc(var(--startup-scene) * 0.6);
   position: relative;
-  width: min(72vw, 310px);
+  width: var(--startup-scene);
   height: 84px;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
@@ -292,8 +296,20 @@
   left: 20%;
   right: 20%;
   top: 50%;
-  border-top: 2px dashed var(--accent);
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--accent) 0 6px, transparent 6px 11px);
   opacity: 0.45;
+}
+
+/* A curtain in the ground colour that motion.css pulls back to draw the route
+   in. It rests open, so with animation switched off the whole route shows. */
+.startup__route::after {
+  content: "";
+  position: absolute;
+  inset: -1px -1px -1px 0;
+  background: var(--ground);
+  transform: scaleX(0);
+  transform-origin: right;
 }
 
 .startup__ball {
@@ -476,8 +492,14 @@
   cursor: pointer;
 }
 
-.gate__btn:hover {
+.gate__btn:hover:not(:disabled) {
   background: var(--accent-ink);
+}
+
+/* Held while the digest derives; it is slow on purpose, see core/passcode.js. */
+.gate__btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
 }
 
 .gate__error {
@@ -602,73 +624,7 @@
   border-bottom-color: var(--mulligan);
 }
 
-/* recommendation band ---------------------------------------------------- */
-
-.recommend {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--sp-2) var(--sp-3);
-  padding: 10px var(--sp-5);
-  background: var(--accent-soft);
-  border-bottom: 1px solid var(--line-soft);
-}
-
-.recommend--match {
-  background: var(--surface-2);
-}
-
-.recommend__label {
-  color: var(--accent-ink);
-  flex: none;
-}
-
-.recommend--match .recommend__label {
-  color: var(--ink-3);
-}
-
-.recommend__note {
-  font-size: 12px;
-  color: var(--ink-3);
-}
-
-.recommend__teams {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2) var(--sp-3);
-  min-width: 0;
-}
-
-.recommend__team {
-  display: inline-flex;
-  align-items: baseline;
-  line-height: 1.3;
-  gap: 5px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--accent-ink);
-}
-
-.recommend__spread {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: var(--accent);
-}
-
-.btn--apply {
-  margin-left: auto;
-  flex: none;
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-/* Holding the band's place while the optimiser runs. Dimmed rather than
-   skeleton-shimmered: it is gone in a few hundred milliseconds, and a pulsing
-   placeholder draws more attention than the thing it stands in for. */
-.recommend--waiting .recommend__note {
-  color: var(--ink-3);
-  font-style: italic;
-}
+/* slot state chips ------------------------------------------------------- */
 
 .chip--final {
   background: var(--surface-2);
@@ -676,15 +632,29 @@
   box-shadow: inset 0 0 0 1px var(--line);
 }
 
+/* A pick that agrees with the coach. Tinted, not outlined: it confirms a
+   choice already made rather than proposing one. */
 .chip--rec {
   background: var(--accent-soft);
   color: var(--accent-ink);
 }
 
-.chip--planned {
+/* Picked but not locked: outlined, so it reads as provisional. */
+.chip--picked {
   color: var(--accent);
   background: transparent;
   box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* The coach's suggestion. Dashed and dimmed - the same "not fully coloured"
+   treatment the ghosted slot, the ladder row and the depth chart use - so a
+   suggestion looks the same wherever it appears and is never taken for a pick. */
+.chip--coach {
+  color: var(--accent);
+  background: transparent;
+  outline: 1px dashed var(--accent);
+  outline-offset: -1px;
+  opacity: 0.8;
 }
 
 /* Declared after .panel on purpose: a slide sits inside the tab card now, so
@@ -720,17 +690,48 @@
   min-width: 0;
 }
 
-.slot--selected {
+.slot--locked {
   background: var(--lock-bg);
 }
 
-.slot--planned {
+.slot--picked {
+  background: var(--surface);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* Nothing picked. The coach's suggestion is drawn in as a ghost: muted ink,
+   dimmed chips and numbers, a faint sideline. Everything about it says
+   "pencilled in", and the disabled actions beneath say it is not yours yet. */
+.slot--empty {
   background: var(--surface-2);
   box-shadow: inset 3px 0 0 var(--line);
 }
 
-.slot--planned .slot__team {
+.slot--empty .slot__team {
   color: var(--ink-2);
+  font-weight: 600;
+}
+
+.slot--empty .slot__matchup,
+.slot--empty .metric__value {
+  color: var(--ink-3);
+}
+
+.slot--empty .slot__head .chip,
+.slot--empty .slot__numbers {
+  opacity: 0.7;
+}
+
+/* "Coach suggests", above the ghosted team name. */
+.slot__eyebrow {
+  margin-bottom: 4px;
+  color: var(--accent);
+}
+
+/* An empty slot with nothing to suggest yet, or nothing to suggest at all. */
+.slot__team--blank {
+  font-style: italic;
+  color: var(--ink-3);
 }
 
 .slot__head {
@@ -850,7 +851,7 @@
 }
 
 .chip--lock,
-.chip--selected {
+.chip--locked {
   background: var(--lock-bg);
   color: var(--lock);
 }
@@ -929,6 +930,12 @@
   margin-bottom: 6px;
 }
 
+/* Stands where the list would be on a locked slot. */
+.swap--locked .swap__label {
+  margin-bottom: 0;
+  color: var(--ink-3);
+}
+
 .swap__filter {
   width: 100%;
   padding: 8px 10px;
@@ -1003,8 +1010,9 @@
   min-width: 0;
 }
 
-/* Filled rather than tinted: this marks the pick the plan actually chose, so
-   it should be the loudest thing in the row after the team name.
+/* Filled rather than tinted: this marks the coach's call, and it is the whole
+   of how the coach steers a pick, so it should be the loudest thing in the row
+   after the team name.
 
    Box-centring alone still read high, because uppercase condensed type has
    its optical centre at cap-height while the mixed-case name beside it centres
@@ -1124,19 +1132,37 @@
   color: var(--ink-3);
 }
 
-.ladder tr.is-planned td {
-  color: var(--ink-2);
-  background-image: linear-gradient(90deg, var(--surface-2), transparent 55%);
-}
-
-.ladder tr.is-planned .ladder__team {
-  font-style: italic;
-  font-weight: 500;
-}
-
-.ladder tr.is-selected .ladder__team {
+/* Locked and picked teams are drawn solid; the coach's suggestions are faint
+   and italic, so the season reads as one line while making plain which weeks
+   are actually decided. */
+.ladder tr.is-locked .ladder__team {
   color: var(--ink);
   font-weight: 700;
+}
+
+.ladder tr.is-picked .ladder__team {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.ladder tr.is-coach td {
+  color: var(--ink-3);
+}
+
+.ladder tr.is-coach .ladder__team {
+  font-style: italic;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.ladder tr.is-coach .meter__fill {
+  opacity: 0.45;
+}
+
+.ladder tr.is-empty .ladder__team {
+  font-style: italic;
+  font-weight: 500;
+  color: var(--ink-3);
 }
 
 .ladder__week {
@@ -1220,15 +1246,29 @@
   text-decoration: none;
 }
 
-.burn__team--planned {
+/* Picked but not locked: outlined in the accent, solid. */
+.burn__team--picked {
   color: var(--accent-ink);
   background: var(--accent-soft);
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 
-.burn__team--planned .burn__rating {
+.burn__team--picked .burn__rating {
   color: var(--accent);
   font-weight: 600;
+}
+
+/* Only in the coach's plan: a dashed outline and muted ink, not fully
+   coloured, so it reads as pencilled in beside the solid picks. */
+.burn__team--planned {
+  color: var(--ink-3);
+  outline: 1px dashed var(--accent);
+  outline-offset: -1px;
+}
+
+.burn__team--planned .burn__rating {
+  color: var(--accent);
+  opacity: 0.75;
 }
 
 /* notices ---------------------------------------------------------------- */
@@ -1297,21 +1337,6 @@
 
   .panel__slots {
     grid-template-columns: 1fr;
-  }
-
-  .recommend {
-    padding: 9px var(--sp-4);
-    gap: 6px 10px;
-  }
-
-  .recommend__team {
-    font-size: 12.5px;
-  }
-
-  .btn--apply {
-    margin-left: auto;
-    min-height: 30px;
-    padding: 5px 10px;
   }
 
   .slot {

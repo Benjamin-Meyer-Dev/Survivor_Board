@@ -33,7 +33,8 @@ export async function createSupabaseStore(league) {
   });
 
   const listeners = new Set();
-  let canWrite = !CONFIG.passcode;
+  const expectedDigest = CONFIG.passcode.digest;
+  let canWrite = !expectedDigest;
 
   return {
     kind: "supabase",
@@ -43,9 +44,9 @@ export async function createSupabaseStore(league) {
       return canWrite;
     },
 
-    /** Unlock writes with the pool passcode. */
-    unlock(passcode) {
-      canWrite = !CONFIG.passcode || passcode === CONFIG.passcode;
+    /** Unlock writes with the verified passcode digest; see core/passcode.js. */
+    unlock(digest) {
+      canWrite = !expectedDigest || digest === expectedDigest;
       return canWrite;
     },
 

@@ -18,50 +18,108 @@
   --ease-snap: cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
-/* --- app startup -------------------------------------------------------- */
+/* --- app startup --------------------------------------------------------
+   A pass play on loop. The ball fades in at the near end, arcs to the far end
+   with the route drawing in beneath it, holds a beat, and fades out, so the
+   reset to the start happens while nothing is visible.
 
-@keyframes startup-drive {
+   Every keyframe below moves only transform and opacity. Building the board
+   runs a search that blocks the main thread for a few hundred milliseconds,
+   and an animation on `left` or `clip-path` stalls for that whole stretch and
+   then jumps. Transform and opacity keep running on the compositor, which is
+   the only reason there is anything to watch while the board loads. */
+
+.startup__scene {
+  --startup-cycle: 1.6s;
+}
+
+/* Travel and spin are linear, a thrown ball does not slow down mid-air. */
+@keyframes startup-throw {
   0% {
-    left: calc(20% - 18px);
-    transform: translateX(0) rotate(-12deg) scale(0.9);
+    opacity: 0;
+    transform: translateX(0) rotate(-12deg);
   }
-  45% {
-    left: calc(50% - 18px);
-    transform: translateY(-9px) rotate(170deg) scale(1.05);
+  8% {
+    opacity: 1;
+    transform: translateX(0) rotate(-12deg);
+  }
+  68%,
+  84% {
+    opacity: 1;
+    transform: translateX(var(--startup-track)) rotate(350deg);
   }
   100% {
-    left: calc(80% - 18px);
-    transform: translateX(0) rotate(350deg) scale(0.9);
+    opacity: 0;
+    transform: translateX(var(--startup-track)) rotate(350deg);
   }
 }
 
-@keyframes startup-route {
-  from {
-    clip-path: inset(0 100% 0 0);
+/* The arc lives on the inner svg so it can carry its own easing: slowing into
+   the peak and accelerating out of it, independent of the travel. */
+@keyframes startup-arc {
+  0%,
+  8% {
+    transform: none;
+    animation-timing-function: ease-out;
   }
-  to {
-    clip-path: inset(0);
+  38% {
+    transform: translateY(-11px) scale(1.08);
+    animation-timing-function: ease-in;
+  }
+  68%,
+  100% {
+    transform: none;
+  }
+}
+
+/* The curtain over the route pulls back in step with the ball. */
+@keyframes startup-route {
+  0%,
+  8% {
+    transform: scaleX(1);
+  }
+  68%,
+  100% {
+    transform: scaleX(0);
+  }
+}
+
+/* The route leaves with the ball, so the curtain can close again unseen. */
+@keyframes startup-route-fade {
+  0%,
+  84% {
+    opacity: 0.45;
+  }
+  100% {
+    opacity: 0;
   }
 }
 
 .startup__ball {
-  animation: startup-drive 1.05s var(--ease-out) infinite;
+  animation: startup-throw var(--startup-cycle) linear infinite;
+}
+
+.startup__ball svg {
+  animation: startup-arc var(--startup-cycle) linear infinite;
 }
 
 .startup__route {
-  animation: startup-route 1.05s ease-in-out infinite;
+  animation: startup-route-fade var(--startup-cycle) linear infinite;
 }
 
+.startup__route::after {
+  animation: startup-route var(--startup-cycle) linear infinite;
+}
+
+/* The play keeps running under this fade. Cutting the ball's iteration count
+   here instead ended its animation on the spot, which dropped it back to the
+   start the moment the board was ready. */
 .startup.is-ready {
   opacity: 0;
   transform: scale(1.025);
   transition:
     opacity 0.4s ease,
     transform 0.4s var(--ease-out);
-}
-
-.startup.is-ready .startup__ball {
-  animation-iteration-count: 1;
 }
 
 .is-starting .shell {
@@ -331,14 +389,6 @@
 
 .slot.fx-lost .slot__identity {
   animation: nudge 0.32s ease;
-}
-
-/* --- adopting the recommendation ----------------------------------------
-   The band itself is NOT animated: it re-renders on every action, so an
-   entrance here would flash on every tap. The feedback lives on the slots. */
-
-.btn--apply:active:not(:disabled) {
-  transform: scale(0.94);
 }
 
 /* --- week pips ----------------------------------------------------------- */

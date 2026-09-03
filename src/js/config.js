@@ -23,15 +23,27 @@ export const CONFIG = Object.freeze({
   },
 
   /**
-   * The pool passcode.
+   * The pool passcode, as a digest.
    *
    * Asked for once per device, the first time the board is opened there, and
-   * remembered after that. The same value unlocks writes to the shared entry
-   * when Supabase is configured. It ships in this file, so it is a gate
-   * against a passer-by, not a lock against anyone determined. Leave empty for
-   * no gate.
+   * remembered after that. The same answer unlocks writes to the shared entry
+   * when Supabase is configured.
+   *
+   * The passcode itself is not in this file or anywhere else in the repo. What
+   * ships is a PBKDF2-SHA256 digest of it (see core/passcode.js), which the
+   * board compares a typed answer against. Set or change it with
+   *
+   *   npm run passcode
+   *
+   * which writes both values below. Both are public, so this is still a gate
+   * against a passer-by rather than a lock against anyone determined; the
+   * digest just means the passcode has to be guessed rather than read. Leave
+   * `digest` empty for no gate.
    */
-  passcode: "Jww%62p%Sn@Ivv4a8Z@05Vq$b",
+  passcode: {
+    digest: "f9dbc6e374c87d6a5faddc3f1671cd5edecd3ad26e542d5b65c6202209151ef1",
+    salt: "d886ce3d4581bcaf28d63237fdaabbbd",
+  },
 
   /** localStorage key used by the offline store. */
   localStorageKey: "survivor-board/entry/v1",

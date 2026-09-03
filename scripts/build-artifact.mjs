@@ -40,6 +40,7 @@ const JS = [
   "core/survival.js",
   "core/recommend.js",
   "core/refresh.js",
+  "core/passcode.js",
   "core/plan.js",
   "store/artifact.js",
   "store/supabase.js",

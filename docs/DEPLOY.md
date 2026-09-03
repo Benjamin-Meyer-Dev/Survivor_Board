@@ -92,8 +92,7 @@ Table Editor check above is how you confirm it took.
      **Project Settings** → **API Keys**. The legacy `anon` key on the same
      page works too; Supabase is retiring it at the end of 2026.
 5. Open `src/js/config.js` in your editor. The `supabase` block is near the
-   top. Paste the URL into `url`, the key into `publishableKey`, and choose a
-   passcode a few lines below:
+   top. Paste the URL into `url` and the key into `publishableKey`:
 
 ```js
 supabase: {
@@ -101,22 +100,39 @@ supabase: {
   publishableKey: "sb_publishable_...", // Publishable key
   table: "entries",
 },
-passcode: "pick-something",
 ```
+
+### Set the passcode
+
+The passcode is never written into the repo. Choose one and set it from the
+terminal:
+
+```bash
+npm run passcode
+```
+
+It prompts for the passcode, then writes a digest of it, plus a random salt,
+into the `passcode` block of `src/js/config.js`. That digest is what gets
+committed and what the board checks a typed answer against; it cannot be
+turned back into the passcode. Pick something long. The digest is public, so a
+short or guessable passcode can be worked out from it. A sentence, or a few
+unrelated words, is strong and still easy to type once per phone.
 
 Commit and push. Pages redeploys, and both phones now share one entry per
 league.
 
 From then on, the first time the board is opened on any device it shows a
 passcode screen. A right answer is remembered on that device and it goes
-straight in after that. The same passcode unlocks writes to the shared entry, so
-there is nothing else to type. Change the passcode later and every device asks
-again.
+straight in after that. The same answer unlocks writes to the shared entry, so
+there is nothing else to type. Run `npm run passcode` again to change it, and
+every device asks again on its next open.
 
 The key is public by design, and safe to ship: it can only do what the RLS
 policies allow, which is read and write two rows. The passcode is a gate, not a
-lock: it lives in the page's JavaScript, so someone determined can find it. It
-stops the casual visitor, which is the realistic threat.
+lock: the check runs in the browser, so someone determined can read the
+JavaScript and step around it. It stops the casual visitor, which is the
+realistic threat, and because only the digest ships, nobody gets to read the
+passcode itself off GitHub or out of the page.
 
 **Check:** open the board on two devices. Each asks for the passcode once. Lock
 a pick on one and watch it land on the other.
@@ -226,8 +242,9 @@ npm run lint && npm run format:check && npm test
 
 ## Things that will bite you
 
-- **Forgetting the passcode.** It is in `src/js/config.js`, in plain text. If you
-  change it, every device asks again on its next open.
+- **Forgetting the passcode.** It is not written down anywhere in the repo, only
+  its digest is, and the digest cannot be turned back into it. Set a new one
+  with `npm run passcode`; every device asks again on its next open.
 - **The first Pages deploy is red.** The deploy workflow fails until Settings →
   Pages has its source set to GitHub Actions. Set it, run the workflow by hand
   once, and every push after that deploys on its own.
@@ -246,7 +263,8 @@ npm run lint && npm run format:check && npm test
   ("Miami (FL)", "Texas A&amp;M Aggies"). `scripts/lib/odds-api.mjs` normalises
   aggressively, but check the workflow log after the first run for
   `no event found` lines and add aliases if any show up.
-- **A phone that installed the board before the icons existed keeps the old
-  tile.** Chrome re-reads the manifest on its own schedule, and an app added
-  when the icon list was empty holds on to the screenshot it made. Remove it
-  from the home screen and add it again to pick up the real icon.
+- **A phone that installed the board before the icons existed, or before they
+  last changed, keeps the old tile.** Chrome re-reads the manifest on its own
+  schedule, and an app added when the icon list was empty holds on to the
+  screenshot it made. Remove it from the home screen and add it again to pick
+  up the current icon.

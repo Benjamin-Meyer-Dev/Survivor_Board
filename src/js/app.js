@@ -19,6 +19,7 @@ import { renderNotices } from "./ui/notices.js";
 import { renderTabs, initialTab } from "./ui/tabs.js";
 import { requireGate } from "./ui/gate.js";
 import { formatDuration } from "./core/refresh.js";
+import { derivePasscodeDigest } from "./core/passcode.js";
 
 const el = {
   gate: document.getElementById("gate"),
@@ -38,7 +39,7 @@ const el = {
 /** Which league was open last on this device. */
 const LEAGUE_KEY = "survivor-board/league";
 
-/** The pool passcode, once this device has given it. */
+/** The digest of the pool passcode, once this device has answered it correctly. */
 const PASSCODE_KEY = "survivor-board/passcode";
 
 const app = {
@@ -50,6 +51,8 @@ const app = {
   ratings: null,
   entry: { picks: {}, swaps: {} },
   store: null,
+  /** The verified passcode digest, which is also what opens the store's write lock. */
+  passcodeDigest: null,
   viewWeek: 1,
   activeTab: initialTab(),
   saveTimer: null,
@@ -63,7 +66,7 @@ const app = {
 };
 
 /** Which keyframe an action should play on the slot it changed. */
-const EFFECT_FOR = { select: "fx-lock", won: "fx-won", lost: "fx-lost", swap: "fx-swap" };
+const EFFECT_FOR = { lock: "fx-lock", won: "fx-won", lost: "fx-lost", pick: "fx-swap" };
 
 /**
  * Feedback has to be applied AFTER the render that produced the new markup -
@@ -145,12 +148,13 @@ async function loadJson(name, league = app.league) {
 let lastBoard = null;
 
 /**
- * @param {{search?:boolean}} options Pass search:false to paint without waiting
- *   on the optimiser. Used when the board is new to this session (first load, a
- *   league switch) and the search would otherwise block the frame the user is
- *   waiting to see. A follow-up render fills it in.
+ * @param {{search?:boolean, settle?:number}} options Pass search:false to paint
+ *   without waiting on the optimiser. Used when the board is new to this
+ *   session (first load, a league switch) and after a lock or unlock, when the
+ *   search would otherwise block the frame the user is waiting to see. A
+ *   follow-up render fills it in once `settle` milliseconds have passed.
  */
-function render({ search = true } = {}) {
+function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
   const board = buildBoard({
     plan: app.plan,
     odds: app.odds,
@@ -187,7 +191,7 @@ function render({ search = true } = {}) {
   renderBurnBoard(el.burn, el.burnCount, board, app.teams);
   playEffect();
 
-  if (board.recommendationPending) scheduleRecommendation();
+  if (board.recommendationPending) scheduleRecommendation(settle);
 }
 
 /**
@@ -202,14 +206,21 @@ function render({ search = true } = {}) {
  */
 const RECOMMEND_DELAY_MS = 380;
 
+/**
+ * A lock, an unlock or a result changes what the coach has to plan around, so
+ * the search runs again. This is how long its feedback keyframe needs to finish
+ * first: the win wash is the longest of them at 720 ms.
+ */
+const REPLAN_DELAY_MS = 750;
+
 /** Run the optimiser once the board the user asked for is on screen and settled. */
-function scheduleRecommendation() {
+function scheduleRecommendation(delay = RECOMMEND_DELAY_MS) {
   if (app.recommendTimer) return;
   app.recommendTimer = setTimeout(() => {
     app.recommendTimer = null;
     // The result is memoised, so this render is the only one that pays.
     render();
-  }, RECOMMEND_DELAY_MS);
+  }, delay);
 }
 
 /**
@@ -246,11 +257,28 @@ function handleAction({ action, week, slot, team }) {
 
   const key = slotKey(week, slot);
   const current = app.entry.picks[key] ?? {};
+  // What the slot holds on the board that was tapped.
+  const held = lastBoard?.weeks.find((entry) => entry.week === week)?.picks[slot] ?? null;
 
   switch (action) {
-    case "select":
-      if (current.locked) delete app.entry.picks[key];
-      else app.entry.picks[key] = { ...current, locked: true, by: ME, at: Date.now() };
+    case "pick":
+      // The team in a slot is always the users' choice, and a locked slot keeps
+      // its team until it is unlocked. Picking never commits: the coach plans
+      // as if the slot were still open until it is locked.
+      if (!team || held?.status.locked) return;
+      app.entry.swaps[key] = team;
+      break;
+    case "lock":
+      if (current.locked) {
+        // Unlocking keeps the team as an unlocked pick. Entries saved before
+        // slots were user-picked could lock a team without storing it, so it
+        // is stored now, before the lock that implied it goes.
+        if (held?.team && !app.entry.swaps[key]) app.entry.swaps[key] = held.team;
+        delete app.entry.picks[key];
+      } else {
+        if (!held?.team) return;
+        app.entry.picks[key] = { ...current, locked: true, by: ME, at: Date.now() };
+      }
       break;
     case "won":
       app.entry.picks[key] = {
@@ -269,55 +297,22 @@ function handleAction({ action, week, slot, team }) {
       };
       break;
     case "clear":
+      // Empties the slot: the lock, the result and the team all go.
       delete app.entry.picks[key];
-      break;
-    case "apply": {
-      // Put the coach's recommendations into the open slots as drafts. This
-      // never selects them; each choice still needs an explicit user action.
-      const board = lastBoard;
-      const target = board?.weeks.find((entry) => entry.week === week);
-      for (const pick of target?.picks ?? []) {
-        if (pick.status.selected) continue;
-        const wanted = (target.recommended ?? [])
-          .map((o) => o.team)
-          .find((team) => {
-            const taken = target.picks.some(
-              (other) => other.slot !== pick.slot && other.team === team,
-            );
-            return !taken;
-          });
-        if (!wanted) continue;
-        const slotK = slotKey(week, pick.slot);
-        if (wanted === planTeamFor(week, pick.slot)) delete app.entry.swaps[slotK];
-        else app.entry.swaps[slotK] = wanted;
-        pick.team = wanted;
-      }
-      break;
-    }
-    case "swap":
-      // Selecting the plan's own pick clears the swap rather than storing it,
-      // so the entry stays clean and follows any future re-plan.
-      if (!team || team === planTeamFor(week, slot)) delete app.entry.swaps[key];
-      else app.entry.swaps[key] = team;
+      delete app.entry.swaps[key];
       break;
     default:
       return;
   }
 
-  if (action !== "clear") {
-    app.effect = {
-      week,
-      slot: action === "apply" ? null : slot,
-      className: action === "apply" ? "fx-swap" : (EFFECT_FOR[action] ?? "fx-swap"),
-    };
-  }
+  if (action !== "clear") app.effect = { week, slot, className: EFFECT_FOR[action] };
 
-  render();
+  // A lock, an unlock or a result changes what the coach has to plan around,
+  // and the search that answers it blocks the main thread. Paint the change
+  // first and let the timer run the search once the feedback has played. An
+  // action that did not move the plan comes straight out of the memo.
+  render({ search: false, settle: REPLAN_DELAY_MS });
   scheduleSave();
-}
-
-function planTeamFor(week, slot) {
-  return app.plan.weeks.find((entry) => entry.week === week)?.picks[slot]?.team ?? null;
 }
 
 /** Coalesce rapid taps into one write. */
@@ -377,9 +372,9 @@ async function openLeague(league) {
 
   app.store = await createStore(league);
   // The gate already checked the passcode on this device, so the store's write
-  // lock opens with the same value. With no passcode configured there is no
+  // lock opens with the same digest. With no passcode configured there is no
   // lock to open.
-  if (!app.store.canWrite) app.store.unlock?.(CONFIG.passcode);
+  if (!app.store.canWrite) app.store.unlock?.(app.passcodeDigest);
   app.entry = await app.store.init();
   app.unsubscribe = app.store.subscribe((entry) => {
     // A late push from the store we just replaced must not land on this board.
@@ -463,14 +458,27 @@ function writeStored(key, value) {
  * A device that has answered correctly before is let straight through. The
  * check lives here rather than in the store because it gates the whole board,
  * not just writes; see the note on `passcode` in config.js for what it is and
- * is not protecting. Changing the passcode makes every device ask again.
+ * is not protecting.
+ *
+ * Only the digest is ever compared or stored: the typed answer is run through
+ * the same derivation `npm run passcode` used and matched against config.
+ * Changing the passcode changes the digest, so every device asks again.
  */
 async function requirePasscode() {
-  const expected = CONFIG.passcode;
-  if (!expected || readStored(PASSCODE_KEY) === expected) return;
+  const expected = CONFIG.passcode.digest;
+  if (!expected) return;
+
+  if (readStored(PASSCODE_KEY) === expected) {
+    app.passcodeDigest = expected;
+    return;
+  }
 
   document.body.classList.add("is-gated");
-  await requireGate(el.gate, (value) => value.trim() === expected);
+  await requireGate(el.gate, async (value) => {
+    const digest = await derivePasscodeDigest(value, CONFIG.passcode.salt);
+    return digest === expected;
+  });
+  app.passcodeDigest = expected;
   writeStored(PASSCODE_KEY, expected);
   document.body.classList.remove("is-gated");
 }

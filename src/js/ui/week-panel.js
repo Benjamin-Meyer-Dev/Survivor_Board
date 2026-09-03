@@ -1,11 +1,16 @@
 /**
- * The week deck: all 13 weeks laid out horizontally, one per screen, moved
+ * The week deck: every week laid out horizontally, one per screen, moved
  * between by swiping.
  *
  * Built on CSS scroll-snap rather than touch handlers, so it gets native
  * momentum, rubber-banding and trackpad support for free and cannot fight the
  * browser's own scrolling. JS only reads the scroll position to keep the pips
  * and the app's current week in sync.
+ *
+ * A slot is one of three things: empty, with the coach's suggestion drawn in
+ * as a ghost; picked, a team the users chose but have not committed to; or
+ * locked. The coach never fills a slot. Its call shows as a badge on the team
+ * in the list and as the ghost, and the pick is always a tap by a user.
  *
  * Handlers are injected; this module knows nothing about the store.
  */
@@ -15,6 +20,9 @@ import { TIER_LABEL } from "../core/probability.js";
 
 /** Set while we move the track ourselves, so it does not echo back as input. */
 let isRestoring = false;
+
+/** What an open slot says while the optimiser has not reported yet. */
+const WORKING = "Working out the path…";
 
 /**
  * @param {HTMLElement} root
@@ -143,62 +151,23 @@ function weekMarkup(week, board, canWrite) {
         }
         ${isCurrent ? '<span class="chip chip--lock">On the clock</span>' : ""}
       </div>
-      ${renderRecommendation(week, board, canWrite)}
       <div class="panel__slots">
-        ${week.picks.map((pick) => renderSlot(pick, canWrite)).join("")}
+        ${week.picks.map((pick) => renderSlot(pick, board, canWrite)).join("")}
       </div>
     </article>`;
 }
 
 /**
- * What the optimiser would pick this week, shown next to - not instead of -
- * what you have chosen. Collapses to a single confirming line when they agree.
- *
- * The band holds its place while the search runs. It is a few hundred
- * milliseconds on the college board, and letting it appear afterwards would
- * push the whole panel down just as you started reading the pick.
+ * One slot. A picked slot is drawn solid; a locked one takes the lock tint and
+ * loses its list, because a lock is a lock. Empty slots are handled apart.
  */
-function renderRecommendation(week, board, canWrite) {
-  if (board.recommendationPending) {
-    return `<div class="recommend recommend--waiting">
-      <span class="u-eyebrow recommend__label">Coach\u2019s call</span>
-      <span class="recommend__note">Working out the path\u2026</span>
-    </div>`;
-  }
+function renderSlot(pick, board, canWrite) {
+  if (!pick.team) return renderEmptySlot(pick, board, canWrite);
 
-  const recommended = week.recommended ?? [];
-  if (recommended.length === 0) return "";
-  const openSlots = week.picks.filter((pick) => !pick.status.selected).length;
-
-  if (openSlots === 0) {
-    return `<div class="recommend recommend--match">
-      <span class="u-eyebrow recommend__label">Coach\u2019s call</span>
-      <span class="recommend__note">Your picks are set. The coach will build the remaining path around them.</span>
-    </div>`;
-  }
-
-  return `<div class="recommend">
-    <span class="u-eyebrow recommend__label">Coach\u2019s call</span>
-    <div class="recommend__teams">
-      ${recommended
-        .map(
-          (option) => `<span class="recommend__team">
-            ${escapeHtml(option.team)}
-            <span class="recommend__spread">${option.spread === undefined ? "" : formatSpread(option.spread)}</span>
-          </span>`,
-        )
-        .join("")}
-    </div>
-    <button type="button" class="btn btn--apply" data-action="apply" data-week="${week.week}"
-            ${canWrite ? "" : "disabled"}>Use suggestion</button>
-  </div>`;
-}
-
-function renderSlot(pick, canWrite) {
   const { status } = pick;
 
   return `
-    <div class="slot ${status.selected ? "slot--selected" : "slot--planned"}">
+    <div class="slot ${status.locked ? "slot--locked" : "slot--picked"}">
       <div class="slot__head">
         <div class="slot__identity">
           <div class="slot__team">${escapeHtml(pick.team)}</div>
@@ -207,21 +176,17 @@ function renderSlot(pick, canWrite) {
           </div>
         </div>
         <span class="chip chip--${pick.tier}">${TIER_LABEL[pick.tier]}</span>
-        ${pick.isRecommended && !status.selected ? '<span class="chip chip--rec">Coach</span>' : ""}
-        ${status.selected ? '<span class="chip chip--selected">Selected</span>' : '<span class="chip chip--planned">Planned</span>'}
+        ${pick.isRecommended ? '<span class="chip chip--rec" title="This is the coach’s call">Coach</span>' : ""}
+        ${status.locked ? '<span class="chip chip--locked">Locked</span>' : '<span class="chip chip--picked">Picked</span>'}
         ${status.resultSource === "final" ? '<span class="chip chip--final">Final</span>' : ""}
       </div>
 
-      <div class="slot__numbers">
-        ${metric("Spread", formatSpread(pick.spread))}
-        ${metric("Win prob", formatPercent(pick.winProb))}
-        ${metric("Line", pick.source === "market" ? "Market" : "Projected", true)}
-      </div>
+      ${numbers(pick)}
 
       <div class="actions">
-        ${button("select", pick, status.selected ? "Selected" : "Select pick", status.selected ? "btn--active" : "", canWrite && !status.result)}
-        ${button("won", pick, "Won", status.result === "W" ? "btn--won" : "", canWrite && status.selected)}
-        ${button("lost", pick, "Lost", status.result === "L" ? "btn--lost" : "", canWrite && status.selected)}
+        ${button("lock", pick, status.locked ? "Locked" : "Lock in", status.locked ? "btn--active" : "", canWrite && !status.result)}
+        ${button("won", pick, "Won", status.result === "W" ? "btn--won" : "", canWrite && status.locked)}
+        ${button("lost", pick, "Lost", status.result === "L" ? "btn--lost" : "", canWrite && status.locked)}
         ${button("clear", pick, "Clear", "", canWrite)}
       </div>
 
@@ -231,21 +196,84 @@ function renderSlot(pick, canWrite) {
           : ""
       }
 
-      <div class="swap">
-        <label class="u-eyebrow swap__label" for="filter-${pick.week}-${pick.slot}">
-          Swap this slot: ${pick.options.filter((o) => !o.disabled).length} teams available
-        </label>
-        <input class="swap__filter" type="search" id="filter-${pick.week}-${pick.slot}"
-               placeholder="Filter teams" autocomplete="off"
-               data-filter="${pick.week}-${pick.slot}" ${canWrite ? "" : "disabled"}>
-        <div class="swap__list" data-list="${pick.week}-${pick.slot}">
-          ${pick.options.map((option) => renderSwapOption(pick, option, canWrite)).join("")}
-        </div>
-      </div>
+      ${status.locked ? lockedNote() : renderTeamList(pick, canWrite)}
     </div>`;
 }
 
-function renderSwapOption(pick, option, canWrite) {
+/**
+ * Nothing picked. The coach's suggestion stands in, drawn as a ghost: muted,
+ * outlined, every action disabled, so it cannot be read as a pick. The team
+ * list beneath is where the pick is actually made.
+ */
+function renderEmptySlot(pick, board, canWrite) {
+  const suggestion = pick.suggestion;
+  const pending = !suggestion && board.recommendationPending && pick.week >= board.currentWeek;
+
+  const head = suggestion
+    ? `<div class="slot__identity">
+          <div class="u-eyebrow slot__eyebrow">Coach suggests</div>
+          <div class="slot__team">${escapeHtml(suggestion.team)}</div>
+          <div class="slot__matchup">
+            ${escapeHtml(formatMatchup(suggestion.site, suggestion.opponent))} &middot; ${escapeHtml(suggestion.conference)}
+          </div>
+        </div>
+        <span class="chip chip--${suggestion.tier}">${TIER_LABEL[suggestion.tier]}</span>
+        <span class="chip chip--coach">Suggestion</span>`
+    : `<div class="slot__identity">
+          <div class="slot__team slot__team--blank">${pending ? WORKING : "No pick yet"}</div>
+          <div class="slot__matchup">
+            ${pending ? "The coach is planning the season." : "Pick a team from the list below."}
+          </div>
+        </div>`;
+
+  return `
+    <div class="slot slot--empty">
+      <div class="slot__head">${head}</div>
+
+      ${suggestion ? numbers(suggestion) : ""}
+
+      <div class="actions">
+        ${button("lock", pick, "Lock in", "", false)}
+        ${button("won", pick, "Won", "", false)}
+        ${button("lost", pick, "Lost", "", false)}
+        ${button("clear", pick, "Clear", "", false)}
+      </div>
+
+      ${renderTeamList(pick, canWrite)}
+    </div>`;
+}
+
+/**
+ * Every team the slot could hold this week. The coach's call carries a badge,
+ * and that badge is the whole of how the coach steers a pick.
+ */
+function renderTeamList(pick, canWrite) {
+  const id = `${pick.week}-${pick.slot}`;
+  const available = pick.options.filter((option) => !option.disabled).length;
+
+  return `
+      <div class="swap">
+        <label class="u-eyebrow swap__label" for="filter-${id}">
+          ${pick.team ? "Change the team" : "Pick a team"}: ${available} available
+        </label>
+        <input class="swap__filter" type="search" id="filter-${id}"
+               placeholder="Filter teams" autocomplete="off"
+               data-filter="${id}" ${canWrite ? "" : "disabled"}>
+        <div class="swap__list" data-list="${id}">
+          ${pick.options.map((option) => renderOption(pick, option, canWrite)).join("")}
+        </div>
+      </div>`;
+}
+
+/** Stands where the list would be on a locked slot. */
+function lockedNote() {
+  return `
+      <div class="swap swap--locked">
+        <span class="u-eyebrow swap__label">Locked in. Unlock to change the team.</span>
+      </div>`;
+}
+
+function renderOption(pick, option, canWrite) {
   const classes = [
     "swap__option",
     option.isCurrent ? "swap__option--current" : "",
@@ -256,19 +284,29 @@ function renderSwapOption(pick, option, canWrite) {
 
   return `
     <button type="button" class="${classes}"
-            data-action="swap" data-week="${pick.week}" data-slot="${pick.slot}"
+            data-action="pick" data-week="${pick.week}" data-slot="${pick.slot}"
             data-team="${escapeHtml(option.team)}"
             data-search="${escapeHtml((option.team + " " + option.opponent).toLowerCase())}"
             ${canWrite && !option.disabled ? "" : "disabled"}
             ${option.isCurrent ? 'aria-current="true"' : ""}>
       <span class="swap__team">
-        <span class="swap__name">${escapeHtml(option.team)}</span>${option.isPlan ? '<span class="swap__tag">plan</span>' : ""}
+        <span class="swap__name">${escapeHtml(option.team)}</span>${option.isCoach ? '<span class="swap__tag">Coach</span>' : ""}
       </span>
       <span class="swap__matchup">${escapeHtml(formatMatchup(option.site, option.opponent))}</span>
       <span class="swap__spread swap__spread--${option.tier}">
         ${option.reason ? escapeHtml(option.reason) : formatSpread(option.spread)}
       </span>
     </button>`;
+}
+
+/** Spread, win probability and where the line came from, for a pick or a suggestion. */
+function numbers(line) {
+  return `
+      <div class="slot__numbers">
+        ${metric("Spread", formatSpread(line.spread))}
+        ${metric("Win prob", formatPercent(line.winProb))}
+        ${metric("Line", line.source === "market" ? "Market" : "Projected", true)}
+      </div>`;
 }
 
 /** Absolute, unambiguous, and always carrying the year. */

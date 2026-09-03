@@ -158,21 +158,6 @@ body::before {
   color: var(--score-dim);
 }
 
-/* The coach's call is the primary action on the panel, so it is filled
-   rather than outlined. */
-.btn--apply {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
-  font-weight: 700;
-}
-
-.btn--apply:hover:not(:disabled) {
-  background: var(--accent-ink);
-  border-color: var(--accent-ink);
-  color: var(--on-accent);
-}
-
 /* --- chalk dividers ------------------------------------------------------ */
 
 .slot__numbers {
@@ -215,13 +200,18 @@ body::before {
   transform: scaleY(1.5);
 }
 
-/* User selections read like a called play on a wristband. */
-.slot--selected {
+/* A locked pick reads like a called play on a wristband; a pick that is not
+   locked yet carries a thinner line. */
+.slot--locked {
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
-/* Coach plans stay visibly pencilled-in until a user selects them. */
-.slot--planned {
+.slot--picked {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* The coach's suggestion stays visibly pencilled-in until a user picks. */
+.slot--empty {
   box-shadow: inset 3px 0 0 var(--chalk);
 }
 

@@ -14,8 +14,17 @@ export function renderStrip(root, board) {
     },
     {
       key: "Season survival",
-      value: board.eliminated ? "Out" : formatPercent(board.pathProbability),
-      note: board.eliminated ? "run is over" : survivalNote(board),
+      // While the coach is still planning, the open slots have no number yet.
+      value: board.eliminated
+        ? "Out"
+        : board.recommendationPending
+          ? "…"
+          : formatPercent(board.pathProbability),
+      note: board.eliminated
+        ? "run is over"
+        : board.recommendationPending
+          ? "working out the path"
+          : survivalNote(board),
     },
     {
       key: "Next refresh",

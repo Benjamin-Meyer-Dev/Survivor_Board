@@ -252,8 +252,13 @@ function scorePath({ weeks, burned, path, picksPerWeek }) {
   for (const week of weeks) {
     const teams = path[week.week] ?? [];
     if (teams.length !== picksPerWeek) return null;
+    // A locked slot is not the path's to fill: it must carry the locked team,
+    // which sits in `burned` for every other week's sake and is let through
+    // here for its own.
+    const fixed = (week.fixed ?? []).filter(Boolean);
+    if (!fixed.every((team) => teams.includes(team))) return null;
     for (const team of teams) {
-      if (used.has(team)) return null;
+      if (used.has(team) && !fixed.includes(team)) return null;
       if (!week.options.some((o) => o.team === team)) return null;
       used.add(team);
     }
@@ -284,9 +289,10 @@ function materialise({ parent, teams, score, shortfall }, week) {
 /**
  * Shape a built board into the recommender's input and run it.
  *
- * A slot is FIXED when a user selected it or it is already resolved - the recommendation
- * has to work around a decision you have already committed to, not pretend
- * you can take it back.
+ * A slot is FIXED when a user locked it - the recommendation has to work
+ * around a decision you have committed to, not pretend you can take it back.
+ * An unlocked pick is not fixed: the coach plans as if the slot were open, so
+ * trying a team out costs nothing, and locking is what makes it re-plan.
  *
  * @param {object} board Result of buildBoard().
  * @returns {{picks:Object<number,string[]>, pathProbability:number, shortfalls:number[]}}
@@ -300,8 +306,7 @@ export function recommendForBoard(board, seed = null) {
     const isPast = week.week < board.currentWeek;
 
     for (const pick of week.picks) {
-      const committed = pick.status.selected;
-      if (committed) burned.add(pick.team);
+      if (pick.status.locked) burned.add(pick.team);
     }
 
     if (isPast) continue;
@@ -309,11 +314,11 @@ export function recommendForBoard(board, seed = null) {
     upcoming.push({
       week: week.week,
       options: week.options,
-      fixed: week.picks.map((pick) => (pick.status.selected ? pick.team : null)),
+      fixed: week.picks.map((pick) => (pick.status.locked ? pick.team : null)),
     });
   }
 
-  // A team selected in a future week stays in `burned`, which keeps any
+  // A team locked in a future week stays in `burned`, which keeps any
   // earlier week from spending it. Its own slot still gets it, because fixed
   // teams are placed directly rather than drawn from the candidate pool.
   // A buy back already spent is gone, so the recommendation stops taking risks

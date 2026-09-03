@@ -7,7 +7,7 @@ The NFL board opens by default; the switch remembers whichever you used last,
 and each league carries its own palette so a glance tells you where you are.
 
 Two people, two devices, one entry per league. Market lines refresh once a
-day; locks, results and backup swaps sync between phones in real time.
+day; picks, locks and results sync between phones in real time.
 
 |              | College              | NFL                         |
 | ------------ | -------------------- | --------------------------- |
@@ -39,7 +39,7 @@ and automatic odds.
 index.html                    the whole UI shell
 manifest.webmanifest          makes it installable to a home screen
 sw.js                         service worker: install support, offline board
-icons/                        home-screen icons, 192 · 512 · maskable · iOS
+icons/                        home-screen icons, 192 · 512 · maskable · iOS, plus the SVG source
 
 data/cfb/  data/nfl/          one folder per league, same five files
   plan.json                   the season path and the pool's rules
@@ -57,7 +57,7 @@ src/css/
 
 src/js/
   app.js                      wiring and the render loop
-  config.js                   Supabase keys, passcode, paths
+  config.js                   Supabase keys, passcode digest, paths
   leagues.js                  everything that differs between the two pools
   core/                       pure logic, also imported by the Node scripts
     plan.js                   merges plan + odds + entry into the derived board
@@ -65,12 +65,15 @@ src/js/
     survival.js               season survival, buy backs included
     recommend.js              beam search over the remaining weeks
     format.js                 display formatting and HTML escaping
+    passcode.js               derives the passcode digest, shared with the set script
   store/                      persistence (Supabase, localStorage fallback)
   ui/                         rendering only, no state, no fetch
 
 scripts/
   refresh-odds.mjs            the daily odds job, both leagues
   seed-plan.mjs               author a league's plan.json from the optimiser
+  set-passcode.mjs            set the pool passcode; only its digest lands in config.js
+  build-icons.mjs             redraws icons/ from the startup football through headless Chrome
   validate-plan.mjs           enforces both pools' rules in CI
   lib/                        odds API client, season calendar
 
@@ -81,21 +84,29 @@ docs/                         architecture, code standards, deploy
 
 ## Commands
 
-| Command               | What it does                                  |
-| --------------------- | --------------------------------------------- |
-| `npm run serve`       | Local server on :4173                         |
-| `npm test`            | Validates every `plan.json` against its rules |
-| `npm run refresh`     | Pulls live odds (needs `ODDS_API_KEY`)        |
-| `npm run seed -- nfl` | Re-authors a league's plan from the optimiser |
-| `npm run lint`        | ESLint                                        |
-| `npm run format`      | Prettier, write                               |
+| Command               | What it does                                                           |
+| --------------------- | ---------------------------------------------------------------------- |
+| `npm run serve`       | Local server on :4173                                                  |
+| `npm test`            | Validates every `plan.json` against its rules, and the config          |
+| `npm run passcode`    | Sets the pool passcode; the repo only ever holds its digest            |
+| `npm run icons`       | Redraws the home-screen icons from the startup football (needs Chrome) |
+| `npm run refresh`     | Pulls live odds (needs `ODDS_API_KEY`)                                 |
+| `npm run seed -- nfl` | Re-authors a league's plan from the optimiser                          |
+| `npm run lint`        | ESLint                                                                 |
+| `npm run format`      | Prettier, write                                                        |
 
 ## How it fits together
 
-`data/<league>/plan.json` is the strategy, `odds.json` is what the market says,
-and Supabase holds what you two have actually done. `core/plan.js` folds the
-three into one derived board and every UI module renders from that, so if a
-number looks wrong, there is exactly one place to look.
+`data/<league>/plan.json` is the pool's rules and calendar plus an authored
+path that seeds the coach, `odds.json` is what the market says, and Supabase
+holds what you two have actually done. `core/plan.js` folds the three into one
+derived board and every UI module renders from that, so if a number looks
+wrong, there is exactly one place to look.
+
+Every slot is picked by hand and locked by hand. The coach only suggests: a
+badge on the team it would take, a ghosted stand-in where a slot is empty, and
+a faint path for the weeks ahead. Locking or unlocking a pick is what makes it
+re-plan the rest of the season.
 
 Nothing under `src/js/ui/` knows which league is loaded. How many picks a week
 holds, whether a loss can be bought back, and where "Lock" starts all come off

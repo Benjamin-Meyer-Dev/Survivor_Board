@@ -21,6 +21,8 @@ export default [
         navigator: "readonly",
         process: "readonly",
         URL: "readonly",
+        crypto: "readonly",
+        TextEncoder: "readonly",
       },
     },
     rules: {
