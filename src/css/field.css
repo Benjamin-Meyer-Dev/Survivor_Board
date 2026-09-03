@@ -14,25 +14,7 @@
    ========================================================================== */
 
 :root {
-  /* Chalk on turf. Alpha-based so it works over either ground. */
-  --yard: rgb(20 26 21 / 5%);
-  --yard-major: rgb(20 26 21 / 9%);
-  --chalk: rgb(20 26 21 / 13%);
-  --mow: rgb(31 122 76 / 3%);
-  --endzone: rgb(37 107 69 / 10%);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --yard: rgb(255 255 255 / 4%);
-    --yard-major: rgb(255 255 255 / 7%);
-    --chalk: rgb(255 255 255 / 11%);
-    --mow: rgb(88 201 138 / 2.6%);
-    --endzone: rgb(101 207 139 / 10%);
-  }
-}
-
-:root[data-theme="dark"] {
+  /* Chalk on the permanent dark turf. */
   --yard: rgb(255 255 255 / 4%);
   --yard-major: rgb(255 255 255 / 7%);
   --chalk: rgb(255 255 255 / 11%);

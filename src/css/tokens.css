@@ -1,58 +1,52 @@
-/* ==========================================================================
+/* ===========================================================================
    Design tokens, "night game".
 
-   Grounds are turf: a near-black pine after dark, a grass-tinted bone by day.
-   The college accent is a brighter home-field green. NFL overrides it with
-   primetime indigo in leagues.css, keeping the two boards visually distinct.
-
-   Rule: declare the full palette on bare :root, then redefine only the values
-   inside the theme blocks. Never define a colour that exists only inside a
-   media query.
+   The app has one permanent dark stadium theme. College uses a home-field
+   green accent; NFL overrides it with primetime blue in leagues.css.
    ========================================================================== */
 
 :root {
-  /* surfaces, bone with a faint grass cast */
-  --ground: #ecefe8;
-  --surface: #ffffff;
-  --surface-2: #f4f7f1;
-  --line: #d4dbd0;
-  --line-soft: #e4eae0;
+  color-scheme: dark;
+
+  /* dark turf surfaces */
+  --ground: #0a120e;
+  --surface: #121b16;
+  --surface-2: #16211b;
+  --line: #25332b;
+  --line-soft: #1d2822;
 
   /* text */
-  --ink: #141a15;
-  --ink-2: #47544a;
-  --ink-3: #75827a;
+  --ink: #e9eee9;
+  --ink-2: #a6b3aa;
+  --ink-3: #74847a;
 
-  /* college accent, home-field green, deepened for contrast on bone */
-  --accent: #256b45;
-  --accent-soft: #dff0e5;
-  --accent-ink: #174e31;
-  /* Text drawn ON the accent. Flips with the accent's own lightness - the
-     brighter dark-mode green is too light to carry white type. */
-  --on-accent: #f7fbfd;
+  /* college accent */
+  --accent: #65cf8b;
+  --accent-soft: #102a1a;
+  --accent-ink: #91e4ad;
+  --on-accent: #07150d;
 
   /* confidence scale */
-  --safe: #1f7a4c;
-  --safe-bg: #dcefe3;
-  --solid: #256f63;
-  --solid-bg: #daece8;
-  --thin: #9c5715;
-  --thin-bg: #f7e7d2;
-  --close: #ad4325;
-  --close-bg: #f8e2d8;
-  --danger: #a8352d;
-  --danger-bg: #f7e0de;
+  --safe: #58c98a;
+  --safe-bg: #102a1d;
+  --solid: #55bfaa;
+  --solid-bg: #0f2622;
+  --thin: #e08b3c;
+  --thin-bg: #2c1d0f;
+  --close: #ed8a66;
+  --close-bg: #321a14;
+  --danger: #e56b62;
+  --danger-bg: #2e1614;
 
-  --lock: #256b45;
-  --lock-bg: #dff0e5;
+  --lock: #65cf8b;
+  --lock-bg: #102a1a;
 
-  /* The buy back. A violet, deliberately outside both the confidence scale and
-     the college accent: it is not a status and not an action, it is a
-     cushion, and it should not be mistaken for either. */
-  --mulligan: #6a4a9c;
-  --mulligan-bg: #ece5f6;
+  /* The buy back is deliberately outside both the confidence scale and the
+     league accent, so it cannot be mistaken for a status or an action. */
+  --mulligan: #b39ae0;
+  --mulligan-bg: #1e1930;
 
-  --shadow: 0 1px 2px rgb(20 26 21 / 7%), 0 4px 14px rgb(20 26 21 / 6%);
+  --shadow: 0 1px 2px rgb(0 0 0 / 45%), 0 4px 14px rgb(0 0 0 / 35%);
 
   /* type */
   --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
@@ -69,66 +63,4 @@
 
   --radius: 10px;
   --radius-sm: 6px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --ground: #0a120e;
-    --surface: #121b16;
-    --surface-2: #16211b;
-    --line: #25332b;
-    --line-soft: #1d2822;
-    --ink: #e9eee9;
-    --ink-2: #a6b3aa;
-    --ink-3: #74847a;
-    --accent: #65cf8b;
-    --accent-soft: #102a1a;
-    --accent-ink: #91e4ad;
-    --on-accent: #07150d;
-    --safe: #58c98a;
-    --safe-bg: #102a1d;
-    --solid: #55bfaa;
-    --solid-bg: #0f2622;
-    --thin: #e08b3c;
-    --thin-bg: #2c1d0f;
-    --close: #ed8a66;
-    --close-bg: #321a14;
-    --danger: #e56b62;
-    --danger-bg: #2e1614;
-    --lock: #65cf8b;
-    --lock-bg: #102a1a;
-    --mulligan: #b39ae0;
-    --mulligan-bg: #1e1930;
-    --shadow: 0 1px 2px rgb(0 0 0 / 45%), 0 4px 14px rgb(0 0 0 / 35%);
-  }
-}
-
-:root[data-theme="dark"] {
-  --ground: #0a120e;
-  --surface: #121b16;
-  --surface-2: #16211b;
-  --line: #25332b;
-  --line-soft: #1d2822;
-  --ink: #e9eee9;
-  --ink-2: #a6b3aa;
-  --ink-3: #74847a;
-  --accent: #65cf8b;
-  --accent-soft: #102a1a;
-  --accent-ink: #91e4ad;
-  --on-accent: #07150d;
-  --safe: #58c98a;
-  --safe-bg: #102a1d;
-  --solid: #55bfaa;
-  --solid-bg: #0f2622;
-  --thin: #e08b3c;
-  --thin-bg: #2c1d0f;
-  --close: #ed8a66;
-  --close-bg: #321a14;
-  --danger: #e56b62;
-  --danger-bg: #2e1614;
-  --lock: #65cf8b;
-  --lock-bg: #102a1a;
-  --mulligan: #b39ae0;
-  --mulligan-bg: #1e1930;
-  --shadow: 0 1px 2px rgb(0 0 0 / 45%), 0 4px 14px rgb(0 0 0 / 35%);
 }

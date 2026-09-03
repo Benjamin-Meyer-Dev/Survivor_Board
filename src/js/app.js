@@ -558,8 +558,12 @@ function registerServiceWorker() {
 }
 
 async function main() {
-  // The gate wears the last league's colours, so it looks like the board it opens.
+  // The board remembers its last league, while the gate keeps its own fixed
+  // dark-blue palette regardless of what this attribute says.
   applyTheme(app.league);
+  if (CONFIG.passcode.digest && readStored(PASSCODE_KEY) !== CONFIG.passcode.digest) {
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#080b12");
+  }
   await requirePasscode();
   await Promise.all([openLeague(app.league), startupMinimum()]);
   await finishStartup();

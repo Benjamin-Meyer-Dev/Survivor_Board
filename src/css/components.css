@@ -380,6 +380,19 @@
    underneath rather than merely covered, so nothing of the board shows through
    a slow paint or a resize. */
 .gate {
+  /* The gate opens before a league is chosen for this visit, so it must not
+     inherit the palette saved by the previous NFL/NCAA session. */
+  --ground: #080b12;
+  --surface: #131824;
+  --surface-2: #171d2b;
+  --line: #29314a;
+  --ink: #e9ecf4;
+  --ink-2: #a6aec2;
+  --ink-3: #737c92;
+  --accent: #93b4f0;
+  --accent-soft: #17203a;
+  --accent-ink: #b6cdf8;
+  --on-accent: #0a1122;
   position: fixed;
   inset: 0;
   z-index: 30;

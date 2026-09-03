@@ -57,7 +57,7 @@ export const LEAGUES = Object.freeze({
     label: "College",
     short: "NCAA",
     title: "Survivor Board",
-    /* Turf: grass-cast bone, floodlight blue. The original palette. */
+    /* Night turf: near-black green surfaces under a home-field green accent. */
     theme: "turf",
     season: 2026,
     firstKickoff: "2026-09-05",

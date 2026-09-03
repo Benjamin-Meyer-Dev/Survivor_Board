@@ -1,111 +1,39 @@
-/* ==========================================================================
+/* ===========================================================================
    League palettes.
 
-   Each pool gets its own colours so a glance at the phone tells you which
-   board you are on, without reading the switch.
-
-     turf       college. Grass-cast bone with a home-field green accent.
-                This is the base palette, so it lives in tokens.css and
-                field.css and needs nothing here.
-     primetime  NFL. A cool navy dome instead of an open grass field: the
-                ground loses its green cast, the accent moves to indigo, and
-                the buy back leaves violet for magenta so it cannot be
-                mistaken for the accent.
-
-   The confidence scale (safe / solid / thin / danger) is deliberately NOT
-   themed. Green means the same thing on both boards, and a status colour that
-   moves with the league is a status colour you cannot trust.
-
-   This file loads AFTER tokens.css and field.css, so the two-attribute
-   selectors here beat their single-attribute ones on both specificity and
-   order. Within the file the order is load-bearing: the light block is a
-   two-attribute selector and would otherwise override the base dark blocks,
-   so the themed dark blocks follow it and out-specify it in turn.
+   Both leagues use the permanent dark stadium theme. NCAA carries a green
+   field palette from tokens.css; NFL replaces it with a cool primetime blue.
+   Confidence colors do not change between leagues.
    ========================================================================== */
 
-/* --- primetime, light ---------------------------------------------------- */
+/* --- NFL: primetime blue ------------------------------------------------ */
 
 :root[data-league="nfl"] {
-  --ground: #e8ebf1;
-  --surface: #ffffff;
-  --surface-2: #f1f4f9;
-  --line: #ccd3e0;
-  --line-soft: #e0e5ee;
-
-  --ink: #12161f;
-  --ink-2: #444d61;
-  --ink-3: #6f7889;
-
-  --accent: #2c3f8f;
-  --accent-soft: #e4e8f7;
-  --accent-ink: #223170;
-  --on-accent: #f8f9fe;
-
-  --lock: #2c3f8f;
-  --lock-bg: #e4e8f7;
-
-  /* Magenta rather than violet: violet sits too close to this league's own
-     accent to read as a separate idea. */
-  --mulligan: #a3306b;
-  --mulligan-bg: #f7e2ee;
-
-  --shadow: 0 1px 2px rgb(18 22 31 / 8%), 0 4px 14px rgb(18 22 31 / 7%);
-
-  /* field.css tokens: a dome, not a grass field */
-  --yard: rgb(18 22 31 / 5%);
-  --yard-major: rgb(18 22 31 / 9%);
-  --chalk: rgb(18 22 31 / 13%);
-  --mow: rgb(44 63 143 / 3%);
-  --endzone: rgb(44 63 143 / 12%);
-}
-
-/* --- primetime, dark ----------------------------------------------------- */
-
-@media (prefers-color-scheme: dark) {
-  :root[data-league="nfl"]:not([data-theme="light"]) {
-    --ground: #080b12;
-    --surface: #131824;
-    --surface-2: #171d2b;
-    --line: #29314a;
-    --line-soft: #1f2637;
-    --ink: #e9ecf4;
-    --ink-2: #a6aec2;
-    --ink-3: #737c92;
-    --accent: #93b4f0;
-    --accent-soft: #17203a;
-    --accent-ink: #b6cdf8;
-    --on-accent: #0a1122;
-    --lock: #93b4f0;
-    --lock-bg: #17203a;
-    --mulligan: #e58ab8;
-    --mulligan-bg: #2a1522;
-    --shadow: 0 1px 2px rgb(0 0 0 / 50%), 0 4px 14px rgb(0 0 0 / 40%);
-    --yard: rgb(255 255 255 / 4%);
-    --yard-major: rgb(255 255 255 / 7%);
-    --chalk: rgb(255 255 255 / 11%);
-    --mow: rgb(147 180 240 / 2.6%);
-    --endzone: rgb(147 180 240 / 10%);
-  }
-}
-
-:root[data-theme="dark"][data-league="nfl"] {
   --ground: #080b12;
   --surface: #131824;
   --surface-2: #171d2b;
   --line: #29314a;
   --line-soft: #1f2637;
+
   --ink: #e9ecf4;
   --ink-2: #a6aec2;
   --ink-3: #737c92;
+
   --accent: #93b4f0;
   --accent-soft: #17203a;
   --accent-ink: #b6cdf8;
   --on-accent: #0a1122;
+
   --lock: #93b4f0;
   --lock-bg: #17203a;
+
+  /* Magenta stays distinct from the blue league accent. */
   --mulligan: #e58ab8;
   --mulligan-bg: #2a1522;
+
   --shadow: 0 1px 2px rgb(0 0 0 / 50%), 0 4px 14px rgb(0 0 0 / 40%);
+
+  /* field.css tokens: a dome rather than green turf */
   --yard: rgb(255 255 255 / 4%);
   --yard-major: rgb(255 255 255 / 7%);
   --chalk: rgb(255 255 255 / 11%);
@@ -113,28 +41,10 @@
   --endzone: rgb(147 180 240 / 10%);
 }
 
-/* --- the switch itself --------------------------------------------------- */
+/* --- league switch ------------------------------------------------------ */
 
-/* The two labels keep their own identities even while inactive. NCAA uses the
-   turf green and NFL uses primetime indigo, so changing leagues never turns
-   both halves into versions of the same shared blue. */
+/* Each half keeps its identity even while inactive. */
 :root {
-  --switch-nfl: #2c3f8f;
-  --switch-nfl-ink: #f8f9fe;
-  --switch-cfb: #256b45;
-  --switch-cfb-ink: #f7fbf8;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --switch-nfl: #93b4f0;
-    --switch-nfl-ink: #0a1122;
-    --switch-cfb: #65cf8b;
-    --switch-cfb-ink: #07150d;
-  }
-}
-
-:root[data-theme="dark"] {
   --switch-nfl: #93b4f0;
   --switch-nfl-ink: #0a1122;
   --switch-cfb: #65cf8b;
