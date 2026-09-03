@@ -1034,6 +1034,31 @@
   color: var(--lock);
 }
 
+/* The current-week marker belongs to the scoreboard header, not to a pick's
+   locked state. Give it the compact live-indicator treatment used by sports
+   broadcasts so it reads clearly without looking like another action chip. */
+.panel__head .chip--clock {
+  height: 28px;
+  gap: 7px;
+  padding: 0 11px 0 9px;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--line));
+  border-radius: 999px;
+  color: var(--accent-ink);
+  background: color-mix(in srgb, var(--accent-soft) 72%, var(--surface));
+  box-shadow: 0 1px 2px rgb(0 0 0 / 10%);
+  letter-spacing: 0.07em;
+}
+
+.panel__head .chip--clock::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
 .chip--buyback {
   background: var(--mulligan-bg);
   color: var(--mulligan);
@@ -1649,9 +1674,9 @@
   .strip__note {
     min-width: 0;
     font-size: clamp(11px, 2.8vw, 11.5px);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.25;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .panel {
@@ -1868,12 +1893,16 @@
   .ladder__sticky--pick {
     left: 48px;
     z-index: 2;
-    width: 156px;
-    min-width: 156px;
-    max-width: 156px;
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
     box-shadow:
       1px 0 0 var(--line),
       9px 0 12px -12px rgb(0 0 0 / 45%);
+  }
+
+  .ladder .ladder__sticky--pick {
+    padding-right: 4px;
   }
 
   .ladder thead .ladder__sticky {

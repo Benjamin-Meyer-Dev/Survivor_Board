@@ -272,7 +272,7 @@ function weekMarkup(week, board, canWrite) {
                      title="A loss this week costs the buy back, not the season. The team is still burned.">Buy back</span>`
             : ""
         }
-        ${isCurrent ? '<span class="chip chip--lock">On the clock</span>' : ""}
+        ${isCurrent ? '<span class="chip chip--clock">On the clock</span>' : ""}
       </div>
       <div class="panel__slots">
         ${week.picks.map((pick) => renderSlot(pick, board, canWrite)).join("")}
