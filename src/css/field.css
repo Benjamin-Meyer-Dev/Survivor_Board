@@ -5,7 +5,8 @@
    stays readable. Three ideas carry it:
 
      1. Yard lines - a fixed, very low contrast stripe field behind the page.
-     2. The scoreboard - the week header reads as a stadium readout.
+     2. The scoreboard - the week header reads as a readout, on the card's
+        own surface, under an accent sideline.
      3. Chalk - hairline dividers and uppercase condensed labels.
 
    Nothing here changes layout or state; strip this file and the app still
@@ -18,10 +19,6 @@
   --yard-major: rgb(20 26 21 / 9%);
   --chalk: rgb(20 26 21 / 13%);
   --mow: rgb(31 122 76 / 3%);
-  --score-bg: #0c1410;
-  --score-ink: #f3f6f1;
-  --score-dim: #7d8b80;
-  --score-glow: rgb(143 199 232 / 55%);
   --endzone: rgb(46 92 122 / 10%);
 }
 
@@ -31,9 +28,6 @@
     --yard-major: rgb(255 255 255 / 7%);
     --chalk: rgb(255 255 255 / 11%);
     --mow: rgb(88 201 138 / 2.6%);
-    --score-bg: #060c09;
-    --score-ink: #f3f6f1;
-    --score-dim: #6f7d73;
     --endzone: rgb(143 199 232 / 10%);
   }
 }
@@ -43,9 +37,6 @@
   --yard-major: rgb(255 255 255 / 7%);
   --chalk: rgb(255 255 255 / 11%);
   --mow: rgb(88 201 138 / 2.6%);
-  --score-bg: #060c09;
-  --score-ink: #f3f6f1;
-  --score-dim: #6f7d73;
   --endzone: rgb(143 199 232 / 10%);
 }
 
@@ -119,10 +110,12 @@ body::before {
 
 /* --- scoreboard header --------------------------------------------------- */
 
+/* Sits on the card's own surface, the same ground as the slots under it; the
+   accent sideline beneath is what marks it out as the readout. */
 .panel__head {
-  background: var(--score-bg);
+  background: var(--surface);
   border-bottom: 2px solid var(--accent);
-  color: var(--score-ink);
+  color: var(--ink);
   gap: 10px 12px;
   padding: 11px var(--sp-5);
 }
@@ -140,22 +133,21 @@ body::before {
   font-size: 12px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--score-dim);
+  color: var(--ink-3);
 }
 
-/* Padded two-digit readout, lit the way a scoreboard is. */
+/* Padded two-digit readout. */
 .scoreboard__num {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   font-size: 30px;
   line-height: 1;
-  color: var(--score-ink);
-  text-shadow: 0 0 14px var(--score-glow);
+  color: var(--ink);
 }
 
 .panel__head .u-eyebrow {
-  color: var(--score-dim);
+  color: var(--ink-3);
 }
 
 /* --- chalk dividers ------------------------------------------------------ */
@@ -240,7 +232,7 @@ body::before {
   background:
     linear-gradient(180deg, var(--endzone), transparent),
     repeating-linear-gradient(135deg, rgb(255 255 255 / 3%) 0 6px, transparent 6px 12px),
-    var(--score-bg);
+    var(--surface);
 }
 
 /* --- the goal line ------------------------------------------------------- */

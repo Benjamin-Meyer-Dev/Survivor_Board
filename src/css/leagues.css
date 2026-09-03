@@ -56,10 +56,6 @@
   --yard-major: rgb(18 22 31 / 9%);
   --chalk: rgb(18 22 31 / 13%);
   --mow: rgb(44 63 143 / 3%);
-  --score-bg: #0d1220;
-  --score-ink: #f2f4fa;
-  --score-dim: #7c85a0;
-  --score-glow: rgb(147 180 240 / 55%);
   --endzone: rgb(44 63 143 / 12%);
 }
 
@@ -88,9 +84,6 @@
     --yard-major: rgb(255 255 255 / 7%);
     --chalk: rgb(255 255 255 / 11%);
     --mow: rgb(147 180 240 / 2.6%);
-    --score-bg: #05080f;
-    --score-ink: #f2f4fa;
-    --score-dim: #6f7890;
     --endzone: rgb(147 180 240 / 10%);
   }
 }
@@ -117,9 +110,6 @@
   --yard-major: rgb(255 255 255 / 7%);
   --chalk: rgb(255 255 255 / 11%);
   --mow: rgb(147 180 240 / 2.6%);
-  --score-bg: #05080f;
-  --score-ink: #f2f4fa;
-  --score-dim: #6f7890;
   --endzone: rgb(147 180 240 / 10%);
 }
 

@@ -30,7 +30,7 @@ const el = {
   deck: document.getElementById("week-deck"),
   ladder: document.querySelector("#ladder tbody"),
   burn: document.getElementById("burn"),
-  burnCount: document.getElementById("burn-count"),
+  burnLegend: document.getElementById("burn-legend"),
   tabs: document.getElementById("tabs"),
   league: document.getElementById("league"),
   shell: document.querySelector(".shell"),
@@ -188,7 +188,7 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
     render();
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
-  renderBurnBoard(el.burn, el.burnCount, board, app.teams);
+  renderBurnBoard(el.burn, el.burnLegend, board, app.teams);
   playEffect();
 
   if (board.recommendationPending) scheduleRecommendation(settle);

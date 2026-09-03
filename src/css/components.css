@@ -103,13 +103,6 @@
   pointer-events: none;
 }
 
-.view__note {
-  margin: 0;
-  padding: var(--sp-3) var(--sp-4) 0;
-  font-size: 12.5px;
-  color: var(--ink-3);
-}
-
 /* status strip (ui/strip.js) --------------------------------------------- */
 
 /* One row, always. Three stats read as a scoreboard line; wrapping them into
@@ -554,8 +547,14 @@
   display: none;
 }
 
+/* The track stretches every slide to the tallest one, so a slide is a column
+   whose slot grid grows to its foot. Otherwise a shorter week left a strip of
+   bare card under its slots, and the empty half of a one-pick week stopped
+   short of the card the pick sits in. */
 .week-slide {
   flex: 0 0 100%;
+  display: flex;
+  flex-direction: column;
   scroll-snap-align: start;
   scroll-snap-stop: always;
 }
@@ -569,14 +568,31 @@
   border-top: 1px solid var(--line-soft);
 }
 
+/* Each pip is a button that jumps the deck to its week, drawn as a bare mark. */
 .week-pip {
+  appearance: none;
+  position: relative;
+  flex-shrink: 0;
   width: 7px;
   height: 7px;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
   background: var(--line);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   transition:
     background 0.18s ease,
     transform 0.18s ease;
+}
+
+/* The mark is a few pixels wide. The tap target is the whole column above and
+   below it, out to the middle of the gap on either side. */
+.week-pip::after {
+  content: "";
+  position: absolute;
+  inset: -12px -4px;
 }
 
 /* The week actually on the clock, so the deck has a fixed reference point. */
@@ -607,7 +623,9 @@
   gap: 10px var(--sp-4);
   padding: var(--sp-4) var(--sp-5);
   border-bottom: 1px solid var(--line-soft);
-  background: var(--surface-2);
+  /* The same ground as the slots beneath: the head is part of the card, not a
+     bar laid across it. */
+  background: var(--surface);
 }
 
 .panel__head h2 {
@@ -669,6 +687,9 @@
 }
 
 .panel__slots {
+  /* Takes whatever height the slide has left, so the slots (and the empty
+     column of a one-pick week) always run to the bottom of the card. */
+  flex: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1px;
@@ -722,10 +743,20 @@
   opacity: 0.7;
 }
 
-/* "Coach suggests", above the ghosted team name. */
+/* The line above the team name says whose the team is: yours, locked in, the
+   coach's, or nobody's yet. Every slot carries one so the head is the same
+   height whatever it holds. Without it a pick shortened the head and moved the
+   list under the thumb that had just tapped it. */
 .slot__eyebrow {
   margin-bottom: 4px;
+}
+
+.slot__eyebrow--coach {
   color: var(--accent);
+}
+
+.slot--locked .slot__eyebrow {
+  color: var(--lock);
 }
 
 /* An empty slot with nothing to suggest yet, or nothing to suggest at all. */
@@ -773,8 +804,11 @@
   margin-bottom: var(--sp-3);
 }
 
+/* Always one line, on every slot: a lock changes what it says, not whether it
+   is there, so the list beneath does not move on lock. */
 .slot__stamp {
   font-size: 11px;
+  line-height: 1.5;
   color: var(--ink-3);
   margin-top: 9px;
   font-family: var(--font-mono);
@@ -862,13 +896,6 @@
   box-shadow: inset 0 0 0 1px currentcolor;
 }
 
-/* On the scoreboard header the chip sits on near-black, where the light
-   background it carries elsewhere would read as a hole punched in the bar. */
-.panel__head .chip--buyback {
-  background: transparent;
-  color: var(--mulligan);
-}
-
 /* actions ---------------------------------------------------------------- */
 
 .actions {
@@ -930,10 +957,16 @@
   margin-bottom: 6px;
 }
 
-/* Stands where the list would be on a locked slot. */
+/* A locked slot keeps its list to read - the week's other lines are still
+   worth a look - but nothing in it can be tapped until the slot is unlocked.
+   The rows keep their full colour: they are not unavailable, only not yours to
+   change right now. The list itself says how to change that. */
 .swap--locked .swap__label {
-  margin-bottom: 0;
-  color: var(--ink-3);
+  color: var(--lock);
+}
+
+.swap__option:disabled {
+  cursor: default;
 }
 
 .swap__filter {
@@ -1088,15 +1121,18 @@
   min-width: 720px;
 }
 
+/* Roomier than the week deck: this is the view you sit back and read the
+   season on, so the rows get the height and the type size of a printed sheet
+   rather than a control. */
 .ladder th {
   font-family: var(--font-display);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.09em;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-3);
   text-align: left;
-  padding: 9px 12px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--line);
   background: var(--surface-2);
   position: sticky;
@@ -1104,9 +1140,9 @@
 }
 
 .ladder td {
-  padding: 8px 12px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--line-soft);
-  font-size: 13px;
+  font-size: 14.5px;
   vertical-align: middle;
 }
 
@@ -1168,20 +1204,20 @@
 .ladder__week {
   font-family: var(--font-mono);
   color: var(--ink-3);
-  width: 38px;
+  width: 44px;
 }
 
 .ladder__team {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 16px;
+  font-size: 20px;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
 .ladder__blank {
   color: var(--ink-3);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .ladder__num {
@@ -1192,11 +1228,11 @@
 }
 
 .meter {
-  height: 5px;
-  border-radius: 3px;
+  height: 7px;
+  border-radius: 4px;
   background: var(--line-soft);
   overflow: hidden;
-  min-width: 54px;
+  min-width: 90px;
 }
 
 .meter__fill {
@@ -1207,23 +1243,33 @@
 
 /* burn board (ui/burn-board.js) ------------------------------------------ */
 
+/* Tiles sized to be read across a room, not tapped: nothing here is a control,
+   so the grid spends its width on fewer, larger cells. */
 .burn {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 1px;
   background: var(--line-soft);
-  margin-top: var(--sp-3);
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-soft);
 }
 
 .burn__team {
   background: var(--surface);
-  padding: var(--sp-2) 10px;
+  padding: 12px 14px;
+  min-height: 50px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
-  font-size: 12.5px;
+  gap: 8px;
+  font-size: 14.5px;
+}
+
+/* A name wraps between words when the tile is narrow, and only a single word
+   too long for the tile ("Northwestern" on a small phone) is broken, rather
+   than running under the rating. */
+.burn__team > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .burn__team--spent {
@@ -1237,7 +1283,7 @@
 
 .burn__rating {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--ink-3);
 }
 
@@ -1269,6 +1315,65 @@
 .burn__team--planned .burn__rating {
   color: var(--accent);
   opacity: 0.75;
+}
+
+/* Legend, across the foot of the chart. Each swatch is a real tile in the
+   state it explains, so the key cannot drift from the chart above it. */
+.legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--sp-3) var(--sp-5);
+  padding: var(--sp-4) var(--sp-5);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.legend__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Sized as a sample, not a cell: fixed width so the four line up, and its own
+   corners since it is not sitting in the grid. */
+.legend__swatch {
+  flex: none;
+  width: 108px;
+  min-height: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+}
+
+.legend__swatch .burn__rating {
+  font-size: 11.5px;
+}
+
+/* An open tile is only visible in the grid because of the gaps around it, so
+   on its own it needs an edge. */
+.legend__swatch--open {
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.legend__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.legend__key {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12.5px;
+}
+
+.legend__note {
+  font-size: 12px;
+  color: var(--ink-3);
 }
 
 /* notices ---------------------------------------------------------------- */
@@ -1401,26 +1506,44 @@
 
   .ladder th,
   .ladder td {
-    padding: 8px 7px;
+    padding: 11px 8px;
   }
 
   .ladder th {
-    font-size: 10px;
+    font-size: 10.5px;
     letter-spacing: 0.06em;
   }
 
   .ladder td {
-    font-size: 12.5px;
+    font-size: 13.5px;
   }
 
   .ladder__team {
-    font-size: 14px;
+    font-size: 16px;
     white-space: normal;
     line-height: 1.15;
   }
 
   .ladder__week {
-    width: 24px;
+    width: 26px;
+  }
+
+  /* Wide enough for "Mississippi State" and its rating on one line, so a
+     phone gets two or three big columns rather than four cramped ones. */
+  .burn {
+    grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+  }
+
+  .burn__team {
+    padding: 11px 12px;
+    min-height: 46px;
+    font-size: 13.5px;
+  }
+
+  .legend {
+    grid-template-columns: 1fr;
+    gap: var(--sp-3);
+    padding: var(--sp-4);
   }
 
   .is-wide-only {
@@ -1453,12 +1576,13 @@
   }
 
   .burn {
-    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
 
   .burn__team {
-    padding: var(--sp-2) 8px;
-    font-size: 11.5px;
+    padding: 10px 11px;
+    min-height: 42px;
+    font-size: 13px;
   }
 }
 

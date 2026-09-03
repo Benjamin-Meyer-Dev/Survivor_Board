@@ -1,6 +1,6 @@
 /**
- * One-line banners: a message from app.js, storage mode, and anything the
- * refresh workflow flagged.
+ * One-line banners: a message from app.js, storage mode, and any rule break
+ * on the board.
  */
 
 import { escapeHtml } from "../core/format.js";
@@ -25,12 +25,6 @@ export function renderNotices(root, { store, board, message }) {
   for (const conflict of board.conflicts) {
     notices.push(
       `Rule break: ${conflict.team} is now picked in both week ${conflict.weeks[0]} and week ${conflict.weeks[1]}. Swap one of them.`,
-    );
-  }
-
-  for (const flag of board.flagged) {
-    notices.push(
-      `Week ${flag.week}: ${flag.team} is only ${Math.abs(flag.spread).toFixed(1)} points. Consider a backup.`,
     );
   }
 

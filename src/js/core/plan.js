@@ -293,13 +293,18 @@ export function buildBoard({
           .filter((other) => other.slot !== pick.slot && other.team)
           .map((other) => other.team),
       );
-      // Sorted by spread, but anything unavailable sinks to the bottom - the
-      // top of the list should be teams you can actually take.
+      // Sorted by spread. A team locked in another week sinks to the bottom, so
+      // the top of the list is teams you can actually take, and that order only
+      // moves on a lock, when a reshuffle is expected. Nothing about an
+      // unlocked pick affects the order: the team in the slot and a team held
+      // by the other slot this week keep their place, so a tap on the list
+      // never rearranges it under the thumb that made it.
+      const spentElsewhere = (team) =>
+        spentTeams[team] !== undefined && spentTeams[team] !== week.week;
       pick.options = week.options
         .map((option) => {
-          const spentWeek = spentTeams[option.team];
           const takenBySibling = siblings.has(option.team);
-          const usedElsewhere = spentWeek !== undefined && spentWeek !== week.week;
+          const usedElsewhere = spentElsewhere(option.team);
           return {
             ...option,
             tier: confidenceTier(option.winProb, rules.tiers),
@@ -309,13 +314,14 @@ export function buildBoard({
             reason: takenBySibling
               ? "other slot this week"
               : usedElsewhere
-                ? `locked week ${spentWeek}`
+                ? `locked week ${spentTeams[option.team]}`
                 : "",
           };
         })
         .sort((a, b) => {
-          if (a.isCurrent !== b.isCurrent) return a.isCurrent ? -1 : 1;
-          if (a.disabled !== b.disabled) return a.disabled ? 1 : -1;
+          const aSpent = spentElsewhere(a.team);
+          const bSpent = spentElsewhere(b.team);
+          if (aSpent !== bSpent) return aSpent ? 1 : -1;
           return a.spread - b.spread;
         });
     }
@@ -341,7 +347,6 @@ export function buildBoard({
 
   const currentWeek = clampWeek(odds.currentWeek ?? 1, plan.weeks.length);
   const nextRefresh = nextRefreshAt(Date.now(), refreshSchedule);
-  const threshold = plan.dangerThreshold ?? -10;
 
   const board = {
     weeks,
@@ -362,7 +367,6 @@ export function buildBoard({
           weeks: rules.buyBackWeeks,
         }
       : null,
-    flagged: [],
     conflicts,
     updatedAt: odds.updatedAt,
     nextRefreshAt: nextRefresh,
@@ -444,9 +448,6 @@ export function buildBoard({
     for (const pick of week.picks) {
       const candidate = pick.onPath;
       if (!candidate || pick.status.result) continue;
-      if (candidate.spread > threshold) {
-        board.flagged.push({ week: week.week, team: candidate.team, spread: candidate.spread });
-      }
       if (candidate.kind === "picked") board.pickedTeams[candidate.team] ??= week.week;
       if (candidate.kind === "coach" && spentTeams[candidate.team] === undefined) {
         board.plannedTeams[candidate.team] ??= week.week;

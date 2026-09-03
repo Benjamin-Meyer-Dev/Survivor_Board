@@ -1,16 +1,24 @@
 /**
  * The week deck: every week laid out horizontally, one per screen, moved
- * between by swiping.
+ * between by swiping, or by tapping a pip in the row beneath.
  *
  * Built on CSS scroll-snap rather than touch handlers, so it gets native
  * momentum, rubber-banding and trackpad support for free and cannot fight the
- * browser's own scrolling. JS only reads the scroll position to keep the pips
- * and the app's current week in sync.
+ * browser's own scrolling. JS reads the scroll position to keep the pips and
+ * the app's current week in sync, and only moves the track itself for a pip
+ * tap or an arrow key.
  *
  * A slot is one of three things: empty, with the coach's suggestion drawn in
  * as a ghost; picked, a team the users chose but have not committed to; or
  * locked. The coach never fills a slot. Its call shows as a badge on the team
  * in the list and as the ghost, and the pick is always a tap by a user.
+ *
+ * The deck is rebuilt from markup on every render, and a pick is a render. So
+ * that a tap on the list does not move the list, three things hold steady
+ * across the rebuild: every slot head has the same rows whatever it holds, the
+ * option order does not depend on what is picked (see core/plan.js), and each
+ * list's scroll position, filter text and focus are read off the old markup
+ * and put back on the new.
  *
  * Handlers are injected; this module knows nothing about the store.
  */
@@ -18,8 +26,14 @@
 import { formatSpread, formatPercent, formatMatchup, escapeHtml } from "../core/format.js";
 import { TIER_LABEL } from "../core/probability.js";
 
-/** Set while we move the track ourselves, so it does not echo back as input. */
-let isRestoring = false;
+/**
+ * Where a move of our own is heading, so the scroll events it fires are not
+ * read as a swipe. Null while the track is at rest or in the user's hands.
+ */
+let destination = null;
+
+/** Fallback that clears the destination for a move that never lands. */
+let release = null;
 
 /** What an open slot says while the optimiser has not reported yet. */
 const WORKING = "Working out the path…";
@@ -31,18 +45,21 @@ const WORKING = "Working out the path…";
  * @param {{onAction:Function, onWeekChange:Function, canWrite:boolean}} handlers
  */
 export function renderWeekDeck(root, board, viewWeek, handlers) {
+  const carried = captureListState(root);
+
   root.innerHTML = `
     <div class="weeks" id="weeks-track" tabindex="0"
          role="group" aria-label="Weeks, swipe sideways to change">
       ${board.weeks.map((week) => weekMarkup(week, board, handlers.canWrite)).join("")}
     </div>
-    <div class="week-pips" aria-hidden="true">
+    <div class="week-pips" role="group" aria-label="Jump to a week">
       ${board.weeks
         .map(
-          (
-            week,
-          ) => `<span class="week-pip${week.week === board.currentWeek ? " week-pip--now" : ""}"
-                            data-pip="${week.week}"></span>`,
+          (week) =>
+            `<button type="button"
+                     class="week-pip${week.week === board.currentWeek ? " week-pip--now" : ""}"
+                     data-pip="${week.week}" tabindex="-1"
+                     aria-label="Week ${week.week}, ${escapeHtml(week.labelFull)}"></button>`,
         )
         .join("")}
     </div>`;
@@ -50,12 +67,19 @@ export function renderWeekDeck(root, board, viewWeek, handlers) {
   const track = root.querySelector("#weeks-track");
   const slides = [...track.children];
 
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
   centreOn(track, slides, viewWeek - 1, "auto");
   markActive(root, viewWeek);
 
   let settle = null;
   track.addEventListener("scroll", () => {
-    if (isRestoring) return;
+    if (destination !== null) {
+      // One of our own moves. Ignore it until it lands, then stand down: the
+      // pips and the app were told where it was going when it set off.
+      if (Math.abs(track.scrollLeft - destination) <= 2) destination = null;
+      return;
+    }
     clearTimeout(settle);
     settle = setTimeout(() => {
       const week = nearestIndex(track, slides) + 1;
@@ -64,23 +88,41 @@ export function renderWeekDeck(root, board, viewWeek, handlers) {
     }, 90);
   });
 
+  // A finger or a wheel during one of our moves cuts it short, and from then
+  // on the scroll is the user's to report.
+  const takeOver = () => {
+    destination = null;
+  };
+  for (const type of ["touchstart", "pointerdown", "wheel"]) {
+    track.addEventListener(type, takeOver, { passive: true });
+  }
+
+  // Moving the track ourselves, for a pip tap or an arrow key. The scroll
+  // events it fires are ignored above, so the pips and the app are told here.
+  const jumpTo = (index) => {
+    const next = Math.min(Math.max(index, 0), slides.length - 1);
+    markActive(root, next + 1);
+    handlers.onWeekChange(next + 1);
+    centreOn(track, slides, next, reducedMotion.matches ? "auto" : "smooth");
+  };
+
   // Keyboard equivalent of the swipe, for anyone not on a touchscreen.
   track.addEventListener("keydown", (event) => {
     const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
     if (!step) return;
     event.preventDefault();
-    const next = Math.min(Math.max(nearestIndex(track, slides) + step, 0), slides.length - 1);
-    centreOn(track, slides, next, "smooth");
+    jumpTo(nearestIndex(track, slides) + step);
+  });
+
+  // A tap on a pip goes straight to that week. The pips are out of the tab
+  // order because the track's arrow keys already cover the keyboard.
+  root.querySelector(".week-pips").addEventListener("click", (event) => {
+    const pip = event.target.closest("[data-pip]");
+    if (pip) jumpTo(Number(pip.dataset.pip) - 1);
   });
 
   root.querySelectorAll("[data-filter]").forEach((input) => {
-    input.addEventListener("input", () => {
-      const needle = input.value.trim().toLowerCase();
-      const list = root.querySelector(`[data-list="${input.dataset.filter}"]`);
-      list.querySelectorAll("[data-search]").forEach((option) => {
-        option.hidden = needle !== "" && !option.dataset.search.includes(needle);
-      });
-    });
+    input.addEventListener("input", () => applyFilter(root, input));
   });
 
   root.querySelectorAll("[data-action]").forEach((button) => {
@@ -92,6 +134,77 @@ export function renderWeekDeck(root, board, viewWeek, handlers) {
         team: button.dataset.team,
       });
     });
+  });
+
+  restoreListState(root, carried);
+}
+
+/**
+ * What the user had going in each team list, read off the markup about to be
+ * replaced: how far each list was scrolled, what was typed in its filter, and
+ * which control had focus. Without this every pick threw the list back to the
+ * top, emptied the filter and dropped focus on the body.
+ */
+function captureListState(root) {
+  const lists = {};
+  for (const list of root.querySelectorAll("[data-list]")) {
+    lists[list.dataset.list] = { scrollTop: list.scrollTop, filter: "" };
+  }
+  for (const input of root.querySelectorAll("[data-filter]")) {
+    const saved = lists[input.dataset.filter];
+    if (saved) saved.filter = input.value;
+  }
+
+  const active = document.activeElement;
+  const dataset = active?.dataset;
+  let focus = null;
+  if (dataset && root.contains(active)) {
+    if (dataset.filter) {
+      focus = { filter: dataset.filter };
+    } else if (dataset.action) {
+      const { action, week, slot, team = "" } = dataset;
+      focus = { action, week, slot, team };
+    }
+  }
+
+  return { lists, focus };
+}
+
+/** Put back what captureListState took, onto the freshly rendered markup. */
+function restoreListState(root, { lists, focus }) {
+  for (const [id, saved] of Object.entries(lists)) {
+    const input = root.querySelector(`[data-filter="${id}"]`);
+    if (input && saved.filter) {
+      input.value = saved.filter;
+      applyFilter(root, input);
+    }
+    // After the filter, so hidden rows are not counted in the scroll height.
+    const list = root.querySelector(`[data-list="${id}"]`);
+    if (list) list.scrollTop = saved.scrollTop;
+  }
+
+  if (!focus) return;
+  const target = focus.filter
+    ? root.querySelector(`[data-filter="${focus.filter}"]`)
+    : [...root.querySelectorAll("[data-action]")].find(
+        (button) =>
+          button.dataset.action === focus.action &&
+          button.dataset.week === focus.week &&
+          button.dataset.slot === focus.slot &&
+          (button.dataset.team ?? "") === focus.team,
+      );
+  // preventScroll: bringing the control into view is exactly the jump this
+  // is here to avoid.
+  target?.focus({ preventScroll: true });
+}
+
+/** Hide every option in the input's list that does not match what was typed. */
+function applyFilter(root, input) {
+  const needle = input.value.trim().toLowerCase();
+  const list = root.querySelector(`[data-list="${input.dataset.filter}"]`);
+  if (!list) return;
+  list.querySelectorAll("[data-search]").forEach((option) => {
+    option.hidden = needle !== "" && !option.dataset.search.includes(needle);
   });
 }
 
@@ -109,17 +222,27 @@ function nearestIndex(track, slides) {
   return best;
 }
 
+/**
+ * Move the track to a slide. The scroll handler stands down when the track
+ * gets there; the timer is for a move that never does, which the handler
+ * could not tell from one still under way.
+ */
 function centreOn(track, slides, index, behavior) {
   const slide = slides[index];
   if (!slide) return;
-  isRestoring = true;
-  track.scrollTo({ left: slide.offsetLeft, behavior });
-  // Release after the scroll settles so our own movement is not read as input.
-  setTimeout(
+  clearTimeout(release);
+  // Already there: nothing will scroll, so there is nothing to wait for.
+  if (Math.abs(track.scrollLeft - slide.offsetLeft) <= 2) {
+    destination = null;
+    return;
+  }
+  destination = slide.offsetLeft;
+  track.scrollTo({ left: destination, behavior });
+  release = setTimeout(
     () => {
-      isRestoring = false;
+      destination = null;
     },
-    behavior === "smooth" ? 400 : 60,
+    behavior === "smooth" ? 1200 : 60,
   );
 }
 
@@ -159,7 +282,12 @@ function weekMarkup(week, board, canWrite) {
 
 /**
  * One slot. A picked slot is drawn solid; a locked one takes the lock tint and
- * loses its list, because a lock is a lock. Empty slots are handled apart.
+ * keeps its list for reading, with nothing in it tappable until the slot is
+ * unlocked. Empty slots are handled apart.
+ *
+ * Every slot has the same rows in the same order - eyebrow, team, matchup,
+ * numbers, actions, stamp, list - so a pick, a lock or a clear changes what
+ * the rows say without moving the list beneath them.
  */
 function renderSlot(pick, board, canWrite) {
   if (!pick.team) return renderEmptySlot(pick, board, canWrite);
@@ -170,6 +298,7 @@ function renderSlot(pick, board, canWrite) {
     <div class="slot ${status.locked ? "slot--locked" : "slot--picked"}">
       <div class="slot__head">
         <div class="slot__identity">
+          <div class="u-eyebrow slot__eyebrow">${status.locked ? "Locked in" : "Your pick"}</div>
           <div class="slot__team">${escapeHtml(pick.team)}</div>
           <div class="slot__matchup">
             ${escapeHtml(formatMatchup(pick.site, pick.opponent))} &middot; ${escapeHtml(pick.conference)}
@@ -190,13 +319,9 @@ function renderSlot(pick, board, canWrite) {
         ${button("clear", pick, "Clear", "", canWrite)}
       </div>
 
-      ${
-        status.by
-          ? `<div class="slot__stamp">${escapeHtml(status.by)} &middot; ${escapeHtml(formatStamp(status.at))}</div>`
-          : ""
-      }
+      ${stamp(status)}
 
-      ${status.locked ? lockedNote() : renderTeamList(pick, canWrite)}
+      ${renderTeamList(pick, canWrite)}
     </div>`;
 }
 
@@ -211,7 +336,7 @@ function renderEmptySlot(pick, board, canWrite) {
 
   const head = suggestion
     ? `<div class="slot__identity">
-          <div class="u-eyebrow slot__eyebrow">Coach suggests</div>
+          <div class="u-eyebrow slot__eyebrow slot__eyebrow--coach">Coach suggests</div>
           <div class="slot__team">${escapeHtml(suggestion.team)}</div>
           <div class="slot__matchup">
             ${escapeHtml(formatMatchup(suggestion.site, suggestion.opponent))} &middot; ${escapeHtml(suggestion.conference)}
@@ -220,6 +345,7 @@ function renderEmptySlot(pick, board, canWrite) {
         <span class="chip chip--${suggestion.tier}">${TIER_LABEL[suggestion.tier]}</span>
         <span class="chip chip--coach">Suggestion</span>`
     : `<div class="slot__identity">
+          <div class="u-eyebrow slot__eyebrow">Open slot</div>
           <div class="slot__team slot__team--blank">${pending ? WORKING : "No pick yet"}</div>
           <div class="slot__matchup">
             ${pending ? "The coach is planning the season." : "Pick a team from the list below."}
@@ -230,7 +356,7 @@ function renderEmptySlot(pick, board, canWrite) {
     <div class="slot slot--empty">
       <div class="slot__head">${head}</div>
 
-      ${suggestion ? numbers(suggestion) : ""}
+      ${numbers(suggestion)}
 
       <div class="actions">
         ${button("lock", pick, "Lock in", "", false)}
@@ -239,6 +365,8 @@ function renderEmptySlot(pick, board, canWrite) {
         ${button("clear", pick, "Clear", "", false)}
       </div>
 
+      ${stamp(pick.status)}
+
       ${renderTeamList(pick, canWrite)}
     </div>`;
 }
@@ -246,34 +374,31 @@ function renderEmptySlot(pick, board, canWrite) {
 /**
  * Every team the slot could hold this week. The coach's call carries a badge,
  * and that badge is the whole of how the coach steers a pick.
+ *
+ * A locked slot keeps the list, so the week's other lines stay in view, but
+ * its rows cannot be tapped: a lock is a lock until it is undone.
  */
 function renderTeamList(pick, canWrite) {
   const id = `${pick.week}-${pick.slot}`;
+  const locked = Boolean(pick.status.locked);
   const available = pick.options.filter((option) => !option.disabled).length;
+  const label = locked
+    ? "Unlock to change the team"
+    : `${pick.team ? "Change the team" : "Pick a team"}: ${available} available`;
 
   return `
-      <div class="swap">
-        <label class="u-eyebrow swap__label" for="filter-${id}">
-          ${pick.team ? "Change the team" : "Pick a team"}: ${available} available
-        </label>
+      <div class="swap${locked ? " swap--locked" : ""}">
+        <label class="u-eyebrow swap__label" for="filter-${id}">${label}</label>
         <input class="swap__filter" type="search" id="filter-${id}"
                placeholder="Filter teams" autocomplete="off"
                data-filter="${id}" ${canWrite ? "" : "disabled"}>
         <div class="swap__list" data-list="${id}">
-          ${pick.options.map((option) => renderOption(pick, option, canWrite)).join("")}
+          ${pick.options.map((option) => renderOption(pick, option, canWrite && !locked)).join("")}
         </div>
       </div>`;
 }
 
-/** Stands where the list would be on a locked slot. */
-function lockedNote() {
-  return `
-      <div class="swap swap--locked">
-        <span class="u-eyebrow swap__label">Locked in. Unlock to change the team.</span>
-      </div>`;
-}
-
-function renderOption(pick, option, canWrite) {
+function renderOption(pick, option, canPick) {
   const classes = [
     "swap__option",
     option.isCurrent ? "swap__option--current" : "",
@@ -287,7 +412,7 @@ function renderOption(pick, option, canWrite) {
             data-action="pick" data-week="${pick.week}" data-slot="${pick.slot}"
             data-team="${escapeHtml(option.team)}"
             data-search="${escapeHtml((option.team + " " + option.opponent).toLowerCase())}"
-            ${canWrite && !option.disabled ? "" : "disabled"}
+            ${canPick && !option.disabled ? "" : "disabled"}
             ${option.isCurrent ? 'aria-current="true"' : ""}>
       <span class="swap__team">
         <span class="swap__name">${escapeHtml(option.team)}</span>${option.isCoach ? '<span class="swap__tag">Coach</span>' : ""}
@@ -299,14 +424,29 @@ function renderOption(pick, option, canWrite) {
     </button>`;
 }
 
-/** Spread, win probability and where the line came from, for a pick or a suggestion. */
+/**
+ * Spread, win probability and where the line came from, for a pick or a
+ * suggestion. With nothing to price, the row still stands, blank, so the slot
+ * keeps its height while the coach is working or has nothing to suggest.
+ */
 function numbers(line) {
   return `
       <div class="slot__numbers">
-        ${metric("Spread", formatSpread(line.spread))}
-        ${metric("Win prob", formatPercent(line.winProb))}
-        ${metric("Line", line.source === "market" ? "Market" : "Projected", true)}
+        ${metric("Spread", line ? formatSpread(line.spread) : "—")}
+        ${metric("Win prob", line ? formatPercent(line.winProb) : "—")}
+        ${metric("Line", line ? (line.source === "market" ? "Market" : "Projected") : "—", true)}
       </div>`;
+}
+
+/**
+ * Who committed the slot and when. Always one line, so a lock fills it rather
+ * than adding it and pushing the list down.
+ */
+function stamp(status) {
+  const text = status.by
+    ? `${escapeHtml(status.by)} &middot; ${escapeHtml(formatStamp(status.at))}`
+    : "Not locked";
+  return `<div class="slot__stamp">${text}</div>`;
 }
 
 /** Absolute, unambiguous, and always carrying the year. */
