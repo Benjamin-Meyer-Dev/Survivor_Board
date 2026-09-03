@@ -123,6 +123,6 @@ export const TIER_LABEL = Object.freeze({
   safe: "Lock",
   solid: "Solid",
   thin: "Shaky",
-  close: "Close Call",
-  danger: "Upset Alert",
+  close: "Close call",
+  danger: "Upset alert",
 });

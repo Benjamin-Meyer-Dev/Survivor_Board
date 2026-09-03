@@ -23,7 +23,7 @@ const SLIDE_MS = 280;
 
 export const TABS = Object.freeze([
   { id: "week", label: "This Week", panel: "view-week" },
-  { id: "path", label: "Game Plan", panel: "view-path" },
+  { id: "path", label: "Gameplan", panel: "view-path" },
   { id: "burn", label: "Depth Chart", panel: "view-burn" },
 ]);
 

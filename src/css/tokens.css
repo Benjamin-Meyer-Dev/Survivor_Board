@@ -2,10 +2,8 @@
    Design tokens, "night game".
 
    Grounds are turf: a near-black pine after dark, a grass-tinted bone by day.
-   The accent is floodlight, the cold blue-white of stadium lights over a
-   night field. It has to sit outside the confidence scale, which already
-   spends green, teal, orange and red, so a cool neutral-blue is the one
-   family left that never reads as a status.
+   The college accent is a brighter home-field green. NFL overrides it with
+   primetime indigo in leagues.css, keeping the two boards visually distinct.
 
    Rule: declare the full palette on bare :root, then redefine only the values
    inside the theme blocks. Never define a colour that exists only inside a
@@ -25,12 +23,12 @@
   --ink-2: #47544a;
   --ink-3: #75827a;
 
-  /* accent, floodlight, deepened for text contrast on bone */
-  --accent: #2e5c7a;
-  --accent-soft: #e2edf3;
-  --accent-ink: #234a63;
+  /* college accent, home-field green, deepened for contrast on bone */
+  --accent: #256b45;
+  --accent-soft: #dff0e5;
+  --accent-ink: #174e31;
   /* Text drawn ON the accent. Flips with the accent's own lightness - the
-     dark-mode floodlight is far too bright to carry white type. */
+     brighter dark-mode green is too light to carry white type. */
   --on-accent: #f7fbfd;
 
   /* confidence scale */
@@ -45,11 +43,11 @@
   --danger: #a8352d;
   --danger-bg: #f7e0de;
 
-  --lock: #2e5c7a;
-  --lock-bg: #e2edf3;
+  --lock: #256b45;
+  --lock-bg: #dff0e5;
 
   /* The buy back. A violet, deliberately outside both the confidence scale and
-     the floodlight accent: it is not a status and not an action, it is a
+     the college accent: it is not a status and not an action, it is a
      cushion, and it should not be mistaken for either. */
   --mulligan: #6a4a9c;
   --mulligan-bg: #ece5f6;
@@ -83,10 +81,10 @@
     --ink: #e9eee9;
     --ink-2: #a6b3aa;
     --ink-3: #74847a;
-    --accent: #8fc7e8;
-    --accent-soft: #15242e;
-    --accent-ink: #b2dbf4;
-    --on-accent: #08151d;
+    --accent: #65cf8b;
+    --accent-soft: #102a1a;
+    --accent-ink: #91e4ad;
+    --on-accent: #07150d;
     --safe: #58c98a;
     --safe-bg: #102a1d;
     --solid: #55bfaa;
@@ -97,8 +95,8 @@
     --close-bg: #321a14;
     --danger: #e56b62;
     --danger-bg: #2e1614;
-    --lock: #8fc7e8;
-    --lock-bg: #15242e;
+    --lock: #65cf8b;
+    --lock-bg: #102a1a;
     --mulligan: #b39ae0;
     --mulligan-bg: #1e1930;
     --shadow: 0 1px 2px rgb(0 0 0 / 45%), 0 4px 14px rgb(0 0 0 / 35%);
@@ -114,10 +112,10 @@
   --ink: #e9eee9;
   --ink-2: #a6b3aa;
   --ink-3: #74847a;
-  --accent: #8fc7e8;
-  --accent-soft: #15242e;
-  --accent-ink: #b2dbf4;
-  --on-accent: #08151d;
+  --accent: #65cf8b;
+  --accent-soft: #102a1a;
+  --accent-ink: #91e4ad;
+  --on-accent: #07150d;
   --safe: #58c98a;
   --safe-bg: #102a1d;
   --solid: #55bfaa;
@@ -128,8 +126,8 @@
   --close-bg: #321a14;
   --danger: #e56b62;
   --danger-bg: #2e1614;
-  --lock: #8fc7e8;
-  --lock-bg: #15242e;
+  --lock: #65cf8b;
+  --lock-bg: #102a1a;
   --mulligan: #b39ae0;
   --mulligan-bg: #1e1930;
   --shadow: 0 1px 2px rgb(0 0 0 / 45%), 0 4px 14px rgb(0 0 0 / 35%);

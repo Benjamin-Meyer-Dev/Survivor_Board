@@ -9,21 +9,21 @@ export function renderStrip(root, board) {
   const season = seasonSurvival(board);
   const cells = [
     {
-      key: "On the Clock",
+      key: "On the clock",
       value: `Week ${board.currentWeek}`,
       note: board.weeks[board.currentWeek - 1]?.labelFull ?? "",
     },
     {
-      key: "Season Survival",
+      key: "Season survival",
       ...season,
     },
     {
-      key: "Next Refresh",
+      key: "Next refresh",
       // Ticked in place by app.js rather than re-rendered, so the button below
       // it never loses focus mid-second.
       value: `<span id="countdown">${escapeHtml(formatDuration(board.nextRefreshAt - Date.now()))}</span>`,
       raw: true,
-      note: `daily at ${refreshTime(board.nextRefreshAt)} local · last ${timeAgo(board.updatedAt)}`,
+      note: `Daily at ${refreshTime(board.nextRefreshAt)} local · Last ${timeAgo(board.updatedAt)}`,
     },
   ];
 
@@ -48,8 +48,8 @@ function refreshTime(nextRefreshAt) {
 }
 
 function seasonSurvival(board) {
-  if (board.eliminated) return { value: "Out", note: "run is over" };
-  if (board.recommendationPending) return { value: "…", note: "working out the path" };
+  if (board.eliminated) return { value: "Out", note: "Run is over" };
+  if (board.recommendationPending) return { value: "…", note: "Working out the path" };
   if (board.previewPathProbability === null) {
     return { value: formatPercent(board.pathProbability), note: survivalNote(board) };
   }
@@ -73,8 +73,8 @@ function seasonSurvival(board) {
  * already has it counted in, and the weeks it covers are badged on the panel.
  */
 function survivalNote(board) {
-  if (!board.buyBack) return "if all hold";
-  if (board.buyBack.left === 0) return "buy back spent";
+  if (!board.buyBack) return "If all hold";
+  if (board.buyBack.left === 0) return "Buy back spent";
   const count = board.buyBack.left;
   return `${count} buy back${count === 1 ? "" : "s"} counted`;
 }

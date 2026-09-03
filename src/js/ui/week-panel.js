@@ -269,10 +269,10 @@ function weekMarkup(week, board, canWrite) {
         ${
           covered
             ? `<span class="chip chip--buyback"
-                     title="A loss this week costs the buy back, not the season. The team is still burned.">Buy Back</span>`
+                     title="A loss this week costs the buy back, not the season. The team is still burned.">Buy back</span>`
             : ""
         }
-        ${isCurrent ? '<span class="chip chip--lock">On the Clock</span>' : ""}
+        ${isCurrent ? '<span class="chip chip--lock">On the clock</span>' : ""}
       </div>
       <div class="panel__slots">
         ${week.picks.map((pick) => renderSlot(pick, board, canWrite)).join("")}
@@ -298,7 +298,7 @@ function renderSlot(pick, board, canWrite) {
     <div class="slot ${status.locked ? "slot--locked" : "slot--picked"}">
       <div class="slot__head">
         <div class="slot__identity">
-          <div class="u-eyebrow slot__eyebrow">${status.locked ? "Locked In" : "Your Pick"}</div>
+          <div class="u-eyebrow slot__eyebrow">${status.locked ? "Locked in" : "Your pick"}</div>
           <div class="slot__team">${escapeHtml(pick.team)}</div>
           ${matchupLine(pick, pick, canWrite)}
         </div>
@@ -333,14 +333,14 @@ function renderEmptySlot(pick, board, canWrite) {
 
   const head = suggestion
     ? `<div class="slot__identity">
-          <div class="u-eyebrow slot__eyebrow slot__eyebrow--coach">Coach Suggests</div>
+          <div class="u-eyebrow slot__eyebrow slot__eyebrow--coach">Coach suggests</div>
           <div class="slot__team">${escapeHtml(suggestion.team)}</div>
           ${matchupLine(pick, suggestion, canWrite)}
         </div>
         <span class="chip chip--${suggestion.tier}">${TIER_LABEL[suggestion.tier]}</span>
         <span class="chip chip--coach">Suggestion</span>`
     : `<div class="slot__identity">
-          <div class="u-eyebrow slot__eyebrow">Open Slot</div>
+          <div class="u-eyebrow slot__eyebrow">Open slot</div>
           <div class="slot__team slot__team--blank">${pending ? WORKING : "No pick yet"}</div>
           <div class="slot__matchup">
             ${pending ? "The coach is planning the season." : "Pick a team from the list below."}
@@ -388,7 +388,14 @@ function matchupLine(pick, shown, canWrite) {
              data-action="pick" data-week="${pick.week}" data-slot="${pick.slot}"
              data-team="${escapeHtml(reverse.team)}"
              aria-label="Flip this pick to ${escapeHtml(reverse.team)}"
-             title="Pick the other side of this matchup">&#8646; Flip to ${escapeHtml(reverse.team)}</button>`
+             title="Pick the other side of this matchup">
+             <span class="slot__flip-icon" aria-hidden="true">
+               <svg viewBox="0 0 20 20" focusable="false">
+                 <path d="M3 6h11m-3-3 3 3-3 3M17 14H6m3 3-3-3 3-3" />
+               </svg>
+             </span>
+             <span>Flip to <strong>${escapeHtml(reverse.team)}</strong></span>
+           </button>`
         : ""
     }
   </div>`;
@@ -406,14 +413,14 @@ function renderTeamList(pick, canWrite) {
   const locked = Boolean(pick.status.locked);
   const available = pick.options.filter((option) => !option.disabled).length;
   const label = locked
-    ? "Unlock to Change the Team"
-    : `${pick.team ? "Change the Team" : "Pick a Team"}: ${available} Available`;
+    ? "Unlock to change the team"
+    : `${pick.team ? "Change the team" : "Pick a team"}: ${available} available`;
 
   return `
       <div class="swap${locked ? " swap--locked" : ""}">
         <label class="u-eyebrow swap__label" for="filter-${id}">${label}</label>
         <input class="swap__filter" type="search" id="filter-${id}"
-               placeholder="Filter Teams" autocomplete="off"
+               placeholder="Filter teams" autocomplete="off"
                data-filter="${id}" ${canWrite ? "" : "disabled"}>
         <div class="swap__list" data-list="${id}">
           ${pick.options.map((option) => renderOption(pick, option, canWrite && !locked)).join("")}
@@ -456,7 +463,7 @@ function numbers(line) {
   return `
       <div class="slot__numbers">
         ${metric("Spread", line ? formatSpread(line.spread) : "—", false, line?.tier)}
-        ${metric("Win Probability", line ? formatPercent(line.winProb) : "—", false, line?.tier)}
+        ${metric("Win prob", line ? formatPercent(line.winProb) : "—", false, line?.tier)}
         ${metric("Line", line ? (line.source === "market" ? "Market" : "Projected") : "—", true)}
       </div>`;
 }

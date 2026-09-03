@@ -28,7 +28,7 @@
   font-weight: 700;
   font-size: 40px;
   line-height: 0.95;
-  text-transform: none;
+  text-transform: uppercase;
 }
 
 /* sections --------------------------------------------------------------- */
@@ -54,7 +54,7 @@
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 20px;
-  text-transform: none;
+  text-transform: uppercase;
 }
 
 .section__head p {

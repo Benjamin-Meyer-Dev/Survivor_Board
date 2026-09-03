@@ -4,13 +4,13 @@
    Each pool gets its own colours so a glance at the phone tells you which
    board you are on, without reading the switch.
 
-     turf       college. Grass-cast bone, floodlight blue over a green field.
+     turf       college. Grass-cast bone with a home-field green accent.
                 This is the base palette, so it lives in tokens.css and
                 field.css and needs nothing here.
      primetime  NFL. A cool navy dome instead of an open grass field: the
-                ground loses its green cast, the accent moves from floodlight
-                blue to a deeper indigo, and the buy back leaves violet for
-                magenta so it cannot be mistaken for the accent.
+                ground loses its green cast, the accent moves to indigo, and
+                the buy back leaves violet for magenta so it cannot be
+                mistaken for the accent.
 
    The confidence scale (safe / solid / thin / danger) is deliberately NOT
    themed. Green means the same thing on both boards, and a status colour that
@@ -121,7 +121,7 @@
 :root {
   --switch-nfl: #2c3f8f;
   --switch-nfl-ink: #f8f9fe;
-  --switch-cfb: #1f7a4c;
+  --switch-cfb: #256b45;
   --switch-cfb-ink: #f7fbf8;
 }
 
@@ -129,7 +129,7 @@
   :root:not([data-theme="light"]) {
     --switch-nfl: #93b4f0;
     --switch-nfl-ink: #0a1122;
-    --switch-cfb: #58c98a;
+    --switch-cfb: #65cf8b;
     --switch-cfb-ink: #07150d;
   }
 }
@@ -137,7 +137,7 @@
 :root[data-theme="dark"] {
   --switch-nfl: #93b4f0;
   --switch-nfl-ink: #0a1122;
-  --switch-cfb: #58c98a;
+  --switch-cfb: #65cf8b;
   --switch-cfb-ink: #07150d;
 }
 

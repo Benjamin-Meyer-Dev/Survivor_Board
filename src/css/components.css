@@ -34,8 +34,8 @@
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 14px;
-  text-transform: none;
-  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
   color: var(--ink-3);
   cursor: pointer;
   transition:
@@ -130,8 +130,8 @@
 .strip__key {
   font-family: var(--font-display);
   font-weight: 600;
-  text-transform: none;
-  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   font-size: 11px;
   color: var(--ink-3);
 }
@@ -209,7 +209,7 @@
   font-weight: 700;
   font-size: 14px;
   letter-spacing: 0.06em;
-  text-transform: none;
+  text-transform: uppercase;
   cursor: pointer;
   transition: color 180ms ease;
 }
@@ -362,7 +362,7 @@
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.04em;
-  text-transform: none;
+  text-transform: uppercase;
   color: var(--accent);
 }
 
@@ -411,7 +411,7 @@
   font-size: 24px;
   line-height: 1;
   letter-spacing: 0.01em;
-  text-transform: none;
+  text-transform: uppercase;
   color: var(--accent);
 }
 
@@ -491,8 +491,8 @@
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 14px;
-  letter-spacing: 0.04em;
-  text-transform: none;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   padding: 10px 14px;
   color: var(--on-accent);
   background: var(--accent);
@@ -648,7 +648,7 @@
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 24px;
-  text-transform: none;
+  text-transform: uppercase;
 }
 
 /* The badge in the header carries the whole story, so a forgiving week gets a
@@ -799,7 +799,7 @@
   font-weight: 700;
   font-size: 30px;
   line-height: 1;
-  text-transform: none;
+  text-transform: uppercase;
   overflow-wrap: anywhere;
 }
 
@@ -816,20 +816,71 @@
 
 .slot__flip {
   flex: none;
-  padding: 2px 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  max-width: 100%;
+  padding: 3px 10px 3px 4px;
   border: 1px solid var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 72%, var(--line));
   border-radius: 999px;
-  background: transparent;
-  color: var(--accent);
+  background: linear-gradient(135deg, var(--surface), var(--accent-soft));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 12%),
+    0 2px 6px rgb(0 0 0 / 10%);
+  color: var(--accent-ink);
   font-family: var(--font-body);
   font-size: 10.5px;
   font-weight: 600;
   line-height: 1.35;
+  white-space: nowrap;
   cursor: pointer;
+  transition:
+    transform 150ms ease,
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.slot__flip-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 14%);
+}
+
+.slot__flip-icon svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.slot__flip strong {
+  font-weight: 700;
 }
 
 .slot__flip:hover {
   background: var(--accent-soft);
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 16%),
+    0 4px 10px rgb(0 0 0 / 14%);
+  transform: translateY(-1px);
+}
+
+.slot__flip:active {
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 16%);
+  transform: translateY(0) scale(0.98);
 }
 
 .slot__flip:focus-visible {
@@ -859,8 +910,8 @@
 .metric__key {
   font-family: var(--font-display);
   font-weight: 600;
-  text-transform: none;
-  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   font-size: 10.5px;
   color: var(--ink-3);
 }
@@ -939,8 +990,8 @@
   padding: 0 9px;
   font-family: var(--font-display);
   font-weight: 700;
-  text-transform: none;
-  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   font-size: 11px;
   line-height: 1;
   border-radius: 4px;
@@ -1151,8 +1202,8 @@
   padding: 0 7px;
   font-family: var(--font-display);
   font-weight: 700;
-  text-transform: none;
-  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   font-size: 10.5px;
   line-height: 1;
   border-radius: 3px;
@@ -1221,8 +1272,8 @@
 .ladder th {
   font-family: var(--font-display);
   font-weight: 600;
-  text-transform: none;
-  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
   font-size: 12px;
   color: var(--ink-3);
   text-align: left;
@@ -1307,7 +1358,7 @@
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 20px;
-  text-transform: none;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -1358,22 +1409,12 @@
   font-size: 14.5px;
 }
 
-/* Rank and name stay together on the left, while the rating or week marker
-   keeps its fixed position on the right. */
+/* The team name stays on the left while its power rank and optional week
+   marker keep a fixed position on the right. */
 .burn__identity {
   display: flex;
   align-items: center;
-  gap: 7px;
   min-width: 0;
-}
-
-.burn__rank {
-  flex: none;
-  min-width: 3ch;
-  color: var(--ink-3);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 500;
 }
 
 /* A name wraps between words when the tile is narrow, and only a single word
@@ -1401,17 +1442,35 @@
   font-weight: 700;
 }
 
-.burn__team--spent .burn__rank,
-.burn__team--picked .burn__rank,
-.burn__team--planned .burn__rank {
-  color: inherit;
-  opacity: 0.78;
-}
-
 .burn__rating {
   font-family: var(--font-mono);
   font-size: 12.5px;
   color: var(--ink-3);
+}
+
+/* Raw rating scales are useful for sorting but not very readable as labels.
+   The ordinal rank takes the trailing position and is centred in a stable
+   block; a week marker sits beside it when needed. */
+.burn__rating--ranked {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 34px;
+  line-height: 1;
+  text-align: center;
+}
+
+.burn__power-rank {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.burn__week {
+  padding-left: 5px;
+  border-left: 1px solid currentcolor;
+  font-size: 10.5px;
+  font-weight: 700;
 }
 
 .burn__team--spent .burn__rating {
@@ -1487,8 +1546,8 @@
 .legend__key {
   font-family: var(--font-display);
   font-weight: 700;
-  text-transform: none;
-  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   font-size: 12.5px;
 }
 

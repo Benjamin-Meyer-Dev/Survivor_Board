@@ -66,6 +66,6 @@ function statusChip(status, kind) {
   if (status.result === "L") return '<span class="chip chip--danger">Lost</span>';
   if (kind === "locked") return '<span class="chip chip--locked">Locked</span>';
   if (kind === "picked") return '<span class="chip chip--picked">Picked</span>';
-  if (kind === "coach") return '<span class="chip chip--coach">Coach Plan</span>';
-  return '<span class="ladder__blank">No Pick</span>';
+  if (kind === "coach") return '<span class="chip chip--coach">Coach plan</span>';
+  return '<span class="ladder__blank">No pick</span>';
 }

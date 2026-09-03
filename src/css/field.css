@@ -7,7 +7,7 @@
      1. Yard lines - a fixed, very low contrast stripe field behind the page.
      2. The scoreboard - the week header reads as a readout, on the card's
         own surface, under an accent sideline.
-     3. Chalk - hairline dividers and compact condensed labels.
+     3. Chalk - hairline dividers and uppercase condensed labels.
 
    Nothing here changes layout or state; strip this file and the app still
    works exactly the same.
@@ -19,7 +19,7 @@
   --yard-major: rgb(20 26 21 / 9%);
   --chalk: rgb(20 26 21 / 13%);
   --mow: rgb(31 122 76 / 3%);
-  --endzone: rgb(46 92 122 / 10%);
+  --endzone: rgb(37 107 69 / 10%);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -28,7 +28,7 @@
     --yard-major: rgb(255 255 255 / 7%);
     --chalk: rgb(255 255 255 / 11%);
     --mow: rgb(88 201 138 / 2.6%);
-    --endzone: rgb(143 199 232 / 10%);
+    --endzone: rgb(101 207 139 / 10%);
   }
 }
 
@@ -37,7 +37,7 @@
   --yard-major: rgb(255 255 255 / 7%);
   --chalk: rgb(255 255 255 / 11%);
   --mow: rgb(88 201 138 / 2.6%);
-  --endzone: rgb(143 199 232 / 10%);
+  --endzone: rgb(101 207 139 / 10%);
 }
 
 /* --- yard lines ---------------------------------------------------------- */
@@ -131,8 +131,8 @@ body::before {
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: none;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
   color: var(--ink-3);
 }
 

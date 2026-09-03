@@ -26,14 +26,17 @@ export function renderBurnBoard(root, legendEl, board, teams) {
       const mark = markFor(board, team);
       const rank = index + 1;
       const badge = mark ? `W${mark.week}` : `${rating > 0 ? "+" : ""}${rating}`;
+      const trailing = `<span class="burn__rating burn__rating--ranked">
+          <span class="burn__power-rank" aria-label="Power rank ${rank}">#${rank}</span>
+          ${mark ? `<span class="burn__week">${badge}</span>` : ""}
+        </span>`;
       return `
         <div class="burn__team${mark ? ` burn__team--${mark.state}` : ""}" style="--i:${index}"
              title="${escapeHtml(team)} · power rank #${rank} · ${escapeHtml(scale)} ${rating}${mark ? ` · ${mark.title}` : ""}">
           <span class="burn__identity">
-            <span class="burn__rank" aria-label="Power rank ${rank}">#${rank}</span>
             <span class="burn__name">${escapeHtml(team)}</span>
           </span>
-          <span class="burn__rating">${escapeHtml(badge)}</span>
+          ${trailing}
         </div>`;
     })
     .join("");
@@ -78,11 +81,11 @@ function legendMarkup() {
     {
       swatch: "burn__team--planned",
       badge: "W7",
-      key: "Coach Plan",
+      key: "Coach plan",
     },
     {
       swatch: "legend__swatch--open",
-      badge: "+21",
+      badge: "#12",
       key: "Open",
     },
   ];
