@@ -1,0 +1,63 @@
+{
+  "$comment": "Eligible teams by conference with final preseason 2026 SP+ ratings. Used for the burn board and as the fallback rating when the re-planner scores a candidate with no market line.",
+  "ratingSource": "Final preseason 2026 SP+ (ESPN / cfbupdate.com)",
+  "homeFieldPoints": 2.5,
+  "conferences": {
+    "Big Ten": {
+      "Ohio State": 32.7,
+      "Oregon": 29.2,
+      "Indiana": 25.8,
+      "Michigan": 17.0,
+      "Penn State": 16.2,
+      "Washington": 15.8,
+      "Iowa": 14.6,
+      "USC": 17.7,
+      "Illinois": 10.4,
+      "Minnesota": 6.2,
+      "Nebraska": 9.3,
+      "UCLA": 5.4,
+      "Maryland": 5.2,
+      "Northwestern": 5.1,
+      "Wisconsin": 3.8,
+      "Michigan State": 2.2,
+      "Rutgers": 2.7,
+      "Purdue": -2.2
+    },
+    "SEC": {
+      "Georgia": 26.4,
+      "Texas": 22.8,
+      "Texas A&M": 20.9,
+      "LSU": 20.4,
+      "Oklahoma": 18.8,
+      "Alabama": 17.6,
+      "Tennessee": 17.3,
+      "Ole Miss": 16.5,
+      "Missouri": 15.4,
+      "Florida": 15.2,
+      "South Carolina": 12.6,
+      "Auburn": 11.5,
+      "Vanderbilt": 9.8,
+      "Arkansas": 5.6,
+      "Kentucky": 5.2,
+      "Mississippi State": 4.8
+    },
+    "Big 12": {
+      "Texas Tech": 21.8,
+      "BYU": 14.9,
+      "Utah": 9.8,
+      "Arizona": 9.5,
+      "TCU": 9.4,
+      "Kansas State": 9.2,
+      "Houston": 7.4,
+      "Oklahoma State": 6.9,
+      "Arizona State": 4.9,
+      "Baylor": 3.8,
+      "Kansas": 3.3,
+      "Cincinnati": 3.0,
+      "UCF": 1.7,
+      "Colorado": 0.7,
+      "Iowa State": -0.4,
+      "West Virginia": -1.3
+    }
+  }
+}

@@ -1,0 +1,130 @@
+/* ==========================================================================
+   Design tokens, "night game".
+
+   Grounds are turf: a near-black pine after dark, a grass-tinted bone by day.
+   The accent is floodlight, the cold blue-white of stadium lights over a
+   night field. It has to sit outside the confidence scale, which already
+   spends green, teal, orange and red, so a cool neutral-blue is the one
+   family left that never reads as a status.
+
+   Rule: declare the full palette on bare :root, then redefine only the values
+   inside the theme blocks. Never define a colour that exists only inside a
+   media query.
+   ========================================================================== */
+
+:root {
+  /* surfaces, bone with a faint grass cast */
+  --ground: #ecefe8;
+  --surface: #ffffff;
+  --surface-2: #f4f7f1;
+  --line: #d4dbd0;
+  --line-soft: #e4eae0;
+
+  /* text */
+  --ink: #141a15;
+  --ink-2: #47544a;
+  --ink-3: #75827a;
+
+  /* accent, floodlight, deepened for text contrast on bone */
+  --accent: #2e5c7a;
+  --accent-soft: #e2edf3;
+  --accent-ink: #234a63;
+  /* Text drawn ON the accent. Flips with the accent's own lightness - the
+     dark-mode floodlight is far too bright to carry white type. */
+  --on-accent: #f7fbfd;
+
+  /* confidence scale */
+  --safe: #1f7a4c;
+  --safe-bg: #dcefe3;
+  --solid: #256f63;
+  --solid-bg: #daece8;
+  --thin: #9c5715;
+  --thin-bg: #f7e7d2;
+  --danger: #a8352d;
+  --danger-bg: #f7e0de;
+
+  --lock: #2e5c7a;
+  --lock-bg: #e2edf3;
+
+  /* The buy back. A violet, deliberately outside both the confidence scale and
+     the floodlight accent: it is not a status and not an action, it is a
+     cushion, and it should not be mistaken for either. */
+  --mulligan: #6a4a9c;
+  --mulligan-bg: #ece5f6;
+
+  --shadow: 0 1px 2px rgb(20 26 21 / 7%), 0 4px 14px rgb(20 26 21 / 6%);
+
+  /* type */
+  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  /* spacing scale */
+  --sp-1: 4px;
+  --sp-2: 7px;
+  --sp-3: 11px;
+  --sp-4: 14px;
+  --sp-5: 18px;
+  --sp-6: 26px;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0a120e;
+    --surface: #121b16;
+    --surface-2: #16211b;
+    --line: #25332b;
+    --line-soft: #1d2822;
+    --ink: #e9eee9;
+    --ink-2: #a6b3aa;
+    --ink-3: #74847a;
+    --accent: #8fc7e8;
+    --accent-soft: #15242e;
+    --accent-ink: #b2dbf4;
+    --on-accent: #08151d;
+    --safe: #58c98a;
+    --safe-bg: #102a1d;
+    --solid: #55bfaa;
+    --solid-bg: #0f2622;
+    --thin: #e08b3c;
+    --thin-bg: #2c1d0f;
+    --danger: #e56b62;
+    --danger-bg: #2e1614;
+    --lock: #8fc7e8;
+    --lock-bg: #15242e;
+    --mulligan: #b39ae0;
+    --mulligan-bg: #1e1930;
+    --shadow: 0 1px 2px rgb(0 0 0 / 45%), 0 4px 14px rgb(0 0 0 / 35%);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground: #0a120e;
+  --surface: #121b16;
+  --surface-2: #16211b;
+  --line: #25332b;
+  --line-soft: #1d2822;
+  --ink: #e9eee9;
+  --ink-2: #a6b3aa;
+  --ink-3: #74847a;
+  --accent: #8fc7e8;
+  --accent-soft: #15242e;
+  --accent-ink: #b2dbf4;
+  --on-accent: #08151d;
+  --safe: #58c98a;
+  --safe-bg: #102a1d;
+  --solid: #55bfaa;
+  --solid-bg: #0f2622;
+  --thin: #e08b3c;
+  --thin-bg: #2c1d0f;
+  --danger: #e56b62;
+  --danger-bg: #2e1614;
+  --lock: #8fc7e8;
+  --lock-bg: #15242e;
+  --mulligan: #b39ae0;
+  --mulligan-bg: #1e1930;
+  --shadow: 0 1px 2px rgb(0 0 0 / 45%), 0 4px 14px rgb(0 0 0 / 35%);
+}

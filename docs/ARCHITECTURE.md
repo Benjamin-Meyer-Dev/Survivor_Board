@@ -1,0 +1,225 @@
+# Architecture
+
+## The shape of it
+
+A static site with no build step, one scheduled job, and one tiny database.
+
+```
+                      ┌──────────────────────────┐
+   every 6 hours ────▶│ .github/workflows/       │
+                      │   refresh-odds.yml       │
+                      └────────────┬─────────────┘
+                                   │ node scripts/refresh-odds.mjs
+                                   ▼
+                          the-odds-api.com
+                                   │
+                                   ▼
+                     data/<league>/odds.json ──commit─┐
+                                                    │
+                      ┌─────────────────────────────▼──┐
+                      │ .github/workflows/pages.yml    │
+                      │   redeploys the repo as-is     │
+                      └─────────────────┬──────────────┘
+                                        ▼
+   two phones ──────────────────▶  GitHub Pages
+        │                              index.html
+        │                                  │
+        │                                  ▼
+        │                    data/<league>/{plan,teams,schedule,
+        │                                 ratings,odds}.json
+        │                                  │
+        └──── locks / results / swaps ─────┴──▶ Supabase (realtime)
+                one row per league
+```
+
+## Two leagues, one board
+
+`data/cfb/` and `data/nfl/` hold the same five files. Which one is loaded is a
+single piece of state in `app.js`; everything else falls out of the plan the
+league ships:
+
+| Rule                    | Read from                 |
+| ----------------------- | ------------------------- |
+| picks per week          | `plan.rules.picksPerWeek` |
+| weeks in the season     | `plan.weeks`              |
+| eligible teams          | `teams.conferences`       |
+| what counts as a "Lock" | `plan.tiers`              |
+| buy backs, and where    | `plan.rules.buyBack*`     |
+
+Colour is the one thing that does not come off the board: `app.js` stamps
+`data-league` on the root element and `src/css/leagues.css` redefines the
+tokens beneath it, so the whole app repaints from one attribute write. The
+confidence scale is deliberately left alone, because a status colour that moves
+with the league is a status colour you cannot trust.
+
+No module under `src/js/ui/` knows which league is open, and `core/` takes the
+rules as arguments rather than reading a global. Adding a third pool is a
+folder and an entry in `src/js/leagues.js`.
+
+Switching is a full reload of the board, not a filter over one: the old store
+subscription is torn down, the new league's data and entry are loaded, and a
+late push from the store being replaced is dropped rather than landing on the
+new board. Each league keeps its own entry (its own artifact document, its own
+Supabase row, its own storage key), so locks in one pool can never appear in
+the other. The college pool predates the NFL one and keeps the unsuffixed
+names, which is why `scopeFor()` special-cases it.
+
+## Why the data is split five ways
+
+| File            | Owner           | Changes when                              |
+| --------------- | --------------- | ----------------------------------------- |
+| `plan.json`     | a human         | the season strategy is revised            |
+| `teams.json`    | a human         | once a season, when ratings are published |
+| `schedule.json` | a human         | once a season                             |
+| `ratings.json`  | a human         | once a season                             |
+| `odds.json`     | the refresh bot | every 6 hours                             |
+
+Keeping them separate is what lets a bot rewrite the numbers four times a day
+without ever touching the strategy or the markup. A merge conflict between the
+bot and a human edit is impossible because they never write the same file.
+
+## Recommendation vs selection
+
+Two different things, deliberately kept apart:
+
+- **Your selection** is what the board holds, the plan's pick, or whatever you
+  swapped in. It is the only thing stored in the shared entry.
+- **The recommendation** is what `core/recommend.js` computes from the current
+  odds. It is never written to state and never changes a pick on its own; it
+  sits above the two slots with a "Use these" button, and you decide.
+
+The optimiser is a beam search over the remaining weeks (`BEAM_WIDTH` 160,
+`CANDIDATE_WIDTH` 12). Exact search is impossible, state is the set of teams
+already spent, so the space is 2^50, and a plain greedy pass fails badly,
+because taking the biggest favourite every week strands you in the middle of
+the season, where nothing is soft.
+
+Three details make it work:
+
+1. **Lookahead in the beam ranking.** Beams are ordered on score _plus_ an
+   optimistic estimate of what each still has available in later weeks.
+   Without it the search is myopic and lands slightly worse than a careful
+   hand-built plan; with it, it beat the authored plan 14.6% to 10.5%.
+2. **The authored plan is seeded as a competing beam**, so the recommendation
+   can never come back worse than the plan already in `plan.json`.
+3. **Buy backs are scored twice.** A beam prunes long before it knows how a
+   path ends, and "a loss here is forgiven" is a property of the whole path,
+   not of one week: no per-week score can express it. So the search is run at
+   several levels of forgiveness (none, what one buy back spread over its weeks
+   is worth, and free), and every finalist from every pass is then re-scored on
+   the exact survival maths in `core/survival.js`. The pass that discounts most
+   is the one that finds paths spending a weak team in week 1 to keep a strong
+   one for week 12; the exact re-score is what decides whether that was
+   actually better. Without buy backs there is one pass and nothing changes.
+
+Anything locked or already resolved is a hard constraint, the optimiser works
+around a decision you have committed to rather than pretending you can take it
+back.
+
+The recommendation is memoised on `(league, currentWeek, buy backs left,
+odds.updatedAt, committed picks)`. It deliberately does NOT depend on your free
+selections, so trying swaps out re-renders instantly instead of re-running the
+search on every tap. A memoised rebuild is a few milliseconds.
+
+The search itself is a few hundred milliseconds and cannot be interrupted, so
+a board it has never seen before is built in two passes.
+`buildBoard({allowSearch: false})` returns immediately with
+`recommendationPending` set; the board paints, the panel holds the band's place
+with "Working out the path", and the search runs on a timer once the entrance
+animation is over. Running it any earlier does not just delay the paint, it
+stalls whatever animation is mid-flight and makes it jump. This is what a first
+load and a league switch both do.
+
+Two optimisations keep that search near 400 ms rather than near two seconds,
+both in the expansion loop, where a two-pick week turns each of 160 beams into
+about 66 candidates:
+
+- **Candidates are proposals, not beams.** Copying the spent-team set for all
+  ten thousand was the most expensive thing the search did, and nearly every
+  copy was discarded unread. A proposal holds its parent, the teams taken and
+  the running score; the set is copied only once a candidate survives.
+- **The lookahead is paid for by a shortlist.** It walks every remaining week
+  for every candidate it is given. Score alone orders them well enough to cut
+  the field to `SHORTLIST` first, an order of magnitude wider than the beam
+  that comes out the other side.
+
+## Results, and why survival is live
+
+`Season survival` is the product of the win probability of every pick that has
+not yet resolved. A resolved win drops out of the product (it happened); a
+resolved loss makes it zero, unless a buy back covers that week. So it moves on
+its own in three situations:
+
+1. **You swap a team.** The board rebuilds, the new team's probability
+   replaces the old one.
+2. **You mark a pick won or lost.**
+3. **A game finishes.** The refresh job reads the Odds API scores endpoint and
+   writes `results` into `data/odds.json`, keyed `"<week>|<team>"`. The board
+   applies those automatically, so the number keeps up with the weekend
+   without anyone tapping anything.
+
+With a buy back in play the number is not a plain product any more. Surviving
+means at most one of the forgiving weeks going down, which is a Poisson
+binomial tail, so `core/survival.js` builds it with a small DP over those weeks
+rather than a closed form. That keeps it right whether the pool grants one buy
+back or three, and it is the same function the optimiser scores its finalists
+on, so the number on the strip and the number the recommendation is chosen by
+can never disagree.
+
+A buy back is spent, not refunded: losing week 1 costs the team as well as the
+cushion, and the board burns it either way.
+
+A result you set by hand always beats a fetched one, on the grounds that you
+can see something the feed cannot. A pick resolved by the feed carries a
+`Final` chip so the two are never confused.
+
+Scores are best effort: if that call fails the run logs it and carries on,
+because odds are the job's actual purpose.
+
+## What the refresh job does with it
+
+One run refreshes both leagues, in sequence, against separate sport keys and
+separate data folders. A failure in one is logged and the other still runs; the
+job only exits non-zero when every league failed. Set `LEAGUE=nfl` to refresh
+just one, which is how you avoid spending API quota on a college season that is
+already over.
+
+Each run recomputes the recommendation on the old and the new odds and diffs
+them. New numbers in an early week can change the right answer in week 11, so
+the whole remaining path is recomputed, not just the current week. If the
+advice moved, the job says so in the run log and opens a GitHub issue.
+
+It still never edits `plan.json`. Advice is advice; the swap is yours.
+`scripts/validate-plan.mjs` enforces the pool rules in CI so a bad hand-edit
+cannot ship.
+
+## State ownership
+
+Three sources, merged in `core/plan.js` and nowhere else:
+
+- **plan**, what we intend to do
+- **odds**, what the market currently says
+- **entry**, what the two of us have actually done (locks, results, swaps)
+
+`buildBoard()` folds them into one derived object. Every module under
+`src/js/ui/` renders from that object and never reads the raw JSON. That is
+the rule that keeps the UI honest: if a number is wrong, there is one place to
+look.
+
+## Store fallback
+
+`store/index.js` prefers Supabase and falls back to `localStorage` when it is
+not configured or cannot connect. The app works either way; it just says which
+mode it is in. That means the site is useful the moment Pages is on, before
+any backend exists.
+
+## Deliberate omissions
+
+- **No framework.** The app is one screen with four regions. React would
+  triple the payload and add a build step to a repo whose main advantage is
+  not having one.
+- **No bundler.** Native ES modules. `index.html` is servable from disk.
+- **No icons in the manifest.** Add PNGs when you want a proper home-screen
+  icon; the app installs without them.
+- **No auth.** A shared passphrase gates writes. Turn on Supabase Auth if the
+  pool gets serious.

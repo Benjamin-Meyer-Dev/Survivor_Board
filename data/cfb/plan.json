@@ -1,0 +1,530 @@
+{
+  "$comment": "The 13-week survivor path. Hand-authored strategy; the refresh workflow never rewrites this file except during a re-plan. Spreads here are SP+ projections and act as the fallback when data/odds.json carries no market line for a slot.",
+  "league": "cfb",
+  "season": 2026,
+  "rules": {
+    "picksPerWeek": 2,
+    "conferences": ["SEC", "Big Ten", "Big 12"],
+    "reuseTeams": false,
+    "opponentMustBeFbs": true,
+    "winCondition": "straight-up",
+    "weeks": 13,
+    "buyBackWeeks": [],
+    "buyBacks": 0
+  },
+  "dangerThreshold": -10,
+  "tiers": {
+    "safe": 0.92,
+    "solid": 0.85,
+    "thin": 0.78
+  },
+  "weeks": [
+    {
+      "week": 1,
+      "label": "Sep 5",
+      "kickoff": "2026-09-05",
+      "picks": [
+        {
+          "team": "South Carolina",
+          "opponent": "Kent State",
+          "site": "Home",
+          "spread": -35.5,
+          "source": "projected",
+          "rationale": "Kent State is the worst program in FBS."
+        },
+        {
+          "team": "Texas A&M",
+          "opponent": "Missouri State",
+          "site": "Home",
+          "spread": -42.5,
+          "source": "projected",
+          "rationale": "Missouri State only joined FBS in 2025 - confirm your commissioner counts them."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Alabama",
+          "opponent": "East Carolina",
+          "site": "Home",
+          "spread": -28.5,
+          "source": "projected"
+        },
+        {
+          "team": "Rutgers",
+          "opponent": "UMass",
+          "site": "Home",
+          "spread": -29.5,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 2,
+      "label": "Sep 12",
+      "kickoff": "2026-09-11",
+      "picks": [
+        {
+          "team": "LSU",
+          "opponent": "Louisiana Tech",
+          "site": "Home",
+          "spread": -32,
+          "source": "projected",
+          "rationale": "Top-11 SP+ team against the bottom third of Conference USA."
+        },
+        {
+          "team": "Ole Miss",
+          "opponent": "Charlotte",
+          "site": "Home",
+          "spread": -43,
+          "source": "projected",
+          "rationale": "Charlotte is a bottom-5 FBS roster."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Auburn",
+          "opponent": "Southern Miss",
+          "site": "Home",
+          "spread": -24,
+          "source": "projected"
+        },
+        {
+          "team": "Michigan State",
+          "opponent": "Eastern Michigan",
+          "site": "Home",
+          "spread": -19,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 3,
+      "label": "Sep 19",
+      "kickoff": "2026-09-18",
+      "picks": [
+        {
+          "team": "Utah",
+          "opponent": "Utah State",
+          "site": "Home",
+          "spread": -20,
+          "source": "projected",
+          "rationale": "In-state rivalry, but a 17.7-point SP+ gap with Utah at home."
+        },
+        {
+          "team": "Arizona",
+          "opponent": "Northern Illinois",
+          "site": "Home",
+          "spread": -26,
+          "source": "projected",
+          "rationale": "Arizona has no softer window all season."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Cincinnati",
+          "opponent": "Miami (OH)",
+          "site": "Home",
+          "spread": -14,
+          "source": "projected"
+        },
+        {
+          "team": "UCF",
+          "opponent": "Georgia State",
+          "site": "Home",
+          "spread": -19,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 4,
+      "label": "Sep 26",
+      "kickoff": "2026-09-25",
+      "picks": [
+        {
+          "team": "Texas Tech",
+          "opponent": "Sam Houston",
+          "site": "Home",
+          "spread": -50,
+          "source": "projected",
+          "rationale": "The biggest projected gap of the season."
+        },
+        {
+          "team": "Arkansas",
+          "opponent": "Tulsa",
+          "site": "Home",
+          "spread": -14,
+          "source": "projected",
+          "rationale": "Thin, but Arkansas' schedule only hardens from here."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Penn State",
+          "opponent": "Wisconsin",
+          "site": "Home",
+          "spread": -15,
+          "source": "projected"
+        },
+        {
+          "team": "Alabama",
+          "opponent": "South Carolina",
+          "site": "Home",
+          "spread": -7.5,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 5,
+      "label": "Oct 3",
+      "kickoff": "2026-10-02",
+      "picks": [
+        {
+          "team": "Illinois",
+          "opponent": "Purdue",
+          "site": "Home",
+          "spread": -15,
+          "source": "projected",
+          "rationale": "First of six Purdue games. They are SP+ #78, the worst Power 4 team."
+        },
+        {
+          "team": "Kansas",
+          "opponent": "Middle Tennessee",
+          "site": "Home",
+          "spread": -32,
+          "source": "projected",
+          "rationale": "Kansas' only genuinely soft spot on the calendar."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Iowa State",
+          "opponent": "West Virginia",
+          "site": "Home",
+          "spread": -13.5,
+          "source": "projected"
+        },
+        {
+          "team": "Houston",
+          "opponent": "UCF",
+          "site": "Home",
+          "spread": -8,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 6,
+      "label": "Oct 10",
+      "kickoff": "2026-10-09",
+      "picks": [
+        {
+          "team": "Northwestern",
+          "opponent": "Ball State",
+          "site": "Home",
+          "spread": -32.5,
+          "source": "projected",
+          "rationale": "Ball State is a bottom-6 FBS roster."
+        },
+        {
+          "team": "BYU",
+          "opponent": "Iowa State",
+          "site": "Home",
+          "spread": -18,
+          "source": "projected",
+          "rationale": "Top-21 SP+ at altitude against a rebuilding Iowa State."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Ohio State",
+          "opponent": "Maryland",
+          "site": "Home",
+          "spread": -30,
+          "source": "projected"
+        },
+        {
+          "team": "Tennessee",
+          "opponent": "Arkansas",
+          "site": "Away",
+          "spread": -9,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 7,
+      "label": "Oct 17",
+      "kickoff": "2026-10-16",
+      "picks": [
+        {
+          "team": "Washington",
+          "opponent": "Purdue",
+          "site": "Away",
+          "spread": -15.5,
+          "source": "projected",
+          "rationale": "Purdue again. Even on the road that is a 15-point edge."
+        },
+        {
+          "team": "Oklahoma",
+          "opponent": "Kentucky",
+          "site": "Home",
+          "spread": -16,
+          "source": "projected",
+          "rationale": "Oklahoma at home against the weakest SEC opponent available."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Texas",
+          "opponent": "Florida",
+          "site": "Home",
+          "spread": -10,
+          "source": "projected"
+        },
+        {
+          "team": "Kansas State",
+          "opponent": "Kansas",
+          "site": "Home",
+          "spread": -8.5,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 8,
+      "label": "Oct 24",
+      "kickoff": "2026-10-24",
+      "picks": [
+        {
+          "team": "Oregon",
+          "opponent": "Illinois",
+          "site": "Away",
+          "spread": -16.5,
+          "source": "projected",
+          "rationale": "The thinnest week of the season. Oregon is SP+ #2."
+        },
+        {
+          "team": "TCU",
+          "opponent": "West Virginia",
+          "site": "Home",
+          "spread": -13,
+          "source": "projected",
+          "rationale": "Weakest pick in the plan. Protect this week before any other."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Texas",
+          "opponent": "Ole Miss",
+          "site": "Home",
+          "spread": -9,
+          "source": "projected"
+        },
+        {
+          "team": "Oklahoma State",
+          "opponent": "Colorado",
+          "site": "Home",
+          "spread": -9,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 9,
+      "label": "Oct 31",
+      "kickoff": "2026-10-30",
+      "picks": [
+        {
+          "team": "Penn State",
+          "opponent": "Purdue",
+          "site": "Home",
+          "spread": -21,
+          "source": "projected",
+          "rationale": "Penn State's softest home game, held back for the crunch."
+        },
+        {
+          "team": "Texas",
+          "opponent": "Mississippi State",
+          "site": "Home",
+          "spread": -20.5,
+          "source": "projected",
+          "rationale": "Texas at home against the SEC's weakest road team."
+        }
+      ],
+      "backups": [
+        {
+          "team": "UCLA",
+          "opponent": "Nevada",
+          "site": "Home",
+          "spread": -21,
+          "source": "projected"
+        },
+        {
+          "team": "Michigan",
+          "opponent": "Rutgers",
+          "site": "Away",
+          "spread": -12,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 10,
+      "label": "Nov 7",
+      "kickoff": "2026-11-06",
+      "picks": [
+        {
+          "team": "Michigan",
+          "opponent": "Michigan State",
+          "site": "Home",
+          "spread": -17.5,
+          "source": "projected",
+          "rationale": "A lopsided rivalry. Michigan State is SP+ #62."
+        },
+        {
+          "team": "Tennessee",
+          "opponent": "Kentucky",
+          "site": "Home",
+          "spread": -14.5,
+          "source": "projected",
+          "rationale": "Twelve-point SP+ gap plus home field in Knoxville."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Auburn",
+          "opponent": "Arkansas",
+          "site": "Home",
+          "spread": -8.5,
+          "source": "projected"
+        },
+        {
+          "team": "Houston",
+          "opponent": "Cincinnati",
+          "site": "Home",
+          "spread": -7,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 11,
+      "label": "Nov 14",
+      "kickoff": "2026-11-13",
+      "picks": [
+        {
+          "team": "Iowa",
+          "opponent": "Purdue",
+          "site": "Home",
+          "spread": -19,
+          "source": "projected",
+          "rationale": "Purdue's fifth appearance as an opponent in this plan."
+        },
+        {
+          "team": "Ohio State",
+          "opponent": "Northwestern",
+          "site": "Home",
+          "spread": -30,
+          "source": "projected",
+          "rationale": "SP+ #1 at home, deliberately held until the schedule tightens."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Alabama",
+          "opponent": "Vanderbilt",
+          "site": "Away",
+          "spread": -5.5,
+          "source": "projected"
+        },
+        {
+          "team": "Texas Tech",
+          "opponent": "Oklahoma State",
+          "site": "Away",
+          "spread": -12.5,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 12,
+      "label": "Nov 21",
+      "kickoff": "2026-11-20",
+      "picks": [
+        {
+          "team": "USC",
+          "opponent": "Maryland",
+          "site": "Home",
+          "spread": -15,
+          "source": "projected",
+          "rationale": "The SEC's cupcake week is all FCS now, so the Big Ten carries week 12."
+        },
+        {
+          "team": "Missouri",
+          "opponent": "Kentucky",
+          "site": "Home",
+          "spread": -12.5,
+          "source": "projected",
+          "rationale": "Thin, but no better FBS matchup is left on the board."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Penn State",
+          "opponent": "Rutgers",
+          "site": "Home",
+          "spread": -16,
+          "source": "projected"
+        },
+        {
+          "team": "Florida",
+          "opponent": "Vanderbilt",
+          "site": "Home",
+          "spread": -8,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 13,
+      "label": "Nov 28",
+      "kickoff": "2026-11-26",
+      "picks": [
+        {
+          "team": "Indiana",
+          "opponent": "Purdue",
+          "site": "Home",
+          "spread": -30.5,
+          "source": "projected",
+          "rationale": "Saved on purpose: a top-5 SP+ team hosting Purdue on rivalry week."
+        },
+        {
+          "team": "Georgia",
+          "opponent": "Georgia Tech",
+          "site": "Home",
+          "spread": -23,
+          "source": "projected",
+          "rationale": "Twenty-point SP+ gap at home, held back for the hardest week."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Ohio State",
+          "opponent": "Michigan",
+          "site": "Home",
+          "spread": -18,
+          "source": "projected"
+        },
+        {
+          "team": "Oregon",
+          "opponent": "Washington",
+          "site": "Home",
+          "spread": -15.5,
+          "source": "projected"
+        }
+      ]
+    }
+  ]
+}

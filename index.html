@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Survivor Board</title>
+    <meta
+      name="description"
+      content="Shared college and NFL survivor pool tracker with market lines, backups and a burn board."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#2f5d8c" />
+
+    <!-- Installable to a phone home screen. -->
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Survivor" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    />
+
+    <link rel="stylesheet" href="./src/css/tokens.css" />
+    <link rel="stylesheet" href="./src/css/base.css" />
+    <link rel="stylesheet" href="./src/css/layout.css" />
+    <link rel="stylesheet" href="./src/css/components.css" />
+    <link rel="stylesheet" href="./src/css/field.css" />
+    <link rel="stylesheet" href="./src/css/leagues.css" />
+    <link rel="stylesheet" href="./src/css/motion.css" />
+  </head>
+
+  <body>
+    <main class="shell">
+      <header class="masthead">
+        <div class="masthead__brand">
+          <svg class="mast-ball" viewBox="0 0 34 21" width="30" height="19" aria-hidden="true">
+            <ellipse
+              cx="17"
+              cy="10.5"
+              rx="15.6"
+              ry="9.2"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.1"
+            />
+            <path
+              d="M11.6 10.5h10.8M14 7.6v5.8M17 7.1v6.8M20 7.6v5.8"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+            />
+          </svg>
+          <h1 class="masthead__title">Survivor Board</h1>
+        </div>
+        <div id="league"></div>
+        <div class="refresh" id="refresh"></div>
+      </header>
+
+      <div id="notices"></div>
+
+      <div class="strip" id="strip"></div>
+
+      <div class="tabs" role="tablist" aria-label="Board views" id="tabs"></div>
+
+      <!-- The three panels share one box so a tab change can cross-fade over
+           an animated height instead of the page jumping. -->
+      <div class="views" id="views">
+        <section
+          class="view"
+          id="view-week"
+          role="tabpanel"
+          aria-labelledby="tab-week"
+          tabindex="0"
+        >
+          <div id="week-deck"></div>
+        </section>
+
+        <section
+          class="view"
+          id="view-path"
+          role="tabpanel"
+          aria-labelledby="tab-path"
+          tabindex="0"
+          hidden
+        >
+          <div class="table-scroll">
+            <table class="ladder" id="ladder">
+              <thead>
+                <tr>
+                  <th scope="col">Wk</th>
+                  <th scope="col" class="is-wide-only">Date</th>
+                  <th scope="col">Pick</th>
+                  <th scope="col" class="is-wide-only">Opponent</th>
+                  <th scope="col" class="is-narrow-only">Opp</th>
+                  <th scope="col" class="is-wide-only">Site</th>
+                  <th scope="col" style="text-align: right">Spread</th>
+                  <th scope="col" class="is-wide-only">Line</th>
+                  <th scope="col" style="text-align: right">Win</th>
+                  <th scope="col" class="is-wide-only">Confidence</th>
+                  <th scope="col" class="is-wide-only" style="text-align: right">Week</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section
+          class="view"
+          id="view-burn"
+          role="tabpanel"
+          aria-labelledby="tab-burn"
+          tabindex="0"
+          hidden
+        >
+          <p class="view__note">
+            <span id="burn-count"></span>. The number is the week a team is burned.
+          </p>
+          <div class="burn" id="burn"></div>
+        </section>
+      </div>
+    </main>
+
+    <script type="module" src="./src/js/app.js"></script>
+  </body>
+</html>

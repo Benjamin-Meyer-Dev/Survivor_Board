@@ -1,0 +1,113 @@
+# Survivor Board
+
+A shared tracker for two survivor pools, college and NFL, switched from the
+masthead.
+
+The NFL board opens by default; the switch remembers whichever you used last,
+and each league carries its own palette so a glance tells you where you are.
+
+Two people, two devices, one entry per league. Market lines refresh every six
+hours; locks, results and backup swaps sync between phones in real time.
+
+|              | College              | NFL                         |
+| ------------ | -------------------- | --------------------------- |
+| Weeks        | 1-13                 | 1-18                        |
+| Picks a week | 2                    | 1                           |
+| Eligible     | SEC, Big Ten, Big 12 | all 32                      |
+| Opponent     | must be FBS          | any                         |
+| Buy backs    | none                 | one, covering weeks 1 and 2 |
+
+Both pools are straight-up wins with no team used twice. A buy back forgives
+one loss; it does not give the team back, so a week 1 loss costs both the team
+and the cushion. That is why the NFL path takes its biggest risk in week 2 and
+plays it safe from week 3 on.
+
+## Quick start
+
+```bash
+npm install
+npm run serve     # http://localhost:4173
+```
+
+The board runs immediately with per-device state. See
+[docs/DEPLOY.md](docs/DEPLOY.md) to put it on Pages and turn on shared state
+and automatic odds.
+
+## Layout
+
+```
+index.html                    the whole UI shell
+manifest.webmanifest          makes it installable to a home screen
+
+data/cfb/  data/nfl/          one folder per league, same five files
+  plan.json                   the season path and the pool's rules
+  teams.json                  eligible teams + power ratings
+  schedule.json               every game, by week
+  ratings.json                the rating each team is priced off
+  odds.json                   market lines, written by the bot, never by hand
+
+src/css/
+  tokens.css                  every colour in the app
+  leagues.css                 per-league palette overrides
+  base.css                    element defaults, type utilities
+  layout.css                  page shell and rhythm
+  components.css              one block per UI module
+
+src/js/
+  app.js                      wiring and the render loop
+  config.js                   Supabase keys, passphrase, paths
+  leagues.js                  everything that differs between the two pools
+  core/                       pure logic, also imported by the Node scripts
+    plan.js                   merges plan + odds + entry into the derived board
+    probability.js            spread → win probability, de-vig, tiers
+    survival.js               season survival, buy backs included
+    recommend.js              beam search over the remaining weeks
+    format.js                 display formatting and HTML escaping
+  store/                      persistence (Supabase, localStorage fallback)
+  ui/                         rendering only, no state, no fetch
+
+scripts/
+  refresh-odds.mjs            the six-hourly job, both leagues
+  seed-plan.mjs               author a league's plan.json from the optimiser
+  validate-plan.mjs           enforces both pools' rules in CI
+  lib/                        odds API client, season calendar
+
+supabase/schema.sql           one table, RLS policies, realtime
+.github/workflows/            refresh-odds · pages · ci
+docs/                         architecture, code standards, deploy
+```
+
+## Commands
+
+| Command               | What it does                                  |
+| --------------------- | --------------------------------------------- |
+| `npm run serve`       | Local server on :4173                         |
+| `npm test`            | Validates every `plan.json` against its rules |
+| `npm run refresh`     | Pulls live odds (needs `ODDS_API_KEY`)        |
+| `npm run seed -- nfl` | Re-authors a league's plan from the optimiser |
+| `npm run lint`        | ESLint                                        |
+| `npm run format`      | Prettier, write                               |
+
+## How it fits together
+
+`data/<league>/plan.json` is the strategy, `odds.json` is what the market says,
+and Supabase holds what you two have actually done. `core/plan.js` folds the
+three into one derived board and every UI module renders from that, so if a
+number looks wrong, there is exactly one place to look.
+
+Nothing under `src/js/ui/` knows which league is loaded. How many picks a week
+holds, whether a loss can be bought back, and where "Lock" starts all come off
+the board, which reads them from the plan. Adding a third pool is a folder
+under `data/` and an entry in `src/js/leagues.js`.
+
+The refresh bot rewrites each league's `odds.json` and nothing else, which is why it can run
+four times a day without ever conflicting with a human edit. It flags a pick
+whose line has collapsed and opens an issue, but it deliberately does not
+re-plan the season, see
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#why-the-bot-does-not-re-plan).
+
+## Docs
+
+- [Architecture](docs/ARCHITECTURE.md), data flow and the reasoning behind it
+- [Code standards](docs/CODE_STANDARDS.md), module boundaries, naming, safety
+- [Deploy](docs/DEPLOY.md), the full setup: repo, Pages, Supabase, odds, phones

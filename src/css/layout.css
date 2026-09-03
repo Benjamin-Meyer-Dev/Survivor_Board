@@ -1,0 +1,115 @@
+/* ==========================================================================
+   Page shell: wrapper, masthead, section rhythm, footer.
+   Components own their internals; this file owns the space between them.
+   ========================================================================== */
+
+.shell {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 20px max(var(--sp-5), env(safe-area-inset-left))
+    calc(var(--sp-5) + env(safe-area-inset-bottom));
+}
+
+/* masthead --------------------------------------------------------------- */
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: var(--sp-4);
+  border-bottom: 2px solid var(--ink);
+  margin-bottom: var(--sp-5);
+}
+
+.masthead__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 40px;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+/* sections --------------------------------------------------------------- */
+
+.section {
+  margin-bottom: var(--sp-6);
+}
+
+/* Nothing follows the last block, so its trailing margin is dead space. */
+.shell > *:last-child,
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.section__head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: var(--sp-3);
+}
+
+.section__head h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  text-transform: uppercase;
+}
+
+.section__head p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+/* phone ------------------------------------------------------------------ */
+
+@media (max-width: 660px) {
+  .shell {
+    padding-top: var(--sp-4);
+  }
+
+  .masthead {
+    border-bottom-width: 1px;
+    padding-bottom: var(--sp-3);
+    margin-bottom: var(--sp-4);
+    gap: 9px;
+  }
+
+  /* Three controls share the top line now: the title, the league switch and
+     the refresh pill. The title gives up the room; if a phone is still too
+     narrow the masthead wraps rather than overflowing. */
+  .masthead__title {
+    font-size: 21px;
+  }
+
+  .section__head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+}
+
+/* Small phones: the title gives up a little more so the switch and the refresh
+   pill still share its line rather than claiming a row of their own. */
+@media (max-width: 380px) {
+  .masthead {
+    gap: 7px;
+  }
+
+  .masthead__title {
+    font-size: 19px;
+  }
+
+  .mast-ball {
+    width: 21px;
+    height: 13px;
+  }
+
+  .league__btn {
+    min-width: 50px;
+    padding: 0 7px;
+    font-size: 11.5px;
+  }
+}

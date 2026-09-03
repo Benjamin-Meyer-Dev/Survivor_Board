@@ -1,0 +1,1187 @@
+/* ==========================================================================
+   Components. One block per UI module in src/js/ui/.
+   Naming: .block, .block__element, .block--modifier.
+   ========================================================================== */
+
+/* tabs (ui/tabs.js) ------------------------------------------------------ */
+
+/* Tabs and the view they switch are one object, not two stacked ones. The
+   bar carries the top corners and no bottom edge; the view carries the bottom
+   corners and no top edge; the selected tab takes the view's own background
+   so the seam between them disappears. */
+.tabs {
+  display: flex;
+  gap: 0;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  overflow: hidden;
+  margin-bottom: 0;
+}
+
+.tabs {
+  position: relative;
+}
+
+.tab {
+  appearance: none;
+  flex: 1;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 12px 8px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.tab:hover:not([aria-selected="true"]) {
+  background: var(--line-soft);
+  color: var(--ink);
+}
+
+.tab[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+/* The bar the selected tab used to draw on itself, promoted to its own element
+   so it can travel between tabs instead of blinking from one to the next. */
+.tab-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(100% / var(--n));
+  height: 3px;
+  background: var(--accent);
+  transform: translateX(calc(100% * var(--i)));
+  transition:
+    transform 0.28s var(--ease-snap, ease-out),
+    background-color 0.26s ease;
+  pointer-events: none;
+}
+
+/* One box for all three panels, so a tab change animates its height from the
+   old view to the new rather than the page jumping to the new one. */
+.views {
+  position: relative;
+  transition: height 0.28s var(--ease-out, ease);
+}
+
+/* Only while a panel is on its way out, so a settled view never clips a
+   focus ring or a shadow. */
+.views--moving {
+  overflow: hidden;
+}
+
+/* The view is the body of that same card. */
+.view {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-top: 0;
+  border-radius: 0 0 var(--radius) var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  margin-bottom: var(--sp-5);
+}
+
+/* Lifted out of flow so the incoming panel can take its place immediately and
+   the container's natural height becomes measurable. */
+.view--leaving {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  animation: view-leave 0.22s var(--ease-out, ease) both;
+  pointer-events: none;
+}
+
+.view__note {
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4) 0;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+/* status strip (ui/strip.js) --------------------------------------------- */
+
+/* One row, always. Three stats read as a scoreboard line; wrapping them into
+   a block made the top of the app feel like a form. */
+.strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 22px;
+}
+
+.strip__cell {
+  background: var(--surface);
+  padding: 12px var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+}
+
+.strip__key {
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.strip__value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.strip__note {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+/* league switch (ui/league-switch.js) ------------------------------------ */
+
+/* A segmented control with a marker that slides between the cells, so the
+   change of league reads as a move rather than two independent buttons
+   swapping colour. */
+.league {
+  position: relative;
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--surface-2);
+  flex: none;
+}
+
+.league__marker {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc((100% - 4px) / var(--n));
+  border-radius: 99px;
+  background: var(--accent);
+  transform: translateX(calc(100% * var(--i)));
+  transition: transform 0.26s var(--ease-snap, ease-out);
+}
+
+/* Equal cells, so the sliding marker lands exactly on one however long its
+   label is. */
+.league__btn {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0;
+  min-width: 62px;
+  min-height: 24px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 99px;
+  background: none;
+  color: var(--ink-3);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 180ms ease;
+}
+
+.league__btn[aria-pressed="true"] {
+  color: var(--on-accent);
+}
+
+.league__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .league__marker {
+    transition: none;
+  }
+}
+
+/* manual refresh (ui/refresh.js) ----------------------------------------- */
+
+.refresh {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  margin-left: auto;
+  flex: none;
+  flex-wrap: wrap;
+}
+
+.refresh__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.refresh__btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.refresh__btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.refresh__spinner {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  animation: refresh-spin 0.7s linear infinite;
+}
+
+@keyframes refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.refresh__status {
+  font-size: 11px;
+  color: var(--ink-3);
+  flex: 1 1 100%;
+  text-align: right;
+}
+
+/* week deck (ui/week-panel.js) ------------------------------------------- */
+
+/* All 13 weeks side by side; swiping is native scroll-snap, not a handler. */
+.weeks {
+  /* Makes the track the slides' offsetParent, so slide.offsetLeft is in the
+     same coordinate space as track.scrollLeft. Without this the deck lands
+     a few pixels off every snap point. */
+  position: relative;
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.weeks::-webkit-scrollbar {
+  display: none;
+}
+
+.week-slide {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.week-pips {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  padding: var(--sp-3) 0 var(--sp-4);
+  border-top: 1px solid var(--line-soft);
+}
+
+.week-pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--line);
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease;
+}
+
+/* The week actually on the clock, so the deck has a fixed reference point. */
+.week-pip--now {
+  background: var(--ink-3);
+}
+
+.week-pip--active {
+  background: var(--accent);
+  transform: scale(1.5);
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  margin-bottom: var(--sp-6);
+}
+
+.panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  /* Chips have padding, so a baseline here sits them low against the heading.
+     Centring lines the whole row up on one optical axis. */
+  align-items: center;
+  gap: 10px var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--surface-2);
+}
+
+.panel__head h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 24px;
+  text-transform: uppercase;
+}
+
+/* The badge in the header carries the whole story, so a forgiving week gets a
+   coloured sideline and nothing else. An explanatory paragraph here was read
+   once and then sat in the way of the pick on every later visit. */
+.week-slide--covered .panel__head {
+  border-bottom-color: var(--mulligan);
+}
+
+/* recommendation band ---------------------------------------------------- */
+
+.recommend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+  padding: 10px var(--sp-5);
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.recommend--match {
+  background: var(--surface-2);
+}
+
+.recommend__label {
+  color: var(--accent-ink);
+  flex: none;
+}
+
+.recommend--match .recommend__label {
+  color: var(--ink-3);
+}
+
+.recommend__note {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.recommend__teams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+  min-width: 0;
+}
+
+.recommend__team {
+  display: inline-flex;
+  align-items: baseline;
+  line-height: 1.3;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent-ink);
+}
+
+.recommend__spread {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--accent);
+}
+
+.btn--apply {
+  margin-left: auto;
+  flex: none;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Holding the band's place while the optimiser runs. Dimmed rather than
+   skeleton-shimmered: it is gone in a few hundred milliseconds, and a pulsing
+   placeholder draws more attention than the thing it stands in for. */
+.recommend--waiting .recommend__note {
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+.chip--final {
+  background: var(--surface-2);
+  color: var(--ink-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.chip--rec {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+/* Declared after .panel on purpose: a slide sits inside the tab card now, so
+   it drops the card chrome it would otherwise carry. An equal-specificity
+   rule earlier in the file would lose to .panel. */
+.view .week-slide {
+  margin-bottom: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.panel__slots {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--line-soft);
+}
+
+.slot__numbers > *,
+.metric__value {
+  min-width: 0;
+}
+
+/* slot ------------------------------------------------------------------- */
+
+.slot {
+  background: var(--surface);
+  padding: var(--sp-5);
+  /* Grid items default to min-width:auto, so long content (a 44px badge plus
+     "SOUTH CAROLINA") widens the track instead of wrapping. */
+  min-width: 0;
+}
+
+.slot--locked {
+  background: var(--lock-bg);
+}
+
+.slot__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: var(--sp-3);
+  min-height: 46px;
+}
+
+.slot__identity {
+  min-width: 0;
+  margin-right: auto;
+}
+
+.slot__team {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 30px;
+  line-height: 1;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.slot__matchup {
+  font-size: 13px;
+  color: var(--ink-2);
+  margin-top: var(--sp-1);
+  min-width: 0;
+}
+
+.slot__numbers {
+  display: flex;
+  align-items: stretch;
+  gap: 22px;
+  padding: 10px 0 12px;
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+  margin-bottom: var(--sp-3);
+}
+
+.slot__stamp {
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-top: 9px;
+  font-family: var(--font-mono);
+}
+
+.metric__key {
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.metric__value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.metric__value--text {
+  font-size: 14px;
+  line-height: 1.56;
+}
+
+/* Each metric is a column; justifying to the end bottom-aligns the values
+   across columns even though "Market" is smaller than "-35.5". */
+.slot__numbers > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 3px;
+  min-width: 0;
+}
+
+/* chips ------------------------------------------------------------------ */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 9px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  line-height: 1;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex: none;
+}
+
+.chip--safe {
+  background: var(--safe-bg);
+  color: var(--safe);
+}
+
+.chip--solid {
+  background: var(--solid-bg);
+  color: var(--solid);
+}
+
+.chip--thin {
+  background: var(--thin-bg);
+  color: var(--thin);
+}
+
+.chip--danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.chip--lock {
+  background: var(--lock-bg);
+  color: var(--lock);
+}
+
+.chip--buyback {
+  background: var(--mulligan-bg);
+  color: var(--mulligan);
+  box-shadow: inset 0 0 0 1px currentcolor;
+}
+
+/* On the scoreboard header the chip sits on near-black, where the light
+   background it carries elsewhere would read as a hole punched in the bar. */
+.panel__head .chip--buyback {
+  background: transparent;
+  color: var(--mulligan);
+}
+
+/* actions ---------------------------------------------------------------- */
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.btn {
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.btn--won {
+  background: var(--safe-bg);
+  border-color: var(--safe);
+  color: var(--safe);
+}
+
+.btn--lost {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* swap list -------------------------------------------------------------- */
+
+.swap {
+  margin-top: var(--sp-3);
+  border-top: 1px dashed var(--line);
+  padding-top: var(--sp-3);
+}
+
+.swap__label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.swap__filter {
+  width: 100%;
+  padding: 8px 10px;
+  margin-bottom: var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 13px;
+}
+
+.swap__filter::placeholder {
+  color: var(--ink-3);
+}
+
+/* Roughly seven rows, then scroll - the full list can run past 40 teams. */
+.swap__list {
+  max-height: 244px;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+}
+
+.swap__option {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  padding: 8px 9px;
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 12.5px;
+}
+
+.swap__option:last-child {
+  border-bottom: 0;
+}
+
+.swap__option:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.swap__option--current {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.swap__option--disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.swap__team {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.swap__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Filled rather than tinted: this marks the pick the plan actually chose, so
+   it should be the loudest thing in the row after the team name.
+
+   Box-centring alone still read high, because uppercase condensed type has
+   its optical centre at cap-height while the mixed-case name beside it centres
+   nearer the x-height. The nudge below closes that gap - it is a type
+   correction, not a hack. */
+.swap__tag {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  padding: 0 7px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 10.5px;
+  line-height: 1;
+  border-radius: 3px;
+  background: var(--accent);
+  color: var(--on-accent);
+  transform: translateY(1px);
+}
+
+.swap__matchup {
+  color: var(--ink-3);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.swap__spread {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.swap__spread--safe {
+  color: var(--safe);
+}
+
+.swap__spread--solid {
+  color: var(--solid);
+}
+
+.swap__spread--thin {
+  color: var(--thin);
+}
+
+.swap__spread--danger {
+  color: var(--danger);
+}
+
+.swap__option--disabled .swap__spread {
+  color: var(--ink-3);
+  font-family: var(--font-body);
+  font-size: 11px;
+}
+
+/* ladder (ui/ladder.js) -------------------------------------------------- */
+
+.table-scroll {
+  overflow-x: auto;
+  background: var(--surface);
+}
+
+.ladder {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 720px;
+}
+
+.ladder th {
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-size: 11px;
+  color: var(--ink-3);
+  text-align: left;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  position: sticky;
+  top: 0;
+}
+
+.ladder td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.ladder tr:last-child td {
+  border-bottom: 0;
+}
+
+.ladder tr {
+  cursor: pointer;
+}
+
+/* Column visibility is driven by width, not by JS. Both classes are declared
+   here so neither is left undefined at the breakpoint it does not own. */
+.is-narrow-only {
+  display: none;
+}
+
+.ladder tr.is-current td {
+  background: var(--accent-soft);
+}
+
+.ladder tr.is-resolved td {
+  color: var(--ink-3);
+}
+
+.ladder__week {
+  font-family: var(--font-mono);
+  color: var(--ink-3);
+  width: 38px;
+}
+
+.ladder__team {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ladder__blank {
+  color: var(--ink-3);
+  font-size: 11.5px;
+}
+
+.ladder__num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.meter {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--line-soft);
+  overflow: hidden;
+  min-width: 54px;
+}
+
+.meter__fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+/* burn board (ui/burn-board.js) ------------------------------------------ */
+
+.burn {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  gap: 1px;
+  background: var(--line-soft);
+  margin-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+
+.burn__team {
+  background: var(--surface);
+  padding: var(--sp-2) 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 12.5px;
+}
+
+.burn__team--spent {
+  background: var(--surface-2);
+  color: var(--ink-3);
+}
+
+.burn__team--spent span:first-child {
+  text-decoration: line-through;
+}
+
+.burn__rating {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.burn__team--spent .burn__rating {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+/* notices ---------------------------------------------------------------- */
+
+.notice {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  margin-bottom: var(--sp-4);
+}
+
+.notice--warn {
+  background: var(--thin-bg);
+  color: var(--thin);
+  border: 1px solid var(--thin);
+}
+
+/* A notice you can act on. It keeps the banner's look so the invitation comes
+   from the words, and only the cursor and hover say it is a control. */
+.notice--action {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notice--action:hover {
+  text-decoration: underline;
+}
+
+/* phone ------------------------------------------------------------------ */
+
+@media (max-width: 660px) {
+  .view {
+    margin-bottom: var(--sp-4);
+  }
+
+  .strip {
+    margin-bottom: var(--sp-4);
+  }
+
+  .strip__cell {
+    padding: 8px 9px;
+    gap: 2px;
+  }
+
+  .strip__key {
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+  }
+
+  .strip__value {
+    font-size: 16px;
+  }
+
+  .strip__note {
+    font-size: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .panel {
+    margin-bottom: 20px;
+    border-radius: 11px;
+  }
+
+  .panel__head {
+    padding: var(--sp-3) var(--sp-4);
+    gap: var(--sp-2) 10px;
+  }
+
+  .panel__head h2 {
+    font-size: 20px;
+  }
+
+  .panel__slots {
+    grid-template-columns: 1fr;
+  }
+
+  .recommend {
+    padding: 9px var(--sp-4);
+    gap: 6px 10px;
+  }
+
+  .recommend__team {
+    font-size: 12.5px;
+  }
+
+  .btn--apply {
+    margin-left: auto;
+    min-height: 30px;
+    padding: 5px 10px;
+  }
+
+  .slot {
+    padding: 15px var(--sp-4);
+  }
+
+  .slot__team {
+    font-size: 24px;
+  }
+
+  .slot__numbers {
+    gap: 0;
+    justify-content: space-between;
+  }
+
+  .metric__value {
+    font-size: 17px;
+  }
+
+  .actions {
+    gap: 5px;
+    flex-wrap: nowrap;
+  }
+
+  /* All four on one row rather than a 2x2 block of large buttons. */
+  .actions .btn {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 34px;
+    padding: 6px 2px;
+    font-size: 11.5px;
+    white-space: nowrap;
+  }
+
+  .swap__option {
+    padding: 9px 6px;
+    min-height: 42px;
+  }
+
+  /* With the full roster in this list, the opponent is what makes a row
+     meaningful - keep it, and let it truncate instead of disappearing. */
+  .swap__matchup {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 11px;
+  }
+
+  .swap__team {
+    flex: 0 1 auto;
+    max-width: 52%;
+    min-width: 0;
+  }
+
+  .swap__option {
+    gap: 7px;
+    padding: 9px 8px;
+  }
+
+  .ladder {
+    min-width: 0;
+  }
+
+  .ladder th,
+  .ladder td {
+    padding: 8px 7px;
+  }
+
+  .ladder th {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+  }
+
+  .ladder td {
+    font-size: 12.5px;
+  }
+
+  .ladder__team {
+    font-size: 14px;
+    white-space: normal;
+    line-height: 1.15;
+  }
+
+  .ladder__week {
+    width: 24px;
+  }
+
+  .is-wide-only {
+    display: none;
+  }
+
+  .is-narrow-only {
+    display: table-cell;
+  }
+
+  .ladder__opponent {
+    color: var(--ink-3);
+    max-width: 84px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Narrow phones cannot fit the opponent column without the row scrolling
+   sideways. The matchup is one tap away in the panel, so drop it here. */
+@media (max-width: 460px) {
+  .ladder .is-narrow-only {
+    display: none;
+  }
+
+  .ladder th,
+  .ladder td {
+    padding: 8px 6px;
+  }
+
+  .burn {
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  }
+
+  .burn__team {
+    padding: var(--sp-2) 8px;
+    font-size: 11.5px;
+  }
+}
+
+@media (max-width: 720px) and (min-width: 661px) {
+  .panel__slots {
+    grid-template-columns: 1fr;
+  }
+}

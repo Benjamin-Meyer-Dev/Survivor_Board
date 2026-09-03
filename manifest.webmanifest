@@ -1,0 +1,9 @@
+{
+  "name": "Survivor Board",
+  "short_name": "Survivor",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#eeeff2",
+  "theme_color": "#2f5d8c",
+  "icons": []
+}

@@ -1,0 +1,293 @@
+/* ==========================================================================
+   Motion.
+
+   The app re-renders whole regions from innerHTML, which destroys nodes and
+   with them any in-flight CSS transition. So feedback for an action is a
+   one-shot keyframe applied to the freshly rendered element (see playEffect
+   in app.js), while transitions are reserved for states that survive a
+   render: hover, focus, and press.
+
+   Every rule here is disabled wholesale by the reduced-motion block in
+   base.css. Nothing below is load-bearing - the app is fully usable with all
+   of it switched off.
+   ========================================================================== */
+
+:root {
+  /* Slight overshoot: reads as responsive rather than mechanical. */
+  --ease-out: cubic-bezier(0.22, 0.75, 0.28, 1);
+  --ease-snap: cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+/* --- press and hover, the states that outlive a render ------------------- */
+
+.btn,
+.tab,
+.swap__option,
+.panel__nav button {
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease,
+    transform 0.12s var(--ease-out);
+}
+
+.btn:active:not(:disabled),
+.swap__option:active:not(:disabled) {
+  transform: scale(0.965);
+}
+
+.tab {
+  transition:
+    color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.tab:active {
+  transform: translateY(1px);
+}
+
+.chip {
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.meter__fill {
+  transition: width 0.4s var(--ease-out);
+}
+
+/* --- entering a tab ------------------------------------------------------ */
+
+@keyframes view-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.view.is-entering {
+  animation: view-enter 0.3s var(--ease-out) both;
+}
+
+/* The other half of the cross-fade. It sinks rather than rises, so the two
+   panels read as one moving past the other instead of both arriving. */
+@keyframes view-leave {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+/* Rows arrive in sequence rather than all at once - the eye reads the top of
+   the table first, which is the order it is sorted in. */
+@keyframes row-enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.view.is-entering .burn__team {
+  animation: row-enter 0.34s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 6ms);
+}
+
+/* The board on its way out while the next league is being built. The masthead
+   is deliberately left alone: the switch you just tapped should stay solid and
+   responsive, and it is what tells you the tap landed. */
+.shell.is-swapping .notice,
+.shell.is-swapping .strip,
+.shell.is-swapping .tabs,
+.shell.is-swapping .views {
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+/* Switching league replaces the whole board, so the change is announced once
+   at the top of the page rather than by every card moving independently. */
+@keyframes league-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.994);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.shell.is-switching .strip,
+.shell.is-switching .tabs,
+.shell.is-switching .views {
+  animation: league-enter 0.36s var(--ease-out) both;
+}
+
+.shell.is-switching .tabs {
+  animation-delay: 0.03s;
+}
+
+.shell.is-switching .view {
+  animation-delay: 0.06s;
+}
+
+/* --- a pick changing ----------------------------------------------------- */
+
+.slot {
+  position: relative;
+}
+
+/* Colour wash for a result, painted over the slot so it does not fight the
+   slot's own background. */
+.slot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  border-radius: inherit;
+}
+
+@keyframes wash {
+  from {
+    opacity: 0.42;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.slot.fx-won::after {
+  background: radial-gradient(circle at 50% 42%, var(--safe), transparent 70%);
+  animation: touchdown 0.72s var(--ease-out);
+}
+
+/* A win expands outward from the pick rather than just tinting it. */
+@keyframes touchdown {
+  0% {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.25);
+  }
+}
+
+/* Goalposts going up: the team name kicks briefly. */
+@keyframes kick {
+  0% {
+    transform: none;
+  }
+  35% {
+    transform: translateY(-5px) scale(1.03);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+.slot.fx-won .slot__team {
+  animation: kick 0.5s var(--ease-snap);
+}
+
+.slot.fx-lost::after {
+  background: var(--danger);
+  animation: wash 0.6s ease-out;
+}
+
+.slot.fx-lock::after {
+  background: var(--lock);
+  animation: wash 0.5s ease-out;
+}
+
+/* A locked slot gets a ring that draws itself in. */
+@keyframes ring {
+  from {
+    box-shadow: inset 0 0 0 0 var(--lock);
+  }
+  60% {
+    box-shadow: inset 0 0 0 3px var(--lock);
+  }
+  to {
+    box-shadow: inset 0 0 0 0 var(--lock);
+  }
+}
+
+.slot.fx-lock {
+  animation: ring 0.55s var(--ease-out);
+}
+
+/* A new team arriving in the slot rises into place, numbers just behind it. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.slot.fx-swap .slot__identity {
+  animation: rise 0.36s var(--ease-out) both;
+}
+
+.slot.fx-swap .slot__numbers {
+  animation: rise 0.36s var(--ease-out) both;
+  animation-delay: 0.05s;
+}
+
+.slot.fx-swap .actions {
+  animation: rise 0.36s var(--ease-out) both;
+  animation-delay: 0.09s;
+}
+
+/* A lost pick gets a short nudge - failure should not feel the same as a win. */
+@keyframes nudge {
+  0%,
+  100% {
+    transform: none;
+  }
+  30% {
+    transform: translateX(-4px);
+  }
+  70% {
+    transform: translateX(4px);
+  }
+}
+
+.slot.fx-lost .slot__identity {
+  animation: nudge 0.32s ease;
+}
+
+/* --- adopting the recommendation ----------------------------------------
+   The band itself is NOT animated: it re-renders on every action, so an
+   entrance here would flash on every tap. The feedback lives on the slots. */
+
+.btn--apply:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+/* --- week pips ----------------------------------------------------------- */
+
+.week-pip {
+  transition:
+    background-color 0.22s ease,
+    transform 0.28s var(--ease-snap);
+}

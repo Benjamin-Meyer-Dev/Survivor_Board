@@ -1,0 +1,281 @@
+/* ==========================================================================
+   The field.
+
+   The thematic layer, kept in its own file so the functional CSS underneath
+   stays readable. Three ideas carry it:
+
+     1. Yard lines - a fixed, very low contrast stripe field behind the page.
+     2. The scoreboard - the week header reads as a stadium readout.
+     3. Chalk - hairline dividers and uppercase condensed labels.
+
+   Nothing here changes layout or state; strip this file and the app still
+   works exactly the same.
+   ========================================================================== */
+
+:root {
+  /* Chalk on turf. Alpha-based so it works over either ground. */
+  --yard: rgb(20 26 21 / 5%);
+  --yard-major: rgb(20 26 21 / 9%);
+  --chalk: rgb(20 26 21 / 13%);
+  --mow: rgb(31 122 76 / 3%);
+  --score-bg: #0c1410;
+  --score-ink: #f3f6f1;
+  --score-dim: #7d8b80;
+  --score-glow: rgb(143 199 232 / 55%);
+  --endzone: rgb(46 92 122 / 10%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --yard: rgb(255 255 255 / 4%);
+    --yard-major: rgb(255 255 255 / 7%);
+    --chalk: rgb(255 255 255 / 11%);
+    --mow: rgb(88 201 138 / 2.6%);
+    --score-bg: #060c09;
+    --score-ink: #f3f6f1;
+    --score-dim: #6f7d73;
+    --endzone: rgb(143 199 232 / 10%);
+  }
+}
+
+:root[data-theme="dark"] {
+  --yard: rgb(255 255 255 / 4%);
+  --yard-major: rgb(255 255 255 / 7%);
+  --chalk: rgb(255 255 255 / 11%);
+  --mow: rgb(88 201 138 / 2.6%);
+  --score-bg: #060c09;
+  --score-ink: #f3f6f1;
+  --score-dim: #6f7d73;
+  --endzone: rgb(143 199 232 / 10%);
+}
+
+/* --- yard lines ---------------------------------------------------------- */
+
+/* Fixed rather than scrolling: the page moves over the field, the way a
+   camera pans over a pitch. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    /* hash marks down the middle of the field */
+    repeating-linear-gradient(180deg, var(--yard-major) 0 8px, transparent 8px 34px) 50% 0 / 1px
+      100% no-repeat,
+    /* yard lines every five, heavier every twenty */
+    repeating-linear-gradient(
+        90deg,
+        transparent 0 calc(6.25% - 1px),
+        var(--yard) calc(6.25% - 1px),
+        var(--yard) 6.25%
+      ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 calc(25% - 1px),
+      var(--yard-major) calc(25% - 1px),
+      var(--yard-major) 25%
+    ),
+    /* mown stripes - the bands a groundsman leaves behind */
+    repeating-linear-gradient(180deg, var(--mow) 0 64px, transparent 64px 128px);
+}
+
+.shell {
+  position: relative;
+  z-index: 1;
+}
+
+/* --- masthead ------------------------------------------------------------ */
+
+.masthead {
+  border-bottom: 0;
+  padding-bottom: 0;
+  gap: 10px;
+}
+
+.masthead__brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.mast-ball {
+  color: var(--accent);
+  flex: none;
+}
+
+/* Sideline: a heavy chalk rule with the hash ticks a field has. */
+.masthead::after {
+  content: "";
+  flex: 1 0 100%;
+  height: 6px;
+  margin-top: var(--sp-3);
+  background:
+    linear-gradient(var(--ink), var(--ink)) 0 0 / 100% 2px no-repeat,
+    repeating-linear-gradient(90deg, var(--chalk) 0 2px, transparent 2px 14px) 0 3px / 100% 3px
+      no-repeat;
+}
+
+/* --- scoreboard header --------------------------------------------------- */
+
+.panel__head {
+  background: var(--score-bg);
+  border-bottom: 2px solid var(--accent);
+  color: var(--score-ink);
+  gap: 10px 12px;
+  padding: 11px var(--sp-5);
+}
+
+.scoreboard {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-right: auto;
+}
+
+.scoreboard__label {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--score-dim);
+}
+
+/* Padded two-digit readout, lit the way a scoreboard is. */
+.scoreboard__num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 30px;
+  line-height: 1;
+  color: var(--score-ink);
+  text-shadow: 0 0 14px var(--score-glow);
+}
+
+.panel__head .u-eyebrow {
+  color: var(--score-dim);
+}
+
+/* The coach's call is the primary action on the panel, so it is filled
+   rather than outlined. */
+.btn--apply {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+}
+
+.btn--apply:hover:not(:disabled) {
+  background: var(--accent-ink);
+  border-color: var(--accent-ink);
+  color: var(--on-accent);
+}
+
+/* --- chalk dividers ------------------------------------------------------ */
+
+.slot__numbers {
+  border-top: 1px dashed var(--chalk);
+  border-bottom: 1px dashed var(--chalk);
+}
+
+.swap {
+  border-top: 1px dashed var(--chalk);
+}
+
+/* --- field-position meter ------------------------------------------------ */
+
+.meter {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(10% - 1px),
+    var(--chalk) calc(10% - 1px),
+    var(--chalk) 10%
+  );
+}
+
+.meter__fill {
+  background: linear-gradient(90deg, var(--accent), var(--safe));
+}
+
+/* --- week pips as yard markers ------------------------------------------- */
+
+.week-pips {
+  gap: 8px;
+}
+
+.week-pip {
+  width: 4px;
+  height: 12px;
+  border-radius: 1px;
+}
+
+.week-pip--active {
+  transform: scaleY(1.5);
+}
+
+/* Locked picks read like a called play on a wristband. */
+.slot--locked {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* --- burn board as a depth chart ----------------------------------------- */
+
+.burn__team {
+  font-variant-numeric: tabular-nums;
+}
+
+.burn__team--spent {
+  /* Crossed off the sheet. */
+  background-image: linear-gradient(
+    100deg,
+    transparent 45%,
+    var(--chalk) 49%,
+    var(--chalk) 51%,
+    transparent 55%
+  );
+}
+
+/* --- end zone ------------------------------------------------------------ */
+
+/* The current week's panel is in the end zone: a gold wash and a heavier
+   sideline mark it out from the twelve you are only passing through. */
+.week-slide:has(.chip--lock) .panel__head {
+  background:
+    linear-gradient(180deg, var(--endzone), transparent),
+    repeating-linear-gradient(135deg, rgb(255 255 255 / 3%) 0 6px, transparent 6px 12px),
+    var(--score-bg);
+}
+
+/* --- the goal line ------------------------------------------------------- */
+
+/* Week 13 is the end zone; give the last pip an end-line. */
+.week-pip:last-child {
+  width: 3px;
+  height: 16px;
+  background: var(--accent);
+  opacity: 0.55;
+}
+
+@media (max-width: 660px) {
+  /* Three athletic-condensed labels at full tracking overrun 390px. */
+  .tab {
+    padding: 12px 1px;
+    font-size: 11.5px;
+    letter-spacing: 0.02em;
+  }
+
+  .panel__head {
+    padding: 10px var(--sp-4);
+  }
+
+  .scoreboard__num {
+    font-size: 25px;
+  }
+
+  .mast-ball {
+    width: 25px;
+    height: 16px;
+  }
+}

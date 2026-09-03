@@ -1,0 +1,55 @@
+{
+  "$comment": "All 32 teams by division. Every team is eligible, so this is here for grouping on the depth chart rather than for filtering.",
+  "ratingSource": "2026 market power ratings",
+  "homeFieldPoints": 2.0,
+  "conferences": {
+    "AFC East": {
+      "Bills": 85,
+      "Dolphins": 73,
+      "Patriots": 83,
+      "Jets": 73
+    },
+    "AFC North": {
+      "Ravens": 85,
+      "Bengals": 82,
+      "Browns": 76,
+      "Steelers": 79
+    },
+    "AFC South": {
+      "Texans": 82,
+      "Colts": 80,
+      "Jaguars": 82,
+      "Titans": 73
+    },
+    "AFC West": {
+      "Broncos": 83,
+      "Chiefs": 84,
+      "Raiders": 75,
+      "Chargers": 82
+    },
+    "NFC East": {
+      "Cowboys": 80,
+      "Giants": 76,
+      "Eagles": 82,
+      "Commanders": 79
+    },
+    "NFC North": {
+      "Bears": 82,
+      "Lions": 82,
+      "Packers": 82,
+      "Vikings": 82
+    },
+    "NFC South": {
+      "Falcons": 78,
+      "Panthers": 78,
+      "Saints": 77,
+      "Buccaneers": 80
+    },
+    "NFC West": {
+      "Cardinals": 72,
+      "Rams": 86.5,
+      "49ers": 83,
+      "Seahawks": 85
+    }
+  }
+}

@@ -1,0 +1,82 @@
+name: Refresh odds
+
+# Every six hours. GitHub queues scheduled runs on shared capacity, so the
+# actual fire time drifts by a few minutes - that is fine for a 6h cadence.
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  # The board's Refresh button reaches this through supabase/functions/refresh.
+  # schedule and workflow_dispatch are independent triggers, so firing this by
+  # hand never moves the next 6 hourly run.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+# Never two at once. Queued duplicates fall out at the freshness check inside
+# scripts/refresh-odds.mjs rather than re-pulling the same lines.
+concurrency:
+  group: refresh-odds
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Fetch current lines
+        id: refresh
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: node scripts/refresh-odds.mjs
+
+      - name: Commit if the numbers moved
+        id: commit
+        run: |
+          if git diff --quiet -- 'data/*/odds.json'; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No line movement."
+            exit 0
+          fi
+          git config user.name  "survivor-board[bot]"
+          git config user.email "survivor-board[bot]@users.noreply.github.com"
+          git add data/*/odds.json
+          git commit -m "chore(odds): refresh week ${{ steps.refresh.outputs.currentWeek || 'lines' }}"
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Open an issue when a pick is in danger
+        if: steps.refresh.outputs.flagged != '' && steps.refresh.outputs.flagged != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const summary = `${{ steps.refresh.outputs.summary }}`;
+            const title = `Pick flagged: line moved under threshold`;
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'pick-flag',
+            });
+            if (open.length) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: open[0].number,
+                body: summary,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body: `${summary}\n\nSwap to a backup on the board, or re-plan the remaining weeks.`,
+                labels: ['pick-flag'],
+              });
+            }

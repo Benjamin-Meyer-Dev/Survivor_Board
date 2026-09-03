@@ -1,0 +1,581 @@
+{
+  "$comment": "The 18-week NFL survivor path. One pick a week, no team twice. A single buy back covers a loss in week 1 or week 2, which is why the opening weeks take on more risk than the rest of the path. Spreads are power-rating projections and act as the fallback when data/nfl/odds.json carries no market line.",
+  "league": "nfl",
+  "season": 2026,
+  "rules": {
+    "picksPerWeek": 1,
+    "conferences": ["AFC", "NFC"],
+    "reuseTeams": false,
+    "opponentMustBeFbs": false,
+    "winCondition": "straight-up",
+    "buyBackWeeks": [1, 2],
+    "buyBacks": 1,
+    "weeks": 18
+  },
+  "dangerThreshold": -6,
+  "tiers": {
+    "safe": 0.85,
+    "solid": 0.78,
+    "thin": 0.7
+  },
+  "weeks": [
+    {
+      "week": 1,
+      "label": "Sep 13",
+      "kickoff": "2026-09-13",
+      "picks": [
+        {
+          "team": "Chargers",
+          "opponent": "Cardinals",
+          "site": "Home",
+          "spread": -12,
+          "source": "projected",
+          "rationale": "-12.0 at home against Cardinals. Week 1 is covered by the buy back, so the path can afford this one."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Raiders",
+          "opponent": "Dolphins",
+          "site": "Home",
+          "spread": -4,
+          "source": "projected"
+        },
+        {
+          "team": "Steelers",
+          "opponent": "Falcons",
+          "site": "Home",
+          "spread": -3,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 2,
+      "label": "Sep 20",
+      "kickoff": "2026-09-20",
+      "picks": [
+        {
+          "team": "Eagles",
+          "opponent": "Titans",
+          "site": "Away",
+          "spread": -7,
+          "source": "projected",
+          "rationale": "-7.0 away against Titans. Week 2 is covered by the buy back, so the path can afford this one."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Buccaneers",
+          "opponent": "Browns",
+          "site": "Home",
+          "spread": -6,
+          "source": "projected"
+        },
+        {
+          "team": "Cowboys",
+          "opponent": "Commanders",
+          "site": "Home",
+          "spread": -3,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 3,
+      "label": "Sep 27",
+      "kickoff": "2026-09-27",
+      "picks": [
+        {
+          "team": "49ers",
+          "opponent": "Cardinals",
+          "site": "Home",
+          "spread": -13,
+          "source": "projected",
+          "rationale": "-13.0 at home against Cardinals."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Giants",
+          "opponent": "Titans",
+          "site": "Home",
+          "spread": -5,
+          "source": "projected"
+        },
+        {
+          "team": "Saints",
+          "opponent": "Raiders",
+          "site": "Home",
+          "spread": -4,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 4,
+      "label": "Oct 4",
+      "kickoff": "2026-10-04",
+      "picks": [
+        {
+          "team": "Bears",
+          "opponent": "Jets",
+          "site": "Home",
+          "spread": -11,
+          "source": "projected",
+          "rationale": "-11.0 at home against Jets."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Giants",
+          "opponent": "Cardinals",
+          "site": "Home",
+          "spread": -6,
+          "source": "projected"
+        },
+        {
+          "team": "Steelers",
+          "opponent": "Browns",
+          "site": "Away",
+          "spread": -1,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 5,
+      "label": "Oct 11",
+      "kickoff": "2026-10-11",
+      "picks": [
+        {
+          "team": "Patriots",
+          "opponent": "Raiders",
+          "site": "Home",
+          "spread": -10,
+          "source": "projected",
+          "rationale": "-10.0 at home against Raiders."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Commanders",
+          "opponent": "Giants",
+          "site": "Home",
+          "spread": -5,
+          "source": "projected"
+        },
+        {
+          "team": "Cowboys",
+          "opponent": "Buccaneers",
+          "site": "Home",
+          "spread": -2,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 6,
+      "label": "Oct 18",
+      "kickoff": "2026-10-18",
+      "picks": [
+        {
+          "team": "Rams",
+          "opponent": "Cardinals",
+          "site": "Home",
+          "spread": -16.5,
+          "source": "projected",
+          "rationale": "-16.5 at home against Cardinals."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Buccaneers",
+          "opponent": "Steelers",
+          "site": "Home",
+          "spread": -3,
+          "source": "projected"
+        },
+        {
+          "team": "Giants",
+          "opponent": "Saints",
+          "site": "Home",
+          "spread": -1,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 7,
+      "label": "Oct 25",
+      "kickoff": "2026-10-25",
+      "picks": [
+        {
+          "team": "Texans",
+          "opponent": "Giants",
+          "site": "Home",
+          "spread": -8,
+          "source": "projected",
+          "rationale": "-8.0 at home against Giants."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Steelers",
+          "opponent": "Saints",
+          "site": "Neutral",
+          "spread": -2,
+          "source": "projected"
+        },
+        {
+          "team": "Jets",
+          "opponent": "Dolphins",
+          "site": "Home",
+          "spread": -2,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 8,
+      "label": "Nov 1",
+      "kickoff": "2026-11-01",
+      "picks": [
+        {
+          "team": "Bengals",
+          "opponent": "Titans",
+          "site": "Home",
+          "spread": -11,
+          "source": "projected",
+          "rationale": "-11.0 at home against Titans."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Cowboys",
+          "opponent": "Cardinals",
+          "site": "Home",
+          "spread": -10,
+          "source": "projected"
+        },
+        {
+          "team": "Steelers",
+          "opponent": "Browns",
+          "site": "Home",
+          "spread": -5,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 9,
+      "label": "Nov 8",
+      "kickoff": "2026-11-08",
+      "picks": [
+        {
+          "team": "Seahawks",
+          "opponent": "Cardinals",
+          "site": "Home",
+          "spread": -15,
+          "source": "projected",
+          "rationale": "-15.0 at home against Cardinals."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Saints",
+          "opponent": "Browns",
+          "site": "Home",
+          "spread": -3,
+          "source": "projected"
+        },
+        {
+          "team": "Cowboys",
+          "opponent": "Colts",
+          "site": "Away",
+          "spread": 2,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 10,
+      "label": "Nov 15",
+      "kickoff": "2026-11-15",
+      "picks": [
+        {
+          "team": "Colts",
+          "opponent": "Dolphins",
+          "site": "Home",
+          "spread": -9,
+          "source": "projected",
+          "rationale": "-9.0 at home against Dolphins."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Commanders",
+          "opponent": "Giants",
+          "site": "Away",
+          "spread": -1,
+          "source": "projected"
+        },
+        {
+          "team": "Saints",
+          "opponent": "Panthers",
+          "site": "Home",
+          "spread": -1,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 11,
+      "label": "Nov 22",
+      "kickoff": "2026-11-22",
+      "picks": [
+        {
+          "team": "Chiefs",
+          "opponent": "Cardinals",
+          "site": "Home",
+          "spread": -14,
+          "source": "projected",
+          "rationale": "-14.0 at home against Cardinals."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Cowboys",
+          "opponent": "Titans",
+          "site": "Home",
+          "spread": -9,
+          "source": "projected"
+        },
+        {
+          "team": "Commanders",
+          "opponent": "Bengals",
+          "site": "Home",
+          "spread": 1,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 12,
+      "label": "Nov 29",
+      "kickoff": "2026-11-29",
+      "picks": [
+        {
+          "team": "Jaguars",
+          "opponent": "Titans",
+          "site": "Home",
+          "spread": -11,
+          "source": "projected",
+          "rationale": "-11.0 at home against Titans."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Commanders",
+          "opponent": "Cardinals",
+          "site": "Away",
+          "spread": -5,
+          "source": "projected"
+        },
+        {
+          "team": "Buccaneers",
+          "opponent": "Panthers",
+          "site": "Home",
+          "spread": -4,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 13,
+      "label": "Dec 6",
+      "kickoff": "2026-12-06",
+      "picks": [
+        {
+          "team": "Broncos",
+          "opponent": "Dolphins",
+          "site": "Home",
+          "spread": -12,
+          "source": "projected",
+          "rationale": "-12.0 at home against Dolphins."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Commanders",
+          "opponent": "Titans",
+          "site": "Away",
+          "spread": -4,
+          "source": "projected"
+        },
+        {
+          "team": "Buccaneers",
+          "opponent": "Chargers",
+          "site": "Home",
+          "spread": 0,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 14,
+      "label": "Dec 13",
+      "kickoff": "2026-12-13",
+      "picks": [
+        {
+          "team": "Lions",
+          "opponent": "Titans",
+          "site": "Home",
+          "spread": -11,
+          "source": "projected",
+          "rationale": "-11.0 at home against Titans."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Panthers",
+          "opponent": "Saints",
+          "site": "Home",
+          "spread": -3,
+          "source": "projected"
+        },
+        {
+          "team": "Browns",
+          "opponent": "Falcons",
+          "site": "Home",
+          "spread": 0,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 15,
+      "label": "Dec 20",
+      "kickoff": "2026-12-20",
+      "picks": [
+        {
+          "team": "Packers",
+          "opponent": "Dolphins",
+          "site": "Home",
+          "spread": -11,
+          "source": "projected",
+          "rationale": "-11.0 at home against Dolphins."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Buccaneers",
+          "opponent": "Saints",
+          "site": "Home",
+          "spread": -5,
+          "source": "projected"
+        },
+        {
+          "team": "Commanders",
+          "opponent": "Falcons",
+          "site": "Home",
+          "spread": -3,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 16,
+      "label": "Dec 27",
+      "kickoff": "2026-12-27",
+      "picks": [
+        {
+          "team": "Ravens",
+          "opponent": "Browns",
+          "site": "Home",
+          "spread": -11,
+          "source": "projected",
+          "rationale": "-11.0 at home against Browns."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Saints",
+          "opponent": "Cardinals",
+          "site": "Home",
+          "spread": -7,
+          "source": "projected"
+        },
+        {
+          "team": "Raiders",
+          "opponent": "Titans",
+          "site": "Home",
+          "spread": -4,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 17,
+      "label": "Jan 3",
+      "kickoff": "2027-01-03",
+      "picks": [
+        {
+          "team": "Vikings",
+          "opponent": "Jets",
+          "site": "Away",
+          "spread": -7,
+          "source": "projected",
+          "rationale": "-7.0 away against Jets."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Cowboys",
+          "opponent": "Giants",
+          "site": "Home",
+          "spread": -6,
+          "source": "projected"
+        },
+        {
+          "team": "Steelers",
+          "opponent": "Titans",
+          "site": "Away",
+          "spread": -4,
+          "source": "projected"
+        }
+      ]
+    },
+    {
+      "week": 18,
+      "label": "Jan 10",
+      "kickoff": "2027-01-10",
+      "picks": [
+        {
+          "team": "Bills",
+          "opponent": "Jets",
+          "site": "Home",
+          "spread": -14,
+          "source": "projected",
+          "rationale": "-14.0 at home against Jets."
+        }
+      ],
+      "backups": [
+        {
+          "team": "Panthers",
+          "opponent": "Falcons",
+          "site": "Home",
+          "spread": -2,
+          "source": "projected"
+        },
+        {
+          "team": "Buccaneers",
+          "opponent": "Saints",
+          "site": "Away",
+          "spread": -1,
+          "source": "projected"
+        }
+      ]
+    }
+  ]
+}

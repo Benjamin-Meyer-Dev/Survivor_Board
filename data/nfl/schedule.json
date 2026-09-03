@@ -1,0 +1,1138 @@
+{
+  "$comment": "Every 2026 NFL regular season game, weeks 1 to 18. Week 18 is the all-divisional finale (Jan 9-10, 2027).",
+  "weeks": {
+    "1": [
+      {
+        "away": "Patriots",
+        "home": "Seahawks"
+      },
+      {
+        "away": "Bears",
+        "home": "Panthers"
+      },
+      {
+        "away": "Buccaneers",
+        "home": "Bengals"
+      },
+      {
+        "away": "Saints",
+        "home": "Lions"
+      },
+      {
+        "away": "Bills",
+        "home": "Texans"
+      },
+      {
+        "away": "Ravens",
+        "home": "Colts"
+      },
+      {
+        "away": "Browns",
+        "home": "Jaguars"
+      },
+      {
+        "away": "Falcons",
+        "home": "Steelers"
+      },
+      {
+        "away": "Jets",
+        "home": "Titans"
+      },
+      {
+        "away": "Cardinals",
+        "home": "Chargers"
+      },
+      {
+        "away": "Dolphins",
+        "home": "Raiders"
+      },
+      {
+        "away": "Packers",
+        "home": "Vikings"
+      },
+      {
+        "away": "Commanders",
+        "home": "Eagles"
+      },
+      {
+        "away": "Cowboys",
+        "home": "Giants"
+      },
+      {
+        "away": "Broncos",
+        "home": "Chiefs"
+      },
+      {
+        "away": "49ers",
+        "home": "Rams",
+        "neutral": true
+      }
+    ],
+    "2": [
+      {
+        "away": "Lions",
+        "home": "Bills"
+      },
+      {
+        "away": "Panthers",
+        "home": "Falcons"
+      },
+      {
+        "away": "Saints",
+        "home": "Ravens"
+      },
+      {
+        "away": "Vikings",
+        "home": "Bears"
+      },
+      {
+        "away": "Bengals",
+        "home": "Texans"
+      },
+      {
+        "away": "Steelers",
+        "home": "Patriots"
+      },
+      {
+        "away": "Packers",
+        "home": "Jets"
+      },
+      {
+        "away": "Browns",
+        "home": "Buccaneers"
+      },
+      {
+        "away": "Eagles",
+        "home": "Titans"
+      },
+      {
+        "away": "Jaguars",
+        "home": "Broncos"
+      },
+      {
+        "away": "Raiders",
+        "home": "Chargers"
+      },
+      {
+        "away": "Seahawks",
+        "home": "Cardinals"
+      },
+      {
+        "away": "Commanders",
+        "home": "Cowboys"
+      },
+      {
+        "away": "Dolphins",
+        "home": "49ers"
+      },
+      {
+        "away": "Colts",
+        "home": "Chiefs"
+      },
+      {
+        "away": "Giants",
+        "home": "Rams"
+      }
+    ],
+    "3": [
+      {
+        "away": "Falcons",
+        "home": "Packers"
+      },
+      {
+        "away": "Chargers",
+        "home": "Bills"
+      },
+      {
+        "away": "Panthers",
+        "home": "Browns"
+      },
+      {
+        "away": "Jets",
+        "home": "Lions"
+      },
+      {
+        "away": "Texans",
+        "home": "Colts"
+      },
+      {
+        "away": "Patriots",
+        "home": "Jaguars"
+      },
+      {
+        "away": "Chiefs",
+        "home": "Dolphins"
+      },
+      {
+        "away": "Titans",
+        "home": "Giants"
+      },
+      {
+        "away": "Bengals",
+        "home": "Steelers"
+      },
+      {
+        "away": "Seahawks",
+        "home": "Commanders"
+      },
+      {
+        "away": "Cardinals",
+        "home": "49ers"
+      },
+      {
+        "away": "Vikings",
+        "home": "Buccaneers"
+      },
+      {
+        "away": "Raiders",
+        "home": "Saints"
+      },
+      {
+        "away": "Ravens",
+        "home": "Cowboys",
+        "neutral": true
+      },
+      {
+        "away": "Rams",
+        "home": "Broncos"
+      },
+      {
+        "away": "Eagles",
+        "home": "Bears"
+      }
+    ],
+    "4": [
+      {
+        "away": "Steelers",
+        "home": "Browns"
+      },
+      {
+        "away": "Patriots",
+        "home": "Bills"
+      },
+      {
+        "away": "Jets",
+        "home": "Bears"
+      },
+      {
+        "away": "Jaguars",
+        "home": "Bengals"
+      },
+      {
+        "away": "Cowboys",
+        "home": "Texans"
+      },
+      {
+        "away": "Cardinals",
+        "home": "Giants"
+      },
+      {
+        "away": "Rams",
+        "home": "Eagles"
+      },
+      {
+        "away": "Packers",
+        "home": "Buccaneers"
+      },
+      {
+        "away": "Titans",
+        "home": "Ravens"
+      },
+      {
+        "away": "Dolphins",
+        "home": "Vikings"
+      },
+      {
+        "away": "Chiefs",
+        "home": "Raiders"
+      },
+      {
+        "away": "Chargers",
+        "home": "Seahawks"
+      },
+      {
+        "away": "Broncos",
+        "home": "49ers"
+      },
+      {
+        "away": "Colts",
+        "home": "Commanders",
+        "neutral": true
+      },
+      {
+        "away": "Lions",
+        "home": "Panthers"
+      },
+      {
+        "away": "Falcons",
+        "home": "Saints"
+      }
+    ],
+    "5": [
+      {
+        "away": "Buccaneers",
+        "home": "Cowboys"
+      },
+      {
+        "away": "Eagles",
+        "home": "Jaguars",
+        "neutral": true
+      },
+      {
+        "away": "Bengals",
+        "home": "Dolphins"
+      },
+      {
+        "away": "Raiders",
+        "home": "Patriots"
+      },
+      {
+        "away": "Vikings",
+        "home": "Saints"
+      },
+      {
+        "away": "Browns",
+        "home": "Jets"
+      },
+      {
+        "away": "Colts",
+        "home": "Steelers"
+      },
+      {
+        "away": "Texans",
+        "home": "Titans"
+      },
+      {
+        "away": "Giants",
+        "home": "Commanders"
+      },
+      {
+        "away": "Broncos",
+        "home": "Chargers"
+      },
+      {
+        "away": "Lions",
+        "home": "Cardinals"
+      },
+      {
+        "away": "Bears",
+        "home": "Packers"
+      },
+      {
+        "away": "49ers",
+        "home": "Seahawks"
+      },
+      {
+        "away": "Ravens",
+        "home": "Falcons"
+      },
+      {
+        "away": "Bills",
+        "home": "Rams"
+      }
+    ],
+    "6": [
+      {
+        "away": "Seahawks",
+        "home": "Broncos"
+      },
+      {
+        "away": "Bears",
+        "home": "Falcons"
+      },
+      {
+        "away": "Ravens",
+        "home": "Browns"
+      },
+      {
+        "away": "Titans",
+        "home": "Colts"
+      },
+      {
+        "away": "Jets",
+        "home": "Patriots"
+      },
+      {
+        "away": "Saints",
+        "home": "Giants"
+      },
+      {
+        "away": "Panthers",
+        "home": "Eagles"
+      },
+      {
+        "away": "Steelers",
+        "home": "Buccaneers"
+      },
+      {
+        "away": "Cardinals",
+        "home": "Rams"
+      },
+      {
+        "away": "Chargers",
+        "home": "Chiefs"
+      },
+      {
+        "away": "Bills",
+        "home": "Raiders"
+      },
+      {
+        "away": "Cowboys",
+        "home": "Packers"
+      },
+      {
+        "away": "Texans",
+        "home": "Jaguars",
+        "neutral": true
+      },
+      {
+        "away": "Commanders",
+        "home": "49ers"
+      }
+    ],
+    "7": [
+      {
+        "away": "Patriots",
+        "home": "Bears"
+      },
+      {
+        "away": "Steelers",
+        "home": "Saints",
+        "neutral": true
+      },
+      {
+        "away": "49ers",
+        "home": "Falcons"
+      },
+      {
+        "away": "Bengals",
+        "home": "Ravens"
+      },
+      {
+        "away": "Buccaneers",
+        "home": "Panthers"
+      },
+      {
+        "away": "Giants",
+        "home": "Texans"
+      },
+      {
+        "away": "Colts",
+        "home": "Vikings"
+      },
+      {
+        "away": "Dolphins",
+        "home": "Jets"
+      },
+      {
+        "away": "Browns",
+        "home": "Titans"
+      },
+      {
+        "away": "Broncos",
+        "home": "Cardinals"
+      },
+      {
+        "away": "Packers",
+        "home": "Lions"
+      },
+      {
+        "away": "Rams",
+        "home": "Raiders"
+      },
+      {
+        "away": "Chiefs",
+        "home": "Seahawks"
+      },
+      {
+        "away": "Cowboys",
+        "home": "Eagles"
+      }
+    ],
+    "8": [
+      {
+        "away": "Panthers",
+        "home": "Packers"
+      },
+      {
+        "away": "Ravens",
+        "home": "Bills"
+      },
+      {
+        "away": "Titans",
+        "home": "Bengals"
+      },
+      {
+        "away": "Cardinals",
+        "home": "Cowboys"
+      },
+      {
+        "away": "Vikings",
+        "home": "Lions"
+      },
+      {
+        "away": "Colts",
+        "home": "Jaguars"
+      },
+      {
+        "away": "Raiders",
+        "home": "Jets"
+      },
+      {
+        "away": "Browns",
+        "home": "Steelers"
+      },
+      {
+        "away": "Falcons",
+        "home": "Buccaneers"
+      },
+      {
+        "away": "Chargers",
+        "home": "Rams"
+      },
+      {
+        "away": "Chiefs",
+        "home": "Broncos"
+      },
+      {
+        "away": "Patriots",
+        "home": "Dolphins"
+      },
+      {
+        "away": "Eagles",
+        "home": "Commanders"
+      },
+      {
+        "away": "Bears",
+        "home": "Seahawks"
+      }
+    ],
+    "9": [
+      {
+        "away": "Jaguars",
+        "home": "Ravens"
+      },
+      {
+        "away": "Bengals",
+        "home": "Falcons",
+        "neutral": true
+      },
+      {
+        "away": "Broncos",
+        "home": "Panthers"
+      },
+      {
+        "away": "Cowboys",
+        "home": "Colts"
+      },
+      {
+        "away": "Jets",
+        "home": "Chiefs"
+      },
+      {
+        "away": "Lions",
+        "home": "Dolphins"
+      },
+      {
+        "away": "Browns",
+        "home": "Saints"
+      },
+      {
+        "away": "Giants",
+        "home": "Eagles"
+      },
+      {
+        "away": "Rams",
+        "home": "Commanders"
+      },
+      {
+        "away": "Texans",
+        "home": "Chargers"
+      },
+      {
+        "away": "Raiders",
+        "home": "49ers"
+      },
+      {
+        "away": "Packers",
+        "home": "Patriots"
+      },
+      {
+        "away": "Cardinals",
+        "home": "Seahawks"
+      },
+      {
+        "away": "Buccaneers",
+        "home": "Bears"
+      },
+      {
+        "away": "Bills",
+        "home": "Vikings"
+      }
+    ],
+    "10": [
+      {
+        "away": "Commanders",
+        "home": "Giants"
+      },
+      {
+        "away": "Patriots",
+        "home": "Lions",
+        "neutral": true
+      },
+      {
+        "away": "Chiefs",
+        "home": "Falcons"
+      },
+      {
+        "away": "Texans",
+        "home": "Browns"
+      },
+      {
+        "away": "Vikings",
+        "home": "Packers"
+      },
+      {
+        "away": "Dolphins",
+        "home": "Colts"
+      },
+      {
+        "away": "Panthers",
+        "home": "Saints"
+      },
+      {
+        "away": "Bills",
+        "home": "Jets"
+      },
+      {
+        "away": "Jaguars",
+        "home": "Titans"
+      },
+      {
+        "away": "Rams",
+        "home": "Cardinals"
+      },
+      {
+        "away": "Seahawks",
+        "home": "Raiders"
+      },
+      {
+        "away": "49ers",
+        "home": "Cowboys"
+      },
+      {
+        "away": "Steelers",
+        "home": "Bengals"
+      },
+      {
+        "away": "Chargers",
+        "home": "Ravens"
+      }
+    ],
+    "11": [
+      {
+        "away": "Colts",
+        "home": "Texans"
+      },
+      {
+        "away": "Dolphins",
+        "home": "Bills"
+      },
+      {
+        "away": "Ravens",
+        "home": "Panthers"
+      },
+      {
+        "away": "Saints",
+        "home": "Bears"
+      },
+      {
+        "away": "Titans",
+        "home": "Cowboys"
+      },
+      {
+        "away": "Buccaneers",
+        "home": "Lions"
+      },
+      {
+        "away": "Cardinals",
+        "home": "Chiefs"
+      },
+      {
+        "away": "Jaguars",
+        "home": "Giants"
+      },
+      {
+        "away": "Jets",
+        "home": "Chargers"
+      },
+      {
+        "away": "Raiders",
+        "home": "Broncos"
+      },
+      {
+        "away": "Steelers",
+        "home": "Eagles"
+      },
+      {
+        "away": "Bengals",
+        "home": "Commanders"
+      },
+      {
+        "away": "Vikings",
+        "home": "49ers",
+        "neutral": true
+      }
+    ],
+    "12": [
+      {
+        "away": "Packers",
+        "home": "Rams"
+      },
+      {
+        "away": "Bears",
+        "home": "Lions"
+      },
+      {
+        "away": "Eagles",
+        "home": "Cowboys"
+      },
+      {
+        "away": "Chiefs",
+        "home": "Bills"
+      },
+      {
+        "away": "Broncos",
+        "home": "Steelers"
+      },
+      {
+        "away": "Saints",
+        "home": "Bengals"
+      },
+      {
+        "away": "Raiders",
+        "home": "Browns"
+      },
+      {
+        "away": "Ravens",
+        "home": "Texans"
+      },
+      {
+        "away": "Giants",
+        "home": "Colts"
+      },
+      {
+        "away": "Jets",
+        "home": "Dolphins"
+      },
+      {
+        "away": "Falcons",
+        "home": "Vikings"
+      },
+      {
+        "away": "Titans",
+        "home": "Jaguars"
+      },
+      {
+        "away": "Commanders",
+        "home": "Cardinals"
+      },
+      {
+        "away": "Seahawks",
+        "home": "49ers"
+      },
+      {
+        "away": "Patriots",
+        "home": "Chargers"
+      },
+      {
+        "away": "Panthers",
+        "home": "Buccaneers"
+      }
+    ],
+    "13": [
+      {
+        "away": "Chiefs",
+        "home": "Rams"
+      },
+      {
+        "away": "Lions",
+        "home": "Falcons"
+      },
+      {
+        "away": "Jaguars",
+        "home": "Bears"
+      },
+      {
+        "away": "Bengals",
+        "home": "Browns"
+      },
+      {
+        "away": "Packers",
+        "home": "Saints"
+      },
+      {
+        "away": "49ers",
+        "home": "Giants"
+      },
+      {
+        "away": "Chargers",
+        "home": "Buccaneers"
+      },
+      {
+        "away": "Commanders",
+        "home": "Titans"
+      },
+      {
+        "away": "Eagles",
+        "home": "Cardinals"
+      },
+      {
+        "away": "Dolphins",
+        "home": "Broncos"
+      },
+      {
+        "away": "Panthers",
+        "home": "Vikings"
+      },
+      {
+        "away": "Bills",
+        "home": "Patriots"
+      },
+      {
+        "away": "Texans",
+        "home": "Steelers"
+      },
+      {
+        "away": "Cowboys",
+        "home": "Seahawks"
+      }
+    ],
+    "14": [
+      {
+        "away": "Vikings",
+        "home": "Patriots"
+      },
+      {
+        "away": "Buccaneers",
+        "home": "Ravens"
+      },
+      {
+        "away": "Saints",
+        "home": "Panthers"
+      },
+      {
+        "away": "Falcons",
+        "home": "Browns"
+      },
+      {
+        "away": "Titans",
+        "home": "Lions"
+      },
+      {
+        "away": "Bears",
+        "home": "Dolphins"
+      },
+      {
+        "away": "Broncos",
+        "home": "Jets"
+      },
+      {
+        "away": "Colts",
+        "home": "Eagles"
+      },
+      {
+        "away": "Texans",
+        "home": "Commanders"
+      },
+      {
+        "away": "Chargers",
+        "home": "Raiders"
+      },
+      {
+        "away": "Chiefs",
+        "home": "Bengals"
+      },
+      {
+        "away": "Giants",
+        "home": "Seahawks"
+      },
+      {
+        "away": "Rams",
+        "home": "49ers"
+      },
+      {
+        "away": "Bills",
+        "home": "Packers"
+      },
+      {
+        "away": "Steelers",
+        "home": "Jaguars"
+      }
+    ],
+    "15": [
+      {
+        "away": "49ers",
+        "home": "Chargers"
+      },
+      {
+        "away": "Seahawks",
+        "home": "Eagles"
+      },
+      {
+        "away": "Bears",
+        "home": "Bills"
+      },
+      {
+        "away": "Bengals",
+        "home": "Panthers"
+      },
+      {
+        "away": "Dolphins",
+        "home": "Packers"
+      },
+      {
+        "away": "Jaguars",
+        "home": "Texans"
+      },
+      {
+        "away": "Browns",
+        "home": "Giants"
+      },
+      {
+        "away": "Ravens",
+        "home": "Steelers"
+      },
+      {
+        "away": "Saints",
+        "home": "Buccaneers"
+      },
+      {
+        "away": "Colts",
+        "home": "Titans"
+      },
+      {
+        "away": "Falcons",
+        "home": "Commanders"
+      },
+      {
+        "away": "Jets",
+        "home": "Cardinals"
+      },
+      {
+        "away": "Cowboys",
+        "home": "Rams"
+      },
+      {
+        "away": "Broncos",
+        "home": "Raiders"
+      },
+      {
+        "away": "Lions",
+        "home": "Vikings"
+      },
+      {
+        "away": "Patriots",
+        "home": "Chiefs"
+      }
+    ],
+    "16": [
+      {
+        "away": "Texans",
+        "home": "Eagles"
+      },
+      {
+        "away": "Packers",
+        "home": "Bears"
+      },
+      {
+        "away": "Bills",
+        "home": "Broncos"
+      },
+      {
+        "away": "Rams",
+        "home": "Seahawks"
+      },
+      {
+        "away": "Browns",
+        "home": "Ravens"
+      },
+      {
+        "away": "Chargers",
+        "home": "Dolphins"
+      },
+      {
+        "away": "Cardinals",
+        "home": "Saints"
+      },
+      {
+        "away": "Patriots",
+        "home": "Jets"
+      },
+      {
+        "away": "Titans",
+        "home": "Raiders"
+      },
+      {
+        "away": "49ers",
+        "home": "Chiefs"
+      },
+      {
+        "away": "Jaguars",
+        "home": "Cowboys"
+      },
+      {
+        "away": "Giants",
+        "home": "Lions"
+      },
+      {
+        "away": "Buccaneers",
+        "home": "Falcons"
+      },
+      {
+        "away": "Bengals",
+        "home": "Colts"
+      },
+      {
+        "away": "Commanders",
+        "home": "Vikings"
+      },
+      {
+        "away": "Panthers",
+        "home": "Steelers"
+      }
+    ],
+    "17": [
+      {
+        "away": "Ravens",
+        "home": "Bengals"
+      },
+      {
+        "away": "Saints",
+        "home": "Falcons"
+      },
+      {
+        "away": "Seahawks",
+        "home": "Panthers"
+      },
+      {
+        "away": "Colts",
+        "home": "Browns"
+      },
+      {
+        "away": "Giants",
+        "home": "Cowboys"
+      },
+      {
+        "away": "Bills",
+        "home": "Dolphins"
+      },
+      {
+        "away": "Vikings",
+        "home": "Jets"
+      },
+      {
+        "away": "Steelers",
+        "home": "Titans"
+      },
+      {
+        "away": "Raiders",
+        "home": "Cardinals"
+      },
+      {
+        "away": "Lions",
+        "home": "Bears"
+      },
+      {
+        "away": "Eagles",
+        "home": "49ers"
+      },
+      {
+        "away": "Texans",
+        "home": "Packers"
+      },
+      {
+        "away": "Commanders",
+        "home": "Jaguars"
+      },
+      {
+        "away": "Chiefs",
+        "home": "Chargers"
+      },
+      {
+        "away": "Broncos",
+        "home": "Patriots"
+      },
+      {
+        "away": "Rams",
+        "home": "Buccaneers"
+      }
+    ],
+    "18": [
+      {
+        "away": "Jets",
+        "home": "Bills"
+      },
+      {
+        "away": "Browns",
+        "home": "Bengals"
+      },
+      {
+        "away": "Chargers",
+        "home": "Broncos"
+      },
+      {
+        "away": "Lions",
+        "home": "Packers"
+      },
+      {
+        "away": "Jaguars",
+        "home": "Colts"
+      },
+      {
+        "away": "Raiders",
+        "home": "Chiefs"
+      },
+      {
+        "away": "Seahawks",
+        "home": "Rams"
+      },
+      {
+        "away": "Bears",
+        "home": "Vikings"
+      },
+      {
+        "away": "Dolphins",
+        "home": "Patriots"
+      },
+      {
+        "away": "Buccaneers",
+        "home": "Saints"
+      },
+      {
+        "away": "Eagles",
+        "home": "Giants"
+      },
+      {
+        "away": "49ers",
+        "home": "Cardinals"
+      },
+      {
+        "away": "Cowboys",
+        "home": "Commanders"
+      },
+      {
+        "away": "Falcons",
+        "home": "Panthers"
+      },
+      {
+        "away": "Steelers",
+        "home": "Ravens"
+      },
+      {
+        "away": "Titans",
+        "home": "Texans"
+      }
+    ]
+  }
+}

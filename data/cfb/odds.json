@@ -1,0 +1,14 @@
+{
+  "$comment": "Written by .github/workflows/refresh-odds.yml. Never edit by hand - your change will be overwritten on the next run. Line keys are \"<week>|<team>\", so a market line is found for any team, not just the two the plan names.",
+  "updatedAt": "2026-09-01T18:00:00Z",
+  "currentWeek": 1,
+  "lines": {
+    "1|South Carolina": {
+      "spread": -35.5,
+      "source": "market",
+      "winProb": 0.975,
+      "book": "consensus"
+    }
+  },
+  "flags": []
+}
