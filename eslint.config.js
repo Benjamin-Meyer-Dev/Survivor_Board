@@ -18,6 +18,7 @@ export default [
         getComputedStyle: "readonly",
         matchMedia: "readonly",
         requestAnimationFrame: "readonly",
+        navigator: "readonly",
         process: "readonly",
         URL: "readonly",
       },
@@ -28,6 +29,16 @@ export default [
       "prefer-const": "error",
       "no-var": "error",
       eqeqeq: ["error", "smart"],
+    },
+  },
+  {
+    // The service worker runs in its own global, not the page's.
+    files: ["sw.js"],
+    languageOptions: {
+      globals: {
+        self: "readonly",
+        caches: "readonly",
+      },
     },
   },
 ];

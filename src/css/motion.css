@@ -18,6 +18,63 @@
   --ease-snap: cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
+/* --- app startup -------------------------------------------------------- */
+
+@keyframes startup-drive {
+  0% {
+    left: calc(20% - 18px);
+    transform: translateX(0) rotate(-12deg) scale(0.9);
+  }
+  45% {
+    left: calc(50% - 18px);
+    transform: translateY(-9px) rotate(170deg) scale(1.05);
+  }
+  100% {
+    left: calc(80% - 18px);
+    transform: translateX(0) rotate(350deg) scale(0.9);
+  }
+}
+
+@keyframes startup-route {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+
+.startup__ball {
+  animation: startup-drive 1.05s var(--ease-out) infinite;
+}
+
+.startup__route {
+  animation: startup-route 1.05s ease-in-out infinite;
+}
+
+.startup.is-ready {
+  opacity: 0;
+  transform: scale(1.025);
+  transition:
+    opacity 0.4s ease,
+    transform 0.4s var(--ease-out);
+}
+
+.startup.is-ready .startup__ball {
+  animation-iteration-count: 1;
+}
+
+.is-starting .shell {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.shell {
+  transition:
+    opacity 0.42s ease,
+    transform 0.42s var(--ease-out);
+}
+
 /* --- press and hover, the states that outlive a render ------------------- */
 
 .btn,
@@ -215,7 +272,7 @@
   animation: wash 0.5s ease-out;
 }
 
-/* A locked slot gets a ring that draws itself in. */
+/* A selected slot gets a ring that draws itself in. */
 @keyframes ring {
   from {
     box-shadow: inset 0 0 0 0 var(--lock);

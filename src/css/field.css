@@ -215,9 +215,14 @@ body::before {
   transform: scaleY(1.5);
 }
 
-/* Locked picks read like a called play on a wristband. */
-.slot--locked {
+/* User selections read like a called play on a wristband. */
+.slot--selected {
   box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* Coach plans stay visibly pencilled-in until a user selects them. */
+.slot--planned {
+  box-shadow: inset 3px 0 0 var(--chalk);
 }
 
 /* --- burn board as a depth chart ----------------------------------------- */

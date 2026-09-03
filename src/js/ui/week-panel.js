@@ -168,11 +168,12 @@ function renderRecommendation(week, board, canWrite) {
 
   const recommended = week.recommended ?? [];
   if (recommended.length === 0) return "";
+  const openSlots = week.picks.filter((pick) => !pick.status.selected).length;
 
-  if (week.matchesRecommendation) {
+  if (openSlots === 0) {
     return `<div class="recommend recommend--match">
       <span class="u-eyebrow recommend__label">Coach\u2019s call</span>
-      <span class="recommend__note">You are running the coach\u2019s call.</span>
+      <span class="recommend__note">Your picks are set. The coach will build the remaining path around them.</span>
     </div>`;
   }
 
@@ -189,7 +190,7 @@ function renderRecommendation(week, board, canWrite) {
         .join("")}
     </div>
     <button type="button" class="btn btn--apply" data-action="apply" data-week="${week.week}"
-            ${canWrite ? "" : "disabled"}>Run it</button>
+            ${canWrite ? "" : "disabled"}>Use suggestion</button>
   </div>`;
 }
 
@@ -197,7 +198,7 @@ function renderSlot(pick, canWrite) {
   const { status } = pick;
 
   return `
-    <div class="slot${status.locked ? " slot--locked" : ""}">
+    <div class="slot ${status.selected ? "slot--selected" : "slot--planned"}">
       <div class="slot__head">
         <div class="slot__identity">
           <div class="slot__team">${escapeHtml(pick.team)}</div>
@@ -206,8 +207,8 @@ function renderSlot(pick, canWrite) {
           </div>
         </div>
         <span class="chip chip--${pick.tier}">${TIER_LABEL[pick.tier]}</span>
-        ${pick.isRecommended ? '<span class="chip chip--rec">Rec</span>' : ""}
-        ${status.locked ? '<span class="chip chip--lock">Locked</span>' : ""}
+        ${pick.isRecommended && !status.selected ? '<span class="chip chip--rec">Coach</span>' : ""}
+        ${status.selected ? '<span class="chip chip--selected">Selected</span>' : '<span class="chip chip--planned">Planned</span>'}
         ${status.resultSource === "final" ? '<span class="chip chip--final">Final</span>' : ""}
       </div>
 
@@ -218,9 +219,9 @@ function renderSlot(pick, canWrite) {
       </div>
 
       <div class="actions">
-        ${button("lock", pick, status.locked ? "Locked in" : "Lock it in", status.locked ? "btn--active" : "", canWrite)}
-        ${button("won", pick, "Won", status.result === "W" ? "btn--won" : "", canWrite)}
-        ${button("lost", pick, "Lost", status.result === "L" ? "btn--lost" : "", canWrite)}
+        ${button("select", pick, status.selected ? "Selected" : "Select pick", status.selected ? "btn--active" : "", canWrite && !status.result)}
+        ${button("won", pick, "Won", status.result === "W" ? "btn--won" : "", canWrite && status.selected)}
+        ${button("lost", pick, "Lost", status.result === "L" ? "btn--lost" : "", canWrite && status.selected)}
         ${button("clear", pick, "Clear", "", canWrite)}
       </div>
 
@@ -288,8 +289,8 @@ function metric(key, value, isText = false) {
   </div>`;
 }
 
-function button(action, pick, label, modifier, canWrite) {
+function button(action, pick, label, modifier, enabled) {
   return `<button type="button" class="btn${modifier ? ` ${modifier}` : ""}"
     data-action="${action}" data-week="${pick.week}" data-slot="${pick.slot}"
-    ${canWrite ? "" : "disabled"}>${escapeHtml(label)}</button>`;
+    ${enabled ? "" : "disabled"}>${escapeHtml(label)}</button>`;
 }

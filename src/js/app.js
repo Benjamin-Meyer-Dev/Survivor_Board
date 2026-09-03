@@ -22,6 +22,8 @@ import { formatDuration } from "./core/refresh.js";
 
 const el = {
   gate: document.getElementById("gate"),
+  startup: document.getElementById("startup"),
+  startupStatus: document.getElementById("startup-status"),
   notices: document.getElementById("notices"),
   strip: document.getElementById("strip"),
   deck: document.getElementById("week-deck"),
@@ -61,7 +63,7 @@ const app = {
 };
 
 /** Which keyframe an action should play on the slot it changed. */
-const EFFECT_FOR = { lock: "fx-lock", won: "fx-won", lost: "fx-lost", swap: "fx-swap" };
+const EFFECT_FOR = { select: "fx-lock", won: "fx-won", lost: "fx-lost", swap: "fx-swap" };
 
 /**
  * Feedback has to be applied AFTER the render that produced the new markup -
@@ -246,8 +248,9 @@ function handleAction({ action, week, slot, team }) {
   const current = app.entry.picks[key] ?? {};
 
   switch (action) {
-    case "lock":
-      app.entry.picks[key] = { ...current, locked: !current.locked, by: ME, at: Date.now() };
+    case "select":
+      if (current.locked) delete app.entry.picks[key];
+      else app.entry.picks[key] = { ...current, locked: true, by: ME, at: Date.now() };
       break;
     case "won":
       app.entry.picks[key] = {
@@ -269,12 +272,12 @@ function handleAction({ action, week, slot, team }) {
       delete app.entry.picks[key];
       break;
     case "apply": {
-      // Adopt both recommended teams for the week, leaving any locked slot
-      // alone - the recommendation already worked around it.
+      // Put the coach's recommendations into the open slots as drafts. This
+      // never selects them; each choice still needs an explicit user action.
       const board = lastBoard;
       const target = board?.weeks.find((entry) => entry.week === week);
       for (const pick of target?.picks ?? []) {
-        if (pick.status.locked || pick.status.result) continue;
+        if (pick.status.selected) continue;
         const wanted = (target.recommended ?? [])
           .map((o) => o.team)
           .find((team) => {
@@ -472,16 +475,55 @@ async function requirePasscode() {
   document.body.classList.remove("is-gated");
 }
 
+/** Keep quick cached loads on screen long enough for the startup play to read. */
+function startupMinimum() {
+  const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 900;
+  return new Promise((resolve) => setTimeout(resolve, duration));
+}
+
+/** Hand the fully rendered board over from the startup layer. */
+async function finishStartup() {
+  if (!el.startup) return;
+  if (el.startupStatus) el.startupStatus.textContent = "Board ready";
+  el.startup.classList.add("is-ready");
+  // Reveal the board beneath the fading layer, making this one handoff rather
+  // than a blank beat followed by a second entrance.
+  document.body.classList.remove("is-starting");
+
+  const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 420;
+  await new Promise((resolve) => setTimeout(resolve, duration));
+  el.startup.hidden = true;
+}
+
+/**
+ * Registers `sw.js`. Chrome will not offer "Install app" for a site without a
+ * service worker, however complete its manifest is, and the same worker is what
+ * keeps the board readable on a phone with no signal.
+ *
+ * It goes last on purpose: it must never delay the first paint, and a failure
+ * (an insecure origin, a browser without support) is not worth a notice.
+ */
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.register("./sw.js").catch((error) => {
+    console.warn("Service worker not registered:", error.message);
+  });
+}
+
 async function main() {
   // The gate wears the last league's colours, so it looks like the board it opens.
   applyTheme(app.league);
   await requirePasscode();
-  await openLeague(app.league);
+  await Promise.all([openLeague(app.league), startupMinimum()]);
+  await finishStartup();
   startClock();
+  registerServiceWorker();
 }
 
 main().catch((error) => {
   document.body.classList.remove("is-gated");
+  document.body.classList.remove("is-starting");
+  if (el.startup) el.startup.hidden = true;
   if (el.gate) el.gate.hidden = true;
   el.notices.innerHTML = `<div class="notice notice--warn">Could not load the board: ${error.message}</div>`;
   console.error(error);

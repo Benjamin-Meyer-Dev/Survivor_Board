@@ -11,7 +11,7 @@
     "serve": "npx --yes serve . -l 4173",
     "refresh": "node scripts/refresh-odds.mjs",
     "seed": "node scripts/seed-plan.mjs",
-    "test": "node scripts/validate-plan.mjs",
+    "test": "node scripts/validate-plan.mjs && node scripts/validate-board-state.mjs",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

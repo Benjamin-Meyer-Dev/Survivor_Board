@@ -4,7 +4,7 @@
  * Three inputs come together here, all scoped to the league that is open:
  *   plan   - data/<league>/plan.json, the season path and the pool's rules
  *   odds   - data/<league>/odds.json, market overrides from the refresh workflow
- *   entry  - the shared user state (locks, results, swaps) from the store
+ *   entry  - the shared user state (selections, results, swaps) from the store
  *
  * Everything the UI renders is derived from `buildBoard`, including how many
  * picks a week holds and whether a loss can be bought back. No module below
@@ -208,11 +208,16 @@ export function buildBoard({
         tiers: rules.tiers,
       });
       const saved = entry.picks?.[slotKey(weekPlan.week, slot)] ?? {};
+      // `locked` is the persisted, backwards-compatible name for a user
+      // selection. A feed result only belongs to a selected team: the coach's
+      // untouched plan must never turn into an actual pick by itself.
+      const selected = Boolean(saved.locked || saved.result);
       // A result you set by hand always wins. Otherwise the refresh job's
-      // recorded final stands, so the board keeps up on its own.
-      const fetched = odds.results?.[lineKey(weekPlan.week, pick.team)] ?? null;
+      // recorded final stands, so a selected pick keeps up on its own.
+      const fetched = selected ? (odds.results?.[lineKey(weekPlan.week, pick.team)] ?? null) : null;
       const status = {
         ...saved,
+        selected,
         result: saved.result ?? fetched,
         resultSource: saved.result ? "you" : fetched ? "final" : null,
       };
@@ -235,12 +240,13 @@ export function buildBoard({
     };
   });
 
-  // A swap can put the same team in two weeks, which breaks the pool's core
-  // rule. Detect it rather than letting the burn board quietly under-count.
+  // Only user selections spend teams. The authored path and live coach advice
+  // are proposals, so neither can burn a team or create a rule conflict.
   const spentTeams = {};
   const conflicts = [];
   for (const week of weeks) {
     for (const pick of week.picks) {
+      if (!pick.status.selected) continue;
       if (spentTeams[pick.team] !== undefined) {
         conflicts.push({ team: pick.team, weeks: [spentTeams[pick.team], week.week] });
       } else {
@@ -303,16 +309,6 @@ export function buildBoard({
   const nextRefresh = nextRefreshAt(Date.now(), refreshSchedule);
   const threshold = plan.dangerThreshold ?? -10;
 
-  const flagged = [];
-  for (const week of weeks) {
-    if (week.week < currentWeek) continue;
-    for (const pick of week.picks) {
-      if (pick.status.result) continue;
-      if (pick.spread > threshold)
-        flagged.push({ week: week.week, team: pick.team, spread: pick.spread });
-    }
-  }
-
   const board = {
     weeks,
     rules,
@@ -332,7 +328,7 @@ export function buildBoard({
           weeks: rules.buyBackWeeks,
         }
       : null,
-    flagged,
+    flagged: [],
     conflicts,
     updatedAt: odds.updatedAt,
     nextRefreshAt: nextRefresh,
@@ -350,15 +346,75 @@ export function buildBoard({
   for (const week of board.weeks) {
     const teams = recommendation.picks[week.week] ?? [];
     week.recommended = teams.map((team) => week.options.find((o) => o.team === team) ?? { team });
-    // Compare as a set: slot order carries no meaning.
-    const chosen = week.picks.map((pick) => pick.team).sort();
-    week.matchesRecommendation =
-      teams.length === chosen.length && [...teams].sort().every((t, i) => t === chosen[i]);
-
     for (const pick of week.picks) {
       pick.isRecommended = teams.includes(pick.team);
     }
+
+    // Give every unselected row one coach pick for read-only season views.
+    // Selected teams are removed first because the recommendation contains
+    // those fixed decisions as well as its advice for the remaining slots.
+    const selectedTeams = new Set(
+      week.picks.filter((pick) => pick.status.selected).map((pick) => pick.team),
+    );
+    const suggestions = week.recommended.filter((option) => !selectedTeams.has(option.team));
+    let suggestionIndex = 0;
+    for (const pick of week.picks) {
+      const suggestion = suggestions[suggestionIndex];
+      pick.coachPick = pick.status.selected
+        ? pick
+        : week.week < board.currentWeek
+          ? null
+          : suggestion
+            ? {
+                ...suggestion,
+                tier: confidenceTier(suggestion.winProb, rules.tiers),
+                planned: true,
+              }
+            : { ...pick, planned: true };
+      if (!pick.status.selected) suggestionIndex += 1;
+    }
+    const coached = week.picks.map((pick) => pick.coachPick).filter(Boolean);
+    week.coachWinProb = coached.length
+      ? coached.reduce((total, pick) => total * pick.winProb, 1)
+      : null;
   }
+
+  // Season survival follows the coach path for every open slot and the users'
+  // actual team for every selected slot. Advice can therefore move with the
+  // odds without rewriting a single user choice.
+  board.pathProbability = survival({
+    picks: board.weeks.flatMap((week) =>
+      week.picks.flatMap((pick) =>
+        pick.coachPick
+          ? [
+              {
+                week: week.week,
+                winProb: pick.coachPick.winProb,
+                result: pick.status.selected ? (pick.status.result ?? null) : null,
+              },
+            ]
+          : [],
+      ),
+    ),
+    buyBackWeeks: rules.buyBackWeeks,
+    buyBacks: rules.buyBacks,
+  }).probability;
+
+  // The depth chart carries both truths at once: crossed-out teams were
+  // selected by users, while outlined teams are merely in the coach's plan.
+  board.plannedTeams = {};
+  for (const week of board.weeks) {
+    for (const pick of week.picks) {
+      if (week.week < board.currentWeek || pick.status.result) continue;
+      const candidate = pick.coachPick;
+      if (candidate?.spread > threshold) {
+        board.flagged.push({ week: week.week, team: candidate.team, spread: candidate.spread });
+      }
+      if (!candidate?.planned || board.spentTeams[candidate.team] !== undefined) continue;
+      board.plannedTeams[candidate.team] ??= week.week;
+    }
+  }
+  board.plannedCount = Object.keys(board.plannedTeams).length;
 
   return board;
 }
@@ -369,7 +425,7 @@ function memoisedRecommendation(board, plan, odds, allowSearch) {
   const committed = [];
   for (const week of board.weeks) {
     for (const pick of week.picks) {
-      if (pick.status.locked || pick.status.result) {
+      if (pick.status.selected) {
         committed.push(`${week.week}:${pick.slot}:${pick.team}:${pick.status.result ?? "L"}`);
       }
     }

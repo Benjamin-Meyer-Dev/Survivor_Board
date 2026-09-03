@@ -38,6 +38,8 @@ and automatic odds.
 ```
 index.html                    the whole UI shell
 manifest.webmanifest          makes it installable to a home screen
+sw.js                         service worker: install support, offline board
+icons/                        home-screen icons, 192 · 512 · maskable · iOS
 
 data/cfb/  data/nfl/          one folder per league, same five files
   plan.json                   the season path and the pool's rules

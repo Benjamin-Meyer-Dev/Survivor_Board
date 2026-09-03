@@ -1,6 +1,6 @@
 /**
- * Burn board: all eligible teams, sorted by rating, struck through once the
- * plan spends them. Answers "who is still on the table" at a glance.
+ * Depth chart: selected teams are spent; coach-planned teams are advisory.
+ * Both appear without conflating a suggestion with a user's actual pick.
  */
 
 import { escapeHtml } from "../core/format.js";
@@ -16,15 +16,30 @@ export function renderBurnBoard(root, countEl, board, teams) {
   root.innerHTML = sorted
     .map(([team, { rating }], index) => {
       const spentWeek = board.spentTeams[team];
-      const badge = spentWeek ? `W${spentWeek}` : `${rating > 0 ? "+" : ""}${rating}`;
+      const plannedWeek = board.plannedTeams[team];
+      const badge = spentWeek
+        ? `W${spentWeek}`
+        : plannedWeek
+          ? `P${plannedWeek}`
+          : `${rating > 0 ? "+" : ""}${rating}`;
+      const stateClass = spentWeek
+        ? " burn__team--spent"
+        : plannedWeek
+          ? " burn__team--planned"
+          : "";
+      const stateTitle = spentWeek
+        ? ` · selected week ${spentWeek}`
+        : plannedWeek
+          ? ` · coach plan week ${plannedWeek}`
+          : "";
       return `
-        <div class="burn__team${spentWeek ? " burn__team--spent" : ""}" style="--i:${index}"
-             title="${escapeHtml(team)} · ${escapeHtml(scale)} ${rating}${spentWeek ? ` · spent week ${spentWeek}` : ""}">
+        <div class="burn__team${stateClass}" style="--i:${index}"
+             title="${escapeHtml(team)} · ${escapeHtml(scale)} ${rating}${stateTitle}">
           <span>${escapeHtml(team)}</span>
           <span class="burn__rating">${escapeHtml(badge)}</span>
         </div>`;
     })
     .join("");
 
-  countEl.textContent = `${board.spentCount} of ${board.totalTeams} spent`;
+  countEl.textContent = `${board.spentCount} selected · ${board.plannedCount} in coach plan`;
 }

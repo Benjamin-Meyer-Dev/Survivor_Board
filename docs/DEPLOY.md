@@ -170,8 +170,28 @@ It may ask for the passcode once more, because iOS gives the installed app its
 own storage; after that it goes straight in.
 
 **Android.** Open the URL in Chrome and enter the passcode, then **⋮** →
-**Add to Home screen** (or **Install app**). The installed app shares Chrome's
-storage, so there is no second ask.
+**Add to Home screen** → **Install**. Chrome lists that entry only for a site it
+considers installable, which it decides after reading
+`manifest.webmanifest` and registering `sw.js`, so let the board finish loading
+before you open the menu. The installed app shares Chrome's storage, so there is
+no second ask.
+
+If the menu offers neither **Add to Home screen** nor **Install app**, Chrome has
+judged the site not installable. In order of likelihood:
+
+- **The URL is not the Pages one.** It has to be the `https://` address. The
+  `http://<laptop-ip>:4173` dev server is an insecure origin, and Chrome hides
+  install on those; `localhost` is the only exception, and that is not reachable
+  from a phone.
+- **It is an Incognito tab.** Install is disabled there.
+- **It is already installed.** Chrome drops the entry once the app is on the home
+  screen. Check the app drawer before adding it again.
+- **The deploy is older than the icons.** Installability needs the manifest's
+  192 and 512 px icons and a registered service worker, both added after the
+  first version of this doc. Pull to refresh, then confirm with desktop Chrome on
+  the same URL: **DevTools** → **Application** → **Manifest** lists the icons and
+  any reason the site is not installable, and **Application** → **Service
+  workers** shows `sw.js` as activated and running.
 
 Both phones then: the switch in the masthead flips between NFL and College and
 remembers which you used last.
@@ -226,6 +246,7 @@ npm run lint && npm run format:check && npm test
   ("Miami (FL)", "Texas A&amp;M Aggies"). `scripts/lib/odds-api.mjs` normalises
   aggressively, but check the workflow log after the first run for
   `no event found` lines and add aliases if any show up.
-- **No app icon yet.** `manifest.webmanifest` has an empty icon list, so the
-  home-screen tile is a screenshot of the page. Cosmetic; add icons when it
-  bothers you.
+- **A phone that installed the board before the icons existed keeps the old
+  tile.** Chrome re-reads the manifest on its own schedule, and an app added
+  when the icon list was empty holds on to the screenshot it made. Remove it
+  from the home screen and add it again to pick up the real icon.

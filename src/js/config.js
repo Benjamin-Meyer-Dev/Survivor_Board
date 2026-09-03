@@ -55,7 +55,7 @@ export const CONFIG = Object.freeze({
  * data/ and the seed in supabase/schema.sql. The two per-device backends keep
  * their older shape: the college pool predates the NFL one and its state is
  * already saved under the unsuffixed names, so it keeps them, and anything
- * else is namespaced, which is what stops one league's locks from landing on
+ * else is namespaced, which is what stops one league's selections from landing on
  * the other's board.
  */
 export function scopeFor(league) {

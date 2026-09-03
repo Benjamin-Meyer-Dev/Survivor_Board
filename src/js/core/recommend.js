@@ -284,7 +284,7 @@ function materialise({ parent, teams, score, shortfall }, week) {
 /**
  * Shape a built board into the recommender's input and run it.
  *
- * A slot is FIXED when it is locked or already resolved - the recommendation
+ * A slot is FIXED when a user selected it or it is already resolved - the recommendation
  * has to work around a decision you have already committed to, not pretend
  * you can take it back.
  *
@@ -300,7 +300,7 @@ export function recommendForBoard(board, seed = null) {
     const isPast = week.week < board.currentWeek;
 
     for (const pick of week.picks) {
-      const committed = isPast || pick.status.locked || Boolean(pick.status.result);
+      const committed = pick.status.selected;
       if (committed) burned.add(pick.team);
     }
 
@@ -309,13 +309,11 @@ export function recommendForBoard(board, seed = null) {
     upcoming.push({
       week: week.week,
       options: week.options,
-      fixed: week.picks.map((pick) =>
-        pick.status.locked || pick.status.result ? pick.team : null,
-      ),
+      fixed: week.picks.map((pick) => (pick.status.selected ? pick.team : null)),
     });
   }
 
-  // A team locked into a future week stays in `burned`, which keeps any
+  // A team selected in a future week stays in `burned`, which keeps any
   // earlier week from spending it. Its own slot still gets it, because fixed
   // teams are placed directly rather than drawn from the candidate pool.
   // A buy back already spent is gone, so the recommendation stops taking risks

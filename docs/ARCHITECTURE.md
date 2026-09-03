@@ -219,8 +219,11 @@ any backend exists.
   triple the payload and add a build step to a repo whose main advantage is
   not having one.
 - **No bundler.** Native ES modules. `index.html` is servable from disk.
-- **No icons in the manifest.** Add PNGs when you want a proper home-screen
-  icon; the app installs without them.
+- **No precache list in the service worker.** `sw.js` is network-first and
+  keeps only what the app has already fetched, so a deploy or an odds commit
+  needs no cache busting and there is no manifest of files to keep in step with
+  the repo. The trade is that offline shows the last board this device loaded
+  rather than a guaranteed-complete app.
 - **No auth.** A shared passcode gates the board once per device and unlocks
   writes. It ships in the page, so it keeps out passers-by, not anyone
   determined. Turn on Supabase Auth if the pool gets serious.

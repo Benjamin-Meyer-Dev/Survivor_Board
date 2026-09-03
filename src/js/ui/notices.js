@@ -12,7 +12,7 @@ export function renderNotices(root, { store, board, message }) {
 
   if (!store.shared) {
     notices.push(
-      "Shared saving is off, so locks and results stay on this device only. The plan and the odds are still current.",
+      "Shared saving is off, so selections and results stay on this device only. The coach plan and odds are still current.",
     );
   }
 

@@ -222,13 +222,138 @@
 
 /* passcode gate (ui/gate.js) --------------------------------------------- */
 
+/* startup screen --------------------------------------------------------- */
+
+.startup {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-6);
+  overflow: hidden;
+  color: var(--ink);
+  background: var(--ground);
+}
+
+.startup[hidden] {
+  display: none;
+}
+
+.is-starting .shell {
+  visibility: hidden;
+}
+
+.startup__scene {
+  position: relative;
+  width: min(72vw, 310px);
+  height: 84px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.startup__scene::before,
+.startup__scene::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  width: 1px;
+  background: var(--line);
+}
+
+.startup__scene::before {
+  left: 25%;
+}
+
+.startup__scene::after {
+  right: 25%;
+}
+
+.startup__yard {
+  position: absolute;
+  top: 50%;
+  font: 600 11px/1 var(--font-mono);
+  color: var(--ink-3);
+  transform: translateY(-50%);
+}
+
+.startup__yard--left {
+  left: 8%;
+}
+
+.startup__yard--right {
+  right: 8%;
+}
+
+.startup__route {
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  top: 50%;
+  border-top: 2px dashed var(--accent);
+  opacity: 0.45;
+}
+
+.startup__ball {
+  position: absolute;
+  z-index: 1;
+  top: 25px;
+  left: calc(20% - 18px);
+  width: 36px;
+  height: 24px;
+  color: var(--accent);
+}
+
+.startup__ball svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.startup__ball path:first-child {
+  fill: var(--accent-soft);
+  stroke: currentColor;
+  stroke-width: 2.5;
+}
+
+.startup__ball path:last-child {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.startup__brand,
+.startup__status {
+  margin: 0;
+}
+
+.startup__brand {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.startup__status {
+  min-height: 1.5em;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
 /* Sits over everything until the device has answered once. The shell is hidden
    underneath rather than merely covered, so nothing of the board shows through
    a slow paint or a resize. */
 .gate {
   position: fixed;
   inset: 0;
-  z-index: 10;
+  z-index: 30;
   display: grid;
   place-items: center;
   padding: var(--sp-6);
@@ -272,16 +397,62 @@
 }
 
 .gate__input {
+  width: 100%;
   font: inherit;
   font-family: var(--font-mono);
   font-size: 18px;
   letter-spacing: 0.14em;
-  padding: 10px 12px;
+  padding: 10px 44px 10px 12px;
   min-width: 0;
   color: var(--ink);
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
+}
+
+.gate__field {
+  position: relative;
+}
+
+.gate__visibility {
+  position: absolute;
+  top: 50%;
+  right: 3px;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--ink-3);
+  background: transparent;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.gate__visibility:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.gate__eye {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.gate__eye--hide,
+.gate__visibility[aria-pressed="true"] .gate__eye--show {
+  display: none;
+}
+
+.gate__visibility[aria-pressed="true"] .gate__eye--hide {
+  display: block;
 }
 
 .gate__input:focus-visible {
@@ -510,6 +681,12 @@
   color: var(--accent-ink);
 }
 
+.chip--planned {
+  color: var(--accent);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
 /* Declared after .panel on purpose: a slide sits inside the tab card now, so
    it drops the card chrome it would otherwise carry. An equal-specificity
    rule earlier in the file would lose to .panel. */
@@ -543,8 +720,17 @@
   min-width: 0;
 }
 
-.slot--locked {
+.slot--selected {
   background: var(--lock-bg);
+}
+
+.slot--planned {
+  background: var(--surface-2);
+  box-shadow: inset 3px 0 0 var(--line);
+}
+
+.slot--planned .slot__team {
+  color: var(--ink-2);
 }
 
 .slot__head {
@@ -663,7 +849,8 @@
   color: var(--danger);
 }
 
-.chip--lock {
+.chip--lock,
+.chip--selected {
   background: var(--lock-bg);
   color: var(--lock);
 }
@@ -937,6 +1124,21 @@
   color: var(--ink-3);
 }
 
+.ladder tr.is-planned td {
+  color: var(--ink-2);
+  background-image: linear-gradient(90deg, var(--surface-2), transparent 55%);
+}
+
+.ladder tr.is-planned .ladder__team {
+  font-style: italic;
+  font-weight: 500;
+}
+
+.ladder tr.is-selected .ladder__team {
+  color: var(--ink);
+  font-weight: 700;
+}
+
 .ladder__week {
   font-family: var(--font-mono);
   color: var(--ink-3);
@@ -1016,6 +1218,17 @@
 .burn__team--spent .burn__rating {
   color: var(--accent);
   text-decoration: none;
+}
+
+.burn__team--planned {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.burn__team--planned .burn__rating {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 /* notices ---------------------------------------------------------------- */
