@@ -41,8 +41,8 @@ export const CONFIG = Object.freeze({
    * `digest` empty for no gate.
    */
   passcode: {
-    digest: "f9dbc6e374c87d6a5faddc3f1671cd5edecd3ad26e542d5b65c6202209151ef1",
-    salt: "d886ce3d4581bcaf28d63237fdaabbbd",
+    digest: "787de8605638854035348b5b4f55d8104acc0aff5d4738ba2aed73cb41164133",
+    salt: "c69912379c5758d9a79ec5a58f3b91e0",
   },
 
   /** localStorage key used by the offline store. */
