@@ -438,14 +438,10 @@ function numbers(line) {
       </div>`;
 }
 
-/**
- * Who committed the slot and when. Always one line, so a lock fills it rather
- * than adding it and pushing the list down.
- */
+/** Who committed the slot and when. Unlocked picks need no extra status row. */
 function stamp(status) {
-  const text = status.by
-    ? `${escapeHtml(status.by)} &middot; ${escapeHtml(formatStamp(status.at))}`
-    : "Not locked";
+  if (!status.by) return "";
+  const text = `${escapeHtml(status.by)} &middot; ${escapeHtml(formatStamp(status.at))}`;
   return `<div class="slot__stamp">${text}</div>`;
 }
 

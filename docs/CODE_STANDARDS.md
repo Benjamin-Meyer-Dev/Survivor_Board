@@ -64,8 +64,8 @@ no layout and no state, so deleting the file leaves a working, plainer app.
 Keep it that way. Anything structural belongs in `components.css`.
 
 Football vocabulary is content, not decoration, and lives where the content
-does: `TIER_LABEL` in `core/probability.js` (Lock / Solid / Shaky / Upset
-alert), the tab labels in `ui/tabs.js`, the strip keys in `ui/strip.js`. Never
+does: `TIER_LABEL` in `core/probability.js` (Lock / Solid / Shaky / Close call /
+Upset alert), the tab labels in `ui/tabs.js`, the strip keys in `ui/strip.js`. Never
 let a themed word cost clarity, "Pick a team" stayed literal for that reason.
 
 ## Motion

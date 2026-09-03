@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { buildBoard, lineKey, slotKey } from "../src/js/core/plan.js";
 import { CONFIG } from "../src/js/config.js";
+import { confidenceTier, TIER_LABEL } from "../src/js/core/probability.js";
 
 const readJson = async (name) =>
   JSON.parse(await readFile(new URL(`../data/nfl/${name}`, import.meta.url), "utf8"));
@@ -31,6 +32,13 @@ const build = (entry, sourceOdds = odds) =>
   });
 
 const nothing = () => ({ picks: {}, swaps: {} });
+
+// Close favourites and actual underdogs must never share the same warning.
+assert.equal(confidenceTier(0.645, plan.tiers), "close");
+assert.equal(TIER_LABEL.close, "Close call");
+assert.equal(confidenceTier(0.5, plan.tiers), "close");
+assert.equal(confidenceTier(0.499, plan.tiers), "danger");
+assert.equal(TIER_LABEL.danger, "Upset alert");
 
 // An untouched board: no team in any slot, nothing spent, and a suggestion
 // standing in for every open slot.
@@ -85,6 +93,12 @@ assert.deepEqual(
   advised.recommendation.picks,
   "the coach re-plans on a lock, not on a pick",
 );
+assert.equal(
+  picked.pathProbability,
+  advised.pathProbability,
+  "an unlocked pick must not change committed season survival",
+);
+assert.equal(typeof picked.previewPathProbability, "number");
 assert.ok(
   pickedSlot.options.some((option) => option.isCoach && option.team === coachTeam),
   "the coach's call stays badged while a different team is picked",
@@ -104,6 +118,7 @@ assert.equal(locked.spentCount, 1, "a locked pick spends its team");
 assert.equal(locked.spentTeams[other], first.week);
 assert.equal(lockedSlot.status.result, "W", "locked picks receive feed results");
 assert.equal(lockedSlot.status.resultSource, "final");
+assert.equal(locked.previewPathProbability, null, "the preview is adopted and cleared on lock");
 assert.equal(locked.plannedTeams[other], undefined, "a locked team is not a coach-plan team");
 assert.equal(locked.pickedTeams[other], undefined, "a locked team is no longer merely picked");
 assert.equal(lockedSlot.isRecommended, false, "a locked team earns no coach badge");

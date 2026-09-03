@@ -144,6 +144,22 @@
   line-height: 1.15;
 }
 
+.strip__value--comparison {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 17px;
+}
+
+.strip__arrow {
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+.strip__preview {
+  color: var(--accent);
+}
+
 .strip__note {
   font-size: 11.5px;
   color: var(--ink-3);
@@ -795,17 +811,16 @@
 }
 
 .slot__numbers {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: stretch;
-  gap: 22px;
+  gap: var(--sp-3);
   padding: 10px 0 12px;
   border-top: 1px solid var(--line-soft);
   border-bottom: 1px solid var(--line-soft);
   margin-bottom: var(--sp-3);
 }
 
-/* Always one line, on every slot: a lock changes what it says, not whether it
-   is there, so the list beneath does not move on lock. */
 .slot__stamp {
   font-size: 11px;
   line-height: 1.5;
@@ -846,6 +861,14 @@
   min-width: 0;
 }
 
+.slot__numbers > div:nth-child(2) {
+  align-items: center;
+}
+
+.slot__numbers > div:last-child {
+  align-items: flex-end;
+}
+
 /* chips ------------------------------------------------------------------ */
 
 .chip {
@@ -877,6 +900,11 @@
 .chip--thin {
   background: var(--thin-bg);
   color: var(--thin);
+}
+
+.chip--close {
+  background: var(--close-bg);
+  color: var(--close);
 }
 
 .chip--danger {
@@ -1096,6 +1124,10 @@
 
 .swap__spread--thin {
   color: var(--thin);
+}
+
+.swap__spread--close {
+  color: var(--close);
 }
 
 .swap__spread--danger {
@@ -1417,6 +1449,15 @@
 
   .strip__value {
     font-size: 16px;
+  }
+
+  .strip__value--comparison {
+    gap: 3px;
+    font-size: 13px;
+  }
+
+  .strip__value--comparison .strip__arrow {
+    font-size: 10px;
   }
 
   .strip__note {

@@ -423,10 +423,9 @@ export function buildBoard({
       : null;
   }
 
-  // Season survival follows the path: the users' team wherever they have put
-  // one, the coach's suggestion everywhere else. Advice can therefore move
-  // with the odds without rewriting a single user choice.
-  board.pathProbability = survival({
+  // First price the visible path, including any unlocked picks. This is a
+  // preview only: trying a team must not move the committed headline number.
+  const previewOutcome = survival({
     picks: board.weeks.flatMap((week) =>
       week.picks.flatMap((pick) =>
         pick.onPath
@@ -436,7 +435,45 @@ export function buildBoard({
     ),
     buyBackWeeks: rules.buyBackWeeks,
     buyBacks: rules.buyBacks,
-  }).probability;
+  });
+
+  // The committed number follows locked history plus the coach's current
+  // recommendation. Since that recommendation ignores unlocked picks, this
+  // stays still while users compare teams and changes only when one is locked.
+  const committedPicks = [];
+  for (const week of board.weeks) {
+    if (week.week < board.currentWeek) {
+      for (const pick of week.picks) {
+        if (!pick.status.locked) continue;
+        committedPicks.push({
+          week: week.week,
+          winProb: pick.winProb,
+          result: pick.status.result ?? null,
+        });
+      }
+      continue;
+    }
+
+    for (const option of week.recommended) {
+      const locked = week.picks.find((pick) => pick.status.locked && pick.team === option.team);
+      committedPicks.push({
+        week: week.week,
+        winProb: option.winProb,
+        result: locked?.status.result ?? null,
+      });
+    }
+  }
+
+  const committedOutcome = survival({
+    picks: committedPicks,
+    buyBackWeeks: rules.buyBackWeeks,
+    buyBacks: rules.buyBacks,
+  });
+  const hasUnlockedPick = board.weeks.some((week) =>
+    week.picks.some((pick) => pick.team && !pick.status.locked),
+  );
+  board.pathProbability = committedOutcome.probability;
+  board.previewPathProbability = hasUnlockedPick ? previewOutcome.probability : null;
 
   // The depth chart carries all three truths: crossed-out teams are locked,
   // outlined teams are picked but not yet locked, and ghosted teams are only

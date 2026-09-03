@@ -40,6 +40,8 @@
   --solid-bg: #daece8;
   --thin: #9c5715;
   --thin-bg: #f7e7d2;
+  --close: #ad4325;
+  --close-bg: #f8e2d8;
   --danger: #a8352d;
   --danger-bg: #f7e0de;
 
@@ -91,6 +93,8 @@
     --solid-bg: #0f2622;
     --thin: #e08b3c;
     --thin-bg: #2c1d0f;
+    --close: #ed8a66;
+    --close-bg: #321a14;
     --danger: #e56b62;
     --danger-bg: #2e1614;
     --lock: #8fc7e8;
@@ -120,6 +124,8 @@
   --solid-bg: #0f2622;
   --thin: #e08b3c;
   --thin-bg: #2c1d0f;
+  --close: #ed8a66;
+  --close-bg: #321a14;
   --danger: #e56b62;
   --danger-bg: #2e1614;
   --lock: #8fc7e8;

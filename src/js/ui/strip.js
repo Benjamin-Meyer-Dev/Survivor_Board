@@ -6,6 +6,7 @@ import { formatPercent, timeAgo, escapeHtml } from "../core/format.js";
 import { formatDuration } from "../core/refresh.js";
 
 export function renderStrip(root, board) {
+  const season = seasonSurvival(board);
   const cells = [
     {
       key: "On the clock",
@@ -14,17 +15,7 @@ export function renderStrip(root, board) {
     },
     {
       key: "Season survival",
-      // While the coach is still planning, the open slots have no number yet.
-      value: board.eliminated
-        ? "Out"
-        : board.recommendationPending
-          ? "…"
-          : formatPercent(board.pathProbability),
-      note: board.eliminated
-        ? "run is over"
-        : board.recommendationPending
-          ? "working out the path"
-          : survivalNote(board),
+      ...season,
     },
     {
       key: "Next refresh",
@@ -41,11 +32,26 @@ export function renderStrip(root, board) {
       (cell) => `
       <div class="strip__cell">
         <span class="strip__key">${escapeHtml(cell.key)}</span>
-        <span class="strip__value">${cell.raw ? cell.value : escapeHtml(cell.value)}</span>
+        <span class="strip__value${cell.comparison ? " strip__value--comparison" : ""}">${cell.raw ? cell.value : escapeHtml(cell.value)}</span>
         <span class="strip__note">${escapeHtml(cell.note)}</span>
       </div>`,
     )
     .join("");
+}
+
+function seasonSurvival(board) {
+  if (board.eliminated) return { value: "Out", note: "run is over" };
+  if (board.recommendationPending) return { value: "…", note: "working out the path" };
+  if (board.previewPathProbability === null) {
+    return { value: formatPercent(board.pathProbability), note: survivalNote(board) };
+  }
+
+  return {
+    value: `<span>${formatPercent(board.pathProbability)}</span><span class="strip__arrow" aria-hidden="true">→</span><span class="strip__preview">${formatPercent(board.previewPathProbability)}</span>`,
+    note: "current → if locked",
+    raw: true,
+    comparison: true,
+  };
 }
 
 /**

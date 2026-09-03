@@ -112,6 +112,9 @@ export function confidenceTier(winProb, tiers = DEFAULT_TIERS) {
   if (winProb >= tiers.safe) return "safe";
   if (winProb >= tiers.solid) return "solid";
   if (winProb >= tiers.thin) return "thin";
+  // A close favourite is risky, but it is not an upset pick. Keep the red
+  // alert semantically strict: only a team below even odds earns it.
+  if (winProb >= 0.5) return "close";
   return "danger";
 }
 
@@ -120,5 +123,6 @@ export const TIER_LABEL = Object.freeze({
   safe: "Lock",
   solid: "Solid",
   thin: "Shaky",
+  close: "Close call",
   danger: "Upset alert",
 });
