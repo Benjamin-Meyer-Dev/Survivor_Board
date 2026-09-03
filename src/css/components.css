@@ -234,6 +234,10 @@
 /* startup screen --------------------------------------------------------- */
 
 .startup {
+  /* Startup has a fixed identity: it stays NFL blue regardless of whichever
+     league was saved for the board underneath it. */
+  --startup-accent: var(--switch-nfl, #2c3f8f);
+  --startup-accent-soft: color-mix(in srgb, var(--startup-accent) 18%, var(--ground));
   position: fixed;
   inset: 0;
   z-index: 20;
@@ -306,7 +310,7 @@
   right: 20%;
   top: 50%;
   height: 2px;
-  background: repeating-linear-gradient(90deg, var(--accent) 0 6px, transparent 6px 11px);
+  background: repeating-linear-gradient(90deg, var(--startup-accent) 0 6px, transparent 6px 11px);
   opacity: 0.45;
 }
 
@@ -328,7 +332,7 @@
   left: calc(20% - 18px);
   width: 36px;
   height: 24px;
-  color: var(--accent);
+  color: var(--startup-accent);
 }
 
 .startup__ball svg {
@@ -339,7 +343,7 @@
 }
 
 .startup__ball path:first-child {
-  fill: var(--accent-soft);
+  fill: var(--startup-accent-soft);
   stroke: currentColor;
   stroke-width: 2.5;
 }
@@ -363,7 +367,7 @@
   line-height: 1;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--startup-accent);
 }
 
 .startup__status {
@@ -1257,6 +1261,8 @@
 
 .table-scroll {
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
   background: var(--surface);
 }
 
@@ -1297,12 +1303,6 @@
 
 .ladder tr {
   cursor: pointer;
-}
-
-/* Column visibility is driven by width, not by JS. Both classes are declared
-   here so neither is left undefined at the breakpoint it does not own. */
-.is-narrow-only {
-  display: none;
 }
 
 .ladder tr.is-current td {
@@ -1360,6 +1360,20 @@
   font-size: 20px;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.ladder__date,
+.ladder__site,
+.ladder__source {
+  color: var(--ink-3);
+}
+
+.ladder__date {
+  font-size: 12px;
+}
+
+.ladder__source {
+  font-size: 11.5px;
 }
 
 .ladder__blank {
@@ -1461,7 +1475,8 @@
   text-align: center;
 }
 
-.burn__power-rank {
+.burn__power-rank,
+.burn__week {
   font-size: 13.5px;
   font-weight: 700;
 }
@@ -1469,8 +1484,6 @@
 .burn__week {
   padding-left: 5px;
   border-left: 1px solid currentcolor;
-  font-size: 10.5px;
-  font-weight: 700;
 }
 
 .burn__team--spent .burn__rating {
@@ -1576,26 +1589,66 @@
     margin-bottom: var(--sp-4);
   }
 
+  .tab {
+    min-height: 52px;
+    padding: 14px 6px;
+    font-size: clamp(14.5px, 4vw, 16px);
+    letter-spacing: 0.05em;
+  }
+
+  .league__btn {
+    min-width: 68px;
+    min-height: 44px;
+    padding: 0 11px;
+    font-size: 14px;
+  }
+
+  .startup__status,
+  .gate__label,
+  .gate__error {
+    font-size: 14px;
+  }
+
+  .gate__visibility {
+    width: 44px;
+    height: 44px;
+  }
+
+  .gate__btn {
+    min-height: 46px;
+    font-size: 16px;
+  }
+
   .strip {
     margin-bottom: var(--sp-4);
   }
 
   .strip__cell {
-    padding: 8px 9px;
-    gap: 2px;
+    min-width: 0;
+    min-height: 86px;
+    padding: 11px 7px;
+    gap: 4px;
   }
 
   .strip__key {
-    font-size: 9.5px;
+    font-size: clamp(11px, 2.8vw, 11.5px);
     letter-spacing: 0.06em;
+    line-height: 1.15;
   }
 
   .strip__value {
-    font-size: 16px;
+    min-width: 0;
+    font-size: clamp(18px, 5vw, 20px);
+  }
+
+  #countdown {
+    font-size: clamp(17px, 4.5vw, 19px);
+    letter-spacing: -0.04em;
   }
 
   .strip__note {
-    font-size: 10px;
+    min-width: 0;
+    font-size: clamp(11px, 2.8vw, 11.5px);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1612,7 +1665,21 @@
   }
 
   .panel__head h2 {
-    font-size: 20px;
+    font-size: 22px;
+  }
+
+  .week-pips {
+    gap: 6px;
+    padding: 15px 0 17px;
+  }
+
+  .week-pip {
+    width: 9px;
+    height: 9px;
+  }
+
+  .week-pip::after {
+    inset: -15px -3px;
   }
 
   .panel__slots {
@@ -1620,11 +1687,32 @@
   }
 
   .slot {
-    padding: 15px var(--sp-4);
+    padding: 18px var(--sp-4);
   }
 
   .slot__team {
-    font-size: 24px;
+    font-size: 27px;
+  }
+
+  .slot__matchup {
+    font-size: 14px;
+  }
+
+  .slot__flip {
+    min-height: 44px;
+    padding: 5px 13px 5px 6px;
+    gap: 8px;
+    font-size: 12.5px;
+  }
+
+  .slot__flip-icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .slot__flip-icon svg {
+    width: 18px;
+    height: 18px;
   }
 
   .slot__numbers {
@@ -1633,7 +1721,25 @@
   }
 
   .metric__value {
-    font-size: 17px;
+    font-size: 20px;
+  }
+
+  .metric__key {
+    font-size: 12px;
+  }
+
+  .metric__value--text {
+    font-size: 15px;
+  }
+
+  .slot__stamp {
+    font-size: 12.5px;
+  }
+
+  .chip {
+    height: 27px;
+    padding: 0 10px;
+    font-size: 12.5px;
   }
 
   .actions {
@@ -1645,15 +1751,26 @@
   .actions .btn {
     flex: 1 1 0;
     min-width: 0;
-    min-height: 34px;
-    padding: 6px 2px;
-    font-size: 11.5px;
+    min-height: 44px;
+    padding: 8px 3px;
+    font-size: 13px;
     white-space: nowrap;
   }
 
+  .swap__filter {
+    min-height: 46px;
+    padding: 10px 12px;
+    font-size: 16px;
+  }
+
+  .swap__list {
+    max-height: 330px;
+  }
+
   .swap__option {
-    padding: 9px 6px;
-    min-height: 42px;
+    padding: 11px 8px;
+    min-height: 50px;
+    font-size: 14px;
   }
 
   /* With the full roster in this list, the opponent is what makes a row
@@ -1661,7 +1778,7 @@
   .swap__matchup {
     flex: 1 1 auto;
     min-width: 0;
-    font-size: 11px;
+    font-size: 12.5px;
   }
 
   .swap__team {
@@ -1672,35 +1789,100 @@
 
   .swap__option {
     gap: 7px;
-    padding: 9px 8px;
+    padding: 11px 8px;
+  }
+
+  .swap__tag {
+    height: 22px;
+    padding: 0 8px;
+    font-size: 11.5px;
+  }
+
+  .swap__spread {
+    font-size: 13.5px;
+  }
+
+  .swap__option--disabled .swap__spread {
+    font-size: 12px;
   }
 
   .ladder {
-    min-width: 0;
+    min-width: 1020px;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .ladder .is-wide-only {
+    display: table-cell;
+  }
+
+  .ladder th[hidden] {
+    display: none;
   }
 
   .ladder th,
   .ladder td {
-    padding: 11px 8px;
+    padding: 13px 8px;
   }
 
   .ladder th {
-    font-size: 10.5px;
+    font-size: 11.5px;
     letter-spacing: 0.06em;
   }
 
   .ladder td {
-    font-size: 13.5px;
+    font-size: 14.5px;
   }
 
   .ladder__team {
-    font-size: 16px;
+    font-size: 17px;
     white-space: normal;
     line-height: 1.15;
   }
 
   .ladder__week {
-    width: 26px;
+    width: 48px;
+  }
+
+  .ladder__date,
+  .ladder__source {
+    font-size: 13.5px;
+  }
+
+  /* Week and Pick remain readable while the rest of the season sheet moves
+     underneath. Pick is the trailing sticky cell, so its edge also provides a
+     visual boundary between the pinned identity and scrolling statistics. */
+  .ladder__sticky {
+    position: sticky;
+    background: var(--surface);
+  }
+
+  .ladder__sticky--week {
+    left: 0;
+    z-index: 3;
+    width: 48px;
+    min-width: 48px;
+    max-width: 48px;
+  }
+
+  .ladder__sticky--pick {
+    left: 48px;
+    z-index: 2;
+    width: 156px;
+    min-width: 156px;
+    max-width: 156px;
+    box-shadow:
+      1px 0 0 var(--line),
+      9px 0 12px -12px rgb(0 0 0 / 45%);
+  }
+
+  .ladder thead .ladder__sticky {
+    z-index: 5;
+    background: var(--surface-2);
+  }
+
+  .ladder tr.is-current .ladder__sticky {
+    background: var(--accent-soft);
   }
 
   /* Wide enough for "Mississippi State" and its rating on one line, so a
@@ -1710,9 +1892,18 @@
   }
 
   .burn__team {
-    padding: 11px 12px;
-    min-height: 46px;
-    font-size: 13.5px;
+    padding: 12px;
+    font-size: 14.5px;
+  }
+
+  .burn > .burn__team {
+    height: 62px;
+    min-height: 62px;
+  }
+
+  .burn__power-rank,
+  .burn__week {
+    font-size: 14.5px;
   }
 
   .legend {
@@ -1722,46 +1913,40 @@
   }
 
   .legend__item {
-    gap: 8px;
+    display: grid;
+    grid-template-rows: auto auto;
+    align-items: stretch;
+    gap: 6px;
   }
 
   .legend__swatch {
-    width: 76px;
-    padding: 7px 8px;
-    font-size: 11.5px;
+    width: 100%;
+    padding: 8px;
+    font-size: 12.5px;
   }
 
   .legend__swatch .burn__rating {
-    font-size: 10.5px;
+    font-size: 11.5px;
   }
 
-  .is-wide-only {
-    display: none;
+  .legend__key {
+    font-size: 13px;
+    line-height: 1.15;
+    text-align: center;
+    overflow-wrap: anywhere;
   }
 
-  .is-narrow-only {
-    display: table-cell;
-  }
-
-  .ladder__opponent {
-    color: var(--ink-3);
-    max-width: 84px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .notice {
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 14px;
   }
 }
 
-/* Narrow phones cannot fit the opponent column without the row scrolling
-   sideways. The matchup is one tap away in the panel, so drop it here. */
 @media (max-width: 460px) {
-  .ladder .is-narrow-only {
-    display: none;
-  }
-
   .ladder th,
   .ladder td {
-    padding: 8px 6px;
+    padding: 11px 6px;
   }
 
   .burn {
@@ -1770,8 +1955,7 @@
 
   .burn__team {
     padding: 10px 11px;
-    min-height: 42px;
-    font-size: 13px;
+    font-size: 14px;
   }
 }
 

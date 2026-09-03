@@ -81,7 +81,15 @@
      the room; if a phone is still too narrow the masthead wraps rather than
      overflowing. */
   .masthead__title {
-    font-size: 21px;
+    font-size: 24px;
+  }
+
+  .section__head h2 {
+    font-size: 22px;
+  }
+
+  .section__head p {
+    font-size: 14px;
   }
 
   .section__head {
@@ -99,7 +107,7 @@
   }
 
   .masthead__title {
-    font-size: 19px;
+    font-size: 21px;
   }
 
   .mast-ball {
@@ -108,9 +116,9 @@
   }
 
   .league__btn {
-    min-width: 58px;
-    min-height: 36px;
-    padding: 0 9px;
-    font-size: 12.5px;
+    min-width: 68px;
+    min-height: 44px;
+    padding: 0 11px;
+    font-size: 14px;
   }
 }

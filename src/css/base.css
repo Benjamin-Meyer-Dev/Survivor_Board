@@ -93,6 +93,16 @@ button {
   white-space: nowrap;
 }
 
+@media (max-width: 660px) {
+  body {
+    font-size: 15px;
+  }
+
+  .u-eyebrow {
+    font-size: 13px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

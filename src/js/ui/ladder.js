@@ -42,14 +42,13 @@ function rowMarkup(week, pick, board, showWeekProbability) {
 
   return `
     <tr class="${classes}" data-week="${week.week}" data-motion-key="ladder-${week.week}-${pick.slot}">
-      <td class="ladder__week">${isFirstSlot ? week.week : ""}</td>
-      <td class="is-wide-only" style="color:var(--ink-3);font-size:12px">${isFirstSlot ? escapeHtml(week.labelFull) : ""}</td>
-      <td class="ladder__team">${shown ? escapeHtml(shown.team) : pending ? PLANNING : "No pick"}</td>
+      <td class="ladder__week ladder__sticky ladder__sticky--week">${isFirstSlot ? week.week : ""}</td>
+      <td class="is-wide-only ladder__date">${isFirstSlot ? escapeHtml(week.labelFull) : ""}</td>
+      <td class="ladder__team ladder__sticky ladder__sticky--pick">${shown ? escapeHtml(shown.team) : pending ? PLANNING : "No pick"}</td>
       <td class="is-wide-only">${shown ? escapeHtml(formatMatchup(shown.site, shown.opponent)) : "—"}</td>
-      <td class="is-narrow-only ladder__opponent">${shown ? escapeHtml(shown.opponent) : "—"}</td>
-      <td class="is-wide-only" style="color:var(--ink-3)">${shown ? escapeHtml(shown.site) : "—"}</td>
+      <td class="is-wide-only ladder__site">${shown ? escapeHtml(shown.site) : "—"}</td>
       <td class="ladder__num${shown ? ` confidence--${shown.tier}` : ""}">${shown ? formatSpread(shown.spread) : "—"}</td>
-      <td class="is-wide-only" style="font-size:11.5px;color:var(--ink-3)">${shown ? (shown.source === "market" ? "Market" : "Projected") : "—"}</td>
+      <td class="is-wide-only ladder__source">${shown ? (shown.source === "market" ? "Market" : "Projected") : "—"}</td>
       <td class="ladder__num${shown ? ` confidence--${shown.tier}` : ""}">${shown ? formatPercent(shown.winProb) : "—"}</td>
       ${
         showWeekProbability
