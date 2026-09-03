@@ -399,7 +399,48 @@
   display: grid;
   place-items: center;
   padding: var(--sp-6);
+  overflow: hidden;
   background: var(--ground);
+}
+
+/* A blue night-field behind the gate echoes the yard-line texture used by the
+   board, but stays within the passcode screen's fixed NFL-blue identity. */
+.gate::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 45%, rgb(147 180 240 / 11%), transparent 34%),
+    repeating-linear-gradient(180deg, rgb(147 180 240 / 8%) 0 8px, transparent 8px 34px) 50% 0 / 1px
+      100% no-repeat,
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 calc(6.25% - 1px),
+      rgb(147 180 240 / 4%) calc(6.25% - 1px),
+      rgb(147 180 240 / 4%) 6.25%
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 calc(25% - 1px),
+      rgb(147 180 240 / 9%) calc(25% - 1px),
+      rgb(147 180 240 / 9%) 25%
+    ),
+    repeating-linear-gradient(180deg, rgb(147 180 240 / 2.5%) 0 64px, transparent 64px 128px);
+}
+
+/* The inset perimeter reads like the sideline around the field and keeps the
+   decoration intentional at both phone and desktop sizes. */
+.gate::after {
+  content: "";
+  position: absolute;
+  inset: clamp(16px, 4vw, 52px);
+  z-index: 0;
+  border: 1px solid rgb(147 180 240 / 11%);
+  border-radius: var(--radius);
+  box-shadow: inset 0 0 80px rgb(147 180 240 / 3%);
+  pointer-events: none;
 }
 
 .gate[hidden] {
@@ -411,12 +452,15 @@
 }
 
 .gate__card {
+  position: relative;
+  z-index: 1;
   width: min(100%, 340px);
   display: grid;
   gap: var(--sp-3);
   padding: var(--sp-6);
   background: var(--surface);
   border: 1px solid var(--line);
+  border-top-color: var(--accent);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
