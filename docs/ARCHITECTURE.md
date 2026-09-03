@@ -6,7 +6,7 @@ A static site with no build step, one scheduled job, and one tiny database.
 
 ```
                       ┌──────────────────────────┐
-   every 6 hours ────▶│ .github/workflows/       │
+   once a day ───────▶│ .github/workflows/       │
                       │   refresh-odds.yml       │
                       └────────────┬─────────────┘
                                    │ node scripts/refresh-odds.mjs
@@ -72,9 +72,9 @@ names, which is why `scopeFor()` special-cases it.
 | `teams.json`    | a human         | once a season, when ratings are published |
 | `schedule.json` | a human         | once a season                             |
 | `ratings.json`  | a human         | once a season                             |
-| `odds.json`     | the refresh bot | every 6 hours                             |
+| `odds.json`     | the refresh bot | once a day                                |
 
-Keeping them separate is what lets a bot rewrite the numbers four times a day
+Keeping them separate is what lets a bot rewrite the numbers every day
 without ever touching the strategy or the markup. A merge conflict between the
 bot and a human edit is impossible because they never write the same file.
 
@@ -221,5 +221,6 @@ any backend exists.
 - **No bundler.** Native ES modules. `index.html` is servable from disk.
 - **No icons in the manifest.** Add PNGs when you want a proper home-screen
   icon; the app installs without them.
-- **No auth.** A shared passphrase gates writes. Turn on Supabase Auth if the
-  pool gets serious.
+- **No auth.** A shared passcode gates the board once per device and unlocks
+  writes. It ships in the page, so it keeps out passers-by, not anyone
+  determined. Turn on Supabase Auth if the pool gets serious.

@@ -17,10 +17,11 @@ import { renderLadder } from "./ui/ladder.js";
 import { renderBurnBoard } from "./ui/burn-board.js";
 import { renderNotices } from "./ui/notices.js";
 import { renderTabs, initialTab } from "./ui/tabs.js";
-import { renderRefresh } from "./ui/refresh.js";
-import { refreshState, formatDuration, WATCH_MS, POLL_MS } from "./core/refresh.js";
+import { requireGate } from "./ui/gate.js";
+import { formatDuration } from "./core/refresh.js";
 
 const el = {
+  gate: document.getElementById("gate"),
   notices: document.getElementById("notices"),
   strip: document.getElementById("strip"),
   deck: document.getElementById("week-deck"),
@@ -35,8 +36,8 @@ const el = {
 /** Which league was open last on this device. */
 const LEAGUE_KEY = "survivor-board/league";
 
-/** The pool passphrase, once this device has given it. */
-const PASSPHRASE_KEY = "survivor-board/passphrase";
+/** The pool passcode, once this device has given it. */
+const PASSCODE_KEY = "survivor-board/passcode";
 
 const app = {
   league: resolveLeague(readStored(LEAGUE_KEY)),
@@ -51,13 +52,12 @@ const app = {
   activeTab: initialTab(),
   saveTimer: null,
   effect: null,
-  refreshStatus: "",
-  pollTimer: null,
+  /** One line for the notices area, such as a league that failed to load. */
+  message: "",
   tickTimer: null,
   unsubscribe: null,
   switching: false,
   recommendTimer: null,
-  unlockMessage: "",
 };
 
 /** Which keyframe an action should play on the slot it changed. */
@@ -162,11 +162,7 @@ function render({ search = true } = {}) {
 
   lastBoard = board;
   renderLeagueSwitch(el.league, app.league, switchLeague);
-  renderNotices(
-    el.notices,
-    { store: app.store, board, unlockMessage: app.unlockMessage },
-    { onUnlock: unlockWrites },
-  );
+  renderNotices(el.notices, { store: app.store, board, message: app.message });
   renderStrip(el.strip, board);
   renderTabs(el.tabs, app.activeTab, selectTab);
   renderWeekDeck(el.deck, board, app.viewWeek, {
@@ -187,13 +183,6 @@ function render({ search = true } = {}) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
   renderBurnBoard(el.burn, el.burnCount, board, app.teams);
-
-  // The strip is re-rendered above, so the mount point is a fresh node.
-  renderRefresh(
-    document.getElementById("refresh"),
-    { refresh: app.entry.refresh, status: app.refreshStatus, canWrite: app.store.canWrite },
-    requestRefresh,
-  );
   playEffect();
 
   if (board.recommendationPending) scheduleRecommendation();
@@ -222,96 +211,9 @@ function scheduleRecommendation() {
 }
 
 /**
- * Ask the workflow for fresh lines.
+ * One second heartbeat for the next-pull countdown in the strip.
  *
- * The cooldown is written to the SHARED entry before anything else, so the
- * other device sees the countdown immediately and cannot fire a second run.
- * The workflow's own freshness check is what actually protects the repo, since
- * nothing here is enforceable from a browser.
- */
-async function requestRefresh() {
-  if (!app.store.canWrite) return;
-  if (refreshState(app.entry.refresh).state !== "ready") return;
-
-  // Checked before the cooldown is written: data baked into the page can never
-  // be re-read, so starting a two minute watch here would spin at the user for
-  // something that cannot happen.
-  if (globalThis.SURVIVOR_DATA) {
-    app.refreshStatus = "This build has its data baked in. Refresh runs on the deployed site.";
-    render();
-    return;
-  }
-
-  app.entry.refresh = { requestedAt: Date.now(), by: ME };
-  app.refreshStatus = "";
-  render();
-  scheduleSave();
-
-  const { dispatchUrl, key } = CONFIG.refresh;
-  if (dispatchUrl) {
-    try {
-      const response = await fetch(dispatchUrl, {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-refresh-key": key },
-        body: JSON.stringify({ reason: "manual" }),
-      });
-      if (!response.ok) throw new Error(`Trigger returned ${response.status}`);
-      app.refreshStatus = "Requested. New lines usually land within a minute.";
-    } catch (error) {
-      app.refreshStatus = `Could not reach the refresh service: ${error.message}`;
-      render();
-      return;
-    }
-  } else {
-    app.refreshStatus = "Checking for newer lines…";
-  }
-
-  render();
-  watchForNewOdds();
-}
-
-/** Poll the league's odds.json until the stamp moves or the watch closes. */
-function watchForNewOdds() {
-  clearInterval(app.pollTimer);
-  const startedWith = app.odds.updatedAt;
-  const league = app.league;
-  const deadline = Date.now() + WATCH_MS;
-
-  app.pollTimer = setInterval(async () => {
-    // Switching leagues abandons the watch: the board it was watching is gone.
-    if (app.league !== league) {
-      clearInterval(app.pollTimer);
-      return;
-    }
-
-    if (Date.now() > deadline) {
-      clearInterval(app.pollTimer);
-      app.refreshStatus =
-        app.odds.updatedAt === startedWith
-          ? "No new lines yet. The scheduled run will pick them up."
-          : "";
-      render();
-      return;
-    }
-
-    try {
-      const odds = await loadJson("odds.json", league);
-      if (app.league === league && odds.updatedAt !== startedWith) {
-        clearInterval(app.pollTimer);
-        app.odds = odds;
-        app.refreshStatus = "Lines updated.";
-        render();
-      }
-    } catch {
-      /* transient - the next tick tries again */
-    }
-  }, POLL_MS);
-}
-
-/**
- * One second heartbeat for both countdowns.
- *
- * It writes textContent on two nodes rather than re-rendering, so a focused
+ * It writes textContent on one node rather than re-rendering, so a focused
  * button is never torn out from under the user and the board is not rebuilt
  * sixty times a minute.
  */
@@ -319,44 +221,16 @@ function startClock() {
   clearInterval(app.tickTimer);
   app.tickTimer = setInterval(() => {
     const countdown = document.getElementById("countdown");
-    if (countdown && lastBoard) {
-      const remaining = lastBoard.nextRefreshAt - Date.now();
-      // The scheduled run has come and gone; recompute against the new slot.
-      if (remaining <= 0) {
-        render();
-        return;
-      }
-      countdown.textContent = formatDuration(remaining);
-    }
+    if (!countdown || !lastBoard) return;
 
-    if (refreshState(app.entry.refresh).state !== "ready") {
-      renderRefresh(
-        document.getElementById("refresh"),
-        { refresh: app.entry.refresh, status: app.refreshStatus, canWrite: app.store.canWrite },
-        requestRefresh,
-      );
+    const remaining = lastBoard.nextRefreshAt - Date.now();
+    // The scheduled run has come and gone; recompute against the new slot.
+    if (remaining <= 0) {
+      render();
+      return;
     }
+    countdown.textContent = formatDuration(remaining);
   }, 1000);
-}
-
-/**
- * Ask for the pool passphrase and unlock writes on this device.
- *
- * Not security, see config.js: it stops a stray link-holder from editing. The
- * passphrase is remembered on the device so it is typed once, not every visit.
- */
-function unlockWrites() {
-  const answer = window.prompt("Pool passphrase");
-  if (answer === null) return;
-
-  const passphrase = answer.trim();
-  if (app.store.unlock?.(passphrase)) {
-    writeStored(PASSPHRASE_KEY, passphrase);
-    app.unlockMessage = "";
-  } else {
-    app.unlockMessage = "That passphrase did not match. Tap to try again.";
-  }
-  render();
 }
 
 function selectTab(id) {
@@ -469,16 +343,15 @@ function resolveIdentity() {
  * Load a league and take over the page.
  *
  * Every league owns its data folder and its own stored entry, so a switch is a
- * full reload of the board rather than a filter over one: old subscriptions and
- * polls are torn down first, and nothing from the previous league survives.
+ * full reload of the board rather than a filter over one: old subscriptions
+ * are torn down first, and nothing from the previous league survives.
  */
 async function openLeague(league) {
   app.unsubscribe?.();
   app.unsubscribe = null;
-  clearInterval(app.pollTimer);
   clearTimeout(app.recommendTimer);
   app.recommendTimer = null;
-  app.refreshStatus = "";
+  app.message = "";
 
   const [plan, teams, odds, schedule, ratings] = await Promise.all([
     loadJson("plan.json", league),
@@ -496,15 +369,14 @@ async function openLeague(league) {
   app.ratings = ratings;
   app.viewWeek = Math.min(Math.max(odds.currentWeek ?? 1, 1), plan.weeks.length);
 
-  document.title = `${LEAGUES[league].title} \u00b7 ${LEAGUES[league].label}`;
+  document.title = `${LEAGUES[league].title} · ${LEAGUES[league].label}`;
   applyTheme(league);
 
   app.store = await createStore(league);
-  // A passphrase this device already gave is offered again, so a league switch
-  // or a fresh visit does not ask for it twice.
-  const saved = readStored(PASSPHRASE_KEY);
-  if (saved && !app.store.canWrite) app.store.unlock?.(saved);
-  app.unlockMessage = "";
+  // The gate already checked the passcode on this device, so the store's write
+  // lock opens with the same value. With no passcode configured there is no
+  // lock to open.
+  if (!app.store.canWrite) app.store.unlock?.(CONFIG.passcode);
   app.entry = await app.store.init();
   app.unsubscribe = app.store.subscribe((entry) => {
     // A late push from the store we just replaced must not land on this board.
@@ -545,7 +417,7 @@ async function switchLeague(league) {
     // Put the board back the way it was, including its colours.
     renderLeagueSwitch(el.league, app.league, switchLeague);
     applyTheme(app.league);
-    app.refreshStatus = `Could not load ${LEAGUES[league]?.label ?? league}: ${error.message}`;
+    app.message = `Could not load ${LEAGUES[league]?.label ?? league}: ${error.message}`;
     render();
   } finally {
     el.shell?.classList.remove("is-swapping");
@@ -582,12 +454,35 @@ function writeStored(key, value) {
   }
 }
 
+/**
+ * The passcode screen, once per device.
+ *
+ * A device that has answered correctly before is let straight through. The
+ * check lives here rather than in the store because it gates the whole board,
+ * not just writes; see the note on `passcode` in config.js for what it is and
+ * is not protecting. Changing the passcode makes every device ask again.
+ */
+async function requirePasscode() {
+  const expected = CONFIG.passcode;
+  if (!expected || readStored(PASSCODE_KEY) === expected) return;
+
+  document.body.classList.add("is-gated");
+  await requireGate(el.gate, (value) => value.trim() === expected);
+  writeStored(PASSCODE_KEY, expected);
+  document.body.classList.remove("is-gated");
+}
+
 async function main() {
+  // The gate wears the last league's colours, so it looks like the board it opens.
+  applyTheme(app.league);
+  await requirePasscode();
   await openLeague(app.league);
   startClock();
 }
 
 main().catch((error) => {
+  document.body.classList.remove("is-gated");
+  if (el.gate) el.gate.hidden = true;
   el.notices.innerHTML = `<div class="notice notice--warn">Could not load the board: ${error.message}</div>`;
   console.error(error);
 });

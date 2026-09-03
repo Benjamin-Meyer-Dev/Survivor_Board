@@ -2,12 +2,12 @@
 --
 -- One row per league holds that pool's entire entry as JSON. Two people, one
 -- row per pool, realtime push keeps both devices in sync. Run this once in the
--- Supabase SQL editor.
+-- Supabase SQL editor. It is safe to run again: every statement checks before
+-- it acts.
 --
--- Row ids come from scopeFor() in src/js/config.js: the college pool predates
--- the NFL one and keeps the plain 'shared' id, every other league is
--- 'shared-<league>'. Adding a pool means adding its id here, in the seed and
--- in each policy, or the app will read an empty entry and its saves will be
+-- Row ids are the league ids from src/js/leagues.js, which are also the folder
+-- names under data/. Adding a pool means adding its id to the seed and to each
+-- policy below, or the app will read an empty entry and its saves will be
 -- refused by RLS.
 
 create table if not exists public.entries (
@@ -17,11 +17,21 @@ create table if not exists public.entries (
 );
 
 -- Seed one row per league.
-insert into public.entries (id) values ('shared'), ('shared-nfl')
+insert into public.entries (id) values ('cfb'), ('nfl')
 on conflict (id) do nothing;
 
--- Realtime so an edit on one phone lands on the other.
-alter publication supabase_realtime add table public.entries;
+-- Realtime so an edit on one phone lands on the other. Guarded, because adding
+-- a table that is already in the publication is an error, and one error aborts
+-- the whole script on a re-run.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'entries'
+  ) then
+    alter publication supabase_realtime add table public.entries;
+  end if;
+end $$;
 
 alter table public.entries enable row level security;
 
@@ -35,18 +45,27 @@ alter table public.entries enable row level security;
 -- `and auth.uid() in (...)` once both people have accounts. Keeping the site
 -- itself private is a hosting question, not a table one: see docs/DEPLOY.md.
 
+-- Policy names from earlier versions of this file, so a re-run replaces them.
 drop policy if exists "read shared entry" on public.entries;
-create policy "read shared entry"
-  on public.entries for select
-  using (id in ('shared', 'shared-nfl'));
-
 drop policy if exists "insert shared entry" on public.entries;
-create policy "insert shared entry"
-  on public.entries for insert
-  with check (id in ('shared', 'shared-nfl'));
-
 drop policy if exists "update shared entry" on public.entries;
-create policy "update shared entry"
+
+drop policy if exists "read league entries" on public.entries;
+create policy "read league entries"
+  on public.entries for select
+  using (id in ('cfb', 'nfl'));
+
+drop policy if exists "insert league entries" on public.entries;
+create policy "insert league entries"
+  on public.entries for insert
+  with check (id in ('cfb', 'nfl'));
+
+drop policy if exists "update league entries" on public.entries;
+create policy "update league entries"
   on public.entries for update
-  using (id in ('shared', 'shared-nfl'))
-  with check (id in ('shared', 'shared-nfl'));
+  using (id in ('cfb', 'nfl'))
+  with check (id in ('cfb', 'nfl'));
+
+-- Rows seeded by an earlier version of this file. The app no longer reads them
+-- and nothing was ever saved to them, so a re-run clears them out.
+delete from public.entries where id in ('shared', 'shared-nfl');

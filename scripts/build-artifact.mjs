@@ -45,7 +45,6 @@ const JS = [
   "store/supabase.js",
   "store/local.js",
   "store/index.js",
-  "ui/refresh.js",
   "ui/league-switch.js",
   "ui/tabs.js",
   "ui/strip.js",
@@ -53,6 +52,7 @@ const JS = [
   "ui/ladder.js",
   "ui/burn-board.js",
   "ui/notices.js",
+  "ui/gate.js",
   "app.js",
 ];
 const DATA = ["plan.json", "teams.json", "odds.json", "schedule.json", "ratings.json"];

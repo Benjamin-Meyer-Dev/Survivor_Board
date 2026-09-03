@@ -2,7 +2,7 @@
 /**
  * Rewrite data/<league>/odds.json with current market lines for the week ahead.
  *
- * Run by .github/workflows/refresh-odds.yml every six hours. Also runnable
+ * Run by .github/workflows/refresh-odds.yml once a day. Also runnable
  * locally: ODDS_API_KEY=... npm run refresh
  *
  * Both leagues are refreshed in one run. They share nothing but this script:
@@ -98,11 +98,10 @@ async function refreshLeague(league, apiKey) {
     return [];
   }
 
-  // The manual button can queue several dispatches before the first finishes,
-  // and `concurrency` in the workflow serialises rather than drops them. This
-  // is the guard that actually holds, because it is the only one a browser
-  // cannot skip: if the lines were pulled moments ago, do nothing and spend
-  // no API quota.
+  // A run started by hand from the Actions tab can land right behind the
+  // scheduled one, and `concurrency` in the workflow serialises rather than
+  // drops them. If the lines were pulled moments ago, do nothing and spend no
+  // API quota.
   const sincePull = Date.now() - Date.parse(previous.updatedAt ?? 0);
   const minGap = Number(process.env.MIN_REFRESH_GAP_MS ?? 4 * 60 * 1000);
   if (Number.isFinite(sincePull) && sincePull >= 0 && sincePull < minGap) {

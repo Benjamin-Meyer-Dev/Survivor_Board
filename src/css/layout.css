@@ -77,9 +77,9 @@
     gap: 9px;
   }
 
-  /* Three controls share the top line now: the title, the league switch and
-     the refresh pill. The title gives up the room; if a phone is still too
-     narrow the masthead wraps rather than overflowing. */
+  /* The title and the league switch share the top line. The title gives up
+     the room; if a phone is still too narrow the masthead wraps rather than
+     overflowing. */
   .masthead__title {
     font-size: 21px;
   }
@@ -91,8 +91,8 @@
   }
 }
 
-/* Small phones: the title gives up a little more so the switch and the refresh
-   pill still share its line rather than claiming a row of their own. */
+/* Small phones: the title gives up a little more so the switch still shares
+   its line rather than claiming a row of its own. */
 @media (max-width: 380px) {
   .masthead {
     gap: 7px;

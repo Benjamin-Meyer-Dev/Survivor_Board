@@ -220,67 +220,123 @@
   }
 }
 
-/* manual refresh (ui/refresh.js) ----------------------------------------- */
+/* passcode gate (ui/gate.js) --------------------------------------------- */
 
-.refresh {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--sp-2);
-  margin-left: auto;
-  flex: none;
-  flex-wrap: wrap;
+/* Sits over everything until the device has answered once. The shell is hidden
+   underneath rather than merely covered, so nothing of the board shows through
+   a slow paint or a resize. */
+.gate {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-6);
+  background: var(--ground);
 }
 
-.refresh__btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 26px;
-  padding: 0 10px;
+.gate[hidden] {
+  display: none;
+}
+
+.is-gated .shell {
+  display: none;
+}
+
+.gate__card {
+  width: min(100%, 340px);
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-6);
+  background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 99px;
-  background: var(--surface-2);
-  color: var(--ink-2);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.gate__brand {
+  margin: 0 0 var(--sp-2);
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 11.5px;
-  letter-spacing: 0.08em;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: 0.01em;
   text-transform: uppercase;
-  cursor: pointer;
-  font-variant-numeric: tabular-nums;
-}
-
-.refresh__btn:hover:not(:disabled) {
-  border-color: var(--accent);
   color: var(--accent);
 }
 
-.refresh__btn:disabled {
-  opacity: 0.55;
-  cursor: default;
+.gate__label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-2);
 }
 
-.refresh__spinner {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 2px solid var(--line);
-  border-top-color: var(--accent);
-  animation: refresh-spin 0.7s linear infinite;
+.gate__input {
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  letter-spacing: 0.14em;
+  padding: 10px 12px;
+  min-width: 0;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
 }
 
-@keyframes refresh-spin {
-  to {
-    transform: rotate(360deg);
+.gate__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.gate__btn {
+  font: inherit;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 10px 14px;
+  color: var(--on-accent);
+  background: var(--accent);
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.gate__btn:hover {
+  background: var(--accent-ink);
+}
+
+.gate__error {
+  margin: 0;
+  min-height: 1.3em;
+  font-size: 12.5px;
+  color: var(--danger);
+}
+
+.gate__card.is-wrong {
+  animation: gate-shake 0.35s ease;
+}
+
+@keyframes gate-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-6px);
+  }
+  75% {
+    transform: translateX(6px);
   }
 }
 
-.refresh__status {
-  font-size: 11px;
-  color: var(--ink-3);
-  flex: 1 1 100%;
-  text-align: right;
+@media (prefers-reduced-motion: reduce) {
+  .gate__card.is-wrong {
+    animation: none;
+  }
 }
 
 /* week deck (ui/week-panel.js) ------------------------------------------- */
@@ -978,18 +1034,6 @@
   background: var(--thin-bg);
   color: var(--thin);
   border: 1px solid var(--thin);
-}
-
-/* A notice you can act on. It keeps the banner's look so the invitation comes
-   from the words, and only the cursor and hover say it is a control. */
-.notice--action {
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-}
-
-.notice--action:hover {
-  text-decoration: underline;
 }
 
 /* phone ------------------------------------------------------------------ */

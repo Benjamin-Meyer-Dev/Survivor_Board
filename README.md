@@ -6,8 +6,8 @@ masthead.
 The NFL board opens by default; the switch remembers whichever you used last,
 and each league carries its own palette so a glance tells you where you are.
 
-Two people, two devices, one entry per league. Market lines refresh every six
-hours; locks, results and backup swaps sync between phones in real time.
+Two people, two devices, one entry per league. Market lines refresh once a
+day; locks, results and backup swaps sync between phones in real time.
 
 |              | College              | NFL                         |
 | ------------ | -------------------- | --------------------------- |
@@ -55,7 +55,7 @@ src/css/
 
 src/js/
   app.js                      wiring and the render loop
-  config.js                   Supabase keys, passphrase, paths
+  config.js                   Supabase keys, passcode, paths
   leagues.js                  everything that differs between the two pools
   core/                       pure logic, also imported by the Node scripts
     plan.js                   merges plan + odds + entry into the derived board
@@ -67,7 +67,7 @@ src/js/
   ui/                         rendering only, no state, no fetch
 
 scripts/
-  refresh-odds.mjs            the six-hourly job, both leagues
+  refresh-odds.mjs            the daily odds job, both leagues
   seed-plan.mjs               author a league's plan.json from the optimiser
   validate-plan.mjs           enforces both pools' rules in CI
   lib/                        odds API client, season calendar
@@ -101,7 +101,7 @@ the board, which reads them from the plan. Adding a third pool is a folder
 under `data/` and an entry in `src/js/leagues.js`.
 
 The refresh bot rewrites each league's `odds.json` and nothing else, which is why it can run
-four times a day without ever conflicting with a human edit. It flags a pick
+every day without ever conflicting with a human edit. It flags a pick
 whose line has collapsed and opens an issue, but it deliberately does not
 re-plan the season, see
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#why-the-bot-does-not-re-plan).

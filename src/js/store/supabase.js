@@ -15,8 +15,8 @@ import { emptyEntry } from "../core/plan.js";
 const CDN = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
 
 export async function createSupabaseStore(league) {
-  const { url, anonKey, table } = CONFIG.supabase;
-  if (!url || !anonKey) return null;
+  const { url, publishableKey, table } = CONFIG.supabase;
+  if (!url || !publishableKey) return null;
 
   // One row per league, so the two pools never overwrite each other.
   const entryId = scopeFor(league).entryId;
@@ -28,12 +28,12 @@ export async function createSupabaseStore(league) {
     return null;
   }
 
-  const client = createClient(url, anonKey, {
+  const client = createClient(url, publishableKey, {
     auth: { persistSession: false },
   });
 
   const listeners = new Set();
-  let canWrite = !CONFIG.writePassphrase;
+  let canWrite = !CONFIG.passcode;
 
   return {
     kind: "supabase",
@@ -43,9 +43,9 @@ export async function createSupabaseStore(league) {
       return canWrite;
     },
 
-    /** Unlock writes with the shared passphrase. */
-    unlock(passphrase) {
-      canWrite = !CONFIG.writePassphrase || passphrase === CONFIG.writePassphrase;
+    /** Unlock writes with the pool passcode. */
+    unlock(passcode) {
+      canWrite = !CONFIG.passcode || passcode === CONFIG.passcode;
       return canWrite;
     },
 

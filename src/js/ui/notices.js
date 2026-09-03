@@ -1,19 +1,25 @@
 /**
- * One-line banners: storage mode and anything the refresh workflow flagged.
- *
- * The read-only banner is the one you can act on: tapping it asks for the pool
- * passphrase, which is the only way writes get unlocked on a device.
+ * One-line banners: a message from app.js, storage mode, and anything the
+ * refresh workflow flagged.
  */
 
 import { escapeHtml } from "../core/format.js";
 
-export function renderNotices(root, { store, board, unlockMessage }, { onUnlock } = {}) {
+export function renderNotices(root, { store, board, message }) {
   const notices = [];
+
+  if (message) notices.push(message);
 
   if (!store.shared) {
     notices.push(
       "Shared saving is off, so locks and results stay on this device only. The plan and the odds are still current.",
     );
+  }
+
+  // Unreachable once the passcode gate has passed, since the same value opens
+  // the store. Kept so a mismatch says something rather than greying out buttons.
+  if (!store.canWrite) {
+    notices.push("You are viewing in read-only mode. This device's passcode does not match.");
   }
 
   for (const conflict of board.conflicts) {
@@ -28,16 +34,7 @@ export function renderNotices(root, { store, board, unlockMessage }, { onUnlock 
     );
   }
 
-  const html = notices.map((text) => `<div class="notice notice--warn">${escapeHtml(text)}</div>`);
-
-  if (!store.canWrite) {
-    const text =
-      unlockMessage || "You are viewing in read-only mode. Tap to enter the pool passphrase.";
-    html.unshift(
-      `<button type="button" class="notice notice--warn notice--action" data-action="unlock">${escapeHtml(text)}</button>`,
-    );
-  }
-
-  root.innerHTML = html.join("");
-  root.querySelector('[data-action="unlock"]')?.addEventListener("click", () => onUnlock?.());
+  root.innerHTML = notices
+    .map((text) => `<div class="notice notice--warn">${escapeHtml(text)}</div>`)
+    .join("");
 }

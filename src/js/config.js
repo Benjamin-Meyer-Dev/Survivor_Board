@@ -1,68 +1,68 @@
 /**
  * Runtime configuration.
  *
- * Supabase keys here are the PUBLIC anon key, which is safe to ship in a
- * static bundle as long as row-level security is enabled. See
- * supabase/schema.sql. Leave `url` empty to run without a backend - the app
- * falls back to per-device localStorage and says so in the UI.
+ * The Supabase key here is the PUBLIC publishable key (the legacy anon key
+ * works too), which is safe to ship in a static bundle as long as row-level
+ * security is enabled. See supabase/schema.sql. Leave `url` empty to run
+ * without a backend - the app falls back to per-device localStorage and says
+ * so in the UI.
  */
 
 export const CONFIG = Object.freeze({
   /** Where the data files live, relative to index.html. One folder per league. */
   dataPath: "./data",
 
-  /** Shared-state backend. */
+  /**
+   * Shared-state backend. Both values come from the Supabase dashboard under
+   * Settings -> API Keys: the Project URL and the Publishable key.
+   */
   supabase: {
-    url: "",
-    anonKey: "",
+    url: "https://jxeeyksvhutlghmhizjg.supabase.co",
+    publishableKey: "sb_publishable_EbjNYo4wYu2eRK89vgvF8w_aSEHXU2a",
     table: "entries",
-    /** Row id both people read and write. One row = one pool entry. */
-    entryId: "shared",
   },
 
   /**
-   * Writes are gated behind this passphrase when Supabase is configured.
-   * Not real security - it stops a stray link-holder from editing the entry.
-   * Leave empty to allow any viewer to write.
+   * The pool passcode.
+   *
+   * Asked for once per device, the first time the board is opened there, and
+   * remembered after that. The same value unlocks writes to the shared entry
+   * when Supabase is configured. It ships in this file, so it is a gate
+   * against a passer-by, not a lock against anyone determined. Leave empty for
+   * no gate.
    */
-  writePassphrase: "",
+  passcode: "Jww%62p%Sn@Ivv4a8Z@05Vq$b",
 
   /** localStorage key used by the offline store. */
   localStorageKey: "survivor-board/entry/v1",
 
   /**
-   * Manual refresh.
-   *
-   * A static page cannot hold a GitHub token, so the button posts to a small
-   * server-side endpoint that owns the secret and calls workflow_dispatch.
-   * See supabase/functions/refresh/ and docs/DEPLOY.md.
-   *
-   * Leave dispatchUrl empty and the button still works: it re-reads
-   * data/odds.json, which picks up a commit the bot has already made.
+   * When the odds bot runs. Must match the cron in
+   * .github/workflows/refresh-odds.yml; the board only uses it to show when the
+   * next pull is due. Once a day keeps two leagues inside the free Odds API
+   * quota: 4 credits per league per run against 500 a month.
    */
   refresh: {
-    /** Must match the cron in .github/workflows/refresh-odds.yml. */
-    everyHours: 6,
+    hourUtc: 14,
     minuteUtc: 0,
-    dispatchUrl: "",
-    /** Sent as x-refresh-key. Not a secret that protects anything valuable -
-        it only stops a passer-by from queueing workflow runs. */
-    key: "",
   },
 });
 
 /**
  * Where one league's entry is stored, in each of the three backends.
  *
- * The college pool predates the NFL one and its state is already saved under
- * the unsuffixed names, so it keeps them. Anything else is namespaced, which
- * is what stops one league's locks from landing on the other's board.
+ * In Supabase the row id is simply the league id, matching the folder under
+ * data/ and the seed in supabase/schema.sql. The two per-device backends keep
+ * their older shape: the college pool predates the NFL one and its state is
+ * already saved under the unsuffixed names, so it keeps them, and anything
+ * else is namespaced, which is what stops one league's locks from landing on
+ * the other's board.
  */
 export function scopeFor(league) {
   const suffix = league === "cfb" ? "" : `/${league}`;
   return {
     doc: league === "cfb" ? "entry/shared" : `entry/${league}`,
-    entryId: league === "cfb" ? CONFIG.supabase.entryId : `${CONFIG.supabase.entryId}-${league}`,
+    entryId: league,
     storageKey: `${CONFIG.localStorageKey}${suffix}`,
   };
 }
