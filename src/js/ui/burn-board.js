@@ -17,78 +17,73 @@ export function renderBurnBoard(root, legendEl, board, teams) {
   // SP+ for college, market power ratings for the NFL. The file says which.
   const scale = teams.ratingSource ?? "rating";
 
-  const sorted = Object.entries(roster).sort(([, a], [, b]) => b.rating - a.rating);
-  let open = 0;
+  const sorted = Object.entries(roster).sort(
+    ([teamA, a], [teamB, b]) => b.rating - a.rating || teamA.localeCompare(teamB),
+  );
 
   root.innerHTML = sorted
     .map(([team, { rating }], index) => {
       const mark = markFor(board, team);
-      if (!mark) open += 1;
-      const badge = mark ? `${mark.letter}${mark.week}` : `${rating > 0 ? "+" : ""}${rating}`;
+      const rank = index + 1;
+      const badge = mark ? `W${mark.week}` : `${rating > 0 ? "+" : ""}${rating}`;
       return `
         <div class="burn__team${mark ? ` burn__team--${mark.state}` : ""}" style="--i:${index}"
-             title="${escapeHtml(team)} · ${escapeHtml(scale)} ${rating}${mark ? ` · ${mark.title}` : ""}">
-          <span>${escapeHtml(team)}</span>
+             title="${escapeHtml(team)} · power rank #${rank} · ${escapeHtml(scale)} ${rating}${mark ? ` · ${mark.title}` : ""}">
+          <span class="burn__identity">
+            <span class="burn__rank" aria-label="Power rank ${rank}">#${rank}</span>
+            <span class="burn__name">${escapeHtml(team)}</span>
+          </span>
           <span class="burn__rating">${escapeHtml(badge)}</span>
         </div>`;
     })
     .join("");
 
-  legendEl.innerHTML = legendMarkup(board, open);
+  legendEl.innerHTML = legendMarkup();
 }
 
 /** Locked beats picked beats planned, so a team shows its firmest commitment. */
 function markFor(board, team) {
   const spent = board.spentTeams[team];
   if (spent !== undefined) {
-    return { state: "spent", letter: "W", week: spent, title: `locked week ${spent}` };
+    return { state: "spent", week: spent, title: `locked week ${spent}` };
   }
   const picked = board.pickedTeams[team];
   if (picked !== undefined) {
     return {
       state: "picked",
-      letter: "W",
       week: picked,
       title: `picked week ${picked}, not locked`,
     };
   }
   const planned = board.plannedTeams[team];
   if (planned !== undefined) {
-    return { state: "planned", letter: "P", week: planned, title: `coach plan week ${planned}` };
+    return { state: "planned", week: planned, title: `coach plan week ${planned}` };
   }
   return null;
 }
 
-/** One entry per state the chart can show, each with how many teams are in it. */
-function legendMarkup(board, open) {
+/** One compact sample for each state the chart can show. */
+function legendMarkup() {
   const items = [
     {
       swatch: "burn__team--spent",
       badge: "W3",
       key: "Locked",
-      count: board.spentCount,
-      note: "confirmed, W and the week it is reserved",
     },
     {
       swatch: "burn__team--picked",
       badge: "W5",
       key: "Picked",
-      count: board.pickedCount,
-      note: "outlined, not locked yet",
     },
     {
       swatch: "burn__team--planned",
-      badge: "P7",
-      key: "Coach plan",
-      count: board.plannedCount,
-      note: "pencilled in, P and the week the coach would take it",
+      badge: "W7",
+      key: "Coach Plan",
     },
     {
       swatch: "legend__swatch--open",
       badge: "+21",
       key: "Open",
-      count: open,
-      note: "the number is the power rating",
     },
   ];
 
@@ -97,18 +92,11 @@ function legendMarkup(board, open) {
       (item) => `
       <div class="legend__item">
         <span class="burn__team legend__swatch ${item.swatch}" aria-hidden="true">
-          <span>Team</span>
+          <span class="burn__identity"><span class="burn__name">Team</span></span>
           <span class="burn__rating">${item.badge}</span>
         </span>
-        <span class="legend__text">
-          <span class="legend__key">${escapeHtml(item.key)}</span>
-          <span class="legend__note">${teamCount(item.count)} &middot; ${escapeHtml(item.note)}</span>
-        </span>
+        <span class="legend__key">${escapeHtml(item.key)}</span>
       </div>`,
     )
     .join("");
-}
-
-function teamCount(count) {
-  return `${count} team${count === 1 ? "" : "s"}`;
 }

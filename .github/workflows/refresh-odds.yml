@@ -1,12 +1,12 @@
 name: Refresh odds
 
-# Once a day at 14:00 UTC, 10am Eastern in September. That is the free Odds API
-# quota talking: a run costs 4 credits per league (2 for lines, 2 for scores),
-# so two leagues daily is about 250 of the 500 a month. GitHub queues scheduled
-# runs on shared capacity, so the fire time drifts by a few minutes.
-# The hour must match refresh.hourUtc in src/js/config.js.
+# Once a day at 9am Toronto time. GitHub cron is UTC-only, so both possible UTC
+# hours are scheduled and the first step keeps only the one that lands in the
+# 9am local hour. That preserves the clock time across daylight-saving changes.
+# The local time and timezone must match CONFIG.refresh in src/js/config.js.
 on:
   schedule:
+    - cron: "0 13 * * *"
     - cron: "0 14 * * *"
   # Run it by hand from the Actions tab to test. schedule and workflow_dispatch
   # are independent triggers, so a manual run never moves the next daily one.
@@ -26,19 +26,35 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     steps:
+      - name: Check the Toronto refresh window
+        id: refresh-time
+        env:
+          TZ: America/Toronto
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] || [ "$(date +%H)" = "09" ]; then
+            echo "due=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "due=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping the alternate UTC slot."
+          fi
+
       - uses: actions/checkout@v7
+        if: steps.refresh-time.outputs.due == 'true'
 
       - uses: actions/setup-node@v7
+        if: steps.refresh-time.outputs.due == 'true'
         with:
           node-version: "24"
 
       - name: Fetch current lines
+        if: steps.refresh-time.outputs.due == 'true'
         id: refresh
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: node scripts/refresh-odds.mjs
 
       - name: Commit if the numbers moved
+        if: steps.refresh-time.outputs.due == 'true'
         id: commit
         run: |
           if git diff --quiet -- 'data/*/odds.json'; then
@@ -54,7 +70,7 @@ jobs:
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Open an issue when a pick is in danger
-        if: steps.refresh.outputs.flagged != '' && steps.refresh.outputs.flagged != '0'
+        if: steps.refresh-time.outputs.due == 'true' && steps.refresh.outputs.flagged != '' && steps.refresh.outputs.flagged != '0'
         uses: actions/github-script@v9
         with:
           script: |

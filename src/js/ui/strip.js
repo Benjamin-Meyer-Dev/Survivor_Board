@@ -9,16 +9,16 @@ export function renderStrip(root, board) {
   const season = seasonSurvival(board);
   const cells = [
     {
-      key: "On the clock",
+      key: "On the Clock",
       value: `Week ${board.currentWeek}`,
       note: board.weeks[board.currentWeek - 1]?.labelFull ?? "",
     },
     {
-      key: "Season survival",
+      key: "Season Survival",
       ...season,
     },
     {
-      key: "Next refresh",
+      key: "Next Refresh",
       // Ticked in place by app.js rather than re-rendered, so the button below
       // it never loses focus mid-second.
       value: `<span id="countdown">${escapeHtml(formatDuration(board.nextRefreshAt - Date.now()))}</span>`,
@@ -32,8 +32,8 @@ export function renderStrip(root, board) {
       (cell) => `
       <div class="strip__cell">
         <span class="strip__key">${escapeHtml(cell.key)}</span>
-        <span class="strip__value${cell.comparison ? " strip__value--comparison" : ""}">${cell.raw ? cell.value : escapeHtml(cell.value)}</span>
-        <span class="strip__note">${escapeHtml(cell.note)}</span>
+        <span class="strip__value">${cell.raw ? cell.value : escapeHtml(cell.value)}</span>
+        <span class="strip__note">${cell.noteRaw ? cell.note : escapeHtml(cell.note)}</span>
       </div>`,
     )
     .join("");
@@ -61,10 +61,9 @@ function seasonSurvival(board) {
         ? "worse"
         : "even";
   return {
-    value: `<span>${formatPercent(board.pathProbability)}</span><span class="strip__arrow" aria-hidden="true">→</span><span class="strip__preview strip__preview--${change}">${formatPercent(board.previewPathProbability)}</span>`,
-    note: "current → if locked",
-    raw: true,
-    comparison: true,
+    value: formatPercent(board.pathProbability),
+    note: `<span class="strip__preview strip__preview--${change}">→ ${formatPercent(board.previewPathProbability)} if locked</span>`,
+    noteRaw: true,
   };
 }
 

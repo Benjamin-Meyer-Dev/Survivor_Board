@@ -15,6 +15,8 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
+import { CONFIG } from "../src/js/config.js";
+import { buildBoard } from "../src/js/core/plan.js";
 import { LEAGUE_IDS, LEAGUES } from "../src/js/leagues.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -36,9 +38,10 @@ if (failed) process.exit(1);
 async function validate(league) {
   const read = async (name) => JSON.parse(await readFile(join(ROOT, "data", league, name), "utf8"));
 
-  const [plan, teams, schedule, ratings] = await Promise.all([
+  const [plan, teams, odds, schedule, ratings] = await Promise.all([
     read("plan.json"),
     read("teams.json"),
+    read("odds.json"),
     read("schedule.json"),
     read("ratings.json"),
   ]);
@@ -143,6 +146,33 @@ async function validate(league) {
   const rated = new Set(Object.keys(ratings.ratings));
   for (const team of eligible) {
     if (!rated.has(team)) failures.push(`"${team}" is eligible but has no ${scale} rating`);
+  }
+
+  // A matchup between two eligible teams creates two legal choices: either
+  // side can be selected. Check the derived list the UI receives, not merely
+  // the source schedule, so dropping one direction cannot pass validation.
+  const board = buildBoard({
+    plan,
+    odds,
+    teams,
+    schedule,
+    ratings,
+    entry: { picks: {}, swaps: {} },
+    refreshSchedule: CONFIG.refresh,
+  });
+  for (const week of board.weeks) {
+    const choices = new Set(
+      (week.picks[0]?.options ?? []).map((option) => `${option.team}\u0000${option.opponent}`),
+    );
+    for (const game of schedule.weeks[String(week.week)] ?? []) {
+      if (!eligible.has(game.home) || !eligible.has(game.away)) continue;
+      if (!choices.has(`${game.home}\u0000${game.away}`)) {
+        failures.push(`week ${week.week}: selectable list is missing ${game.home} vs ${game.away}`);
+      }
+      if (!choices.has(`${game.away}\u0000${game.home}`)) {
+        failures.push(`week ${week.week}: selectable list is missing ${game.away} vs ${game.home}`);
+      }
+    }
   }
 
   const totalPicks = plan.weeks.reduce((sum, week) => sum + week.picks.length, 0);

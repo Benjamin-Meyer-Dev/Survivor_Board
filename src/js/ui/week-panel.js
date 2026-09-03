@@ -269,10 +269,10 @@ function weekMarkup(week, board, canWrite) {
         ${
           covered
             ? `<span class="chip chip--buyback"
-                     title="A loss this week costs the buy back, not the season. The team is still burned.">Buy back</span>`
+                     title="A loss this week costs the buy back, not the season. The team is still burned.">Buy Back</span>`
             : ""
         }
-        ${isCurrent ? '<span class="chip chip--lock">On the clock</span>' : ""}
+        ${isCurrent ? '<span class="chip chip--lock">On the Clock</span>' : ""}
       </div>
       <div class="panel__slots">
         ${week.picks.map((pick) => renderSlot(pick, board, canWrite)).join("")}
@@ -286,7 +286,7 @@ function weekMarkup(week, board, canWrite) {
  * unlocked. Empty slots are handled apart.
  *
  * Every slot has the same rows in the same order - eyebrow, team, matchup,
- * numbers, actions, stamp, list - so a pick, a lock or a clear changes what
+ * numbers, actions, stamp, list - so a pick or lock changes what
  * the rows say without moving the list beneath them.
  */
 function renderSlot(pick, board, canWrite) {
@@ -298,11 +298,9 @@ function renderSlot(pick, board, canWrite) {
     <div class="slot ${status.locked ? "slot--locked" : "slot--picked"}">
       <div class="slot__head">
         <div class="slot__identity">
-          <div class="u-eyebrow slot__eyebrow">${status.locked ? "Locked in" : "Your pick"}</div>
+          <div class="u-eyebrow slot__eyebrow">${status.locked ? "Locked In" : "Your Pick"}</div>
           <div class="slot__team">${escapeHtml(pick.team)}</div>
-          <div class="slot__matchup">
-            ${escapeHtml(formatMatchup(pick.site, pick.opponent))} &middot; ${escapeHtml(pick.conference)}
-          </div>
+          ${matchupLine(pick, pick, canWrite)}
         </div>
         <span class="chip chip--${pick.tier}">${TIER_LABEL[pick.tier]}</span>
         ${pick.isRecommended ? '<span class="chip chip--rec" title="This is the coach’s call">Coach</span>' : ""}
@@ -316,7 +314,6 @@ function renderSlot(pick, board, canWrite) {
         ${button("lock", pick, status.locked ? "Locked" : "Lock in", status.locked ? "btn--active" : "", canWrite && !status.result)}
         ${button("won", pick, "Won", status.result === "W" ? "btn--won" : "", canWrite && status.locked)}
         ${button("lost", pick, "Lost", status.result === "L" ? "btn--lost" : "", canWrite && status.locked)}
-        ${button("clear", pick, "Clear", "", canWrite)}
       </div>
 
       ${stamp(status)}
@@ -336,16 +333,14 @@ function renderEmptySlot(pick, board, canWrite) {
 
   const head = suggestion
     ? `<div class="slot__identity">
-          <div class="u-eyebrow slot__eyebrow slot__eyebrow--coach">Coach suggests</div>
+          <div class="u-eyebrow slot__eyebrow slot__eyebrow--coach">Coach Suggests</div>
           <div class="slot__team">${escapeHtml(suggestion.team)}</div>
-          <div class="slot__matchup">
-            ${escapeHtml(formatMatchup(suggestion.site, suggestion.opponent))} &middot; ${escapeHtml(suggestion.conference)}
-          </div>
+          ${matchupLine(pick, suggestion, canWrite)}
         </div>
         <span class="chip chip--${suggestion.tier}">${TIER_LABEL[suggestion.tier]}</span>
         <span class="chip chip--coach">Suggestion</span>`
     : `<div class="slot__identity">
-          <div class="u-eyebrow slot__eyebrow">Open slot</div>
+          <div class="u-eyebrow slot__eyebrow">Open Slot</div>
           <div class="slot__team slot__team--blank">${pending ? WORKING : "No pick yet"}</div>
           <div class="slot__matchup">
             ${pending ? "The coach is planning the season." : "Pick a team from the list below."}
@@ -362,13 +357,41 @@ function renderEmptySlot(pick, board, canWrite) {
         ${button("lock", pick, "Lock in", "", false)}
         ${button("won", pick, "Won", "", false)}
         ${button("lost", pick, "Lost", "", false)}
-        ${button("clear", pick, "Clear", "", false)}
       </div>
 
       ${stamp(pick.status)}
 
       ${renderTeamList(pick, canWrite)}
     </div>`;
+}
+
+/**
+ * The reverse side is a shortcut only when it is a legal option right now.
+ * `disabled` already accounts for teams locked in another week or held by the
+ * other NCAA slot, while absence from the options means the opponent is not an
+ * eligible team for this pool.
+ */
+function matchupLine(pick, shown, canWrite) {
+  const reverse =
+    canWrite && !pick.status.locked
+      ? pick.options.find(
+          (option) =>
+            option.team === shown.opponent && option.opponent === shown.team && !option.disabled,
+        )
+      : null;
+
+  return `<div class="slot__matchup">
+    <span>${escapeHtml(formatMatchup(shown.site, shown.opponent))} &middot; ${escapeHtml(shown.conference)}</span>
+    ${
+      reverse
+        ? `<button type="button" class="slot__flip"
+             data-action="pick" data-week="${pick.week}" data-slot="${pick.slot}"
+             data-team="${escapeHtml(reverse.team)}"
+             aria-label="Flip this pick to ${escapeHtml(reverse.team)}"
+             title="Pick the other side of this matchup">&#8646; Flip to ${escapeHtml(reverse.team)}</button>`
+        : ""
+    }
+  </div>`;
 }
 
 /**
@@ -383,14 +406,14 @@ function renderTeamList(pick, canWrite) {
   const locked = Boolean(pick.status.locked);
   const available = pick.options.filter((option) => !option.disabled).length;
   const label = locked
-    ? "Unlock to change the team"
-    : `${pick.team ? "Change the team" : "Pick a team"}: ${available} available`;
+    ? "Unlock to Change the Team"
+    : `${pick.team ? "Change the Team" : "Pick a Team"}: ${available} Available`;
 
   return `
       <div class="swap${locked ? " swap--locked" : ""}">
         <label class="u-eyebrow swap__label" for="filter-${id}">${label}</label>
         <input class="swap__filter" type="search" id="filter-${id}"
-               placeholder="Filter teams" autocomplete="off"
+               placeholder="Filter Teams" autocomplete="off"
                data-filter="${id}" ${canWrite ? "" : "disabled"}>
         <div class="swap__list" data-list="${id}">
           ${pick.options.map((option) => renderOption(pick, option, canWrite && !locked)).join("")}
@@ -402,7 +425,7 @@ function renderOption(pick, option, canPick) {
   const classes = [
     "swap__option",
     option.isCurrent ? "swap__option--current" : "",
-    option.disabled ? "swap__option--disabled" : "",
+    option.disabled && !option.isCurrent ? "swap__option--disabled" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -412,8 +435,8 @@ function renderOption(pick, option, canPick) {
             data-action="pick" data-week="${pick.week}" data-slot="${pick.slot}"
             data-team="${escapeHtml(option.team)}"
             data-search="${escapeHtml((option.team + " " + option.opponent).toLowerCase())}"
-            ${canPick && !option.disabled ? "" : "disabled"}
-            ${option.isCurrent ? 'aria-current="true"' : ""}>
+            ${canPick && (!option.disabled || option.isCurrent) ? "" : "disabled"}
+            ${option.isCurrent ? 'aria-current="true" title="Tap again to clear this pick"' : ""}>
       <span class="swap__team">
         <span class="swap__name">${escapeHtml(option.team)}</span>${option.isCoach ? '<span class="swap__tag">Coach</span>' : ""}
       </span>
@@ -433,7 +456,7 @@ function numbers(line) {
   return `
       <div class="slot__numbers">
         ${metric("Spread", line ? formatSpread(line.spread) : "—", false, line?.tier)}
-        ${metric("Win prob", line ? formatPercent(line.winProb) : "—", false, line?.tier)}
+        ${metric("Win Probability", line ? formatPercent(line.winProb) : "—", false, line?.tier)}
         ${metric("Line", line ? (line.source === "market" ? "Market" : "Projected") : "—", true)}
       </div>`;
 }

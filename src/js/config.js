@@ -49,14 +49,15 @@ export const CONFIG = Object.freeze({
   localStorageKey: "survivor-board/entry/v1",
 
   /**
-   * When the odds bot runs. Must match the cron in
+   * When the odds bot runs. Must match the timezone-aware schedule in
    * .github/workflows/refresh-odds.yml; the board only uses it to show when the
    * next pull is due. Once a day keeps two leagues inside the free Odds API
    * quota: 4 credits per league per run against 500 a month.
    */
   refresh: {
-    hourUtc: 14,
-    minuteUtc: 0,
+    hour: 9,
+    minute: 0,
+    timeZone: "America/Toronto",
   },
 });
 

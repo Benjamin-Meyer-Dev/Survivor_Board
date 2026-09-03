@@ -266,7 +266,14 @@ function handleAction({ action, week, slot, team }) {
       // its team until it is unlocked. Picking never commits: the coach plans
       // as if the slot were still open until it is locked.
       if (!team || held?.status.locked) return;
-      app.entry.swaps[key] = team;
+      if (held?.team === team) {
+        // The selected row is the clear control too: tapping it again returns
+        // the slot to the coach without needing a separate action button.
+        delete app.entry.picks[key];
+        delete app.entry.swaps[key];
+      } else {
+        app.entry.swaps[key] = team;
+      }
       break;
     case "lock":
       if (current.locked) {
@@ -296,16 +303,11 @@ function handleAction({ action, week, slot, team }) {
         at: Date.now(),
       };
       break;
-    case "clear":
-      // Empties the slot: the lock, the result and the team all go.
-      delete app.entry.picks[key];
-      delete app.entry.swaps[key];
-      break;
     default:
       return;
   }
 
-  if (action !== "clear") app.effect = { week, slot, className: EFFECT_FOR[action] };
+  app.effect = { week, slot, className: EFFECT_FOR[action] };
 
   // A lock, an unlock or a result changes what the coach has to plan around,
   // and the search that answers it blocks the main thread. Paint the change

@@ -35,10 +35,10 @@ const nothing = () => ({ picks: {}, swaps: {} });
 
 // Close favourites and actual underdogs must never share the same warning.
 assert.equal(confidenceTier(0.645, plan.tiers), "close");
-assert.equal(TIER_LABEL.close, "Close call");
+assert.equal(TIER_LABEL.close, "Close Call");
 assert.equal(confidenceTier(0.5, plan.tiers), "close");
 assert.equal(confidenceTier(0.499, plan.tiers), "danger");
-assert.equal(TIER_LABEL.danger, "Upset alert");
+assert.equal(TIER_LABEL.danger, "Upset Alert");
 
 // An untouched board: no team in any slot, nothing spent, and a suggestion
 // standing in for every open slot.

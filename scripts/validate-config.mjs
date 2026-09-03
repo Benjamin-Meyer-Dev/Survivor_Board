@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { CONFIG } from "../src/js/config.js";
 import { derivePasscodeDigest, isPasscodeDigest } from "../src/js/core/passcode.js";
+import { nextRefreshAt } from "../src/js/core/refresh.js";
 
 const { digest, salt } = CONFIG.passcode;
 assert.equal(typeof digest, "string", "passcode.digest must be a string");
@@ -41,6 +42,17 @@ assert.equal(
   known,
   "47a27e5728d783b045e55de889f8c805ae99be5a3ff652b399ef56effadb13e3",
   "derivePasscodeDigest changed: run `npm run passcode` and update this vector together",
+);
+
+assert.equal(
+  new Date(nextRefreshAt(Date.parse("2026-09-03T12:00:00Z"), CONFIG.refresh)).toISOString(),
+  "2026-09-03T13:00:00.000Z",
+  "summer refresh must be 9am Toronto time",
+);
+assert.equal(
+  new Date(nextRefreshAt(Date.parse("2026-01-03T13:00:00Z"), CONFIG.refresh)).toISOString(),
+  "2026-01-03T14:00:00.000Z",
+  "winter refresh must be 9am Toronto time",
 );
 
 console.log(

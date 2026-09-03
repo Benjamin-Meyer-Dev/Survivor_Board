@@ -115,10 +115,66 @@
 
 /* --- the switch itself --------------------------------------------------- */
 
-/* Every token above changes with the league, and the board is faded out while
-   that happens, so the swap of colour is hidden. The masthead is not faded, so
-   the few things in it that carry a themed colour are told to cross-fade
-   instead of cutting. */
+/* The two labels keep their own identities even while inactive. NCAA uses the
+   turf green and NFL uses primetime indigo, so changing leagues never turns
+   both halves into versions of the same shared blue. */
+:root {
+  --switch-nfl: #2c3f8f;
+  --switch-nfl-ink: #f8f9fe;
+  --switch-cfb: #1f7a4c;
+  --switch-cfb-ink: #f7fbf8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --switch-nfl: #93b4f0;
+    --switch-nfl-ink: #0a1122;
+    --switch-cfb: #58c98a;
+    --switch-cfb-ink: #07150d;
+  }
+}
+
+:root[data-theme="dark"] {
+  --switch-nfl: #93b4f0;
+  --switch-nfl-ink: #0a1122;
+  --switch-cfb: #58c98a;
+  --switch-cfb-ink: #07150d;
+}
+
+.league__btn[data-league="nfl"] {
+  color: var(--switch-nfl);
+}
+
+.league__btn[data-league="cfb"] {
+  color: var(--switch-cfb);
+}
+
+:root[data-league="nfl"] .league__marker {
+  background: var(--switch-nfl);
+}
+
+:root[data-league="cfb"] .league__marker {
+  background: var(--switch-cfb);
+}
+
+.league__btn[data-league="nfl"][aria-pressed="true"] {
+  color: var(--switch-nfl-ink);
+}
+
+.league__btn[data-league="cfb"][aria-pressed="true"] {
+  color: var(--switch-cfb-ink);
+}
+
+.league__btn[data-league="nfl"]:focus-visible {
+  outline-color: var(--switch-nfl);
+}
+
+.league__btn[data-league="cfb"]:focus-visible {
+  outline-color: var(--switch-cfb);
+}
+
+/* Every board token changes with the league, and the board is faded out while
+   that happens. The masthead stays visible, so its colours cross-fade. */
 .league__marker {
   transition:
     transform 0.26s var(--ease-snap, ease-out),

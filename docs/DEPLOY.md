@@ -150,21 +150,22 @@ a pick on one and watch it land on the other.
 
 ### The schedule
 
-The bot runs once a day at 14:00 UTC: 10am Eastern now, 9am after the clocks
-change in November. That is the free plan talking. A run costs 4 credits per
-league (2 for the lines, 2 for scores), the free plan is 500 credits a month,
-and two leagues once a day is about 250 of them. Every six hours, the original
-cadence, would be about 960 and run out in two weeks.
+The bot runs once a day at 9:00am Toronto time. The workflow schedules both UTC
+hours that Toronto can use and skips the alternate, so the local time stays at
+9:00am across daylight-saving changes. A run costs 4 credits per league (2 for
+the lines, 2 for scores), the free plan is 500 credits a month, and two leagues
+once a day is about 250 of them. Every six hours, the original cadence, would be
+about 960 and run out in two weeks.
 
 Once a day is enough for a survivor pool. Lines move most in the 24 hours before
-kickoff, and the 10am pull is the morning number on game day for both leagues.
+kickoff, and the 9am pull is the morning number on game day for both leagues.
 Results land through the same run, within three days of a game.
 
 If you ever want it more often, do the sum first: 8 credits per run for two
 leagues against 500 a month, or pay $30 a month for the 20K plan and forget
-about it. To change the hour, edit the cron in
-`.github/workflows/refresh-odds.yml` and `refresh.hourUtc` in `src/js/config.js`
-together, so the countdown on the board matches.
+about it. To change the hour or timezone, edit the cron and local-time guard in
+`.github/workflows/refresh-odds.yml` together with `refresh` in
+`src/js/config.js`, so the countdown on the board matches.
 
 The **Run workflow** button in the Actions tab is the only manual refresh, and it
 is there for testing. Each press costs the same 8 credits.
