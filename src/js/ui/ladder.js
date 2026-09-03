@@ -41,7 +41,7 @@ function rowMarkup(week, pick, board, showWeekProbability) {
     .join(" ");
 
   return `
-    <tr class="${classes}" data-week="${week.week}">
+    <tr class="${classes}" data-week="${week.week}" data-motion-key="ladder-${week.week}-${pick.slot}">
       <td class="ladder__week">${isFirstSlot ? week.week : ""}</td>
       <td class="is-wide-only" style="color:var(--ink-3);font-size:12px">${isFirstSlot ? escapeHtml(week.labelFull) : ""}</td>
       <td class="ladder__team">${shown ? escapeHtml(shown.team) : pending ? PLANNING : "No pick"}</td>

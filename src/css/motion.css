@@ -256,6 +256,54 @@
   animation-delay: 0.06s;
 }
 
+/* --- changing data ------------------------------------------------------ */
+
+/* Re-rendered nodes cannot transition from their discarded predecessor, so
+   stable data keys in the markup identify replacements whose value or state
+   actually changed. They settle in once, while untouched content stays still. */
+@keyframes data-settle {
+  from {
+    opacity: 0.38;
+    transform: translateY(4px);
+    filter: saturate(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+.strip__value.is-data-updated,
+.strip__note.is-data-updated {
+  animation: data-settle 0.32s var(--ease-out) both;
+}
+
+.burn__team.is-data-updated {
+  animation: data-settle 0.38s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 3ms);
+}
+
+.ladder tr.is-data-updated > td {
+  animation: data-settle 0.3s var(--ease-out) both;
+}
+
+.slot.is-data-updated .slot__head,
+.slot.is-data-updated .slot__numbers,
+.slot.is-data-updated .actions,
+.slot.is-data-updated .slot__stamp {
+  animation: data-settle 0.34s var(--ease-out) both;
+}
+
+.slot.is-data-updated .slot__numbers {
+  animation-delay: 35ms;
+}
+
+.slot.is-data-updated .actions,
+.slot.is-data-updated .slot__stamp {
+  animation-delay: 65ms;
+}
+
 /* --- a pick changing ----------------------------------------------------- */
 
 .slot {

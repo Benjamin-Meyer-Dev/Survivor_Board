@@ -9,21 +9,29 @@ export function renderStrip(root, board) {
   const season = seasonSurvival(board);
   const cells = [
     {
+      id: "clock",
       key: "On the clock",
       value: `Week ${board.currentWeek}`,
       note: board.weeks[board.currentWeek - 1]?.labelFull ?? "",
+      motionValue: true,
+      motionNote: true,
     },
     {
+      id: "survival",
       key: "Season survival",
       ...season,
+      motionValue: true,
+      motionNote: true,
     },
     {
+      id: "refresh",
       key: "Next refresh",
       // Ticked in place by app.js rather than re-rendered, so the button below
       // it never loses focus mid-second.
       value: `<span id="countdown">${escapeHtml(formatDuration(board.nextRefreshAt - Date.now()))}</span>`,
       raw: true,
       note: `Daily at ${refreshTime(board.nextRefreshAt)} local · Last ${timeAgo(board.updatedAt)}`,
+      motionNote: true,
     },
   ];
 
@@ -32,8 +40,8 @@ export function renderStrip(root, board) {
       (cell) => `
       <div class="strip__cell">
         <span class="strip__key">${escapeHtml(cell.key)}</span>
-        <span class="strip__value">${cell.raw ? cell.value : escapeHtml(cell.value)}</span>
-        <span class="strip__note">${cell.noteRaw ? cell.note : escapeHtml(cell.note)}</span>
+        <span class="strip__value"${cell.motionValue ? ` data-motion-key="strip-value-${cell.id}"` : ""}>${cell.raw ? cell.value : escapeHtml(cell.value)}</span>
+        <span class="strip__note"${cell.motionNote ? ` data-motion-key="strip-note-${cell.id}"` : ""}>${cell.noteRaw ? cell.note : escapeHtml(cell.note)}</span>
       </div>`,
     )
     .join("");

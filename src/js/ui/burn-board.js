@@ -32,6 +32,7 @@ export function renderBurnBoard(root, legendEl, board, teams) {
         </span>`;
       return `
         <div class="burn__team${mark ? ` burn__team--${mark.state}` : ""}" style="--i:${index}"
+             data-motion-key="burn-${escapeHtml(team)}"
              title="${escapeHtml(team)} · power rank #${rank} · ${escapeHtml(scale)} ${rating}${mark ? ` · ${mark.title}` : ""}">
           <span class="burn__identity">
             <span class="burn__name">${escapeHtml(team)}</span>

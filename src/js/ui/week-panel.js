@@ -295,7 +295,8 @@ function renderSlot(pick, board, canWrite) {
   const { status } = pick;
 
   return `
-    <div class="slot ${status.locked ? "slot--locked" : "slot--picked"}">
+    <div class="slot ${status.locked ? "slot--locked" : "slot--picked"}"
+         data-motion-key="slot-${pick.week}-${pick.slot}">
       <div class="slot__head">
         <div class="slot__identity">
           <div class="u-eyebrow slot__eyebrow">${status.locked ? "Locked in" : "Your pick"}</div>
@@ -348,7 +349,7 @@ function renderEmptySlot(pick, board, canWrite) {
         </div>`;
 
   return `
-    <div class="slot slot--empty">
+    <div class="slot slot--empty" data-motion-key="slot-${pick.week}-${pick.slot}">
       <div class="slot__head">${head}</div>
 
       ${numbers(suggestion)}

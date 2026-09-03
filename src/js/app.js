@@ -147,6 +147,38 @@ async function loadJson(name, league = app.league) {
 
 let lastBoard = null;
 
+/** Capture stable UI nodes before a render so changed replacements can settle in. */
+function captureMotionState() {
+  const state = new Map();
+  for (const node of el.shell?.querySelectorAll("[data-motion-key]") ?? []) {
+    state.set(node.dataset.motionKey, motionSignature(node));
+  }
+  return state;
+}
+
+function motionSignature(node) {
+  const classes = [...node.classList].filter((name) => name !== "is-data-updated").join(" ");
+  return `${classes}|${node.innerHTML}`;
+}
+
+/** Animate only nodes whose content or state styling changed during the render. */
+function playDataUpdates(previous) {
+  if (previous.size === 0 || app.switching) return;
+
+  const changed = [];
+  for (const node of el.shell?.querySelectorAll("[data-motion-key]") ?? []) {
+    const before = previous.get(node.dataset.motionKey);
+    if (before !== undefined && before !== motionSignature(node)) {
+      node.classList.add("is-data-updated");
+      changed.push(node);
+    }
+  }
+
+  if (changed.length) {
+    setTimeout(() => changed.forEach((node) => node.classList.remove("is-data-updated")), 650);
+  }
+}
+
 /**
  * @param {{search?:boolean, settle?:number}} options Pass search:false to paint
  *   without waiting on the optimiser. Used when the board is new to this
@@ -155,6 +187,7 @@ let lastBoard = null;
  *   follow-up render fills it in once `settle` milliseconds have passed.
  */
 function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
+  const previousMotion = captureMotionState();
   const board = buildBoard({
     plan: app.plan,
     odds: app.odds,
@@ -189,6 +222,7 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
   renderBurnBoard(el.burn, el.burnLegend, board, app.teams);
+  playDataUpdates(previousMotion);
   playEffect();
 
   if (board.recommendationPending) scheduleRecommendation(settle);
@@ -404,9 +438,12 @@ async function switchLeague(league) {
   app.switching = true;
 
   renderLeagueSwitch(el.league, league, switchLeague);
-  applyTheme(league);
   el.shell?.classList.add("is-swapping");
   await twoFrames();
+  // The colour tokens switch inside openLeague. Let the old board finish its
+  // 160ms exit first so borders and badges cannot flash the incoming palette
+  // while they are still visible.
+  await new Promise((resolve) => setTimeout(resolve, 150));
 
   try {
     await openLeague(league);
