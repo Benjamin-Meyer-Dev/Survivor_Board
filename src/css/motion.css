@@ -279,7 +279,8 @@
 
 /* The strip fades a change in rather than settling it: its numbers sit in a
    fixed row, and a bob there read as the whole strip flinching. The season
-   number itself counts to its new value in ui/strip.js and needs no fade. */
+   cell opts out of this too (ui/strip.js gives it no motion keys) and has its
+   own cue below. */
 @keyframes data-fade {
   from {
     opacity: 0.3;
@@ -294,6 +295,42 @@
   animation: data-fade 0.3s ease-out both;
 }
 
+/* The season number says which way it went rather than that it moved. It cuts
+   straight to the new value, wears the colour of the direction for a beat and
+   eases back to ink. Colour only: a count through the intermediate values
+   flickered, and any dip in opacity read as the number blinking. The keyframe
+   ends on the token the strip inherits, since `inherit` cannot be animated
+   to. */
+@keyframes survival-rise {
+  0%,
+  35% {
+    color: var(--safe);
+  }
+  100% {
+    color: var(--ink);
+  }
+}
+
+@keyframes survival-fall {
+  0%,
+  35% {
+    color: var(--danger);
+  }
+  100% {
+    color: var(--ink);
+  }
+}
+
+/* 1.4s here is PULSE_MS in ui/strip.js; a render that lands mid-pulse resumes
+   it from where it was, and needs the same figure to know when it is over. */
+.strip__value.is-rising {
+  animation: survival-rise 1.4s ease-out both;
+}
+
+.strip__value.is-falling {
+  animation: survival-fall 1.4s ease-out both;
+}
+
 .burn__team.is-data-updated {
   animation: data-settle 0.38s var(--ease-out) both;
   animation-delay: calc(var(--i, 0) * 3ms);
@@ -303,7 +340,9 @@
   animation: data-settle 0.3s var(--ease-out) both;
 }
 
-.slot.is-data-updated .slot__head,
+/* The head's children rather than the head: the head is also the lock band,
+   and the band should stay put while what it holds settles. */
+.slot.is-data-updated .slot__head > *,
 .slot.is-data-updated .slot__numbers {
   animation: data-settle 0.34s var(--ease-out) both;
 }
@@ -318,9 +357,9 @@
   position: relative;
 }
 
-/* Colour wash for a lock, painted over the slot so it does not fight the
-   slot's own background. */
-.slot::after {
+/* Colour wash for a lock, painted over the head, where the lock colour
+   settles, so it does not fight the slot's own background. */
+.slot__head::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -338,7 +377,7 @@
   }
 }
 
-.slot.fx-lock::after {
+.slot.fx-lock .slot__head::after {
   background: var(--lock);
   animation: wash 0.5s ease-out;
 }

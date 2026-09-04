@@ -29,6 +29,13 @@ export async function createArtifactStore(league) {
     return value && typeof value === "object" ? value : null;
   };
 
+  /**
+   * The `at` stamps of this device's own saves. A snapshot carrying one is our
+   * own write coming back, and is dropped: let through late, after a quicker
+   * second tap, it put the first tap's state back on screen for a moment.
+   */
+  const ownStamps = new Set();
+
   return {
     kind: "artifact-db",
     shared: true,
@@ -46,7 +53,8 @@ export async function createArtifactStore(league) {
       try {
         return doc.onSnapshot((snapshot) => {
           const value = unwrap(snapshot);
-          if (value?.picks) listener({ ...emptyEntry(), ...value });
+          if (!value?.picks || ownStamps.has(value.at)) return;
+          listener({ ...emptyEntry(), ...value });
         });
       } catch {
         return () => {};
@@ -54,7 +62,9 @@ export async function createArtifactStore(league) {
     },
 
     async save(entry) {
-      await doc.set({ ...entry, at: Date.now() });
+      const at = Date.now();
+      ownStamps.add(at);
+      await doc.set({ ...entry, at });
     },
   };
 }

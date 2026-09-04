@@ -238,17 +238,29 @@ not configured or cannot connect. The app works either way; it just says which
 mode it is in. That means the site is useful the moment Pages is on, before
 any backend exists.
 
+The Supabase store gates what reaches the board by version, because rows do
+not arrive in order: a poll can be answered with the row as it stood before a
+tap, and realtime can deliver the echo of one save after the next one has gone.
+It drops its own echoes (it remembers the versions it saved), applies nothing
+while one of its saves is on the wire, and discards a poll whose answer lands
+after the version has moved on. `scripts/validate-store-sync.mjs` replays those
+orderings against a fake client.
+
 ## Deliberate omissions
 
 - **No framework.** The app is one screen with four regions. React would
   triple the payload and add a build step to a repo whose main advantage is
   not having one.
 - **No bundler.** Native ES modules. `index.html` is servable from disk.
-- **No precache list in the service worker.** `sw.js` is network-first and
-  keeps only what the app has already fetched, so a deploy or an odds commit
-  needs no cache busting and there is no manifest of files to keep in step with
-  the repo. The trade is that offline shows the last board this device loaded
-  rather than a guaranteed-complete app.
+- **No precache list in the service worker.** `sw.js` keeps only what the app
+  has already fetched, so there is no manifest of files to keep in step with
+  the repo. The shell (page, styles, modules, icons, fonts, the Supabase client)
+  opens from the cache and refreshes behind the scenes, which is what makes a
+  home-screen launch instant; a deploy is picked up on the launch after the one
+  that fetched it. The data files go network-first with a time limit, so an
+  odds commit still lands the moment it is published and a weak signal falls
+  back to the last copy rather than hanging. Offline shows the last board this
+  device loaded rather than a guaranteed-complete app.
 - **No auth.** A shared passcode gates the board once per device and unlocks
   writes. Only its PBKDF2 digest ships in the page (`core/passcode.js`), so the
   passcode cannot be read out of the repo, but the check still runs in the

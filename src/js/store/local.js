@@ -33,13 +33,15 @@ export function createLocalStore(league) {
       return () => listeners.delete(listener);
     },
 
+    // Nothing is announced to listeners: there is no other device to hear
+    // from, and echoing a save back to the board that made it only ever let a
+    // quick second tap be overwritten by the first one's echo for a moment.
     async save(entry) {
       try {
         localStorage.setItem(key, JSON.stringify(entry));
       } catch {
         /* private mode, quota, or blocked storage - state stays in memory */
       }
-      for (const listener of listeners) listener(entry);
     },
   };
 }

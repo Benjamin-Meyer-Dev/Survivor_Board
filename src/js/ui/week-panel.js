@@ -507,7 +507,8 @@ function renderTeamList(pick, board, canWrite) {
  * One row of the list. The slot's own team is marked current; when the slot is
  * locked that row also wears the lock, so the list agrees with the slot head
  * about what is committed and the row reads as "not yours to tap" rather than
- * merely selected.
+ * merely selected. A row whose game has been played is marked settled: it is
+ * kept in view as a record of the week, but it is not a row anyone can take.
  */
 function renderOption(pick, option, canPick) {
   const locked = option.isCurrent && Boolean(pick.status.locked);
@@ -516,6 +517,7 @@ function renderOption(pick, option, canPick) {
     option.isCurrent ? "swap__option--current" : "",
     locked ? "swap__option--locked" : "",
     option.disabled && !option.isCurrent ? "swap__option--disabled" : "",
+    option.result ? "swap__option--settled" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -537,10 +539,33 @@ function renderOption(pick, option, canPick) {
         ${locked ? LOCK_ICON : ""}<span class="swap__name">${escapeHtml(option.team)}</span>${option.isCoach ? '<span class="swap__tag">Coach</span>' : ""}
       </span>
       <span class="swap__matchup">${escapeHtml(formatMatchup(option.site, option.opponent))}</span>
-      <span class="swap__spread swap__spread--${option.tier}">
-        ${option.reason ? escapeHtml(option.reason) : formatSpread(option.spread)}
-      </span>
+      ${line(option)}
     </button>`;
+}
+
+/**
+ * The right-hand end of a row: the spread and the win probability it implies,
+ * side by side in the tier's colour. A row that cannot be taken says why
+ * instead - or how it went, when the reason is that it has been played - since
+ * its numbers are not in play. Whole percentages here: the
+ * list runs to forty rows on a phone, and the decimal is on the slot above.
+ */
+function line(option) {
+  // Its game is over: the spread is history and the row is not a choice, so it
+  // reads as the outcome, in the outcome's colour rather than the tier's.
+  if (option.result) {
+    return `<span class="swap__line swap__line--${option.result === "W" ? "won" : "lost"}">
+        <span class="swap__spread">${option.result === "W" ? "Won" : "Lost"}</span>
+      </span>`;
+  }
+
+  const contents = option.reason
+    ? `<span class="swap__spread">${escapeHtml(option.reason)}</span>`
+    : `<span class="swap__spread">${escapeHtml(formatSpread(option.spread))}</span>
+        <span class="swap__prob">${escapeHtml(formatPercent(option.winProb, 0))}</span>`;
+  return `<span class="swap__line swap__line--${option.tier}">
+        ${contents}
+      </span>`;
 }
 
 /**

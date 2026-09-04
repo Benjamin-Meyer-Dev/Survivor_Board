@@ -22,11 +22,14 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Survivor" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <!-- Fetched with CORS so the service worker can keep a real copy and open
+         from it next time; without the attribute the response is opaque. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      crossorigin
     />
 
     <link rel="stylesheet" href="./src/css/tokens.css" />

@@ -5,18 +5,23 @@
 import { formatPercent, timeAgo, escapeHtml } from "../core/format.js";
 import { formatDuration } from "../core/refresh.js";
 
-/** How long the season number takes to count to a new value. */
-const TWEEN_MS = 480;
+/** How long the season number wears the colour of its change (see motion.css). */
+const PULSE_MS = 1400;
 
 /**
  * The last season number shown for each league. Held while a search is owed
- * (see seasonSurvival) and counted from when the new number lands (see
- * animateSurvival). Keyed by league so a switch never shows one pool's number
- * on the other's board.
+ * (see seasonSurvival) and compared against when the new number lands (see
+ * markChange). Keyed by league so a switch never shows one pool's number on the
+ * other's board.
  */
 const shown = new Map();
 
-let tweenFrame = 0;
+/**
+ * The change the season number is currently wearing, so a render that lands
+ * mid-pulse without moving the number (a store echo, a tab change) resumes it
+ * on the fresh node instead of cutting it short.
+ */
+let pulse = null;
 
 export function renderStrip(root, board) {
   const before = shown.get(board.league)?.probability;
@@ -34,11 +39,12 @@ export function renderStrip(root, board) {
       motionNote: true,
     },
     {
+      // No motion keys: the cell's only cue is the direction tint markChange
+      // puts on the number. The settle's fade on top of it read as a blink,
+      // and the note (which changes when the user taps a lock) just cuts.
       id: "survival",
       key: "Season survival",
       ...season,
-      motionValue: true,
-      motionNote: true,
     },
     {
       id: "refresh",
@@ -55,7 +61,7 @@ export function renderStrip(root, board) {
   root.innerHTML = cells
     .map(
       (cell) => `
-      <div class="strip__cell">
+      <div class="strip__cell" data-cell="${cell.id}">
         <span class="strip__key">${escapeHtml(cell.key)}</span>
         <span class="strip__value"${cell.motionValue ? ` data-motion-key="strip-value-${cell.id}"` : ""}>${cell.raw ? cell.value : escapeHtml(cell.value)}</span>
         <span class="strip__note"${cell.motionNote ? ` data-motion-key="strip-note-${cell.id}"` : ""}>${cell.noteRaw ? cell.note : escapeHtml(cell.note)}</span>
@@ -63,31 +69,39 @@ export function renderStrip(root, board) {
     )
     .join("");
 
-  animateSurvival(root, before, season.probability);
+  markChange(root, board.league, before, season.probability);
 }
 
 /**
- * Count the season number from what it was to what it is, instead of cutting.
- * The text is set back to the old value in the same frame it is rendered, so
- * the settle in app.js sees no change there and the count is the only motion.
- * Nothing to do on a league's first paint, when the value is not a number (Out,
- * the dots), when it did not change, or when motion is reduced.
+ * Say which way the season number went rather than that it moved. The number
+ * cuts to its new value and wears the colour of the direction for a beat (the
+ * keyframes in motion.css), then eases back to ink. Nothing dims, nothing
+ * shifts, no digits flicker: the strip is a fixed scoreboard line and stays one.
+ *
+ * Nothing to mark on a league's first paint, when the value is not a number
+ * (Out, the dots) or when it did not change. Reduced motion needs no check
+ * here: base.css switches the keyframes off and the number simply cuts.
  */
-function animateSurvival(root, from, to) {
-  cancelAnimationFrame(tweenFrame);
-  const el = root.querySelector('[data-motion-key="strip-value-survival"]');
-  if (!el || typeof from !== "number" || typeof to !== "number" || from === to) return;
-  if (globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+function markChange(root, league, from, to) {
+  const el = root.querySelector('[data-cell="survival"] .strip__value');
+  if (!el || typeof to !== "number") return;
 
-  el.textContent = formatPercent(from);
-  const start = performance.now();
-  const step = (now) => {
-    const t = Math.min(1, (now - start) / TWEEN_MS);
-    const eased = 1 - (1 - t) ** 3;
-    el.textContent = formatPercent(from + (to - from) * eased);
-    if (t < 1) tweenFrame = requestAnimationFrame(step);
-  };
-  tweenFrame = requestAnimationFrame(step);
+  if (typeof from === "number" && from !== to) {
+    pulse = {
+      league,
+      to,
+      direction: to > from ? "is-rising" : "is-falling",
+      startedAt: performance.now(),
+    };
+  }
+  if (!pulse || pulse.league !== league || pulse.to !== to) return;
+  const elapsed = performance.now() - pulse.startedAt;
+  if (elapsed >= PULSE_MS) return;
+
+  el.classList.add(pulse.direction);
+  // A negative delay starts the fresh node's keyframe part way through, where
+  // the one the render just destroyed had got to.
+  if (elapsed > 0) el.style.animationDelay = `-${Math.round(elapsed)}ms`;
 }
 
 /** The next run's clock time in the viewer's own timezone. */

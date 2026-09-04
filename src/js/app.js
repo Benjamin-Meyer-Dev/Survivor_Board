@@ -225,7 +225,10 @@ function motionSignature(node) {
  *   just decorated.
  */
 function playDataUpdates(previous, effect = null) {
-  if (previous.size === 0 || app.switching) return;
+  // Nothing to settle while the startup layer still covers the board: the
+  // search filling in behind it is the board arriving, not the board changing.
+  if (previous.size === 0 || app.switching || document.body.classList.contains("is-starting"))
+    return;
 
   const skip = new Set(effect?.nodes ?? []);
   const changed = [];
@@ -638,10 +641,28 @@ async function main() {
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#080b12");
   }
   await requirePasscode();
-  await Promise.all([openLeague(app.league), startupMinimum()]);
+  await Promise.all([openLeague(app.league).then(settleBeforeReveal), startupMinimum()]);
   await finishStartup();
   startClock();
   registerServiceWorker();
+}
+
+/**
+ * Run the season search the first render put off, while the startup layer
+ * still covers the board.
+ *
+ * The first render defers the search so a board can paint before the main
+ * thread freezes for it. At startup that deferral worked against us: the
+ * timer fired a few hundred milliseconds after the board was built, which was
+ * often partway through the crossfade from the startup layer, and the fade
+ * stalled and jumped. Behind the startup layer the freeze costs nothing to
+ * look at, since its play runs on the compositor, so the search goes there.
+ */
+function settleBeforeReveal() {
+  if (!app.recommendTimer) return;
+  clearTimeout(app.recommendTimer);
+  app.recommendTimer = null;
+  render();
 }
 
 main().catch((error) => {

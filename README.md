@@ -39,7 +39,7 @@ and automatic odds.
 ```
 index.html                    the whole UI shell
 manifest.webmanifest          makes it installable to a home screen
-sw.js                         service worker: install support, offline board
+sw.js                         service worker: install support, instant launch, offline board
 icons/                        home-screen icons, 192 · 512 · maskable · iOS, plus the SVG source
 
 data/cfb/  data/nfl/          one folder per league, same five files

@@ -900,8 +900,12 @@
   flex: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1px;
-  background: var(--line-soft);
+  /* Each slot is its own card on the page ground, with a gutter between. A
+     hairline was all that separated the two NCAA picks before, and once both
+     were locked their fills ran together into one field of colour. */
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-4) var(--sp-5);
+  background: var(--ground);
 }
 
 .slot__numbers > *,
@@ -912,15 +916,29 @@
 /* slot ------------------------------------------------------------------- */
 
 .slot {
+  /* The inset, as a pair so the head can bleed out to the card's edge and
+     take it back as padding (see .slot__head). The phone block narrows it. */
+  --slot-pad-y: var(--sp-5);
+  --slot-pad-x: var(--sp-5);
   background: var(--surface);
-  padding: var(--sp-5);
+  padding: var(--slot-pad-y) var(--slot-pad-x);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   /* Grid items default to min-width:auto, so long content (a 44px badge plus
      "SOUTH CAROLINA") widens the track instead of wrapping. */
   min-width: 0;
 }
 
+/* A lock colours the head, not the whole card: a band across the top says
+   "locked in" and leaves the numbers and the list on the plain surface. The
+   edge takes a little of the lock colour so the card agrees with its head. */
 .slot--locked {
+  border-color: color-mix(in srgb, var(--lock) 35%, var(--line));
+}
+
+.slot--locked .slot__head {
   background: var(--lock-bg);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--lock) 30%, transparent);
 }
 
 .slot--picked {
@@ -975,12 +993,19 @@
    line across the full width beneath (it is the last child and claims the whole
    row, see .slot__matchup). */
 .slot__head {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 10px;
-  margin-bottom: var(--sp-3);
-  min-height: 46px;
+  /* The head is a band across the top of the card. It bleeds out to the
+     card's edge and takes the inset back as padding, so painting it (a lock)
+     moves nothing inside it. */
+  margin: calc(-1 * var(--slot-pad-y)) calc(-1 * var(--slot-pad-x)) var(--sp-3);
+  padding: var(--slot-pad-y) var(--slot-pad-x) var(--sp-3);
+  border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
+  /* 46px of content; the box is border-box, so the padding counts too. */
+  min-height: calc(46px + var(--slot-pad-y) + var(--sp-3));
 }
 
 .slot__identity {
@@ -1486,7 +1511,15 @@
   white-space: nowrap;
 }
 
-.swap__spread {
+/* The line, pushed to the right: spread and win probability side by side in
+   the tier's colour. The tier is read off the probability (confidenceTier),
+   so both numbers wear it. Each has a floor width so the two columns line up
+   down the list whatever the digits. */
+.swap__line {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
   margin-left: auto;
   font-family: var(--font-mono);
   font-size: 12px;
@@ -1494,30 +1527,58 @@
   white-space: nowrap;
 }
 
-.swap__spread--safe {
+.swap__spread {
+  min-width: 5ch;
+  text-align: right;
+}
+
+.swap__prob {
+  min-width: 4ch;
+  text-align: right;
+}
+
+.swap__line--safe {
   color: var(--safe);
 }
 
-.swap__spread--solid {
+.swap__line--solid {
   color: var(--solid);
 }
 
-.swap__spread--thin {
+.swap__line--thin {
   color: var(--thin);
 }
 
-.swap__spread--close {
+.swap__line--close {
   color: var(--close);
 }
 
-.swap__spread--danger {
+.swap__line--danger {
   color: var(--danger);
 }
 
-.swap__option--disabled .swap__spread {
+/* An unavailable row says why in place of its numbers. */
+.swap__option--disabled .swap__line {
   color: var(--ink-3);
   font-family: var(--font-body);
   font-size: 11px;
+}
+
+/* A played game is unavailable too, but for a reason worth reading rather than
+   fading out: the week's record. So it keeps more of its contrast than a row
+   that is merely spoken for, and its outcome keeps the outcome's colour. Both
+   rules come after the disabled pair on purpose - they tie on specificity and
+   win on order. */
+.swap__option--settled {
+  opacity: 0.72;
+}
+
+.swap__option--settled .swap__line--won {
+  color: var(--safe);
+}
+
+.swap__option--settled .swap__line--lost {
+  color: var(--danger);
 }
 
 /* ladder (ui/ladder.js) -------------------------------------------------- */
@@ -2011,12 +2072,23 @@
     inset: -15px -3px;
   }
 
+  /* One column, and the cards run to the screen edge like the tab card they
+     sit in: no side borders or corners, the ground showing between them. */
   .panel__slots {
     grid-template-columns: 1fr;
+    gap: var(--sp-3);
+    padding: var(--sp-3) 0;
   }
 
   .slot {
-    padding: 18px var(--sp-4);
+    --slot-pad-y: 18px;
+    --slot-pad-x: var(--sp-4);
+    border-inline: 0;
+    border-radius: 0;
+  }
+
+  .slot__head {
+    border-radius: 0;
   }
 
   .slot__team {
@@ -2132,11 +2204,12 @@
     height: 17px;
   }
 
-  .swap__spread {
+  .swap__line {
+    gap: 8px;
     font-size: 13.5px;
   }
 
-  .swap__option--disabled .swap__spread {
+  .swap__option--disabled .swap__line {
     font-size: 12px;
   }
 
