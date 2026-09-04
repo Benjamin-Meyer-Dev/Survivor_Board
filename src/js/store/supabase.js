@@ -35,6 +35,7 @@ export async function createSupabaseStore(league) {
   const listeners = new Set();
   const expectedDigest = CONFIG.passcode.digest;
   let canWrite = !expectedDigest;
+  let lastVersion = null;
 
   return {
     kind: "supabase",
@@ -53,11 +54,12 @@ export async function createSupabaseStore(league) {
     async init() {
       const { data, error } = await client
         .from(table)
-        .select("entry")
+        .select("entry, updated_at")
         .eq("id", entryId)
         .maybeSingle();
 
       if (error || !data) return emptyEntry();
+      lastVersion = data.updated_at;
       return { ...emptyEntry(), ...data.entry };
     },
 
@@ -70,21 +72,62 @@ export async function createSupabaseStore(league) {
           "postgres_changes",
           { event: "*", schema: "public", table, filter: `id=eq.${entryId}` },
           (payload) => {
-            const entry = payload.new?.entry;
-            if (entry) listener({ ...emptyEntry(), ...entry });
+            publish(payload.new);
           },
         )
-        .subscribe();
+        .subscribe((status) => {
+          // A dropped websocket should not leave an open board stale until its
+          // next reload. Poll immediately while the normal fallback continues.
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") poll();
+        });
+
+      let polling = false;
+      const poll = async () => {
+        if (polling) return;
+        polling = true;
+        try {
+          const { data, error } = await client
+            .from(table)
+            .select("entry, updated_at")
+            .eq("id", entryId)
+            .maybeSingle();
+          if (!error && data) publish(data);
+        } finally {
+          polling = false;
+        }
+      };
+      const pollTimer = setInterval(poll, 1500);
+
+      function publish(row) {
+        const entry = row?.entry;
+        if (!entry || (row.updated_at && row.updated_at === lastVersion)) return;
+        lastVersion = row.updated_at ?? lastVersion;
+        listener({ ...emptyEntry(), ...entry });
+      }
 
       return () => {
         listeners.delete(listener);
+        clearInterval(pollTimer);
         client.removeChannel(channel);
       };
     },
 
     async save(entry) {
       if (!canWrite) return;
-      await client.from(table).upsert({ id: entryId, entry, updated_at: new Date().toISOString() });
+      const previousVersion = lastVersion;
+      const version = new Date().toISOString();
+
+      // Mark this version before sending it. Supabase can deliver our own
+      // realtime event before the upsert promise resolves; without this guard,
+      // that echo causes a second board render for every local action.
+      lastVersion = version;
+      const { error } = await client
+        .from(table)
+        .upsert({ id: entryId, entry, updated_at: version });
+      if (error) {
+        lastVersion = previousVersion;
+        throw error;
+      }
     },
   };
 }

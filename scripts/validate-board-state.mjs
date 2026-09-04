@@ -122,7 +122,7 @@ assert.ok(
 // Locking commits: the team is spent, the final lands, and the coach plans the
 // rest of the season around it.
 const locked = build(
-  { picks: { [key]: { locked: true } }, swaps: { [key]: other } },
+  { picks: { [key]: { locked: true, coachTeam } }, swaps: { [key]: other } },
   withFeedResult,
 );
 const lockedSlot = locked.weeks[0].picks[0];
@@ -143,8 +143,16 @@ assert.equal(locked.plannedTeams[other], undefined, "a locked team is not a coac
 assert.equal(locked.pickedTeams[other], undefined, "a locked team is no longer merely picked");
 assert.equal(lockedSlot.isRecommended, false, "a locked team earns no coach badge");
 assert.ok(
-  locked.weeks[0].recommended.some((option) => option.team === other),
-  "the coach's weekly call honours the lock",
+  locked.weeks[0].pathRecommendation.some((option) => option.team === other),
+  "the optimized path honours the lock",
+);
+assert.ok(
+  locked.weeks[0].recommended.some((option) => option.team === coachTeam),
+  "the displayed coach call stays on the pre-lock suggestion",
+);
+assert.ok(
+  locked.weeks[0].recommended.every((option) => option.team !== other),
+  "the locked team is not relabelled as the coach's suggestion",
 );
 assert.ok(
   locked.weeks.slice(1).every((week) => week.recommended.every((option) => option.team !== other)),

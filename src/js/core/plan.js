@@ -383,29 +383,46 @@ export function buildBoard({
 
   for (const week of board.weeks) {
     const names = recommendation.picks[week.week] ?? [];
-    week.recommended = names.flatMap((team) => {
+    // The optimizer's path contains locked teams because they are constraints,
+    // not because the coach chose them. Keep that path separate from the calls
+    // displayed as advice.
+    week.pathRecommendation = names.flatMap((team) => {
       const option = week.options.find((o) => o.team === team);
       return option ? [{ ...option, tier: confidenceTier(option.winProb, rules.tiers) }] : [];
     });
-    const coachTeams = new Set(week.recommended.map((option) => option.team));
+    const lockedTeams = new Set(
+      week.picks.filter((pick) => pick.status.locked).map((pick) => pick.team),
+    );
+    const liveCalls = week.pathRecommendation.filter((option) => !lockedTeams.has(option.team));
+    const weekPlan = plan.weeks.find((candidate) => candidate.week === week.week);
+    let next = 0;
 
     for (const pick of week.picks) {
-      // The badge belongs on an unlocked pick that agrees with the coach. A
-      // locked team is in the recommendation by construction - the search had
-      // to keep it - so it earns nothing.
-      pick.isRecommended = Boolean(pick.team) && !pick.status.locked && coachTeams.has(pick.team);
-      for (const option of pick.options) option.isCoach = coachTeams.has(option.team);
+      if (pick.status.locked) {
+        // Snapshot on lock keeps the coach's actual pre-lock call visible. The
+        // authored call is a safe fallback for entries locked before snapshots
+        // were introduced.
+        const historicTeam = pick.status.coachTeam ?? weekPlan?.picks[pick.slot]?.team;
+        pick.coachCall = week.options.find((option) => option.team === historicTeam) ?? null;
+      } else {
+        pick.coachCall = liveCalls[next] ?? null;
+        next += 1;
+      }
     }
 
-    // One suggestion per empty slot. Teams already in a slot this week come
-    // out first, because the recommendation holds those fixed decisions as
-    // well as its advice for the open slots.
-    const held = new Set(week.picks.filter((pick) => pick.team).map((pick) => pick.team));
-    const suggestions = week.recommended.filter((option) => !held.has(option.team));
-    let next = 0;
+    const liveCoachTeams = new Set(liveCalls.map((option) => option.team));
+    const coachCalls = week.picks.map((pick) => pick.coachCall).filter(Boolean);
+    const coachTeams = new Set(coachCalls.map((option) => option.team));
+    week.recommended = coachCalls.filter(
+      (option, index) =>
+        coachCalls.findIndex((candidate) => candidate.team === option.team) === index,
+    );
+
     for (const pick of week.picks) {
-      pick.suggestion = pick.team ? null : (suggestions[next] ?? null);
-      if (!pick.team) next += 1;
+      pick.isRecommended =
+        Boolean(pick.team) && !pick.status.locked && liveCoachTeams.has(pick.team);
+      pick.suggestion = pick.team ? null : pick.coachCall;
+      for (const option of pick.options) option.isCoach = coachTeams.has(option.team);
     }
 
     // What the slot holds on the season path: the users' team if there is one,
@@ -488,7 +505,7 @@ export function buildBoard({
       continue;
     }
 
-    for (const option of week.recommended) {
+    for (const option of week.pathRecommendation) {
       const locked = week.picks.find((pick) => pick.status.locked && pick.team === option.team);
       committedPicks.push({
         week: week.week,

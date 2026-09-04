@@ -317,7 +317,13 @@ function handleAction({ action, week, slot, team }) {
         delete app.entry.picks[key];
       } else {
         if (!held?.team) return;
-        app.entry.picks[key] = { ...current, locked: true, by: ME, at: Date.now() };
+        app.entry.picks[key] = {
+          ...current,
+          locked: true,
+          coachTeam: held.isRecommended ? held.team : (held.coachCall?.team ?? null),
+          by: ME,
+          at: Date.now(),
+        };
       }
       break;
     case "won":
@@ -346,6 +352,10 @@ function handleAction({ action, week, slot, team }) {
   // and the search that answers it blocks the main thread. Paint the change
   // first and let the timer run the search once the feedback has played. An
   // action that did not move the plan comes straight out of the memo.
+  // Restart rather than inherit an earlier recommendation timer. Otherwise a
+  // timer created just before the tap can still run during the feedback motion.
+  clearTimeout(app.recommendTimer);
+  app.recommendTimer = null;
   render({ search: false, settle: REPLAN_DELAY_MS });
   scheduleSave();
 }
@@ -354,9 +364,17 @@ function handleAction({ action, week, slot, team }) {
 function scheduleSave() {
   clearTimeout(app.saveTimer);
   app.saveTimer = setTimeout(() => {
-    app.store.save(structuredClone(app.entry)).catch(() => {
-      /* a failed write must never break the UI - the next one retries */
-    });
+    app.store
+      .save(structuredClone(app.entry))
+      .then(() => {
+        if (!app.message.startsWith("Could not sync")) return;
+        app.message = "";
+        render({ search: false });
+      })
+      .catch((error) => {
+        app.message = `Could not sync this change: ${error.message}`;
+        render({ search: false });
+      });
   }, 250);
 }
 
@@ -415,7 +433,12 @@ async function openLeague(league) {
     // A late push from the store we just replaced must not land on this board.
     if (app.league !== league) return;
     app.entry = entry;
-    render();
+    // Paint another user's change immediately, then let the season optimiser
+    // catch up after the interaction has settled. Running it inline here made
+    // a realtime update feel just as heavy as the original lock/unlock tap.
+    clearTimeout(app.recommendTimer);
+    app.recommendTimer = null;
+    render({ search: false, settle: REPLAN_DELAY_MS });
   });
 
   render({ search: false });
