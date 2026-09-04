@@ -19,6 +19,7 @@ import { poolSettings, fieldAfterWeek, equityOverlay } from "../src/js/core/equi
 import { resolveModel, winProbFromSpread, DEFAULT_MODEL } from "../src/js/core/probability.js";
 import { buildBoard } from "../src/js/core/plan.js";
 import { CONFIG } from "../src/js/config.js";
+import { cfbEfficiencyFromPpa, boardNameResolver, pullEfficiency } from "./lib/stats.mjs";
 
 const close = (a, b, tolerance, message) =>
   assert.ok(Math.abs(a - b) <= tolerance, `${message}: ${a} vs ${b}`);
@@ -171,6 +172,121 @@ const close = (a, b, tolerance, message) =>
     if (Math.sign(d2) === Math.sign(d3)) agree += 1;
   }
   assert.ok(agree / trials > 0.57, `a team's games move together (${agree}/${trials} agree)`);
+}
+
+// ---------------------------------------------------------------------------
+// The college efficiency source.
+// ---------------------------------------------------------------------------
+
+{
+  const names = ["Hawaii", "San Jose State", "UMass", "FIU", "Georgia", "Ole Miss"];
+  const nameOf = boardNameResolver(names);
+  assert.equal(nameOf("Georgia"), "Georgia", "an exact name passes through");
+  assert.equal(nameOf("Hawai'i"), "Hawaii", "an apostrophe is dropped");
+  assert.equal(nameOf("San José State"), "San Jose State", "an accent is dropped");
+  assert.equal(nameOf("Massachusetts"), "UMass", "a listed spelling is mapped");
+  assert.equal(nameOf("Florida International"), "FIU");
+  assert.equal(nameOf("Nowhere Tech"), "Nowhere Tech", "an unknown name keeps its spelling");
+
+  // The endpoint's shape, as its OpenAPI document gives it: predicted points
+  // per play for offence and defence, per team per game.
+  const payload = [
+    {
+      season: 2026,
+      week: 1,
+      team: "Hawai'i",
+      opponent: "Georgia",
+      offense: {
+        overall: 0.1,
+        passing: 0.2,
+        rushing: 0,
+        firstDown: 0,
+        secondDown: 0,
+        thirdDown: 0,
+      },
+      defense: {
+        overall: 0.4,
+        passing: 0.5,
+        rushing: 0.3,
+        firstDown: 0,
+        secondDown: 0,
+        thirdDown: 0,
+      },
+    },
+    {
+      season: 2026,
+      week: 1,
+      team: "Georgia",
+      opponent: "Hawai'i",
+      offense: {
+        overall: 0.4,
+        passing: 0.5,
+        rushing: 0.3,
+        firstDown: 0,
+        secondDown: 0,
+        thirdDown: 0,
+      },
+      defense: {
+        overall: 0.1,
+        passing: 0.2,
+        rushing: 0,
+        firstDown: 0,
+        secondDown: 0,
+        thirdDown: 0,
+      },
+    },
+    { season: 2026, week: 1, team: "Broken", opponent: "Row", offense: {}, defense: {} },
+  ];
+  const parsed = cfbEfficiencyFromPpa(payload, 1, nameOf);
+  assert.deepEqual(Object.keys(parsed).sort(), ["1|Georgia", "1|Hawaii"], "keyed on our spellings");
+  close(
+    parsed["1|Hawaii"].margin,
+    (0.1 - 0.4) * 70,
+    1e-9,
+    "margin is the per-play gap over a game",
+  );
+  close(
+    parsed["1|Georgia"].margin,
+    -parsed["1|Hawaii"].margin,
+    1e-9,
+    "and mirrors across the game",
+  );
+  assert.equal(parsed["1|Hawaii"].opponent, "Georgia");
+
+  // The pull: no key is a reason, not an error; a key and a refusal is an
+  // error that carries the source's own message; a key and a payload writes.
+  const noKey = await pullEfficiency({ league: "cfb", season: 2026, weeks: [1], cfbdKey: "" });
+  assert.equal(noKey.document, null);
+  assert.match(noKey.reason, /CFBD_API_KEY is not set/);
+  await assert.rejects(
+    pullEfficiency({
+      league: "cfb",
+      season: 2026,
+      weeks: [1],
+      cfbdKey: "k",
+      fetchImpl: async () => ({
+        ok: false,
+        status: 401,
+        text: async () => '{"message":"Unauthorized"}',
+      }),
+    }),
+    /CFBD 401 .*Unauthorized/,
+    "a refused key surfaces the source's message",
+  );
+  const pulled = await pullEfficiency({
+    league: "cfb",
+    season: 2026,
+    weeks: [1],
+    names,
+    cfbdKey: "k",
+    fetchImpl: async (url, init) => {
+      assert.match(init.headers.Authorization, /^Bearer k$/, "the key goes as a bearer token");
+      assert.match(url, /year=2026&week=1&seasonType=regular/);
+      return { ok: true, status: 200, json: async () => payload, text: async () => "" };
+    },
+  });
+  assert.equal(Object.keys(pulled.document.games).length, 2);
+  assert.match(pulled.reason, /^2 team-games from CFBD over 1 week\(s\)$/);
 }
 
 // ---------------------------------------------------------------------------

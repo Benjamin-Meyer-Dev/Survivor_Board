@@ -33,9 +33,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 export async function pullStatsForLeague(league, { root = ROOT, fetchImpl = fetch } = {}) {
   const read = async (name) => JSON.parse(await readFile(join(root, "data", league, name), "utf8"));
   const optional = (name) => read(name).catch(() => null);
-  const [plan, odds, previous] = await Promise.all([
+  const [plan, odds, ratings, previous] = await Promise.all([
     read("plan.json"),
     read("odds.json"),
+    read("ratings.json"),
     optional("stats.json"),
   ]);
 
@@ -49,6 +50,8 @@ export async function pullStatsForLeague(league, { root = ROOT, fetchImpl = fetc
     season: plan.season,
     weeks,
     previous,
+    // The board's spellings, so a source that writes "Hawai'i" lands on Hawaii.
+    names: Object.keys(ratings.ratings ?? {}),
     fetchImpl,
   });
 

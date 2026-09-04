@@ -108,13 +108,50 @@ export function nflEfficiencyFromCsv(csv, season) {
 }
 
 /**
+ * CollegeFootballData spellings that data/cfb/ writes differently. Everything
+ * else matches once accents and apostrophes are dropped (see
+ * boardNameResolver), so this list is only the names that do not.
+ */
+export const CFBD_NAMES = Object.freeze({
+  Massachusetts: "UMass",
+  "Florida International": "FIU",
+});
+
+/**
+ * A function from a source's team name to the board's, given the names the
+ * board knows. Exact matches pass through, the list above is applied, and
+ * otherwise a name that matches once accents, apostrophes and case are dropped
+ * (CFBD's "Hawai'i" for our "Hawaii", "San José State" for "San Jose State")
+ * is taken as that team. A name that matches nothing comes back as itself, so
+ * it lands in stats.json under its own spelling and joins nothing, which the
+ * fit treats as absent rather than wrong.
+ *
+ * @param {string[]} names The board's team names (ratings.json).
+ * @returns {(name:string) => string}
+ */
+export function boardNameResolver(names) {
+  const known = new Set(names);
+  const folded = new Map(names.map((name) => [fold(name), name]));
+  return (name) => {
+    if (typeof name !== "string") return name;
+    if (known.has(name)) return name;
+    if (CFBD_NAMES[name] && known.has(CFBD_NAMES[name])) return CFBD_NAMES[name];
+    return folded.get(fold(name)) ?? name;
+  };
+}
+
+function fold(name) {
+  return name.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/['’.]/g, "").toLowerCase();
+}
+
+/**
  * CollegeFootballData game PPA into the same records.
  *
  * The endpoint returns, per game, each team's offensive and defensive
  * predicted points per play. Per play, so it is scaled by a typical number
  * of plays to land on the points scale the fit uses; the games endpoint does
- * not carry play counts. Names are CFBD's, which match data/cfb/ for the
- * teams this pool prices.
+ * not carry play counts. Names are CFBD's and go through `nameOf` onto ours
+ * (see boardNameResolver).
  *
  * @param {Array<object>} payload The endpoint's JSON.
  * @param {number} week
@@ -160,6 +197,8 @@ export function cfbEfficiencyFromPpa(payload, week, nameOf = (name) => name) {
  * @param {number[]} args.weeks Weeks played so far, for the college endpoint.
  * @param {object|null} args.previous The document on disk, kept where a pull
  *   returns less than it did before.
+ * @param {string[]} [args.names] The board's team names, for spellings the
+ *   source writes differently (college).
  * @param {(url:string, init?:object) => Promise<Response>} [args.fetchImpl]
  * @param {string} [args.cfbdKey]
  * @returns {Promise<{document:object|null, reason:string}>}
@@ -169,6 +208,7 @@ export async function pullEfficiency({
   season,
   weeks = [],
   previous = null,
+  names = [],
   fetchImpl = fetch,
   cfbdKey = process.env.CFBD_API_KEY,
 }) {
@@ -199,16 +239,30 @@ export async function pullEfficiency({
       return { document: null, reason: "CFBD_API_KEY is not set; the efficiency layer is off" };
     }
     const games = { ...(previous?.games ?? {}) };
+    const nameOf = boardNameResolver(names);
     let pulled = 0;
+    let unmatched = 0;
     for (const week of weeks) {
       const url = CFBD_PPA(season, week);
       const response = await fetchImpl(url, {
         headers: { Authorization: `Bearer ${cfbdKey}`, Accept: "application/json" },
       });
-      if (!response.ok) throw new Error(`CFBD ${response.status} for ${url}`);
-      const fromWeek = cfbEfficiencyFromPpa(await response.json(), week);
+      if (!response.ok) {
+        // The body says why: an invalid key, a tier the endpoint is not on, a
+        // year the source has nothing for.
+        const body = await response.text().catch(() => "");
+        throw new Error(
+          `CFBD ${response.status} for ${url}${body ? `: ${body.slice(0, 160)}` : ""}`,
+        );
+      }
+      const payload = await response.json();
+      const fromWeek = cfbEfficiencyFromPpa(payload, week, nameOf);
       Object.assign(games, fromWeek);
       pulled += Object.keys(fromWeek).length;
+      if (names.length) {
+        const known = new Set(names);
+        unmatched += Object.keys(fromWeek).filter((key) => !known.has(key.split("|")[1])).length;
+      }
     }
     return {
       document: {
@@ -218,7 +272,9 @@ export async function pullEfficiency({
         season,
         games,
       },
-      reason: `${pulled} team-games from CFBD over ${weeks.length} week(s)`,
+      reason:
+        `${pulled} team-games from CFBD over ${weeks.length} week(s)` +
+        (unmatched ? `, ${unmatched} under names the board does not know` : ""),
     };
   }
 
