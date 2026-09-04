@@ -1,6 +1,6 @@
 {
   "$comment": "Written by .github/workflows/refresh-odds.yml. Never edit by hand - your change will be overwritten on the next run. Line keys are \"<week>|<team>\", so a market line is found for any team, not just the two the plan names. Same keys in `results`, which is W/L and is what the board marks a locked pick from, and in `scores`, which is the signed margin and is what the rating fit in form.json learns from.",
-  "updatedAt": "2026-09-04T16:04:02Z",
+  "updatedAt": "2026-09-04T20:56:04Z",
   "currentWeek": 1,
   "lines": {
     "1|South Carolina": {
@@ -28,27 +28,27 @@
       "book": "consensus"
     },
     "1|Michigan State": {
-      "spread": -10.5,
+      "spread": -9.5,
       "source": "market",
-      "winProb": 0.7826,
+      "winProb": 0.7698,
       "book": "consensus"
     },
     "1|Oklahoma": {
       "spread": -41,
       "source": "market",
-      "winProb": 0.9523,
+      "winProb": 0.9682,
       "book": "consensus"
     },
     "1|USC": {
       "spread": -21.5,
       "source": "market",
-      "winProb": 0.9246,
+      "winProb": 0.9247,
       "book": "consensus"
     },
     "1|Nebraska": {
       "spread": -23.5,
       "source": "market",
-      "winProb": 0.9291,
+      "winProb": 0.9305,
       "book": "consensus"
     },
     "1|Ohio State": {
@@ -66,13 +66,13 @@
     "1|Texas": {
       "spread": -29.5,
       "source": "market",
-      "winProb": 0.9626,
+      "winProb": 0.9579,
       "book": "consensus"
     },
     "1|Penn State": {
-      "spread": -24,
+      "spread": -23.5,
       "source": "market",
-      "winProb": 0.9313,
+      "winProb": 0.9292,
       "book": "consensus"
     },
     "1|Iowa": {
@@ -90,7 +90,7 @@
     "1|Mississippi State": {
       "spread": -28.5,
       "source": "market",
-      "winProb": 0.954,
+      "winProb": 0.9539,
       "book": "consensus"
     },
     "1|Michigan": {
@@ -112,9 +112,9 @@
       "book": "consensus"
     },
     "1|Houston": {
-      "spread": -20.5,
+      "spread": -21,
       "source": "market",
-      "winProb": 0.9083,
+      "winProb": 0.9057,
       "book": "consensus"
     },
     "1|Cincinnati": {
@@ -144,13 +144,13 @@
     "1|LSU": {
       "spread": -10,
       "source": "market",
-      "winProb": 0.7614,
+      "winProb": 0.7633,
       "book": "consensus"
     },
     "1|Oregon": {
       "spread": -24.5,
       "source": "market",
-      "winProb": 0.9292,
+      "winProb": 0.9313,
       "book": "consensus"
     },
     "1|Florida": {
@@ -162,19 +162,19 @@
     "1|Washington": {
       "spread": -23.5,
       "source": "market",
-      "winProb": 0.9192,
+      "winProb": 0.9185,
       "book": "consensus"
     },
     "1|Ole Miss": {
       "spread": -6.5,
       "source": "market",
-      "winProb": 0.6952,
+      "winProb": 0.6942,
       "book": "consensus"
     },
     "1|UCLA": {
-      "spread": -2,
+      "spread": -2.5,
       "source": "market",
-      "winProb": 0.5427,
+      "winProb": 0.5452,
       "book": "consensus"
     },
     "1|Wisconsin": {
@@ -193,13 +193,21 @@
     "1|Utah": "W",
     "1|Illinois": "W"
   },
-  "scores": {},
+  "scores": {
+    "1|Rutgers": -16,
+    "1|UCF": 67,
+    "1|Missouri": 40,
+    "1|Minnesota": 52,
+    "1|Colorado": 1,
+    "1|Utah": 52,
+    "1|Illinois": 19
+  },
   "flags": [],
   "recommendation": {
     "picks": {
       "1": [
         "South Carolina",
-        "Rutgers"
+        "Mississippi State"
       ],
       "2": [
         "Ole Miss",
@@ -207,10 +215,10 @@
       ],
       "3": [
         "UCF",
-        "Tennessee"
+        "Minnesota"
       ],
       "4": [
-        "Indiana",
+        "Texas Tech",
         "Kentucky"
       ],
       "5": [
@@ -223,19 +231,19 @@
       ],
       "7": [
         "LSU",
-        "Oklahoma"
+        "Washington"
       ],
       "8": [
-        "TCU",
+        "Oklahoma",
         "Arizona"
       ],
       "9": [
-        "Penn State",
+        "Texas",
         "UCLA"
       ],
       "10": [
-        "Texas Tech",
-        "Michigan"
+        "Michigan",
+        "Tennessee"
       ],
       "11": [
         "Ohio State",
@@ -243,13 +251,13 @@
       ],
       "12": [
         "Oregon",
-        "Texas"
+        "Penn State"
       ],
       "13": [
-        "Georgia",
-        "Utah"
+        "Indiana",
+        "Georgia"
       ]
     },
-    "pathProbability": 0.133542
+    "pathProbability": 0.161836
   }
 }

@@ -1,6 +1,6 @@
 {
   "$comment": "Written by .github/workflows/refresh-odds.yml. Never edit by hand - your change will be overwritten on the next run. Ratings fitted to the market lines, final margins and efficiency margins the daily pull has collected, and used to price the weeks the market has not posted yet. Teams the pull has not seen are absent and keep their ratings.json value.",
-  "updatedAt": "2026-09-04T20:43:39Z",
+  "updatedAt": "2026-09-04T20:59:49Z",
   "throughWeek": 1,
   "homeFieldPoints": 2,
   "params": {
