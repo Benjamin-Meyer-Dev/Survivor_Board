@@ -1,13 +1,16 @@
 name: Refresh odds
 
 # Once a day at 9am Toronto time. GitHub cron is UTC-only, so both possible UTC
-# hours are scheduled and the first step keeps only the one that lands in the
-# 9am local hour. That preserves the clock time across daylight-saving changes.
+# hours are scheduled and the first step drops the one that lands before the
+# local 9am. That preserves the clock time across daylight-saving changes.
 # The local time and timezone must match CONFIG.refresh in src/js/config.js.
+#
+# Off the top of the hour on purpose: GitHub queues every cron in the world at
+# :00 and sheds load from it, and a dropped slot here is a day with no results.
 on:
   schedule:
-    - cron: "0 13 * * *"
-    - cron: "0 14 * * *"
+    - cron: "17 13 * * *"
+    - cron: "17 14 * * *"
   # Run it by hand from the Actions tab to test. schedule and workflow_dispatch
   # are independent triggers, so a manual run never moves the next daily one.
   workflow_dispatch:
@@ -16,8 +19,10 @@ permissions:
   contents: write
   issues: write
 
-# Never two at once. Queued duplicates fall out at the freshness check inside
-# scripts/refresh-odds.mjs rather than re-pulling the same lines.
+# Never two at once. The second slot of the day, and any duplicate behind it,
+# falls out at the freshness check inside scripts/refresh-odds.mjs rather than
+# re-pulling the same lines: MIN_REFRESH_GAP_MS below is what makes that check
+# the once-a-day guard, so the time gate does not have to be exact.
 concurrency:
   group: refresh-odds
   cancel-in-progress: false
@@ -31,11 +36,22 @@ jobs:
         env:
           TZ: America/Toronto
         run: |
-          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] || [ "$(date +%H)" = "09" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "due=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # From 9am local onward, not the 9am hour exactly. GitHub's cron runs
+          # late under load - sometimes by hours - and a run that lands at 11 is
+          # still the day's run, so pinning it to one hour turned a delay into a
+          # day with no lines and no results. Anything earlier is the alternate
+          # UTC slot on the other side of daylight saving and is genuinely not
+          # due; anything later is deduplicated by the freshness check in
+          # scripts/refresh-odds.mjs, which costs no API quota.
+          if [ "$(date +%-H)" -ge 9 ]; then
             echo "due=true" >> "$GITHUB_OUTPUT"
           else
             echo "due=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping the alternate UTC slot."
+            echo "$(date +%H:%M) local is before the 9am refresh: alternate UTC slot."
           fi
 
       - uses: actions/checkout@v7
@@ -51,6 +67,11 @@ jobs:
         id: refresh
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          # Twenty hours, so the day's two scheduled slots collapse into one
+          # pull while a genuine next-day run always goes through. Manual runs
+          # keep the script's own short default, which is what makes testing
+          # from the Actions tab possible.
+          MIN_REFRESH_GAP_MS: ${{ github.event_name == 'schedule' && 72000000 || '' }}
         run: node scripts/refresh-odds.mjs
 
       - name: Commit if the numbers moved

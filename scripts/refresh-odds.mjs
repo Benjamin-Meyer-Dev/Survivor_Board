@@ -54,6 +54,7 @@ async function main() {
   const leagues = only ? [only] : LEAGUE_IDS;
 
   const allFlags = [];
+  const weeksSeen = new Set();
   let failures = 0;
 
   for (const league of leagues) {
@@ -65,7 +66,9 @@ async function main() {
 
     try {
       console.log(`\n=== ${LEAGUES[league].label} ===`);
-      allFlags.push(...(await refreshLeague(league, apiKey)));
+      const { flags, week } = await refreshLeague(league, apiKey);
+      allFlags.push(...flags);
+      if (week !== null) weeksSeen.add(week);
     } catch (error) {
       // One league's outage must not cost the other its refresh.
       failures += 1;
@@ -73,18 +76,25 @@ async function main() {
     }
   }
 
-  // Surface flags to the workflow so it can open an issue.
+  // Surface flags to the workflow so it can open an issue, and the week the
+  // leagues are on so the bot's commit message says which one it refreshed.
   if (process.env.GITHUB_OUTPUT) {
     const summary = allFlags.map((flag) => flag.message).join(" ");
-    await writeFile(process.env.GITHUB_OUTPUT, `flagged=${allFlags.length}\nsummary=${summary}\n`, {
-      flag: "a",
-    });
+    const week = [...weeksSeen].sort((a, b) => a - b).join("/");
+    await writeFile(
+      process.env.GITHUB_OUTPUT,
+      `flagged=${allFlags.length}\nsummary=${summary}\ncurrentWeek=${week}\n`,
+      { flag: "a" },
+    );
   }
 
   if (failures === leagues.length) process.exit(1);
 }
 
-/** Refresh one league. Returns the flags it raised. */
+/**
+ * Refresh one league. Returns the flags it raised and the week it priced,
+ * which is null when there was nothing to price.
+ */
 async function refreshLeague(league, apiKey) {
   const oddsPath = pathFor(league, "odds.json");
 
@@ -103,21 +113,26 @@ async function refreshLeague(league, apiKey) {
   const scoresDue = resultsDueFor(plan);
   if (week === null && !scoresDue) {
     console.log("Season is over. Leaving odds.json untouched.");
-    return [];
+    return { flags: [], week: null };
   }
 
-  // A run started by hand from the Actions tab can land right behind the
-  // scheduled one, and `concurrency` in the workflow serialises rather than
-  // drops them. If the lines were pulled moments ago, do nothing and spend no
-  // API quota.
+  // How recently the lines were pulled is the only thing that decides whether
+  // this run does any work, and the workflow sets the threshold rather than
+  // trying to be exact about the clock: a long gap on the scheduled runs makes
+  // this the once-a-day guard, so the day's second UTC slot and any cron that
+  // arrives hours late collapse into the one pull that already happened. The
+  // short default covers the other case, a burst of manual runs from the
+  // Actions tab landing behind each other. Either way the skip is free -
+  // nothing below here has spent API quota yet.
   const sincePull = Date.now() - Date.parse(previous.updatedAt ?? 0);
-  const minGap = Number(process.env.MIN_REFRESH_GAP_MS ?? 4 * 60 * 1000);
+  const configured = process.env.MIN_REFRESH_GAP_MS ?? "";
+  const minGap = /^[0-9]+$/.test(configured) ? Number(configured) : 4 * 60 * 1000;
   if (Number.isFinite(sincePull) && sincePull >= 0 && sincePull < minGap) {
     console.log(
-      `Lines are ${Math.round(sincePull / 1000)}s old, under the ${Math.round(minGap / 1000)}s ` +
-        `minimum. Skipping so a burst of manual requests costs one API call, not five.`,
+      `Lines are ${Math.round(sincePull / 60000)}min old, under the ` +
+        `${Math.round(minGap / 60000)}min minimum. Nothing to do.`,
     );
-    return [];
+    return { flags: [], week: null };
   }
 
   const sport = SPORT_KEYS[league];
@@ -156,10 +171,13 @@ async function refreshLeague(league, apiKey) {
   console.log(`Priced ${priced.count}/${priced.total} lines. ${priced.flags.length} flag(s).`);
 
   // Prefixed so a flag in an issue says which pool it came from.
-  return priced.flags.map((flag) => ({
-    ...flag,
-    message: `[${LEAGUES[league].label}] ${flag.message}`,
-  }));
+  return {
+    week,
+    flags: priced.flags.map((flag) => ({
+      ...flag,
+      message: `[${LEAGUES[league].label}] ${flag.message}`,
+    })),
+  };
 }
 
 /**
