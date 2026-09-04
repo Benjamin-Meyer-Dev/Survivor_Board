@@ -442,9 +442,9 @@
       )
       0 10% / 100% 80% no-repeat,
     repeating-linear-gradient(180deg, transparent 0 22px, rgb(147 180 240 / 14%) 22px 24px) 38%
-      10% / 12px 80% no-repeat,
+      14% / 12px 76% no-repeat,
     repeating-linear-gradient(180deg, transparent 0 22px, rgb(147 180 240 / 14%) 22px 24px) 62%
-      10% / 12px 80% no-repeat;
+      14% / 12px 76% no-repeat;
   box-shadow:
     inset 0 0 0 5px rgb(8 11 18 / 35%),
     inset 0 0 80px rgb(147 180 240 / 3%);
@@ -465,7 +465,7 @@
 
 .gate__endzone--top {
   top: 5%;
-  transform: translate(-50%, -50%) rotate(180deg);
+  transform: translate(-50%, -50%);
 }
 
 .gate__endzone--bottom {
