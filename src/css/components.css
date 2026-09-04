@@ -414,8 +414,8 @@
   background: radial-gradient(circle at 50% 45%, rgb(147 180 240 / 12%), transparent 42%);
 }
 
-/* A portrait field suits phones: end zones run across the short edges, yard
-   lines cross the field, and two rows of hash marks run between them. */
+/* A portrait field suits phones: end zones run across the short edges and the
+   playing area between them is drawn by the pseudo-element below. */
 .gate__stadium {
   position: absolute;
   top: clamp(16px, 4vw, 52px);
@@ -427,42 +427,46 @@
   border: 1px solid rgb(147 180 240 / 11%);
   border-radius: var(--radius);
   pointer-events: none;
-  background:
-    linear-gradient(
-      180deg,
-      rgb(147 180 240 / 9%) 0 10%,
-      transparent 10% 90%,
-      rgb(147 180 240 / 9%) 90% 100%
-    ),
-    repeating-linear-gradient(
-        180deg,
-        transparent 0 calc(10% - 1px),
-        rgb(147 180 240 / 11%) calc(10% - 1px),
-        rgb(147 180 240 / 11%) 10%
-      )
-      0 10% / 100% 80% no-repeat;
+  background: linear-gradient(
+    180deg,
+    rgb(147 180 240 / 9%) 0 10%,
+    transparent 10% 90%,
+    rgb(147 180 240 / 9%) 90% 100%
+  );
   box-shadow:
     inset 0 0 0 5px rgb(8 11 18 / 35%),
     inset 0 0 80px rgb(147 180 240 / 3%);
   transform: translateX(-50%);
 }
 
-/* Keep hashes in a separately bounded playing area. Background-position
-   percentages alone are relative to unused image space and can drift upward
-   into the end zone as the viewport changes shape. */
+/* The playing area is its own box so every marking shares one grid: ten
+   10-yard sections between the goal lines, with two hash marks per side at a
+   third and two thirds of each section. The hash period is a percentage of
+   this box rather than a fixed pixel count, which is what keeps the number of
+   marks between yard lines constant as the viewport changes shape. */
 .gate__stadium::before {
+  --chalk: rgb(147 180 240 / 11%);
+  --hash: rgb(147 180 240 / 14%);
+  --hash-run: repeating-linear-gradient(
+    180deg,
+    transparent 0 calc(3.3333% - 1px),
+    var(--hash) calc(3.3333% - 1px) calc(3.3333% + 1px),
+    transparent calc(3.3333% + 1px) calc(6.6667% - 1px),
+    var(--hash) calc(6.6667% - 1px) calc(6.6667% + 1px),
+    transparent calc(6.6667% + 1px) 10%
+  );
   content: "";
   position: absolute;
   inset: 10% 0;
   background:
-    linear-gradient(rgb(147 180 240 / 14%), rgb(147 180 240 / 14%)) left 38% bottom 8px / 12px 2px
-      no-repeat,
-    linear-gradient(rgb(147 180 240 / 14%), rgb(147 180 240 / 14%)) left 62% bottom 8px / 12px 2px
-      no-repeat,
-    repeating-linear-gradient(180deg, transparent 0 22px, rgb(147 180 240 / 14%) 22px 24px) left 38%
-      top / 12px 100% no-repeat,
-    repeating-linear-gradient(180deg, transparent 0 22px, rgb(147 180 240 / 14%) 22px 24px) left 62%
-      top / 12px 100% no-repeat;
+    linear-gradient(var(--chalk), var(--chalk)) top / 100% 1px no-repeat,
+    repeating-linear-gradient(
+      180deg,
+      transparent 0 calc(10% - 1px),
+      var(--chalk) calc(10% - 1px) 10%
+    ),
+    var(--hash-run) left 38% top / 12px 100% no-repeat,
+    var(--hash-run) left 62% top / 12px 100% no-repeat;
 }
 
 .gate__endzone {
@@ -499,9 +503,7 @@
 }
 
 .gate__yard-number i {
-  padding-inline: 3px;
   font-style: normal;
-  background: var(--ground);
 }
 
 .gate__yard-number--20 {
