@@ -18,6 +18,9 @@ on:
 permissions:
   contents: write
   issues: write
+  # To ask pages.yml to run. A push made with GITHUB_TOKEN triggers no
+  # workflow, so the deploy has to be requested rather than fallen into.
+  actions: write
 
 # Never two at once. The second slot of the day, and any duplicate behind it,
 # falls out at the freshness check inside scripts/refresh-odds.mjs rather than
@@ -89,6 +92,26 @@ jobs:
           git commit -m "chore(odds): refresh week ${{ steps.refresh.outputs.currentWeek || 'lines' }}"
           git push
           echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # GitHub does not trigger `on: push` for a push made with GITHUB_TOKEN,
+      # which is a loop guard and not something a workflow can opt out of. So
+      # the bot's own commit never redeployed the site: the new lines and
+      # results sat on main while the board went on serving the previous day's
+      # odds.json, which is a data pipeline that looks healthy from every side
+      # except the only one that matters. A workflow_dispatch IS honoured with
+      # that token, so the deploy is asked for by name.
+      - name: Redeploy the site
+        if: steps.commit.outputs.changed == 'true'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: "pages.yml",
+              ref: context.ref.replace("refs/heads/", ""),
+            });
+            core.info("Asked pages.yml to redeploy.");
 
       - name: Open an issue when a pick is in danger
         if: steps.refresh-time.outputs.due == 'true' && steps.refresh.outputs.flagged != '' && steps.refresh.outputs.flagged != '0'

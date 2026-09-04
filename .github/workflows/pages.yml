@@ -1,7 +1,9 @@
 name: Deploy to Pages
 
 # No build step - the repo root is the site. Every push to main redeploys,
-# including the odds bot's commits.
+# except the odds bot's own: GitHub triggers no workflow for a push made with
+# GITHUB_TOKEN, so refresh-odds.yml asks for this one by workflow_dispatch
+# after it commits. Which is also how to publish a data change by hand.
 on:
   push:
     branches: [main]
