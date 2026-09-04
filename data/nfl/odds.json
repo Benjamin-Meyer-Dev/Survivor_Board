@@ -1,6 +1,6 @@
 {
   "$comment": "Written by the refresh workflow. Line keys are \"<week>|<team>\", and the same keys carry W/L in `results` for the board and the signed margin in `scores` for the form.json rating fit.",
-  "updatedAt": "2026-09-04T16:04:02Z",
+  "updatedAt": "2026-09-04T20:56:03Z",
   "currentWeek": 1,
   "lines": {
     "1|Seahawks": {
@@ -18,13 +18,13 @@
     "1|Panthers": {
       "spread": 2.5,
       "source": "market",
-      "winProb": 0.4189,
+      "winProb": 0.4176,
       "book": "consensus"
     },
     "1|Bears": {
       "spread": -2.5,
       "source": "market",
-      "winProb": 0.5811,
+      "winProb": 0.5824,
       "book": "consensus"
     },
     "1|Bengals": {
@@ -42,25 +42,25 @@
     "1|Lions": {
       "spread": -7,
       "source": "market",
-      "winProb": 0.725,
+      "winProb": 0.7258,
       "book": "consensus"
     },
     "1|Saints": {
       "spread": 7,
       "source": "market",
-      "winProb": 0.275,
+      "winProb": 0.2742,
       "book": "consensus"
     },
     "1|Texans": {
       "spread": 0,
       "source": "market",
-      "winProb": 0.4957,
+      "winProb": 0.4951,
       "book": "consensus"
     },
     "1|Bills": {
       "spread": 0,
       "source": "market",
-      "winProb": 0.5043,
+      "winProb": 0.5049,
       "book": "consensus"
     },
     "1|Colts": {
@@ -78,13 +78,13 @@
     "1|Jaguars": {
       "spread": -8,
       "source": "market",
-      "winProb": 0.7659,
+      "winProb": 0.7664,
       "book": "consensus"
     },
     "1|Browns": {
       "spread": 8,
       "source": "market",
-      "winProb": 0.2341,
+      "winProb": 0.2336,
       "book": "consensus"
     },
     "1|Steelers": {
@@ -102,13 +102,13 @@
     "1|Titans": {
       "spread": -1.5,
       "source": "market",
-      "winProb": 0.5427,
+      "winProb": 0.5398,
       "book": "consensus"
     },
     "1|Jets": {
       "spread": 1.5,
       "source": "market",
-      "winProb": 0.4573,
+      "winProb": 0.4602,
       "book": "consensus"
     },
     "1|Chargers": {
@@ -126,25 +126,25 @@
     "1|Raiders": {
       "spread": -3.5,
       "source": "market",
-      "winProb": 0.6275,
+      "winProb": 0.6211,
       "book": "consensus"
     },
     "1|Dolphins": {
       "spread": 3.5,
       "source": "market",
-      "winProb": 0.3725,
+      "winProb": 0.3789,
       "book": "consensus"
     },
     "1|Vikings": {
       "spread": -1.5,
       "source": "market",
-      "winProb": 0.5227,
+      "winProb": 0.5248,
       "book": "consensus"
     },
     "1|Packers": {
       "spread": 1.5,
       "source": "market",
-      "winProb": 0.4773,
+      "winProb": 0.4752,
       "book": "consensus"
     },
     "1|Eagles": {
@@ -250,12 +250,12 @@
         "Ravens"
       ],
       "17": [
-        "Vikings"
+        "Cowboys"
       ],
       "18": [
         "Bills"
       ]
     },
-    "pathProbability": 0.027955
+    "pathProbability": 0.026688
   }
 }
