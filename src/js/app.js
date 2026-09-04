@@ -7,7 +7,7 @@
  */
 
 import { CONFIG } from "./config.js";
-import { LEAGUES, resolveLeague } from "./leagues.js";
+import { LEAGUES } from "./leagues.js";
 import { buildBoard, slotKey } from "./core/plan.js";
 import { createStore } from "./store/index.js";
 import { renderLeagueSwitch } from "./ui/league-switch.js";
@@ -36,14 +36,13 @@ const el = {
   shell: document.querySelector(".shell"),
 };
 
-/** Which league was open last on this device. */
-const LEAGUE_KEY = "survivor-board/league";
-
 /** The digest of the pool passcode, once this device has answered it correctly. */
 const PASSCODE_KEY = "survivor-board/passcode";
 
 const app = {
-  league: resolveLeague(readStored(LEAGUE_KEY)),
+  // Every new page load starts on NFL. A league switch lasts only until the
+  // page is loaded again, regardless of the device's previous visits.
+  league: "nfl",
   plan: null,
   teams: null,
   odds: null,
@@ -447,9 +446,6 @@ async function switchLeague(league) {
 
   try {
     await openLeague(league);
-    // Remembered only once it loaded, so a failed switch does not leave the
-    // next visit opening a league that will not load either.
-    writeStored(LEAGUE_KEY, league);
   } catch (error) {
     // Put the board back the way it was, including its colours.
     renderLeagueSwitch(el.league, app.league, switchLeague);
@@ -558,8 +554,8 @@ function registerServiceWorker() {
 }
 
 async function main() {
-  // The board remembers its last league, while the gate keeps its own fixed
-  // dark-blue palette regardless of what this attribute says.
+  // Every visit begins in the NFL palette. The gate keeps that same fixed blue
+  // identity before the NFL board opens.
   applyTheme(app.league);
   if (CONFIG.passcode.digest && readStored(PASSCODE_KEY) !== CONFIG.passcode.digest) {
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#080b12");
