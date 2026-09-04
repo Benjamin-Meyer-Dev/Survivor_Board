@@ -1,0 +1,26 @@
+{
+  "$comment": "Template for data/<league>/availability.json. One entry per player worth writing down. `status` is out, doubtful, questionable, probable or available, or give `probabilityOut` directly; `points` is how many points the team is worse without the player and defaults by `position` (QB 6, EDGE 1.2, WR 1.2, CB 1, OT 1, RB 1, others under 1). `weeks` lists the weeks the entry speaks to; leave it out to cover every week. `reportedAt` decides whether a market line already prices the report: an entry older than the morning pull changes nothing on a priced line and still moves every projection. Bump `updatedAt` whenever the file changes so the board and the refresh job pick it up.",
+  "updatedAt": "2026-09-04T12:00:00Z",
+  "entries": [
+    {
+      "team": "Eagles",
+      "player": "J. Hurts",
+      "position": "QB",
+      "status": "questionable",
+      "weeks": [3],
+      "reportedAt": "2026-09-24T18:00:00Z",
+      "source": "team injury report"
+    },
+    {
+      "team": "Georgia",
+      "player": "starting left tackle",
+      "position": "OT",
+      "probabilityOut": 1,
+      "points": 1.5,
+      "fromWeek": 5,
+      "throughWeek": 8,
+      "reportedAt": "2026-09-28T15:00:00Z",
+      "source": "SEC availability report"
+    }
+  ]
+}

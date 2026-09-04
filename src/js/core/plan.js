@@ -18,10 +18,19 @@
  * know which league is loaded.
  */
 
-import { winProbFromSpread, confidenceTier, projectSpread, DEFAULT_TIERS } from "./probability.js";
+import {
+  winProbFromSpread,
+  marketWinProb,
+  confidenceTier,
+  projectSpread,
+  resolveModel,
+  DEFAULT_TIERS,
+} from "./probability.js";
 import { recommendForBoard } from "./recommend.js";
 import { nextRefreshAt } from "./refresh.js";
 import { survival } from "./survival.js";
+import { availabilityAdjustment, availabilityNote } from "./availability.js";
+import { equityOverlay } from "./equity.js";
 
 /**
  * Pool rules, read from data/<league>/plan.json.
@@ -96,7 +105,7 @@ export function lineKey(week, team) {
  *            result:"W"|"L"|null, resultSource:"you"|"final"|null}}} plus, when
  *   a team is held: opponent, site, conference, spread, source, winProb, tier.
  */
-function resolvePick({ weekPlan, odds, entry, teams, options, week, slot, tiers }) {
+function resolvePick({ weekPlan, odds, entry, teams, options, week, slot, tiers, model }) {
   const key = slotKey(week, slot);
   const saved = entry.picks?.[key] ?? {};
   // `locked` is the persisted name for a committed pick. A result implies one:
@@ -134,9 +143,17 @@ function resolvePick({ weekPlan, odds, entry, teams, options, week, slot, tiers 
     };
   }
 
+  // An option already carries the number the week priced it at, market or
+  // projection, adjustments included. Only a legacy lock on a team the week's
+  // list does not hold is priced here, off the market line if there is one and
+  // the plan's own spread if not.
+  const listed = base.winProb !== undefined;
   const line = odds.lines?.[lineKey(week, base.team)];
-  const spread = line?.spread ?? base.spread;
-  const winProb = line?.winProb ?? winProbFromSpread(spread);
+  const spread = listed ? base.spread : (line?.spread ?? base.spread);
+  const winProb = listed
+    ? base.winProb
+    : (line?.winProb ?? winProbFromSpread(spread, model, { weeksAhead: 0 }));
+  const source = listed ? base.source : line ? "market" : (base.source ?? "projected");
   // Results are the refresh job's recorded finals, so a locked pick keeps up on
   // its own. A result saved in the entry, from when they were tapped in, is
   // still honoured and still wins. An unlocked pick never receives one: the
@@ -151,9 +168,12 @@ function resolvePick({ weekPlan, odds, entry, teams, options, week, slot, tiers 
     site: base.site,
     conference: conferenceOf(teams, base.team),
     spread,
-    source: line ? "market" : (base.source ?? "projected"),
+    source,
     winProb,
     tier: confidenceTier(winProb, tiers),
+    weeksAhead: base.weeksAhead ?? 0,
+    movement: base.movement ?? null,
+    availability: base.availability ?? null,
     status: {
       ...saved,
       picked: true,
@@ -178,12 +198,32 @@ function resolvePick({ weekPlan, odds, entry, teams, options, week, slot, tiers 
  * season on. An option also carries how its game went, once the refresh job
  * has recorded a final: a played game is no longer a choice, so it leaves the
  * coach's pool and the list shows the outcome where the line used to be.
+ *
+ * The win probability comes through the league's calibrated model
+ * (core/probability.js). A market line carries the number the refresh job
+ * priced it at, from the spread, the total and the de-vigged moneyline; a
+ * projection is priced from its spread and how many weeks out it is, because a
+ * projection for week 12 made in week 3 is wrong by an amount the calibration
+ * knows, and the probability says so. Player availability moves the spread
+ * first, where a report is newer than the line or the line is a projection
+ * (core/availability.js).
  */
-function weekOptions({ schedule, ratings, teams, odds, form, week }) {
+function weekOptions({
+  schedule,
+  ratings,
+  teams,
+  odds,
+  form,
+  week,
+  currentWeek = week,
+  model = resolveModel(null),
+  availability = null,
+}) {
   const games = schedule.weeks?.[String(week)] ?? [];
   const eligible = allTeams(teams);
   const home = ratings.homeFieldPoints ?? 2.5;
   const rating = (team) => ratingFor({ team, ratings, form, eligible });
+  const weeksAhead = Math.max(0, week - currentWeek);
   const options = [];
 
   for (const game of games) {
@@ -196,7 +236,9 @@ function weekOptions({ schedule, ratings, teams, odds, form, week }) {
 
       const site = game.neutral ? "Neutral" : team === game.home ? "Home" : "Away";
       const line = odds.lines?.[lineKey(week, team)];
-      const spread =
+      const source = line ? "market" : "projected";
+      const lineAt = line?.updatedAt ?? odds.updatedAt ?? null;
+      const baseSpread =
         line?.spread ??
         projectSpread(
           rating(team),
@@ -205,14 +247,68 @@ function weekOptions({ schedule, ratings, teams, odds, form, week }) {
           site === "Neutral" ? 0 : home,
         );
 
+      // Availability, as points, for both sides. What the market has already
+      // priced is left alone; the rest moves the spread before it is priced.
+      const ownAvailability = availabilityAdjustment({ availability, team, week, source, lineAt });
+      const theirAvailability = availabilityAdjustment({
+        availability,
+        team: opponent,
+        week,
+        source,
+        lineAt,
+      });
+      const adjustment = ownAvailability.points - theirAvailability.points;
+      const spread = Number((baseSpread + adjustment).toFixed(1));
+      // Sides the fit has never seen a line for are still priced off their
+      // preseason rating alone, and a projection between them misses by more
+      // (core/probability.js horizonVariance). Before the first fit that is
+      // every side.
+      const unseenSides = [team, opponent].filter((name) => !form?.ratings?.[name]).length;
+
+      // A line the calibrated ingest priced carries its probability; one from
+      // before it (no moneylineProb field) carries a number from the old curve
+      // and the old de-vig, and is re-priced from its spread instead.
+      const pricedByModel =
+        Boolean(line) && "moneylineProb" in line && Number.isFinite(line.winProb);
+      let winProb;
+      if (line && adjustment === 0) {
+        winProb = pricedByModel
+          ? line.winProb
+          : marketWinProb({
+              spread,
+              total: line.total ?? null,
+              moneylineProb: line.moneylineProb ?? null,
+              model,
+            });
+      } else if (line) {
+        winProb = winProbFromSpread(spread, model, { total: line.total ?? null });
+      } else {
+        winProb = winProbFromSpread(spread, model, { weeksAhead, unseenSides });
+      }
+
       options.push({
         team,
         opponent,
         site,
         spread,
-        source: line ? "market" : "projected",
-        winProb: line?.winProb ?? winProbFromSpread(spread),
+        source,
+        winProb,
         conference: eligible[team].conference,
+        // How far out the game is, for the futures the coach plays (see
+        // core/scenarios.js). Zero for the week the market has priced.
+        weeksAhead: line ? 0 : weeksAhead,
+        unseenSides: line ? 0 : unseenSides,
+        total: line?.total ?? null,
+        // Where the line opened, when the refresh job has seen it move: the
+        // spread now less the spread when the week was first priced, so a
+        // negative number is the market warming to the team.
+        movement:
+          line && Number.isFinite(line.opened) && line.opened !== line.spread
+            ? Number((line.spread - line.opened).toFixed(1))
+            : null,
+        availability: ownAvailability.applied.length
+          ? { points: ownAvailability.points, note: availabilityNote(ownAvailability) }
+          : null,
         // "W", "L", or null while the game is still to come. Unlike a pick's
         // result this needs no lock: it is a fact about the fixture, not about
         // anyone's entry, which is why it shows on every row in the list.
@@ -263,7 +359,19 @@ export function allTeams(teams) {
 /** The fields of a pick or an option that describe its game, and nothing else. */
 function lineOf(pick) {
   const { team, opponent, site, conference, spread, source, winProb, tier } = pick;
-  return { team, opponent, site, conference, spread, source, winProb, tier };
+  return {
+    team,
+    opponent,
+    site,
+    conference,
+    spread,
+    source,
+    winProb,
+    tier,
+    weeksAhead: pick.weeksAhead ?? 0,
+    movement: pick.movement ?? null,
+    availability: pick.availability ?? null,
+  };
 }
 
 /**
@@ -278,6 +386,14 @@ function lineOf(pick) {
  *   off the ratings the league shipped with, which is what it did before the
  *   fit existed.
  * @param {object} args.entry shared user state
+ * @param {object} [args.calibration] data/<league>/calibration.json, the
+ *   league's fitted probability model. Optional: without it the board runs on
+ *   the college defaults in core/probability.js.
+ * @param {object} [args.availability] data/<league>/availability.json, player
+ *   availability by hand. Optional: nothing listed moves nothing.
+ * @param {object} [args.pool] data/<league>/pool.json, the pool's size and
+ *   this week's pick popularity. Optional: without it the coach plays for
+ *   survival alone.
  * @param {boolean} args.allowSearch Pass false to build without running the
  *   optimiser when its answer is not already cached. The board comes back with
  *   `recommendationPending` set and the previous plan standing in where there
@@ -292,17 +408,32 @@ export function buildBoard({
   schedule,
   ratings,
   form = null,
+  calibration = null,
+  availability = null,
+  pool = null,
   entry,
   refreshSchedule,
   allowSearch = true,
 }) {
   const rules = rulesOf(plan);
   const slots = Array.from({ length: rules.picksPerWeek }, (_, index) => index);
+  const model = resolveModel(calibration);
+  const currentWeek = clampWeek(odds.currentWeek ?? 1, plan.weeks.length);
 
   // Pass one: resolve what each slot holds. Options for a week are built once
   // and shared by every slot in it.
   const weeks = plan.weeks.map((weekPlan) => {
-    const options = weekOptions({ schedule, ratings, teams, odds, form, week: weekPlan.week });
+    const options = weekOptions({
+      schedule,
+      ratings,
+      teams,
+      odds,
+      form,
+      week: weekPlan.week,
+      currentWeek,
+      model,
+      availability,
+    });
     const picks = slots.map((slot) =>
       resolvePick({
         weekPlan,
@@ -313,6 +444,7 @@ export function buildBoard({
         week: weekPlan.week,
         slot,
         tiers: rules.tiers,
+        model,
       }),
     );
 
@@ -421,7 +553,6 @@ export function buildBoard({
     buyBacks: rules.buyBacks,
   });
 
-  const currentWeek = clampWeek(odds.currentWeek ?? 1, plan.weeks.length);
   const nextRefresh = nextRefreshAt(Date.now(), refreshSchedule);
 
   const board = {
@@ -431,6 +562,10 @@ export function buildBoard({
     weeks,
     rules,
     currentWeek,
+    // The probability model the week was priced with, for the coach's futures
+    // and for anything in the UI that wants to say how it was priced.
+    model,
+    calibratedAt: calibration?.fittedAt ?? null,
     spentTeams,
     spentCount: Object.keys(spentTeams).length,
     totalTeams: Object.keys(allTeams(teams)).length,
@@ -464,9 +599,23 @@ export function buildBoard({
     value: cached,
     fresh,
     constraints,
-  } = memoisedRecommendation(board, plan, odds, form, allowSearch);
-  const recommendation = cached ?? { picks: {}, pathProbability: 0, shortfalls: [] };
+  } = memoisedRecommendation(board, plan, odds, form, allowSearch, {
+    calibration,
+    availability,
+    pool,
+  });
+  const recommendation = cached ?? {
+    picks: {},
+    pathProbability: 0,
+    shortfalls: [],
+    frontier: null,
+  };
   board.recommendation = recommendation;
+  // This week's call across futures, with the pool's numbers laid over it
+  // when there are any, and each candidate's teams described the way the
+  // week's list describes them. Only for a fresh plan: a stand-in's frontier
+  // belongs to the locks it was planned around.
+  board.frontier = fresh ? frontierOf(recommendation.frontier, board.weeks, rules, pool) : null;
   // A search is still owed; app.js schedules it once this board is painted.
   board.recommendationPending = !fresh;
   // Meanwhile a recent plan is what is painted, not a blank (see
@@ -713,12 +862,12 @@ const NO_CONSTRAINTS = new Set();
  *   that week is a lock it obeyed, not a call it made, and must not be shown
  *   as one.
  */
-function memoisedRecommendation(board, plan, odds, form, allowSearch) {
+function memoisedRecommendation(board, plan, odds, form, allowSearch, inputs = {}) {
   // An eliminated entry has no season left to plan. The coach stands down and
   // the board goes into review: what happened, not what could.
   if (board.eliminated) {
     return {
-      value: { picks: {}, pathProbability: 0, shortfalls: [] },
+      value: { picks: {}, pathProbability: 0, shortfalls: [], frontier: null },
       fresh: true,
       constraints: NO_CONSTRAINTS,
     };
@@ -753,6 +902,11 @@ function memoisedRecommendation(board, plan, odds, form, allowSearch) {
     // The fit prices every week the market has not posted, so a new one is a
     // different search. Without this a refit would be answered from the cache.
     form?.updatedAt ?? "",
+    // So are a new calibration, a new availability report and a new read on
+    // the pool: each changes what the search is scoring.
+    inputs.calibration?.fittedAt ?? "",
+    inputs.availability?.updatedAt ?? "",
+    inputs.pool?.updatedAt ?? "",
   ].join("|");
   const signature = `${base}|${locks.map((lock) => `${lock.key}:${lock.result}`).join(",")}`;
 
@@ -813,6 +967,36 @@ function standInFor(base, locks) {
       .map((lock) => `${lock.week}:${lock.team}`),
   );
   return { value: chosen.value, fresh: false, constraints };
+}
+
+/**
+ * The coach's frontier for the board: each candidate's teams as the week's
+ * list describes them, and the pool's leverage laid over when pool.json has
+ * this week's popularity. Null when there is nothing open to decide.
+ */
+function frontierOf(frontier, weeks, rules, pool) {
+  if (!frontier) return null;
+  const week = weeks.find((entry) => entry.week === frontier.week);
+  if (!week) return null;
+
+  const overlaid = equityOverlay({
+    frontier,
+    options: week.options,
+    pool,
+    picksPerWeek: rules.picksPerWeek,
+  });
+
+  return {
+    ...overlaid,
+    candidates: overlaid.candidates.map((candidate) => ({
+      ...candidate,
+      preferred: candidate.preferred ?? candidate.chosen,
+      options: candidate.teams
+        .map((team) => week.options.find((option) => option.team === team))
+        .filter(Boolean)
+        .map((option) => ({ ...option, tier: confidenceTier(option.winProb, rules.tiers) })),
+    })),
+  };
 }
 
 /**

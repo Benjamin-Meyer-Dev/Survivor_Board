@@ -38,6 +38,10 @@ const JS = [
   "core/probability.js",
   "core/format.js",
   "core/survival.js",
+  "core/assignment.js",
+  "core/scenarios.js",
+  "core/availability.js",
+  "core/equity.js",
   "core/recommend.js",
   "core/refresh.js",
   "core/passcode.js",
@@ -58,8 +62,8 @@ const JS = [
 ];
 const DATA = ["plan.json", "teams.json", "odds.json", "schedule.json", "ratings.json"];
 
-/** Inlined when it is there. The board works without it; see openLeague. */
-const OPTIONAL_DATA = ["form.json"];
+/** Inlined when they are there. The board works without them; see openLeague. */
+const OPTIONAL_DATA = ["form.json", "calibration.json", "availability.json", "pool.json"];
 
 /** Every league gets its own inlined block, keyed the way app.js looks it up. */
 const LEAGUE_IDS = ["cfb", "nfl"];

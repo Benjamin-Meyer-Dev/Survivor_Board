@@ -50,6 +50,12 @@ const app = {
   ratings: null,
   /** Ratings fitted to this season's pulls. Null when the file is not there. */
   form: null,
+  /** The league's fitted probability model. Null falls back to the defaults. */
+  calibration: null,
+  /** Player availability, kept by hand. Null means nothing reported. */
+  availability: null,
+  /** The pool's size and pick popularity, kept by hand. Null is survival mode. */
+  pool: null,
   entry: { picks: {}, swaps: {} },
   store: null,
   /** The verified passcode digest, which is also what opens the store's write lock. */
@@ -178,6 +184,9 @@ function boardInputs() {
     schedule: app.schedule,
     ratings: app.ratings,
     form: app.form,
+    calibration: app.calibration,
+    availability: app.availability,
+    pool: app.pool,
     entry: app.entry,
     refreshSchedule: CONFIG.refresh,
   };
@@ -456,18 +465,25 @@ async function openLeague(league) {
   app.recommendTimer = null;
   app.message = "";
 
-  const [plan, teams, odds, schedule, ratings, form] = await Promise.all([
-    loadJson("plan.json", league),
-    loadJson("teams.json", league),
-    loadJson("odds.json", league),
-    loadJson("schedule.json", league),
-    loadJson("ratings.json", league),
-    // The refresh job's fit to this season's pulls, and the only data file the
-    // board can open without. It does not exist until the first run that has
-    // something to fit, so a league whose season has not started is not an
-    // error: the board prices the weeks ahead off ratings.json instead.
-    loadJson("form.json", league).catch(() => null),
-  ]);
+  const [plan, teams, odds, schedule, ratings, form, calibration, availability, pool] =
+    await Promise.all([
+      loadJson("plan.json", league),
+      loadJson("teams.json", league),
+      loadJson("odds.json", league),
+      loadJson("schedule.json", league),
+      loadJson("ratings.json", league),
+      // The refresh job's fit to this season's pulls, and one of the data files
+      // the board can open without. It does not exist until the first run that
+      // has something to fit, so a league whose season has not started is not
+      // an error: the board prices the weeks ahead off ratings.json instead.
+      loadJson("form.json", league).catch(() => null),
+      // Three more the board can open without: the league's calibrated model
+      // (defaults otherwise), player availability (nothing reported otherwise)
+      // and the pool's numbers (survival mode otherwise).
+      loadJson("calibration.json", league).catch(() => null),
+      loadJson("availability.json", league).catch(() => null),
+      loadJson("pool.json", league).catch(() => null),
+    ]);
 
   app.league = league;
   app.plan = plan;
@@ -476,6 +492,9 @@ async function openLeague(league) {
   app.schedule = schedule;
   app.ratings = ratings;
   app.form = form;
+  app.calibration = calibration;
+  app.availability = availability;
+  app.pool = pool;
   app.viewWeek = Math.min(Math.max(odds.currentWeek ?? 1, 1), plan.weeks.length);
 
   document.title = `${LEAGUES[league].title} · ${LEAGUES[league].label}`;

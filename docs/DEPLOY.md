@@ -152,10 +152,47 @@ a pick on one and watch it land on the other.
 
 The bot runs once a day at 9:00am Toronto time. The workflow schedules both UTC
 hours that Toronto can use and skips the alternate, so the local time stays at
-9:00am across daylight-saving changes. A run costs 4 credits per league (2 for
-the lines, 2 for scores), the free plan is 500 credits a month, and two leagues
-once a day is about 250 of them. Every six hours, the original cadence, would be
-about 960 and run out in two weeks.
+9:00am across daylight-saving changes. A run costs 4 credits per league (3 for
+the lines - spreads, moneylines and totals are a credit each - and 1 for
+scores), the free plan is 500 credits a month, and two leagues once a day is
+about 250 of them. Every six hours, the original cadence, would be about 960
+and run out in two weeks. Set `ODDS_MARKETS=spreads,h2h` on the workflow to
+drop totals and save a credit per league; the model prices without them.
+
+Two more sources ride along at no cost to the quota. The NFL's efficiency
+numbers come from nflverse, a public file that needs no key. The college ones
+come from CollegeFootballData and need a free key. Without it the run says the
+layer is off and fits on lines and margins alone.
+
+### The college efficiency key
+
+1. Go to collegefootballdata.com and choose **API Key** in the top menu (the
+   page is `/key`). Enter an email address and submit; the key arrives by
+   email within a minute. The free tier is enough: the refresh job makes one
+   request per week played, once a day.
+2. Repo → **Settings** → **Secrets and variables** → **Actions** → **New
+   repository secret**: name `CFBD_API_KEY`, value the key from the email.
+   Save.
+3. Nothing else changes. `.github/workflows/refresh-odds.yml` already passes
+   the secret to the job, and `scripts/lib/stats.mjs` picks it up as
+   `CFBD_API_KEY`. The next scheduled run, or a **Run workflow** from the
+   Actions tab, writes `data/cfb/stats.json` and the log's efficiency line
+   changes from "CFBD_API_KEY is not set" to how many team-games it pulled.
+4. Locally, the same variable works for `npm run stats -- cfb` and
+   `npm run refresh`. Do not put the key in `src/` or commit it anywhere; like
+   the odds key, it lives only in the secret and your shell.
+
+### The two files you keep by hand
+
+`data/<league>/availability.json` and `data/<league>/pool.json` are optional
+and the board runs without them. Templates with every field explained are in
+`docs/examples/`; copy one into the league's folder, edit it, bump
+`updatedAt`, commit, and the next deploy and the next refresh run both read
+it. Availability entries move a market line only when their `reportedAt` is
+newer than the morning pull, so an injury the market has already priced is
+never counted twice. The pool file needs this week's pick popularity from
+wherever your pool shows it; without those shares the board stays in survival
+mode rather than guess.
 
 Once a day is enough for a survivor pool. Lines move most in the 24 hours before
 kickoff, and the 9am pull is the morning number on game day for both leagues.

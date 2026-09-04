@@ -1,12 +1,15 @@
 /**
  * Thin client for the-odds-api.com.
  *
- * Free tier is 500 requests/month. Each league costs two requests per run
- * (odds and scores), so two leagues four times a day across the autumn is the
- * whole budget: the freshness guard in refresh-odds.mjs is what keeps a burst
+ * Free tier is 500 credits a month, and a request costs one credit per market
+ * per region: spreads, moneylines and totals from the US books is three, the
+ * scores call one more. Two leagues once a day across the autumn is most of
+ * the budget, and the freshness guard in refresh-odds.mjs is what keeps a burst
  * of manual refreshes from spending it. The key lives in the ODDS_API_KEY
  * repository secret and never reaches the browser.
  */
+
+import { fairFromMoneylines, DEFAULT_MODEL } from "../../src/js/core/probability.js";
 
 const BASE = "https://api.the-odds-api.com/v4";
 
@@ -17,7 +20,22 @@ export const SPORT_KEYS = Object.freeze({
 });
 
 /**
- * Fetch current spreads and moneylines for every upcoming NCAAF game.
+ * The markets a run asks for. Totals are the third credit: a game total
+ * widens or narrows the margin's scatter a little, and the calibration decides
+ * by how much (core/probability.js totalSlope). Set ODDS_MARKETS=spreads,h2h to
+ * save the credit and price without them.
+ */
+export const MARKETS = (process.env.ODDS_MARKETS ?? "spreads,h2h,totals").split(",");
+
+/**
+ * A book whose market is older than this, against the freshest book on the
+ * same game, is stale: it stopped updating and is quoting a line the others
+ * have moved off. Twelve hours is generous for a daily pull.
+ */
+const STALE_MS = 12 * 3600 * 1000;
+
+/**
+ * Fetch current spreads, moneylines and totals for every upcoming game.
  *
  * @param {string} apiKey
  * @param {string} sport A value from SPORT_KEYS.
@@ -27,7 +45,7 @@ export async function fetchEvents(apiKey, sport) {
   const url = new URL(`${BASE}/sports/${sport}/odds`);
   url.searchParams.set("apiKey", apiKey);
   url.searchParams.set("regions", "us");
-  url.searchParams.set("markets", "spreads,h2h");
+  url.searchParams.set("markets", MARKETS.join(","));
   url.searchParams.set("oddsFormat", "american");
 
   const response = await fetch(url);
@@ -106,41 +124,101 @@ export function sameTeam(a, b) {
 }
 
 /**
- * Reduce one event to the consensus spread and moneyline for a given team.
- * Takes the median across books so a single outlier cannot move the number.
+ * Reduce one event to a consensus for a given team.
+ *
+ * The spread and the total are medians across the books still quoting, so a
+ * single outlier cannot move the number. The moneyline is handled book by
+ * book: each book's two prices share one margin, so each pair is de-vigged on
+ * its own and the fair probabilities are averaged in log-odds
+ * (core/probability.js fairFromMoneylines). Taking a median of each side
+ * across books, as the ingest once did, mixed different books' margins and
+ * produced a -50 favourite priced below a -31 one. A book at its house maximum
+ * on either side is counted as capped and left out; a book whose quote is
+ * hours older than the freshest is stale and left out of everything.
  *
  * @param {object} event
  * @param {string} team Team name as it appears in data/plan.json.
- * @returns {{spread:number, moneyline:number|null, opponentMoneyline:number|null}|null}
+ * @param {object} [model] For the cap, see DEFAULT_MODEL.moneylineCap.
+ * @returns {{spread:number, total:number|null, moneyline:number|null,
+ *            opponentMoneyline:number|null, moneylineProb:number|null,
+ *            books:number, moneylineBooks:number, capped:number, stale:number,
+ *            lastUpdate:string|null}|null}
  */
-export function consensusFor(event, team) {
+export function consensusFor(event, team, model = DEFAULT_MODEL) {
   const matched = matchTeamName(event, team);
   if (!matched) return null;
+  const isTeam = (name) => normalise(name) === normalise(matched);
 
-  const spreads = [];
-  const moneylines = [];
-  const opponentMoneylines = [];
-
+  // The freshest quote on the game sets the clock a stale book is judged by.
+  const updates = [];
   for (const bookmaker of event.bookmakers ?? []) {
     for (const market of bookmaker.markets ?? []) {
-      for (const outcome of market.outcomes ?? []) {
-        const isTeam = normalise(outcome.name) === normalise(matched);
-        if (market.key === "spreads" && isTeam && typeof outcome.point === "number") {
-          spreads.push(outcome.point);
+      const at = Date.parse(market.last_update ?? bookmaker.last_update ?? "");
+      if (Number.isFinite(at)) updates.push(at);
+    }
+  }
+  const freshest = updates.length ? Math.max(...updates) : null;
+
+  const spreads = [];
+  const totals = [];
+  const pairs = [];
+  const teamPrices = [];
+  const opponentPrices = [];
+  let stale = 0;
+  let books = 0;
+
+  for (const bookmaker of event.bookmakers ?? []) {
+    let counted = false;
+    for (const market of bookmaker.markets ?? []) {
+      const at = Date.parse(market.last_update ?? bookmaker.last_update ?? "");
+      if (freshest !== null && Number.isFinite(at) && freshest - at > STALE_MS) {
+        stale += 1;
+        continue;
+      }
+      if (market.key === "spreads") {
+        for (const outcome of market.outcomes ?? []) {
+          if (isTeam(outcome.name) && typeof outcome.point === "number") {
+            spreads.push(outcome.point);
+            counted = true;
+          }
         }
-        if (market.key === "h2h" && typeof outcome.price === "number") {
-          (isTeam ? moneylines : opponentMoneylines).push(outcome.price);
+      } else if (market.key === "totals") {
+        for (const outcome of market.outcomes ?? []) {
+          if (outcome.name === "Over" && typeof outcome.point === "number")
+            totals.push(outcome.point);
         }
+      } else if (market.key === "h2h") {
+        const pair = {};
+        for (const outcome of market.outcomes ?? []) {
+          if (typeof outcome.price !== "number") continue;
+          if (isTeam(outcome.name)) {
+            pair.team = outcome.price;
+            teamPrices.push(outcome.price);
+          } else {
+            pair.opponent = outcome.price;
+            opponentPrices.push(outcome.price);
+          }
+        }
+        if (Number.isFinite(pair.team) && Number.isFinite(pair.opponent)) pairs.push(pair);
       }
     }
+    if (counted) books += 1;
   }
 
   if (spreads.length === 0) return null;
 
+  const fair = fairFromMoneylines(pairs, model);
   return {
     spread: median(spreads),
-    moneyline: moneylines.length ? median(moneylines) : null,
-    opponentMoneyline: opponentMoneylines.length ? median(opponentMoneylines) : null,
+    total: totals.length ? median(totals) : null,
+    moneyline: teamPrices.length ? median(teamPrices) : null,
+    opponentMoneyline: opponentPrices.length ? median(opponentPrices) : null,
+    moneylineProb: fair.probability,
+    books,
+    moneylineBooks: fair.books,
+    capped: fair.capped,
+    stale,
+    lastUpdate: freshest ? new Date(freshest).toISOString().replace(/\.\d{3}Z$/, "Z") : null,
   };
 }
 

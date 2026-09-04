@@ -111,19 +111,28 @@ Everything is switched off by the `prefers-reduced-motion` block in
 
 ## Data files
 
-- Data is namespaced by league: `data/cfb/` and `data/nfl/` hold the same six
+- Data is namespaced by league: `data/cfb/` and `data/nfl/` hold the same
   files. Never reach across, and never hardcode a league outside
   `src/js/leagues.js`.
 - `plan.json`, `teams.json`, `schedule.json` and `ratings.json` are
-  hand-edited (or seeded once by `npm run seed -- <league>`). `odds.json` and
-  `form.json` are bot-owned, edits to them will be overwritten and they are in
-  `.prettierignore` for that reason.
-- `form.json` is the only data file the board can open without. It does not
-  exist until the first refresh run that has something to fit, so anything
-  loading it treats its absence as normal and falls back to `ratings.json`,
-  which stays the FBS membership test either way. `npm run rate` refits it from
-  what is already on disk, with no API call, which is also how you rebuild it
-  after a hand-edit to `odds.json`.
+  hand-edited (or seeded once by `npm run seed -- <league>`). `odds.json`,
+  `form.json`, `stats.json` and `snapshots/` are bot-owned, edits to them will
+  be overwritten and they are in `.prettierignore` for that reason.
+  `calibration.json` and `history.json` are script-owned: `npm run calibrate`
+  and `npm run history` write them, a human runs those and commits the result,
+  and nobody edits them by hand.
+- `availability.json` and `pool.json` are the two files a human keeps during
+  the season. Every availability entry carries `source` and `reportedAt`, and
+  `pool.json` carries `updatedAt`, because the board's cache and the refresh
+  job's diff both key on them.
+- Four data files are optional and the board opens without any of them:
+  `form.json` (until the first run with something to fit), `calibration.json`
+  (the defaults in `core/probability.js` are the college numbers),
+  `availability.json` (nothing reported) and `pool.json` (survival mode).
+  Anything loading them treats absence as normal. `ratings.json` stays the FBS
+  membership test either way. `npm run rate` refits `form.json` from what is
+  already on disk, with no API call, which is also how you rebuild it after a
+  hand-edit to `odds.json`.
 - Any change to a `plan.json` must pass `npm test`, which enforces each pool's
   own rules: the declared weeks and picks per week, no repeated team, eligible
   conferences, every pick a real game at the site claimed, every pick favoured,

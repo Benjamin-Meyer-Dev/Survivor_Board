@@ -1208,6 +1208,140 @@
   align-items: flex-end;
 }
 
+/* coach's board (ui/week-panel.js frontierMarkup) ------------------------ */
+
+/* Under the slots of the week on the clock: the openings any good path starts
+   with, side by side. It is one card on the slide's ground, like the slots
+   above it, and every row is a button that fills the open slots. */
+.frontier {
+  display: grid;
+  gap: var(--sp-3);
+  margin: 0 var(--sp-4) var(--sp-5);
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.frontier__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-1) var(--sp-3);
+}
+
+.frontier__meta {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.frontier__list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.frontier__pick {
+  appearance: none;
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+
+.frontier__pick:disabled {
+  cursor: default;
+}
+
+.frontier__pick:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.frontier__pick:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The call reads as the coach's, in the accent, the way its badge does. */
+.frontier__row--call .frontier__pick {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface-2));
+}
+
+.frontier__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.frontier__teams {
+  margin-right: auto;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
+/* Five numbers a row; on a phone they wrap to a second line rather than
+   shrink, because the digits are the point. */
+.frontier__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
+  gap: 6px 10px;
+}
+
+.frontier__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.frontier__key {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.frontier__value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* What an alternative gives up against the call, in the caution colour. */
+.frontier__value--cost {
+  color: var(--thin);
+}
+
+.frontier__notes {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
 /* chips ------------------------------------------------------------------ */
 
 .chip {

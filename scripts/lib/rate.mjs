@@ -7,7 +7,7 @@
  * to 13 on numbers that knew nothing about the season being played. This is
  * what moves them.
  *
- * Two kinds of observation, both from data the refresh job already collects:
+ * Three kinds of observation, all from data the refresh job collects:
  *
  *   1. A market line we pulled. `odds.json` accumulates them - the keys are
  *      "<week>|<team>" and old weeks are never dropped - so by mid-season
@@ -20,6 +20,13 @@
  *      place by being early - margins land on Saturday night, the next week's
  *      lines are not posted until midweek, and the days in between are exactly
  *      when the plan for the rest of the season wants re-checking.
+ *   3. An efficiency margin, when a stats pull is on disk (data/<league>/
+ *      stats.json, see scripts/lib/stats.mjs): the same game read through
+ *      expected points added per play rather than the scoreboard, which strips
+ *      out the fumble that bounced the wrong way and the punt-return score. It
+ *      is on the points scale, so it enters the same equation as a margin, and
+ *      it is the layer the advanced statistics live in - separately weighted,
+ *      separately measurable, and absent without changing anything else.
  *
  * A line and a margin say the same kind of thing - how many points better one
  * team is than another, at a given site - so both become one equation:
@@ -33,57 +40,72 @@
  * out of it: beating a team the market rates highly moves a rating more than
  * beating one it does not, because both sides of every game are solved at once.
  *
- * Pure and environment-free, so the refresh job and the tests share it.
+ * The weights are parameters, not constants. `DEFAULT_RATING_PARAMS` is the
+ * starting point; `scripts/calibrate.mjs` tunes them walk-forward on the
+ * league's history (fit on the weeks before, price the week after, keep what
+ * priced it best) and writes the result to data/<league>/calibration.json,
+ * which the refresh job reads. Pure and environment-free, so the refresh job,
+ * the calibration and the tests share it.
  */
 
 /**
- * Weight of one market line. The unit the other weights are measured in.
- */
-const MARKET_WEIGHT = 1;
-
-/**
- * Weight of one final margin, against a market line's 1.
+ * The weights the fit runs with when a league's calibration.json names none.
  *
- * Deliberately modest. A margin is noisy, and within a few days the market has
- * read the same game and posted a line that supersedes it. Enough to move a
- * rating over a weekend, not enough for one 60-point Saturday to rewrite the
- * back half of the season.
+ *   marketWeight     Weight of one market line. The unit the others are in.
+ *   resultWeight     One final margin, against a line's 1. Deliberately
+ *                    modest: a margin is noisy, and within days the market has
+ *                    read the same game and posted a line that supersedes it.
+ *   efficiencyWeight One efficiency margin. Less noisy than the scoreboard, so
+ *                    it earns a little more than a raw margin, still well short
+ *                    of a line.
+ *   decay            Share of its weight an observation keeps per week of age.
+ *                    Teams are not the same in November as in September; at
+ *                    0.85 a five-week-old line counts about half a fresh one.
+ *   marginCap        Margins are capped here, in points, before use. Running
+ *                    up 70 does not make a team 70 points better than its
+ *                    opponent, it makes the last quarter meaningless.
+ *   anchor           Pull of a team's starting rating, in market lines, when
+ *                    the season opens. Not a preseason blend: pairwise
+ *                    observations fix the gaps between teams but not the
+ *                    level they all sit at, so something has to pin that, and
+ *                    a team with one observation should not be defined by it.
+ *                    At 0.35 the first line a team gets moves it three
+ *                    quarters of the way (see scripts/validate-ratings-fit.mjs).
+ *                    A prior as good as the market itself earns far more; a
+ *                    published preseason rating earns less.
+ *   anchorHalfLife   Weeks over which that pull halves. A preseason rating is
+ *                    as good as it will ever be in week 1 and drifts from the
+ *                    truth after that, so the pull toward it fades: at age t
+ *                    weeks it is anchor / (1 + t / anchorHalfLife). Zero keeps
+ *                    it constant. The calibration sets it from the prior's
+ *                    own error and how fast ratings drift.
  */
-const RESULT_WEIGHT = 0.35;
+export const DEFAULT_RATING_PARAMS = Object.freeze({
+  marketWeight: 1,
+  resultWeight: 0.35,
+  efficiencyWeight: 0.45,
+  decay: 0.85,
+  marginCap: 24,
+  anchor: 0.35,
+  anchorHalfLife: 0,
+});
 
-/**
- * How much of its weight an observation keeps per week of age.
- *
- * Teams are not the same in November as in September, so the fit leans on what
- * it saw most recently: at 0.85 a line from five weeks ago counts about half of
- * one posted this week. Without this a week-1 line would still be arguing
- * about a team in week 12.
- */
-const DECAY = 0.85;
+/** The pull toward the prior after `age` weeks of season, given the params. */
+export function anchorAt(params, age) {
+  const { anchor, anchorHalfLife } = resolveRatingParams(params);
+  if (!(anchorHalfLife > 0) || !(age > 0)) return anchor;
+  return anchor / (1 + age / anchorHalfLife);
+}
 
-/**
- * Margins are capped before they are used, in points.
- *
- * Running up 70 does not make a team 70 points better than its opponent, it
- * makes the last quarter meaningless. The cap is where a margin stops carrying
- * information about strength.
- */
-const MARGIN_CAP = 24;
-
-/**
- * Pull of a team's starting rating, in market lines.
- *
- * Not a preseason blend. It is here for two narrower reasons: pairwise
- * observations fix the gaps between teams but not the level they all sit at,
- * so something has to pin that, and a team with one observation should not be
- * defined by it. At 0.35 the first line a team gets moves it three quarters of
- * the way and four weeks of lines carry it 83-99% of the way from a starting
- * rating that is flat wrong (see scripts/validate-ratings-fit.mjs), so within a
- * month the season's own numbers own the rating. Lower would chase noise; a
- * team the pull has never seen has no equations at all and simply keeps what it
- * came with.
- */
-const ANCHOR = 0.35;
+/** Fill in whatever a calibration file leaves out. */
+export function resolveRatingParams(params) {
+  if (!params) return DEFAULT_RATING_PARAMS;
+  const out = { ...DEFAULT_RATING_PARAMS };
+  for (const key of Object.keys(DEFAULT_RATING_PARAMS)) {
+    if (Number.isFinite(params[key])) out[key] = params[key];
+  }
+  return Object.freeze(out);
+}
 
 /** Iterations of the solver, and the movement at which it stops early. */
 const MAX_PASSES = 400;
@@ -93,7 +115,7 @@ const TOLERANCE = 0.0005;
  * Everything one pull knows about one game, as an equation.
  *
  * @typedef {{a:string, b:string, hfa:number, value:number, weight:number,
- *            kind:"market"|"result", week:number}} Observation
+ *            kind:"market"|"result"|"efficiency", week:number}} Observation
  *   `a` is the team the value is from the point of view of: value is how many
  *   points better than `b` this game says it is, before home field.
  */
@@ -105,27 +127,33 @@ const TOLERANCE = 0.0005;
  * @param {object} args.schedule data/<league>/schedule.json
  * @param {object} args.lines    odds.json `lines`, keyed "<week>|<team>"
  * @param {object} args.scores   odds.json `scores`, signed margins by the same key
+ * @param {object} [args.stats]  stats.json `games`, `{margin}` by the same key
  * @param {object} args.base     Starting ratings, and the FBS membership test
  * @param {number} args.homeFieldPoints
  * @param {number} args.throughWeek The week the league is on, for recency
+ * @param {object} [args.params] Weights, see DEFAULT_RATING_PARAMS
  * @returns {Observation[]}
  */
 export function observationsFrom({
   schedule,
   lines = {},
   scores = {},
+  stats = {},
   base,
   homeFieldPoints = 2.5,
   throughWeek = 1,
+  params = DEFAULT_RATING_PARAMS,
 }) {
+  const weights = resolveRatingParams(params);
   const observations = [];
+  const cap = (value) => Math.max(-weights.marginCap, Math.min(weights.marginCap, value));
 
   for (const [weekKey, games] of Object.entries(schedule.weeks ?? {})) {
     const week = Number(weekKey);
     // A week yet to be played has neither margins nor, beyond the current one,
     // lines. Ageing is measured from the week the league is on.
     const age = Math.max(0, throughWeek - week);
-    const recency = DECAY ** age;
+    const recency = weights.decay ** age;
 
     for (const game of games) {
       const { home, away } = game;
@@ -155,29 +183,34 @@ export function observationsFrom({
           b: away,
           hfa,
           value: market,
-          weight: MARKET_WEIGHT * recency,
+          weight: weights.marketWeight * recency,
           kind: "market",
           week,
         });
       }
 
-      const homeMargin = scores[key(week, home)];
-      const awayMargin = scores[key(week, away)];
-      const margin =
-        typeof homeMargin === "number"
-          ? homeMargin
-          : typeof awayMargin === "number"
-            ? -awayMargin
-            : null;
-
+      const margin = sided(scores[key(week, home)], scores[key(week, away)]);
       if (margin !== null) {
         observations.push({
           a: home,
           b: away,
           hfa,
-          value: Math.max(-MARGIN_CAP, Math.min(MARGIN_CAP, margin)),
-          weight: RESULT_WEIGHT * recency,
+          value: cap(margin),
+          weight: weights.resultWeight * recency,
           kind: "result",
+          week,
+        });
+      }
+
+      const efficiency = sided(stats[key(week, home)]?.margin, stats[key(week, away)]?.margin);
+      if (efficiency !== null && weights.efficiencyWeight > 0) {
+        observations.push({
+          a: home,
+          b: away,
+          hfa,
+          value: cap(efficiency),
+          weight: weights.efficiencyWeight * recency,
+          kind: "efficiency",
           week,
         });
       }
@@ -185,6 +218,13 @@ export function observationsFrom({
   }
 
   return observations;
+}
+
+/** A signed number recorded from either team's side, read from the home side. */
+function sided(fromHome, fromAway) {
+  if (typeof fromHome === "number" && Number.isFinite(fromHome)) return fromHome;
+  if (typeof fromAway === "number" && Number.isFinite(fromAway)) return -fromAway;
+  return null;
 }
 
 /**
@@ -198,12 +238,22 @@ export function observationsFrom({
  * @param {object} args
  * @param {Observation[]} args.observations
  * @param {object} args.base Starting ratings by team.
+ * @param {object} [args.params]
  * @returns {{ratings:Object<string,number>, observations:Object<string,number>,
  *            games:number, passes:number}} `ratings` holds only the teams the
  *   pull has actually seen; everyone else keeps the rating they came with, so
  *   the caller can treat the result as an overlay.
  */
-export function solveRatings({ observations, base }) {
+export function solveRatings({
+  observations,
+  base,
+  params = DEFAULT_RATING_PARAMS,
+  throughWeek = 1,
+}) {
+  // The prior is a week old for every week the season has played past the
+  // first, and its pull fades with that age (see anchorHalfLife).
+  const anchor = anchorAt(params, Math.max(0, throughWeek - 1));
+
   // Which equations touch each team, so a pass over one team is local.
   const touching = new Map();
   for (const observation of observations) {
@@ -226,8 +276,8 @@ export function solveRatings({ observations, base }) {
     let moved = 0;
 
     for (const team of teams) {
-      let numerator = ANCHOR * base[team];
-      let denominator = ANCHOR;
+      let numerator = anchor * base[team];
+      let denominator = anchor;
 
       for (const observation of touching.get(team)) {
         const { a, b, hfa, value, weight } = observation;
@@ -269,7 +319,7 @@ export function solveRatings({ observations, base }) {
 /**
  * One league's fitted ratings, ready to write to data/<league>/form.json.
  *
- * @param {object} args As observationsFrom, plus `source` for the note in the file.
+ * @param {object} args As observationsFrom, plus `updatedAt` for the file.
  * @returns {object} The form document, or null when the pull has seen nothing
  *   yet - there is no point writing a file that says only "no data".
  */
@@ -277,37 +327,44 @@ export function fitForm({
   schedule,
   lines,
   scores,
+  stats,
   base,
   homeFieldPoints = 2.5,
   throughWeek = 1,
+  params = DEFAULT_RATING_PARAMS,
   updatedAt = new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
 }) {
+  const weights = resolveRatingParams(params);
   const observations = observationsFrom({
     schedule,
     lines,
     scores,
+    stats,
     base,
     homeFieldPoints,
     throughWeek,
+    params: weights,
   });
   if (observations.length === 0) return null;
 
-  const solved = solveRatings({ observations, base });
-  const marketCount = observations.filter((o) => o.kind === "market").length;
+  const solved = solveRatings({ observations, base, params: weights, throughWeek });
+  const count = (kind) => observations.filter((o) => o.kind === kind).length;
 
   return {
     $comment:
       "Written by .github/workflows/refresh-odds.yml. Never edit by hand - your change " +
-      "will be overwritten on the next run. Ratings fitted to the market lines and final " +
-      "margins the daily pull has collected, and used to price the weeks the market has " +
-      "not posted yet. Teams the pull has not seen are absent and keep their ratings.json " +
-      "value.",
+      "will be overwritten on the next run. Ratings fitted to the market lines, final " +
+      "margins and efficiency margins the daily pull has collected, and used to price the " +
+      "weeks the market has not posted yet. Teams the pull has not seen are absent and keep " +
+      "their ratings.json value.",
     updatedAt,
     throughWeek,
     homeFieldPoints,
+    params: weights,
     fit: {
-      marketLines: marketCount,
-      margins: observations.length - marketCount,
+      marketLines: count("market"),
+      margins: count("result"),
+      efficiency: count("efficiency"),
       teams: Object.keys(solved.ratings).length,
       passes: solved.passes,
     },
@@ -329,7 +386,15 @@ export function fitForm({
  * @returns {{week:number, fitted:number, base:number, count:number}|null} Null
  *   until two weeks have been pulled, when there is nothing to hold out.
  */
-export function holdoutError({ schedule, lines = {}, scores = {}, base, homeFieldPoints = 2.5 }) {
+export function holdoutError({
+  schedule,
+  lines = {},
+  scores = {},
+  stats = {},
+  base,
+  homeFieldPoints = 2.5,
+  params = DEFAULT_RATING_PARAMS,
+}) {
   const priced = [
     ...new Set(
       Object.entries(lines)
@@ -351,9 +416,11 @@ export function holdoutError({ schedule, lines = {}, scores = {}, base, homeFiel
     schedule,
     lines: keep(lines, (w) => w < week),
     scores: keep(scores, (w) => w < week),
+    stats: keep(stats, (w) => w < week),
     base,
     homeFieldPoints,
     throughWeek: week - 1,
+    params,
   });
   if (!fitted) return null;
 
@@ -371,7 +438,7 @@ export function holdoutError({ schedule, lines = {}, scores = {}, base, homeFiel
   return { week, fitted: withFit.mae, base: withBase.mae, count: withFit.count };
 }
 
-/** The key both `lines` and `scores` use in odds.json. */
+/** The key `lines`, `scores` and `stats` all use. */
 function key(week, team) {
   return `${week}|${team}`;
 }

@@ -11,7 +11,8 @@
  * numbers are doing, to rebuild the file after a hand-edit to odds.json, and
  * to bring a league that has never been fitted up to date.
  *
- * It reads odds.json and writes form.json, so it spends no quota and cannot
+ * It reads odds.json, stats.json when there is one, and the weights in
+ * calibration.json, and writes form.json, so it spends no quota and cannot
  * touch anything a human owns.
  */
 
@@ -19,7 +20,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-import { fitForm, marketError } from "./lib/rate.mjs";
+import { fitForm, marketError, resolveRatingParams } from "./lib/rate.mjs";
 import { LEAGUE_IDS, LEAGUES } from "../src/js/leagues.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -49,22 +50,33 @@ if (failed) process.exit(1);
 
 async function rate(league) {
   const read = async (name) => JSON.parse(await readFile(join(ROOT, "data", league, name), "utf8"));
-  const [odds, ratings, schedule] = await Promise.all([
+  const optional = (name) => read(name).catch(() => null);
+  const [odds, ratings, schedule, calibration, stats] = await Promise.all([
     read("odds.json"),
     read("ratings.json"),
     read("schedule.json"),
+    optional("calibration.json"),
+    optional("stats.json"),
   ]);
+  const params = resolveRatingParams(calibration?.rating);
 
   const form = fitForm({
     schedule,
     lines: odds.lines,
     scores: odds.scores,
+    stats: stats?.games,
     base: ratings.ratings,
     homeFieldPoints: ratings.homeFieldPoints,
     throughWeek: odds.currentWeek ?? 1,
+    params,
   });
 
   console.log(`\n=== ${LEAGUES[league].label} ===`);
+  console.log(
+    `Weights: ${calibration?.rating ? "calibration.json" : "defaults"} ` +
+      `(market ${params.marketWeight}, margin ${params.resultWeight}, efficiency ` +
+      `${params.efficiencyWeight}, decay ${params.decay}, cap ${params.marginCap}, anchor ${params.anchor}).`,
+  );
   if (!form) {
     console.log("Nothing pulled yet, so nothing to fit. Leaving form.json alone.");
     return;
@@ -85,8 +97,9 @@ async function rate(league) {
   });
 
   console.log(
-    `Fitted ${form.fit.teams} teams from ${form.fit.marketLines} market line(s) and ` +
-      `${form.fit.margins} margin(s) through week ${form.throughWeek} (${form.fit.passes} passes).`,
+    `Fitted ${form.fit.teams} teams from ${form.fit.marketLines} market line(s), ` +
+      `${form.fit.margins} margin(s) and ${form.fit.efficiency} efficiency margin(s) through ` +
+      `week ${form.throughWeek} (${form.fit.passes} passes).`,
   );
   if (before && after) {
     console.log(

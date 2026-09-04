@@ -1,2 +1,7 @@
 data/*/odds.json
 data/*/form.json
+data/*/stats.json
+data/*/history.json
+data/*/calibration.json
+data/*/snapshots/
+node_modules/

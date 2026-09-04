@@ -70,6 +70,10 @@ jobs:
         id: refresh
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          # Optional. A free key from collegefootballdata.com turns on the
+          # college efficiency layer (data/cfb/stats.json); without it the fit
+          # runs on lines and margins alone and the log says so.
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
           # Twenty hours, so the day's two scheduled slots collapse into one
           # pull while a genuine next-day run always goes through. Manual runs
           # keep the script's own short default, which is what makes testing
@@ -81,18 +85,22 @@ jobs:
         if: steps.refresh-time.outputs.due == 'true'
         id: commit
         run: |
-          if git diff --quiet -- 'data/*/odds.json' 'data/*/form.json'; then
+          # Anything the bot owns under data/: odds.json, form.json,
+          # stats.json and the day's snapshot, which is a new file every run.
+          if [ -z "$(git status --porcelain -- data)" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "No line movement."
             exit 0
           fi
           git config user.name  "survivor-board[bot]"
           git config user.email "survivor-board[bot]@users.noreply.github.com"
-          # Both of the bot's files: odds.json is the pull, form.json is the
-          # ratings fitted to it, and the board needs the pair to agree. Staged
-          # as a directory rather than by name so a league whose form.json does
-          # not exist yet cannot fail the step on an unmatched glob - the
-          # checkout is pristine, so nothing a human owns can be dirty here.
+          # All of the bot's files: odds.json is the pull, form.json the
+          # ratings fitted to it, stats.json the efficiency numbers and
+          # snapshots/ the day's lines, and the board needs them to agree.
+          # Staged as a directory rather than by name so a league whose
+          # optional files do not exist yet cannot fail the step on an
+          # unmatched glob - the checkout is pristine, so nothing a human owns
+          # can be dirty here.
           git add -A -- data
           git commit -m "chore(odds): refresh week ${{ steps.refresh.outputs.currentWeek || 'lines' }}"
           git push

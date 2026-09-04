@@ -16,7 +16,7 @@ import { dirname, join } from "node:path";
 
 import { LEAGUES } from "../src/js/leagues.js";
 import { recommendPath } from "../src/js/core/recommend.js";
-import { winProbFromSpread, projectSpread } from "../src/js/core/probability.js";
+import { winProbFromSpread, projectSpread, resolveModel } from "../src/js/core/probability.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -29,11 +29,13 @@ if (!config) {
 
 const read = async (name) => JSON.parse(await readFile(join(ROOT, "data", league, name), "utf8"));
 
-const [schedule, ratings, teams] = await Promise.all([
+const [schedule, ratings, teams, calibration] = await Promise.all([
   read("schedule.json"),
   read("ratings.json"),
   read("teams.json"),
+  read("calibration.json").catch(() => null),
 ]);
+const model = resolveModel(calibration);
 
 const roster = {};
 for (const [conference, group] of Object.entries(teams.conferences)) {
@@ -42,7 +44,11 @@ for (const [conference, group] of Object.entries(teams.conferences)) {
 
 const home = ratings.homeFieldPoints ?? 2.5;
 
-/** Every legal pick in a week, priced off the power ratings. */
+/**
+ * Every legal pick in a week, priced off the power ratings. A preseason plan
+ * projects every week, so every week carries its horizon: week 1 is a week
+ * out, week 13 thirteen.
+ */
 function optionsFor(week) {
   const out = [];
 
@@ -62,7 +68,15 @@ function optionsFor(week) {
         site === "Neutral" ? 0 : home,
       );
 
-      out.push({ team, opponent, site, spread, winProb: winProbFromSpread(spread) });
+      out.push({
+        team,
+        opponent,
+        site,
+        spread,
+        source: "projected",
+        weeksAhead: week,
+        winProb: winProbFromSpread(spread, model, { weeksAhead: week }),
+      });
     }
   }
 
@@ -81,6 +95,7 @@ const result = recommendPath({
   picksPerWeek: config.rules.picksPerWeek,
   buyBackWeeks: config.rules.buyBackWeeks,
   buyBacks: config.rules.buyBacks,
+  model,
 });
 
 const plan = {

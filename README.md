@@ -42,12 +42,19 @@ manifest.webmanifest          makes it installable to a home screen
 sw.js                         service worker: install support, instant launch, offline board
 icons/                        home-screen icons, 192 · 512 · maskable · iOS, plus the SVG source
 
-data/cfb/  data/nfl/          one folder per league, same five files
+data/cfb/  data/nfl/          one folder per league, the same files
   plan.json                   the season path and the pool's rules
   teams.json                  eligible teams + power ratings
   schedule.json               every game, by week
   ratings.json                the rating each team is priced off
   odds.json                   market lines, written by the bot, never by hand
+  form.json                   ratings refitted to the season so far, written by the bot
+  stats.json                  efficiency margins per game, written by the bot (NFL; college with a key)
+  snapshots/                  one file per refresh run, the day's lines, never rewritten
+  calibration.json            the league's fitted probability model, from `npm run calibrate`
+  history.json                past seasons' lines and results, from `npm run history`
+  availability.json           player availability, kept by hand (optional)
+  pool.json                   the pool's size and pick popularity, kept by hand (optional)
 
 src/css/
   tokens.css                  every colour in the app
@@ -62,9 +69,13 @@ src/js/
   leagues.js                  everything that differs between the two pools
   core/                       pure logic, also imported by the Node scripts
     plan.js                   merges plan + odds + entry into the derived board
-    probability.js            spread → win probability, de-vig, tiers
+    probability.js            the calibrated margin model: spread → win probability, de-vig, horizon
     survival.js               season survival, buy backs included
-    recommend.js              beam search over the remaining weeks
+    recommend.js              beam search over the remaining weeks, plus the frontier across futures
+    assignment.js             exact maximum-weight assignment (Hungarian), the beam's benchmark
+    scenarios.js              seeded futures: how the projections might turn out
+    availability.js           player availability as a points adjustment
+    equity.js                 pool leverage from pick popularity
     format.js                 display formatting and HTML escaping
     passcode.js               derives the passcode digest, shared with the set script
   store/                      persistence (Supabase, localStorage fallback)
@@ -72,11 +83,16 @@ src/js/
 
 scripts/
   refresh-odds.mjs            the daily odds job, both leagues
+  rate-form.mjs               refit the ratings from the pulls on disk
+  pull-stats.mjs              pull the efficiency statistics (nflverse; CFBD with a key)
+  import-history.mjs          import past seasons from nflverse and cfbfastR-data
+  calibrate.mjs               fit the probability model and tune the rating fit on history
+  backtest.mjs                score this season's board against what has happened
   seed-plan.mjs               author a league's plan.json from the optimiser
   set-passcode.mjs            set the pool passcode; only its digest lands in config.js
   build-icons.mjs             redraws icons/ from the startup football through headless Chrome
-  validate-plan.mjs           enforces both pools' rules in CI
-  lib/                        odds API client, season calendar
+  validate-*.mjs              the checks `npm test` runs
+  lib/                        odds API client, season calendar, rating fit, calibration, backtest
 
 supabase/schema.sql           one table, RLS policies, realtime
 .github/workflows/            refresh-odds · pages · ci
@@ -94,6 +110,10 @@ docs/                         architecture, code standards, deploy
 | `npm run refresh`     | Pulls live odds (needs `ODDS_API_KEY`)                                 |
 | `npm run seed -- nfl` | Re-authors a league's plan from the optimiser                          |
 | `npm run rate`        | Refits the team ratings from the pulls on disk, no API call            |
+| `npm run stats`       | Pulls this season's efficiency numbers (college needs `CFBD_API_KEY`)  |
+| `npm run history`     | Imports past seasons' lines and results from the public archives       |
+| `npm run calibrate`   | Fits the probability model to the history; `--write` keeps it          |
+| `npm run backtest`    | Scores this season's probabilities, projections, fit and calls         |
 | `npm run lint`        | ESLint                                                                 |
 | `npm run format`      | Prettier, write                                                        |
 
@@ -117,10 +137,19 @@ under `data/` and an entry in `src/js/leagues.js`.
 
 Only the current week is priced by the market - books do not post week 9 in
 September - so every week after it is projected from team ratings. Those
-ratings are refitted at the end of every run from the market lines and final
-margins the pull has collected, which is how the plan for the rest of the
-season keeps up with the season actually being played. See
+ratings are refitted at the end of every run from the market lines, final
+margins and efficiency numbers the pull has collected, which is how the plan
+for the rest of the season keeps up with the season actually being played. See
 [How the ratings learn](docs/ARCHITECTURE.md#how-the-ratings-learn).
+
+Every probability on the board comes through a model fitted to the league's
+own history: how margins scatter around a spread, how much a moneyline is
+worth against it, and how far a projection made today misses the line the
+market will post in six weeks. The coach then judges this week's choice across
+futures rather than on one path, and shows the two to four openings worth
+weighing with what each costs. See
+[The probability model](docs/ARCHITECTURE.md#the-probability-model) and
+[Futures and the coach's board](docs/ARCHITECTURE.md#futures-and-the-coachs-board).
 
 The refresh bot rewrites each league's `odds.json` and `form.json` and nothing
 else, which is why it can run every day without ever conflicting with a human

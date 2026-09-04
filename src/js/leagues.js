@@ -30,6 +30,9 @@ export const LEAGUES = Object.freeze({
     season: 2026,
     firstKickoff: "2026-09-13",
     dangerThreshold: -6,
+    /* A line that has moved this far since the week was first priced is
+       flagged by the refresh job. A field goal is a lot in the NFL. */
+    lineMoveFlag: 2.5,
     ratingLabel: "Power",
     /* Lower, because the NFL does not produce college numbers: a 12 point
        favourite is about as safe as this league gets, and calling it "Shaky"
@@ -62,6 +65,8 @@ export const LEAGUES = Object.freeze({
     season: 2026,
     firstKickoff: "2026-09-05",
     dangerThreshold: -10,
+    /* College lines swing further, so the flag waits for a bigger move. */
+    lineMoveFlag: 4,
     ratingLabel: "SP+",
     /* Win probability cut-offs for Lock / Solid / Shaky. Roughly -20, -14 and
        -10 on a college spread. */

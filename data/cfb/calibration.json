@@ -1,0 +1,241 @@
+{
+  "$comment": "Written by scripts/calibrate.mjs from data/cfb/history.json. How this league turns a spread into a win probability, how much its moneylines count, how far a projected line misses by weeks ahead, and the weights its rating fit runs with. Re-run `npm run calibrate -- cfb --write` after importing a new season; do not edit by hand.",
+  "fittedAt": "2026-09-04T20:43:03Z",
+  "source": "history.json 2014-2025, 7864 games",
+  "margin": {
+    "sigma": 14.12,
+    "slope": 0.03,
+    "totalSlope": 0.005,
+    "referenceTotal": 54.9,
+    "maxSigma": 26
+  },
+  "moneyline": {
+    "weight": 0.35,
+    "cap": 2500
+  },
+  "horizon": {
+    "base": 2.19,
+    "perWeek": 2.52,
+    "teamShare": 0.83,
+    "unseen": 5.9
+  },
+  "rating": {
+    "marketWeight": 1,
+    "resultWeight": 0.5,
+    "efficiencyWeight": 0.45,
+    "decay": 0.78,
+    "marginCap": 35,
+    "anchor": 2.391,
+    "anchorHalfLife": 1.84
+  },
+  "prior": {
+    "historyMae": 9.44,
+    "liveMae": 2.73,
+    "anchorHistory": 0.2,
+    "halfLifeHistory": 24.3,
+    "anchorLive": 2.391,
+    "halfLifeLive": 1.84
+  },
+  "report": {
+    "spreadOnly": {
+      "logLoss": 0.50603,
+      "brier": 0.16924
+    },
+    "withMoneyline": {
+      "logLoss": 0.50581,
+      "brier": 0.16911,
+      "n": 7170
+    },
+    "legacyCurve": {
+      "logLoss": 0.50664,
+      "brier": 0.16939
+    },
+    "bands": [
+      {
+        "low": 0.5,
+        "high": 0.55,
+        "n": 445,
+        "predicted": 0.5329,
+        "actual": 0.5124
+      },
+      {
+        "low": 0.55,
+        "high": 0.6,
+        "n": 1403,
+        "predicted": 0.5804,
+        "actual": 0.5524
+      },
+      {
+        "low": 0.6,
+        "high": 0.65,
+        "n": 622,
+        "predicted": 0.6253,
+        "actual": 0.6447
+      },
+      {
+        "low": 0.65,
+        "high": 0.7,
+        "n": 1179,
+        "predicted": 0.6803,
+        "actual": 0.6794
+      },
+      {
+        "low": 0.7,
+        "high": 0.75,
+        "n": 503,
+        "predicted": 0.7298,
+        "actual": 0.7356
+      },
+      {
+        "low": 0.75,
+        "high": 0.8,
+        "n": 672,
+        "predicted": 0.7713,
+        "actual": 0.7798
+      },
+      {
+        "low": 0.8,
+        "high": 0.85,
+        "n": 838,
+        "predicted": 0.8268,
+        "actual": 0.8222
+      },
+      {
+        "low": 0.85,
+        "high": 0.9,
+        "n": 692,
+        "predicted": 0.876,
+        "actual": 0.8945
+      },
+      {
+        "low": 0.9,
+        "high": 0.93,
+        "n": 436,
+        "predicted": 0.9171,
+        "actual": 0.9151
+      },
+      {
+        "low": 0.93,
+        "high": 0.95,
+        "n": 285,
+        "predicted": 0.9416,
+        "actual": 0.9263
+      },
+      {
+        "low": 0.95,
+        "high": 0.97,
+        "n": 316,
+        "predicted": 0.9609,
+        "actual": 0.9557
+      },
+      {
+        "low": 0.97,
+        "high": 0.98,
+        "n": 137,
+        "predicted": 0.9746,
+        "actual": 0.9635
+      },
+      {
+        "low": 0.98,
+        "high": 0.99,
+        "n": 178,
+        "predicted": 0.9853,
+        "actual": 0.9831
+      },
+      {
+        "low": 0.99,
+        "high": 1,
+        "n": 158,
+        "predicted": 0.9946,
+        "actual": 1
+      }
+    ],
+    "horizon": [
+      {
+        "h": 1,
+        "n": 6348,
+        "mae": 2.686,
+        "rmse": 3.64
+      },
+      {
+        "h": 2,
+        "n": 5914,
+        "mae": 3.243,
+        "rmse": 4.253
+      },
+      {
+        "h": 3,
+        "n": 5394,
+        "mae": 3.741,
+        "rmse": 4.828
+      },
+      {
+        "h": 4,
+        "n": 4860,
+        "mae": 4.173,
+        "rmse": 5.338
+      },
+      {
+        "h": 5,
+        "n": 4323,
+        "mae": 4.674,
+        "rmse": 5.954
+      },
+      {
+        "h": 6,
+        "n": 3786,
+        "mae": 5.017,
+        "rmse": 6.414
+      },
+      {
+        "h": 7,
+        "n": 3241,
+        "mae": 5.473,
+        "rmse": 6.961
+      },
+      {
+        "h": 8,
+        "n": 2711,
+        "mae": 5.835,
+        "rmse": 7.382
+      },
+      {
+        "h": 9,
+        "n": 2189,
+        "mae": 6.284,
+        "rmse": 7.939
+      },
+      {
+        "h": 10,
+        "n": 1649,
+        "mae": 6.604,
+        "rmse": 8.377
+      },
+      {
+        "h": 11,
+        "n": 1095,
+        "mae": 7.076,
+        "rmse": 8.883
+      },
+      {
+        "h": 12,
+        "n": 562,
+        "mae": 7.495,
+        "rmse": 9.31
+      }
+    ],
+    "ratingTuning": {
+      "mae": 2.686,
+      "trials": 36,
+      "history": {
+        "marketWeight": 1,
+        "resultWeight": 0.5,
+        "efficiencyWeight": 0.45,
+        "decay": 0.78,
+        "marginCap": 35,
+        "anchor": 0.2,
+        "anchorHalfLife": 24.3
+      }
+    }
+  }
+}
