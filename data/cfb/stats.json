@@ -1,0 +1,256 @@
+{
+  "$comment": "Written by scripts/pull-stats.mjs from CollegeFootballData game PPA. Never edit by hand. One record per team per game, keyed \"<week>|<team>\" like odds.json: `margin` is the team's offensive expected points added less its opponent's, capped, and is what the rating fit in form.json reads as an efficiency observation. The other fields say where it came from.",
+  "updatedAt": "2026-09-04T21:10:13Z",
+  "source": "https://api.collegefootballdata.com/ppa/games",
+  "season": 2026,
+  "games": {
+    "1|Akron": {
+      "opponent": "Wake Forest",
+      "margin": -32.2,
+      "offensePerPlay": 0.02,
+      "defensePerPlay": -0.48,
+      "passingPerPlay": 0.05,
+      "rushingPerPlay": 0.09
+    },
+    "1|Buffalo": {
+      "opponent": "UAlbany",
+      "margin": 14,
+      "offensePerPlay": 0.15,
+      "defensePerPlay": 0.05,
+      "passingPerPlay": 0.2,
+      "rushingPerPlay": -0.03
+    },
+    "1|Colorado": {
+      "opponent": "Georgia Tech",
+      "margin": -1.4,
+      "offensePerPlay": 0.05,
+      "defensePerPlay": -0.07,
+      "passingPerPlay": 0.07,
+      "rushingPerPlay": 0.02
+    },
+    "1|Delaware": {
+      "opponent": "Merrimack",
+      "margin": 35,
+      "offensePerPlay": 0.47,
+      "defensePerPlay": 0.22,
+      "passingPerPlay": 0.63,
+      "rushingPerPlay": 0.27
+    },
+    "1|Eastern Michigan": {
+      "opponent": "Sacramento State",
+      "margin": 9.8,
+      "offensePerPlay": 0.06,
+      "defensePerPlay": 0.08,
+      "passingPerPlay": 0.28,
+      "rushingPerPlay": -0.23
+    },
+    "1|Florida State": {
+      "opponent": "New Mexico State",
+      "margin": 9.1,
+      "offensePerPlay": 0.29,
+      "defensePerPlay": -0.16,
+      "passingPerPlay": 0.38,
+      "rushingPerPlay": 0.33
+    },
+    "1|Georgia Tech": {
+      "opponent": "Colorado",
+      "margin": 1.4,
+      "offensePerPlay": 0.07,
+      "defensePerPlay": -0.05,
+      "passingPerPlay": 0.43,
+      "rushingPerPlay": -0.26
+    },
+    "1|Hawai'i": {
+      "opponent": "Stanford",
+      "margin": -19.6,
+      "offensePerPlay": 0.05,
+      "defensePerPlay": -0.33,
+      "passingPerPlay": 0.14,
+      "rushingPerPlay": -0.08
+    },
+    "1|Illinois": {
+      "opponent": "UAB",
+      "margin": 27.3,
+      "offensePerPlay": 0.53,
+      "defensePerPlay": -0.14,
+      "passingPerPlay": 0.89,
+      "rushingPerPlay": 0.24
+    },
+    "1|Jacksonville State": {
+      "opponent": "North Dakota State",
+      "margin": -35,
+      "offensePerPlay": -0.32,
+      "defensePerPlay": -0.22,
+      "passingPerPlay": -0.33,
+      "rushingPerPlay": -0.3
+    },
+    "1|Kennesaw State": {
+      "opponent": "West Georgia",
+      "margin": 35,
+      "offensePerPlay": 0.29,
+      "defensePerPlay": 0.25,
+      "passingPerPlay": 0.14,
+      "rushingPerPlay": 0.41
+    },
+    "1|Massachusetts": {
+      "opponent": "Rutgers",
+      "margin": 9.1,
+      "offensePerPlay": 0.33,
+      "defensePerPlay": -0.2,
+      "passingPerPlay": 0.65,
+      "rushingPerPlay": 0.17
+    },
+    "1|Memphis": {
+      "opponent": "UNLV",
+      "margin": 14,
+      "offensePerPlay": 0.29,
+      "defensePerPlay": -0.09,
+      "passingPerPlay": 0.41,
+      "rushingPerPlay": 0.19
+    },
+    "1|Minnesota": {
+      "opponent": "Eastern Illinois",
+      "margin": 35,
+      "offensePerPlay": 0.34,
+      "defensePerPlay": 0.38,
+      "passingPerPlay": 0.63,
+      "rushingPerPlay": 0.1
+    },
+    "1|Missouri": {
+      "opponent": "Arkansas-Pine Bluff",
+      "margin": 20.3,
+      "offensePerPlay": 0.38,
+      "defensePerPlay": -0.09,
+      "passingPerPlay": 0.71,
+      "rushingPerPlay": 0.2
+    },
+    "1|NC State": {
+      "opponent": "Virginia",
+      "margin": -28.7,
+      "offensePerPlay": -0.14,
+      "defensePerPlay": -0.27,
+      "passingPerPlay": -0.08,
+      "rushingPerPlay": -0.21
+    },
+    "1|New Mexico State": {
+      "opponent": "Florida State",
+      "margin": -9.1,
+      "offensePerPlay": 0.16,
+      "defensePerPlay": -0.29,
+      "passingPerPlay": 0.41,
+      "rushingPerPlay": -0.07
+    },
+    "1|North Carolina": {
+      "opponent": "TCU",
+      "margin": 11.2,
+      "offensePerPlay": 0.11,
+      "defensePerPlay": 0.05,
+      "passingPerPlay": 0.27,
+      "rushingPerPlay": -0.09
+    },
+    "1|North Dakota State": {
+      "opponent": "Jacksonville State",
+      "margin": 35,
+      "offensePerPlay": 0.22,
+      "defensePerPlay": 0.32,
+      "passingPerPlay": 0.41,
+      "rushingPerPlay": 0.11
+    },
+    "1|Rutgers": {
+      "opponent": "Massachusetts",
+      "margin": -9.1,
+      "offensePerPlay": 0.2,
+      "defensePerPlay": -0.33,
+      "passingPerPlay": 0.42,
+      "rushingPerPlay": -0.34
+    },
+    "1|Sacramento State": {
+      "opponent": "Eastern Michigan",
+      "margin": -9.8,
+      "offensePerPlay": -0.08,
+      "defensePerPlay": -0.06,
+      "passingPerPlay": -0.08,
+      "rushingPerPlay": -0.05
+    },
+    "1|San José State": {
+      "opponent": "USC",
+      "margin": -11.9,
+      "offensePerPlay": 0.22,
+      "defensePerPlay": -0.39,
+      "passingPerPlay": 0.32,
+      "rushingPerPlay": 0.07
+    },
+    "1|Stanford": {
+      "opponent": "Hawai'i",
+      "margin": 19.6,
+      "offensePerPlay": 0.33,
+      "defensePerPlay": -0.05,
+      "passingPerPlay": 0.42,
+      "rushingPerPlay": 0.22
+    },
+    "1|TCU": {
+      "opponent": "North Carolina",
+      "margin": -11.2,
+      "offensePerPlay": -0.05,
+      "defensePerPlay": -0.11,
+      "passingPerPlay": 0.02,
+      "rushingPerPlay": -0.03
+    },
+    "1|UAB": {
+      "opponent": "Illinois",
+      "margin": -27.3,
+      "offensePerPlay": 0.14,
+      "defensePerPlay": -0.53,
+      "passingPerPlay": 0.06,
+      "rushingPerPlay": 0.23
+    },
+    "1|UCF": {
+      "opponent": "Bethune-Cookman",
+      "margin": 35,
+      "offensePerPlay": 0.55,
+      "defensePerPlay": 0.16,
+      "passingPerPlay": 0.12,
+      "rushingPerPlay": 0.79
+    },
+    "1|UNLV": {
+      "opponent": "Memphis",
+      "margin": -14,
+      "offensePerPlay": 0.09,
+      "defensePerPlay": -0.29,
+      "passingPerPlay": 0.07,
+      "rushingPerPlay": 0.19
+    },
+    "1|USC": {
+      "opponent": "San José State",
+      "margin": 11.9,
+      "offensePerPlay": 0.39,
+      "defensePerPlay": -0.22,
+      "passingPerPlay": 0.39,
+      "rushingPerPlay": 0.39
+    },
+    "1|Utah": {
+      "opponent": "Idaho",
+      "margin": 31.5,
+      "offensePerPlay": 0.51,
+      "defensePerPlay": -0.06,
+      "passingPerPlay": 0.68,
+      "rushingPerPlay": 0.45
+    },
+    "1|Virginia": {
+      "opponent": "NC State",
+      "margin": 28.7,
+      "offensePerPlay": 0.27,
+      "defensePerPlay": 0.14,
+      "passingPerPlay": 0.86,
+      "rushingPerPlay": 0.19
+    },
+    "1|Wake Forest": {
+      "opponent": "Akron",
+      "margin": 32.2,
+      "offensePerPlay": 0.48,
+      "defensePerPlay": -0.02,
+      "passingPerPlay": 0.64,
+      "rushingPerPlay": 0.31
+    }
+  }
+}
