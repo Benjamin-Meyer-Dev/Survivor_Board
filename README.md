@@ -93,6 +93,7 @@ docs/                         architecture, code standards, deploy
 | `npm run icons`       | Redraws the home-screen icons from the startup football (needs Chrome) |
 | `npm run refresh`     | Pulls live odds (needs `ODDS_API_KEY`)                                 |
 | `npm run seed -- nfl` | Re-authors a league's plan from the optimiser                          |
+| `npm run rate`        | Refits the team ratings from the pulls on disk, no API call            |
 | `npm run lint`        | ESLint                                                                 |
 | `npm run format`      | Prettier, write                                                        |
 
@@ -114,10 +115,18 @@ holds, whether a loss can be bought back, and where "Lock" starts all come off
 the board, which reads them from the plan. Adding a third pool is a folder
 under `data/` and an entry in `src/js/leagues.js`.
 
-The refresh bot rewrites each league's `odds.json` and nothing else, which is why it can run
-every day without ever conflicting with a human edit. It flags a pick
-whose line has collapsed and opens an issue, but it deliberately does not
-re-plan the season, see
+Only the current week is priced by the market - books do not post week 9 in
+September - so every week after it is projected from team ratings. Those
+ratings are refitted at the end of every run from the market lines and final
+margins the pull has collected, which is how the plan for the rest of the
+season keeps up with the season actually being played. See
+[How the ratings learn](docs/ARCHITECTURE.md#how-the-ratings-learn).
+
+The refresh bot rewrites each league's `odds.json` and `form.json` and nothing
+else, which is why it can run every day without ever conflicting with a human
+edit. It flags a pick whose line has collapsed, says which remaining weeks the
+new numbers moved, and opens an issue - but it deliberately does not re-plan
+the season for you, see
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#why-the-bot-does-not-re-plan).
 
 ## Docs

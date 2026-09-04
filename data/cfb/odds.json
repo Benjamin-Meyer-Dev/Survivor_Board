@@ -1,5 +1,5 @@
 {
-  "$comment": "Written by .github/workflows/refresh-odds.yml. Never edit by hand - your change will be overwritten on the next run. Line keys are \"<week>|<team>\", so a market line is found for any team, not just the two the plan names.",
+  "$comment": "Written by .github/workflows/refresh-odds.yml. Never edit by hand - your change will be overwritten on the next run. Line keys are \"<week>|<team>\", so a market line is found for any team, not just the two the plan names. Same keys in `results`, which is W/L and is what the board marks a locked pick from, and in `scores`, which is the signed margin and is what the rating fit in form.json learns from.",
   "updatedAt": "2026-09-04T16:04:02Z",
   "currentWeek": 1,
   "lines": {
@@ -193,6 +193,7 @@
     "1|Utah": "W",
     "1|Illinois": "W"
   },
+  "scores": {},
   "flags": [],
   "recommendation": {
     "picks": {

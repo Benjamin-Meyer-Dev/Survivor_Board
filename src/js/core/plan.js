@@ -118,6 +118,13 @@ function resolvePick({ weekPlan, odds, entry, teams, options, week, slot, tiers 
     base = options.find((option) => option.team === planPick?.team) ?? planPick;
   }
 
+  // The game has been played and nobody committed to it, so it was never this
+  // entry's pick and it cannot become one now: the slot goes back to being open
+  // and the coach's suggestion stands in. Leaving it would hold a team nobody
+  // can lock, priced off a line that is history. A locked pick keeps its team
+  // whatever the feed says - that one was committed, and the result is its own.
+  if (base && !locked && odds.results?.[lineKey(week, base.team)]) base = undefined;
+
   if (!base) {
     return {
       week,
@@ -164,15 +171,19 @@ function resolvePick({ weekPlan, odds, entry, teams, options, week, slot, tiers 
  * makes that game an invalid pick.
  *
  * Spread comes from the market when odds.json has a line for the team,
- * otherwise it is projected from the power ratings. An option also carries how
- * its game went, once the refresh job has recorded a final: a played game is
- * no longer a choice, so it leaves the coach's pool and the list shows the
- * outcome where the line used to be.
+ * otherwise it is projected from ratings - the fitted ones from form.json
+ * where the daily pull has seen the team, and the ones the league shipped with
+ * where it has not (see ratingFor). Only the current week is ever priced by
+ * the market, so the projection is what the optimiser plans the rest of the
+ * season on. An option also carries how its game went, once the refresh job
+ * has recorded a final: a played game is no longer a choice, so it leaves the
+ * coach's pool and the list shows the outcome where the line used to be.
  */
-function weekOptions({ schedule, ratings, teams, odds, week }) {
+function weekOptions({ schedule, ratings, teams, odds, form, week }) {
   const games = schedule.weeks?.[String(week)] ?? [];
   const eligible = allTeams(teams);
   const home = ratings.homeFieldPoints ?? 2.5;
+  const rating = (team) => ratingFor({ team, ratings, form, eligible });
   const options = [];
 
   for (const game of games) {
@@ -188,8 +199,8 @@ function weekOptions({ schedule, ratings, teams, odds, week }) {
       const spread =
         line?.spread ??
         projectSpread(
-          eligible[team].rating,
-          ratings.ratings[opponent],
+          rating(team),
+          rating(opponent),
           site === "Home",
           site === "Neutral" ? 0 : home,
         );
@@ -211,6 +222,23 @@ function weekOptions({ schedule, ratings, teams, odds, week }) {
   }
 
   return options.sort((a, b) => a.spread - b.spread);
+}
+
+/**
+ * The rating to price a team with.
+ *
+ * `form.json` is the refresh job's fit to the market lines and final margins
+ * it has pulled this season, and it holds only the teams that pull has
+ * actually seen. Anyone missing from it - a team whose games are all still
+ * ahead of them, or an opponent outside the pool - keeps the rating the league
+ * shipped with, so the board works the same whether the file is there or not.
+ *
+ * ratings.json stays the FBS membership test either way: a fitted rating is a
+ * better number for a team we already price, never a reason to price one we do
+ * not (see weekOptions).
+ */
+function ratingFor({ team, ratings, form, eligible }) {
+  return form?.ratings?.[team] ?? eligible[team]?.rating ?? ratings.ratings?.[team];
 }
 
 /** Which conference a team belongs to, or "" if it is not eligible. */
@@ -245,6 +273,10 @@ function lineOf(pick) {
  * @param {object} args.plan  data/<league>/plan.json
  * @param {object} args.odds  data/<league>/odds.json
  * @param {object} args.teams data/<league>/teams.json
+ * @param {object} [args.form] data/<league>/form.json, the ratings fitted to
+ *   this season's pulls. Optional: without it the board prices unposted weeks
+ *   off the ratings the league shipped with, which is what it did before the
+ *   fit existed.
  * @param {object} args.entry shared user state
  * @param {boolean} args.allowSearch Pass false to build without running the
  *   optimiser when its answer is not already cached. The board comes back with
@@ -259,6 +291,7 @@ export function buildBoard({
   teams,
   schedule,
   ratings,
+  form = null,
   entry,
   refreshSchedule,
   allowSearch = true,
@@ -269,7 +302,7 @@ export function buildBoard({
   // Pass one: resolve what each slot holds. Options for a week are built once
   // and shared by every slot in it.
   const weeks = plan.weeks.map((weekPlan) => {
-    const options = weekOptions({ schedule, ratings, teams, odds, week: weekPlan.week });
+    const options = weekOptions({ schedule, ratings, teams, odds, form, week: weekPlan.week });
     const picks = slots.map((slot) =>
       resolvePick({
         weekPlan,
@@ -431,7 +464,7 @@ export function buildBoard({
     value: cached,
     fresh,
     constraints,
-  } = memoisedRecommendation(board, plan, odds, allowSearch);
+  } = memoisedRecommendation(board, plan, odds, form, allowSearch);
   const recommendation = cached ?? { picks: {}, pathProbability: 0, shortfalls: [] };
   board.recommendation = recommendation;
   // A search is still owed; app.js schedules it once this board is painted.
@@ -442,19 +475,33 @@ export function buildBoard({
   // since have been locked into this one, and a path with a week missing reads
   // higher than any real path, not lower. Settled below, once that is known.
   let standInComplete = !fresh && cached !== null;
+  // Weeks the search reported short: it ran out of games to take, not out of
+  // plan. Late on a Saturday a two-pick week can have one fixture left, and one
+  // pick is then the whole of what the week holds. Without this the week and
+  // every week after it would drop their numbers, as if the path were unfinished.
+  const shortWeeks = new Set(recommendation.shortfalls ?? []);
 
   for (const week of board.weeks) {
     const lockedTeams = new Set(
       week.picks.filter((pick) => pick.status.locked).map((pick) => pick.team),
     );
-    // Two names a stand-in plan can carry that a fresh search never would: a
-    // team locked into another week since the plan was made, and a lock the
-    // plan was made around that has since been undone. Neither is the coach's
-    // call, so neither wears the badge for the beat before the search lands.
+    // Teams whose game this week has been played. A pick is a bet on a game
+    // still to come, so these are off the menu (see weekOptions) and the coach
+    // must not name one: it would badge a row the board disables.
+    const settledTeams = new Set(
+      week.options.filter((option) => option.result).map((option) => option.team),
+    );
+    // Three names a plan can carry that are not the coach's call for this week:
+    // a team locked into another week since the plan was made, a lock the plan
+    // was made around that has since been undone (both only from a stand-in,
+    // which a fresh search never produces), and a game that has been played
+    // since - which a cached plan can carry even when it was fresh when made.
+    // None wears the badge.
     const planned = (recommendation.picks[week.week] ?? []).filter(
       (team) =>
         (spentTeams[team] === undefined || spentTeams[team] === week.week) &&
-        (lockedTeams.has(team) || !constraints.has(`${week.week}:${team}`)),
+        (lockedTeams.has(team) ||
+          (!constraints.has(`${week.week}:${team}`) && !settledTeams.has(team))),
     );
     // And one name it can miss: a lock made since it was planned. On the path
     // a locked slot holds its team, so the locks go first and the plan's own
@@ -471,7 +518,11 @@ export function buildBoard({
       const option = week.options.find((o) => o.team === team);
       return option ? [{ ...option, tier: confidenceTier(option.winProb, rules.tiers) }] : [];
     });
-    if (week.week >= currentWeek && week.pathRecommendation.length < rules.picksPerWeek) {
+    if (
+      week.week >= currentWeek &&
+      !shortWeeks.has(week.week) &&
+      week.pathRecommendation.length < rules.picksPerWeek
+    ) {
       standInComplete = false;
     }
     const liveCalls = week.pathRecommendation.filter((option) => !lockedTeams.has(option.team));
@@ -537,7 +588,11 @@ export function buildBoard({
     const weekPath = week.picks.filter((pick) =>
       week.week < board.currentWeek ? pick.status.locked && pick.onPath : pick.onPath,
     );
-    if (week.week >= board.currentWeek && weekPath.length !== rules.picksPerWeek) {
+    if (
+      week.week >= board.currentWeek &&
+      !shortWeeks.has(week.week) &&
+      weekPath.length !== rules.picksPerWeek
+    ) {
       pathComplete = false;
     }
     cumulativePicks.push(
@@ -658,7 +713,7 @@ const NO_CONSTRAINTS = new Set();
  *   that week is a lock it obeyed, not a call it made, and must not be shown
  *   as one.
  */
-function memoisedRecommendation(board, plan, odds, allowSearch) {
+function memoisedRecommendation(board, plan, odds, form, allowSearch) {
   // An eliminated entry has no season left to plan. The coach stands down and
   // the board goes into review: what happened, not what could.
   if (board.eliminated) {
@@ -695,6 +750,9 @@ function memoisedRecommendation(board, plan, odds, allowSearch) {
     board.buyBack?.left ?? 0,
     odds.updatedAt,
     Object.keys(odds.lines ?? {}).length,
+    // The fit prices every week the market has not posted, so a new one is a
+    // different search. Without this a refit would be answered from the cache.
+    form?.updatedAt ?? "",
   ].join("|");
   const signature = `${base}|${locks.map((lock) => `${lock.key}:${lock.result}`).join(",")}`;
 

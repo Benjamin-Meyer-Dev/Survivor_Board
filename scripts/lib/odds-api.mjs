@@ -62,11 +62,16 @@ export async function fetchScores(apiKey, sport, daysFrom = 3) {
 }
 
 /**
- * Which side won a completed event, or null when it is not final or the
- * payload is missing scores.
+ * Which side won a completed event, and by how much, or null when it is not
+ * final or the payload is missing scores.
+ *
+ * The margin is what the rating fit reads (scripts/lib/rate.mjs); the board
+ * only ever needs the winner. Free-tier scores look back three days, so a
+ * margin not recorded within three days of kickoff is gone for good - which is
+ * why the job stores it rather than deriving it later.
  *
  * @param {object} event
- * @returns {{winner:string, loser:string}|null}
+ * @returns {{winner:string, loser:string, margin:number}|null}
  */
 export function winnerOf(event) {
   if (!event?.completed || !Array.isArray(event.scores) || event.scores.length < 2) return null;
@@ -80,7 +85,10 @@ export function winnerOf(event) {
   // survivor entry is the pool's own rule, so no result is recorded for it.
   if (a.score === b.score) return null;
 
-  return a.score > b.score ? { winner: a.name, loser: b.name } : { winner: b.name, loser: a.name };
+  const margin = Math.abs(a.score - b.score);
+  return a.score > b.score
+    ? { winner: a.name, loser: b.name, margin }
+    : { winner: b.name, loser: a.name, margin };
 }
 
 /** A completed event that ended level, so winnerOf has nothing to say. */

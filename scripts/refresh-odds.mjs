@@ -9,11 +9,18 @@
  * separate sport keys, separate data folders, separate freshness guards, and a
  * failure in one never stops the other.
  *
- * It prices every legal option for the upcoming week, sets currentWeek, flags
- * any pick that has fallen under the danger threshold, and re-runs the
- * recommendation over the remaining weeks with the new numbers. New odds in an
- * early week can change what the right pick is in week 11, so the whole
- * remaining path is recomputed, not just this week.
+ * One run does four things:
+ *
+ *   1. prices every legal option for the upcoming week from the market,
+ *   2. records the winner and the margin of every game just played,
+ *   3. refits the team ratings to everything it has pulled this season, which
+ *      is what prices the weeks the market has not posted yet, and
+ *   4. re-runs the recommendation over the remaining weeks on the new numbers
+ *      and says whether the plan should change.
+ *
+ * Step 4 is the point of the other three. New odds in an early week, or a
+ * team the season has revalued, can change what the right pick is in week 11,
+ * so the whole remaining path is recomputed rather than just this week's.
  *
  * The recommendation is advice, never an edit: the board keeps showing your
  * selection next to it and you decide. See docs/ARCHITECTURE.md.
@@ -34,6 +41,7 @@ import {
   SPORT_KEYS,
 } from "./lib/odds-api.mjs";
 import { currentWeekFor, resultsDueFor } from "./lib/weeks.mjs";
+import { fitForm, holdoutError, marketError } from "./lib/rate.mjs";
 import { winProbFromSpread, devig } from "../src/js/core/probability.js";
 import { lineKey, buildBoard } from "../src/js/core/plan.js";
 import { LEAGUE_IDS, LEAGUES } from "../src/js/leagues.js";
@@ -97,12 +105,17 @@ async function main() {
  */
 async function refreshLeague(league, apiKey) {
   const oddsPath = pathFor(league, "odds.json");
+  const formPath = pathFor(league, "form.json");
 
   const plan = JSON.parse(await readFile(pathFor(league, "plan.json"), "utf8"));
   const previous = JSON.parse(await readFile(oddsPath, "utf8"));
   const schedule = JSON.parse(await readFile(pathFor(league, "schedule.json"), "utf8"));
   const ratings = JSON.parse(await readFile(pathFor(league, "ratings.json"), "utf8"));
   const teams = JSON.parse(await readFile(pathFor(league, "teams.json"), "utf8"));
+  // Absent until the first run that has something to fit, and absent again if
+  // it is ever deleted. Both are fine: the board and this job fall back to the
+  // ratings the league shipped with.
+  const previousForm = await readJsonOrNull(formPath);
   const isEligible = (team) => Object.values(teams.conferences).some((roster) => team in roster);
 
   // Two clocks. Lines are priced while there is a week to price. Scores are
@@ -137,53 +150,245 @@ async function refreshLeague(league, apiKey) {
 
   const sport = SPORT_KEYS[league];
 
-  let priced = {
-    lines: previous.lines,
-    flags: [],
-    recommendation: previous.recommendation,
-    count: 0,
-    total: 0,
-  };
+  let priced = { lines: previous.lines, flags: [], count: 0, total: 0 };
   if (week === null) {
     console.log("Season is over. Reading the last scores; lines stay as they were.");
   } else {
     priced = await priceWeek({ apiKey, sport, week, plan, previous, schedule, ratings, teams });
   }
 
+  // Winners for the board, margins for the fit below. Both come out of the one
+  // scores call, and the free tier only looks back three days, so a margin
+  // this run does not record is one no later run can.
   const results = { ...(previous.results ?? {}) };
+  const scores = { ...(previous.scores ?? {}) };
   if (scoresDue) {
-    await recordResults({ apiKey, sport, schedule, isEligible, results });
+    await recordResults({ apiKey, sport, schedule, isEligible, results, scores });
   } else {
     console.log("No games played yet. Skipping the scores call.");
   }
 
+  const currentWeek = week ?? previous.currentWeek;
   const next = {
     $comment: previous.$comment,
     updatedAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
-    currentWeek: week ?? previous.currentWeek,
+    currentWeek,
     lines: priced.lines,
     results,
+    scores,
+    // Both settled below: the refit and the re-plan read this very object, so
+    // they cannot run until it exists, and what they find goes back into it.
     flags: priced.flags,
-    recommendation: priced.recommendation,
+    recommendation: previous.recommendation,
   };
 
+  // Refit the ratings on everything pulled so far. This is what the weeks the
+  // market has not posted are priced off, so it has to happen before the
+  // re-plan below rather than after it.
+  const form = refit({ schedule, ratings, odds: next, previousForm, league });
+
+  // Now ask the question the run exists to answer: on today's numbers, should
+  // the plan for the rest of the season change? Both boards are built with an
+  // empty entry - the shared locks live in the browser's store - so this is
+  // the unconstrained path, and any move is a move in the advice itself.
+  const moved = replan({
+    plan,
+    teams,
+    schedule,
+    ratings,
+    fromOdds: previous,
+    fromForm: previousForm,
+    toOdds: next,
+    toForm: form?.document ?? null,
+    week: currentWeek,
+  });
+  next.recommendation = moved.recommendation;
+  const flags = [...priced.flags, ...moved.flags, ...(form?.flags ?? [])];
+  next.flags = flags;
+
   await writeFile(oddsPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
-  console.log(`Priced ${priced.count}/${priced.total} lines. ${priced.flags.length} flag(s).`);
+  if (form) {
+    await writeFile(formPath, `${JSON.stringify(form.document, null, 2)}\n`, "utf8");
+  }
+  console.log(`Priced ${priced.count}/${priced.total} lines. ${flags.length} flag(s).`);
 
   // Prefixed so a flag in an issue says which pool it came from.
   return {
     week,
-    flags: priced.flags.map((flag) => ({
+    flags: flags.map((flag) => ({
       ...flag,
       message: `[${LEAGUES[league].label}] ${flag.message}`,
     })),
   };
 }
 
+/** A JSON file that is allowed not to exist yet. */
+async function readJsonOrNull(path) {
+  try {
+    return JSON.parse(await readFile(path, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Price every legal option for the week and re-run the optimiser on the new
- * numbers. Returns the merged lines, the flags raised, the recommendation to
- * publish, and how many lines the market actually covered.
+ * Refit the team ratings to every market line and final margin pulled this
+ * season, and report whether the fit is worth having.
+ *
+ * The fit is only ever used to price a matchup the market has not posted, so
+ * the test that means anything is out of sample: fit on the weeks before the
+ * latest one pulled, then see which prices that week better, the fit or the
+ * ratings the league shipped with. A fit that loses that comparison is left in
+ * place - the numbers are still the best guess for the weeks ahead - but the
+ * run says so, and the flag opens an issue.
+ *
+ * @returns {{document:object, flags:Array}|null} Null when there is nothing to
+ *   fit yet, in which case any existing form.json is left exactly as it was.
+ */
+function refit({ schedule, ratings, odds, previousForm, league }) {
+  const document = fitForm({
+    schedule,
+    lines: odds.lines,
+    scores: odds.scores,
+    base: ratings.ratings,
+    homeFieldPoints: ratings.homeFieldPoints,
+    throughWeek: odds.currentWeek ?? 1,
+    updatedAt: odds.updatedAt,
+  });
+
+  if (!document) {
+    console.log("Nothing pulled yet, so no ratings to fit.");
+    return null;
+  }
+
+  console.log(
+    `Refit ${document.fit.teams} team rating(s) from ${document.fit.marketLines} market ` +
+      `line(s) and ${document.fit.margins} margin(s).`,
+  );
+
+  const flags = [];
+  const holdout = holdoutError({
+    schedule,
+    lines: odds.lines,
+    scores: odds.scores,
+    base: ratings.ratings,
+    homeFieldPoints: ratings.homeFieldPoints,
+  });
+
+  if (!holdout) {
+    // One week of lines cannot be split into a fit and a test.
+    const inSample = marketError({
+      schedule,
+      lines: odds.lines,
+      base: ratings.ratings,
+      overlay: document.ratings,
+      homeFieldPoints: ratings.homeFieldPoints,
+    });
+    if (inSample) console.log(`  explains the lines pulled so far to ${inSample.mae} pts.`);
+    return { document, flags };
+  }
+
+  const verdict = holdout.fitted <= holdout.base ? "better" : "WORSE";
+  console.log(
+    `  week ${holdout.week} held out: fitted ${holdout.fitted} pts vs shipped ` +
+      `${holdout.base} pts over ${holdout.count} game(s) - ${verdict}.`,
+  );
+
+  if (holdout.fitted > holdout.base) {
+    flags.push({
+      week: holdout.week,
+      kind: "fit",
+      message:
+        `The fitted ratings priced week ${holdout.week} worse than the ones the league ` +
+        `shipped with (${holdout.fitted} pts vs ${holdout.base}). The coach is planning ` +
+        `the unposted weeks on them, so check ${league}/form.json.`,
+    });
+  }
+
+  // Biggest movers, so a run reads as a story about the season rather than a
+  // wall of numbers.
+  const movers = Object.entries(document.ratings)
+    .map(([team, rating]) => ({ team, delta: rating - ratings.ratings[team] }))
+    .filter((move) => Math.abs(move.delta) >= 1)
+    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+    .slice(0, 5);
+  if (movers.length) {
+    console.log(
+      `  movers: ${movers
+        .map((move) => `${move.team} ${move.delta > 0 ? "+" : ""}${move.delta.toFixed(1)}`)
+        .join(", ")}`,
+    );
+  }
+  if (previousForm) {
+    const since = Object.entries(document.ratings)
+      .map(([team, rating]) => Math.abs(rating - (previousForm.ratings?.[team] ?? rating)))
+      .reduce((most, move) => Math.max(most, move), 0);
+    console.log(`  largest move since the last run: ${since.toFixed(1)} pts.`);
+  }
+
+  return { document, flags };
+}
+
+/**
+ * Re-run the optimiser on yesterday's numbers and today's, and report every
+ * remaining week whose pick moved.
+ *
+ * Both new lines and a refit can move it, and the point of running daily is
+ * that either might: a team the season has revalued changes what is worth
+ * spending in week 3 as surely as a line moving does.
+ *
+ * @returns {{recommendation:object, flags:Array, changedWeeks:Array}}
+ */
+function replan({ plan, teams, schedule, ratings, fromOdds, fromForm, toOdds, toForm, week }) {
+  const boardArgs = { plan, teams, schedule, ratings, entry: { picks: {}, swaps: {} } };
+  const before = buildBoard({ ...boardArgs, odds: fromOdds, form: fromForm }).recommendation;
+  const after = buildBoard({ ...boardArgs, odds: toOdds, form: toForm }).recommendation;
+
+  const changedWeeks = [];
+  for (let w = week; w <= plan.weeks.length; w += 1) {
+    const a = [...(before.picks[w] ?? [])].sort().join(" + ");
+    const b = [...(after.picks[w] ?? [])].sort().join(" + ");
+    if (a !== b) changedWeeks.push({ week: w, from: a, to: b });
+  }
+
+  const flags = [];
+  if (changedWeeks.length) {
+    console.log("Recommendation changed:");
+    for (const change of changedWeeks) {
+      console.log(`  week ${change.week}: ${change.from}  ->  ${change.to}`);
+    }
+    flags.push({
+      week,
+      kind: "recommendation",
+      message:
+        `Recommendation moved in ${changedWeeks.length} week(s): ` +
+        changedWeeks.map((c) => `wk${c.week} ${c.to}`).join("; "),
+    });
+  } else {
+    console.log("Recommendation unchanged for every remaining week.");
+  }
+
+  console.log(
+    `Path odds: ${(before.pathProbability * 100).toFixed(2)}% -> ${(after.pathProbability * 100).toFixed(2)}%`,
+  );
+
+  return {
+    changedWeeks,
+    flags,
+    recommendation: {
+      picks: after.picks,
+      pathProbability: Number(after.pathProbability.toFixed(6)),
+    },
+  };
+}
+
+/**
+ * Price every legal option for the week from the market. Returns the merged
+ * lines, the flags raised, and how many lines the market actually covered.
+ *
+ * Only this week is priced: books do not post week 9 in September. Every other
+ * week is projected from the ratings, which is what the refit exists to keep
+ * honest.
  */
 async function priceWeek({ apiKey, sport, week, plan, previous, schedule, ratings, teams }) {
   const weekPlan = plan.weeks.find((entry) => entry.week === week);
@@ -257,64 +462,28 @@ async function priceWeek({ apiKey, sport, week, plan, previous, schedule, rating
     }
   }
 
-  // Re-run the optimiser on the old and new numbers to see whether the advice
-  // actually moved. Runs with an empty entry - the shared locks live in the
-  // browser's store, so this is the unconstrained recommendation.
-  const boardArgs = { plan, teams, schedule, ratings, entry: { picks: {}, swaps: {} } };
-  const before = buildBoard({ ...boardArgs, odds: previous }).recommendation;
-  const after = buildBoard({
-    ...boardArgs,
-    odds: { ...previous, lines, currentWeek: week },
-  }).recommendation;
-
-  const changedWeeks = [];
-  for (let w = week; w <= plan.weeks.length; w += 1) {
-    const a = [...(before.picks[w] ?? [])].sort().join(" + ");
-    const b = [...(after.picks[w] ?? [])].sort().join(" + ");
-    if (a !== b) changedWeeks.push({ week: w, from: a, to: b });
-  }
-
-  if (changedWeeks.length) {
-    console.log("Recommendation changed:");
-    for (const change of changedWeeks) {
-      console.log(`  week ${change.week}: ${change.from}  ->  ${change.to}`);
-    }
-    flags.push({
-      week,
-      kind: "recommendation",
-      message:
-        `Recommendation moved in ${changedWeeks.length} week(s): ` +
-        changedWeeks.map((c) => `wk${c.week} ${c.to}`).join("; "),
-    });
-  }
-  console.log(
-    `Path odds: ${(before.pathProbability * 100).toFixed(2)}% -> ${(after.pathProbability * 100).toFixed(2)}%`,
-  );
-
-  return {
-    lines,
-    flags,
-    recommendation: {
-      picks: after.picks,
-      pathProbability: Number(after.pathProbability.toFixed(6)),
-    },
-    count: priced,
-    total: targets.length,
-  };
+  return { lines, flags, count: priced, total: targets.length };
 }
 
 /**
- * Final scores, recorded into `results` against the schedule, keyed
- * "<week>|<team>". The board marks a locked pick won or lost from these and
- * nothing else: there are no buttons for it. A game the feed does not settle
- * (a tie, or one it never returns) stays unresolved until someone adds the key
- * to `results` in odds.json by hand.
+ * Final scores, recorded against the schedule and keyed "<week>|<team>", in
+ * two maps with two different readers:
  *
- * The free tier looks back three days, and the job runs daily, so every game
- * is seen at least twice before it falls out of the window.
+ *   results  "W" or "L". The board marks a locked pick won or lost from these
+ *            and nothing else: there are no buttons for it. A game the feed
+ *            does not settle (a tie, or one it never returns) stays unresolved
+ *            until someone adds the key by hand.
+ *   scores   The margin, signed from that team's point of view. Nothing in the
+ *            UI reads it; it is what the rating fit learns from, and it is kept
+ *            rather than derived because the free tier only looks back three
+ *            days. A margin this run does not write down is gone.
+ *
+ * The job runs daily, so every game is seen at least twice before it falls out
+ * of that window.
  */
-async function recordResults({ apiKey, sport, schedule, isEligible, results }) {
+async function recordResults({ apiKey, sport, schedule, isEligible, results, scores }) {
   let recorded = 0;
+  let margins = 0;
 
   try {
     const scored = await fetchScores(apiKey, sport, 3);
@@ -341,14 +510,21 @@ async function recordResults({ apiKey, sport, schedule, isEligible, results }) {
         for (const team of [game.home, game.away]) {
           if (!isEligible(team)) continue;
           const key = lineKey(Number(weekNumber), team);
-          const value = sameTeam(team, outcome.winner) ? "W" : "L";
+          const won = sameTeam(team, outcome.winner);
+          const value = won ? "W" : "L";
           if (results[key] !== value) recorded += 1;
           results[key] = value;
+          const margin = won ? outcome.margin : -outcome.margin;
+          if (scores[key] !== margin) margins += 1;
+          scores[key] = margin;
         }
         break;
       }
     }
-    console.log(`Recorded ${recorded} new result(s) from ${scored.length} scored event(s).`);
+    console.log(
+      `Recorded ${recorded} new result(s) and ${margins} margin(s) from ` +
+        `${scored.length} scored event(s).`,
+    );
   } catch (error) {
     // Scores must not cost the run its lines. The next day's run sees the same
     // games again, so a miss here is a delay, not a gap.

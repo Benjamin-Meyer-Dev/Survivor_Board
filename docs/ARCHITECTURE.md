@@ -64,7 +64,7 @@ Supabase row, its own storage key), so locks in one pool can never appear in
 the other. The college pool predates the NFL one and keeps the unsuffixed
 names, which is why `scopeFor()` special-cases it.
 
-## Why the data is split five ways
+## Why the data is split six ways
 
 | File            | Owner           | Changes when                              |
 | --------------- | --------------- | ----------------------------------------- |
@@ -73,10 +73,14 @@ names, which is why `scopeFor()` special-cases it.
 | `schedule.json` | a human         | once a season                             |
 | `ratings.json`  | a human         | once a season                             |
 | `odds.json`     | the refresh bot | once a day                                |
+| `form.json`     | the refresh bot | once a day                                |
 
 Keeping them separate is what lets a bot rewrite the numbers every day
 without ever touching the strategy or the markup. A merge conflict between the
 bot and a human edit is impossible because they never write the same file.
+That is why the fitted ratings are their own file rather than an edit to
+`ratings.json`: the published preseason numbers stay a human's to set, and the
+season's own read on a team is the bot's.
 
 ## Suggestion vs pick
 
@@ -95,6 +99,14 @@ so picking a team and changing your mind cost nothing; the moment a pick is
 locked or unlocked, the rest of the season is re-planned around what is now
 committed. `plan.json` still carries an authored path, but only as the
 optimiser's seed and the season calendar. It never fills a slot.
+
+The coach only ever names a game still to be played, and what is left of a week
+is all it has to work with. That can be less than the pool asks for: with one
+fixture left and two slots open, the week takes the better side of it and
+nothing else, since the two sides of one game cannot both come through it, and
+a team playing a locked pick is no candidate for the slot beside it either. A
+week the search reports short is short by nature rather than unfinished, so it
+and the weeks after it keep their numbers.
 
 The optimiser is a beam search over the remaining weeks (`BEAM_WIDTH` 160,
 `CANDIDATE_WIDTH` 12). Exact search is impossible, state is the set of teams
@@ -151,6 +163,76 @@ about 66 candidates:
   the field to `SHORTLIST` first, an order of magnitude wider than the beam
   that comes out the other side.
 
+## How the ratings learn
+
+Only the current week is ever priced by the market: books do not post week 9 in
+September. Every week after it is projected from ratings, so those ratings are
+what the optimiser plans nearly the whole season on - and shipping them once,
+before the season, meant planning weeks 2 to 13 on numbers that knew nothing
+about the season being played. Perturbing them by the error they actually carry
+(2.6 points against the market in week 1) moved a fifth to a third of the
+college season's picks, so this was not a rounding difference.
+
+`scripts/lib/rate.mjs` refits them at the end of every run, from the two things
+the pull already collects:
+
+- **The market lines in `odds.json`**, which accumulate: the keys are
+  `"<week>|<team>"` and old weeks are never dropped, so by mid-season there is a
+  line for every eligible team in every week played. This is the strong signal,
+  because a line already has every result so far priced into it by people whose
+  job is to price it.
+- **The final margins in `scores`**, worth about a third of a line each. A
+  single game's margin is noisy, and within days the market has read the same
+  game and posted a line that supersedes it. Margins earn their place by being
+  early: they land on Saturday night, next week's lines are not posted until
+  midweek, and those days are exactly when the plan for the rest of the season
+  wants re-checking.
+
+A line and a margin say the same kind of thing - how many points better one team
+is than another, at a given site - so both become one equation,
+`rating[team] - rating[opponent] + homeField = expected margin`, and the set is
+solved for the ratings that best explain them. That is what turns "the market
+had Iowa by 10 at home" into a number that can price Iowa at Nebraska in week 9.
+Strength of schedule falls out of it, because both sides of every game are
+solved at once.
+
+Three things keep it honest:
+
+1. **Recent observations count for more** (15% less per week of age), because a
+   team is not the same in November as in September.
+2. **Margins are capped at 24 points.** Running up 70 does not make a team 70
+   points better, it makes the last quarter meaningless.
+3. **A team the pull has never seen is absent from `form.json`** and keeps its
+   `ratings.json` value. The fit is an overlay, never a replacement, and
+   `ratings.json` remains the FBS membership test - a fitted rating is a better
+   number for a team we already price, never a reason to price one we do not.
+
+There is a light pull toward each team's starting rating, worth about a third of
+one line. It is not a preseason blend: pairwise observations fix the gaps
+between teams but not the level they all sit at, so something has to pin that,
+and a team with one observation should not be defined by it. Its influence
+decays as the pull accumulates - four weeks of lines carry a rating 83-99% of
+the way from a starting value that is flat wrong.
+
+The run reports whether the fit is worth having, and the test is out of sample:
+fit on the weeks before the latest one pulled, then see which prices that week
+better, the fit or the shipped ratings. Explaining lines you were fitted to is
+easy and means nothing. A fit that loses that comparison is still used - it is
+still the best guess for the weeks ahead - but the run says so and the flag
+opens an issue, so a model quietly going wrong is not taken on trust.
+
+## Why the bot does not re-plan
+
+The point of refitting daily is the question the run ends on: on today's
+numbers, should the plan for the rest of the season change? The job builds the
+board on yesterday's numbers and today's and diffs the two paths, week by week,
+to the end of the season. New lines can move it and so can a refit - a team the
+season has revalued changes what is worth spending in week 3 as surely as a line
+moving does - and either way the run names every week whose pick changed and
+opens an issue.
+
+It still never edits `plan.json`. Advice is advice; the pick is yours.
+
 ## Results, and why survival is live
 
 `Season survival` is the product of the win probability of every pick that has
@@ -178,7 +260,10 @@ A buy back is spent, not refunded: losing week 1 costs the team as well as the
 cushion, and the board burns it either way.
 
 A resolved pick shows a `Won` or `Lost` chip and its lock can no longer be
-undone. A game the feed does not settle (a tie, or one it never returns) stays
+undone. An unlocked pick is not resolved, it is dropped: nothing was committed,
+its kickoff has been and gone, and the slot goes back to the coach's suggestion
+rather than holding a team the board will not let anyone lock. Only a lock
+survives its own kickoff. A game the feed does not settle (a tie, or one it never returns) stays
 unresolved; if the pool counts it, add the `"<week>|<team>"` key to `results`
 in `data/<league>/odds.json` by hand and the next run keeps it. Results saved
 into the shared entry by the old buttons are still honoured and still win.

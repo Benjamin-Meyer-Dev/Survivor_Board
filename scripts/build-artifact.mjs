@@ -58,6 +58,9 @@ const JS = [
 ];
 const DATA = ["plan.json", "teams.json", "odds.json", "schedule.json", "ratings.json"];
 
+/** Inlined when it is there. The board works without it; see openLeague. */
+const OPTIONAL_DATA = ["form.json"];
+
 /** Every league gets its own inlined block, keyed the way app.js looks it up. */
 const LEAGUE_IDS = ["cfb", "nfl"];
 
@@ -140,9 +143,20 @@ const data = Object.fromEntries(
     LEAGUE_IDS.map(async (league) => [
       league,
       Object.fromEntries(
-        await Promise.all(
-          DATA.map(async (file) => [file, JSON.parse(await read("data", league, file))]),
-        ),
+        (
+          await Promise.all(
+            [...DATA, ...OPTIONAL_DATA].map(async (file) => {
+              try {
+                return [file, JSON.parse(await read("data", league, file))];
+              } catch (error) {
+                // A required file missing is a broken build; an optional one is
+                // a league the refresh job has not fitted yet.
+                if (DATA.includes(file)) throw error;
+                return null;
+              }
+            }),
+          )
+        ).filter(Boolean),
       ),
     ]),
   ),
@@ -171,5 +185,6 @@ await writeFile(join(ROOT, "dist", "artifact.html"), out, "utf8");
 
 console.log(
   `dist/artifact.html  ${(out.length / 1024).toFixed(1)} KB  ` +
-    `(${CSS.length} css, ${JS.length} js, ${LEAGUE_IDS.length} leagues x ${DATA.length} data)`,
+    `(${CSS.length} css, ${JS.length} js, ${LEAGUE_IDS.length} leagues x ` +
+    `${Object.keys(Object.values(data)[0] ?? {}).length} data)`,
 );

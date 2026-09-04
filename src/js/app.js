@@ -48,6 +48,8 @@ const app = {
   odds: null,
   schedule: null,
   ratings: null,
+  /** Ratings fitted to this season's pulls. Null when the file is not there. */
+  form: null,
   entry: { picks: {}, swaps: {} },
   store: null,
   /** The verified passcode digest, which is also what opens the store's write lock. */
@@ -175,6 +177,7 @@ function boardInputs() {
     teams: app.teams,
     schedule: app.schedule,
     ratings: app.ratings,
+    form: app.form,
     entry: app.entry,
     refreshSchedule: CONFIG.refresh,
   };
@@ -453,12 +456,17 @@ async function openLeague(league) {
   app.recommendTimer = null;
   app.message = "";
 
-  const [plan, teams, odds, schedule, ratings] = await Promise.all([
+  const [plan, teams, odds, schedule, ratings, form] = await Promise.all([
     loadJson("plan.json", league),
     loadJson("teams.json", league),
     loadJson("odds.json", league),
     loadJson("schedule.json", league),
     loadJson("ratings.json", league),
+    // The refresh job's fit to this season's pulls, and the only data file the
+    // board can open without. It does not exist until the first run that has
+    // something to fit, so a league whose season has not started is not an
+    // error: the board prices the weeks ahead off ratings.json instead.
+    loadJson("form.json", league).catch(() => null),
   ]);
 
   app.league = league;
@@ -467,6 +475,7 @@ async function openLeague(league) {
   app.odds = odds;
   app.schedule = schedule;
   app.ratings = ratings;
+  app.form = form;
   app.viewWeek = Math.min(Math.max(odds.currentWeek ?? 1, 1), plan.weeks.length);
 
   document.title = `${LEAGUES[league].title} · ${LEAGUES[league].label}`;

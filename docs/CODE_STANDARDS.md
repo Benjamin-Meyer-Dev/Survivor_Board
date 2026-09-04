@@ -111,13 +111,19 @@ Everything is switched off by the `prefers-reduced-motion` block in
 
 ## Data files
 
-- Data is namespaced by league: `data/cfb/` and `data/nfl/` hold the same five
+- Data is namespaced by league: `data/cfb/` and `data/nfl/` hold the same six
   files. Never reach across, and never hardcode a league outside
   `src/js/leagues.js`.
 - `plan.json`, `teams.json`, `schedule.json` and `ratings.json` are
-  hand-edited (or seeded once by `npm run seed -- <league>`). `odds.json` is
-  bot-owned, edits to it will be overwritten and it is in `.prettierignore`
-  for that reason.
+  hand-edited (or seeded once by `npm run seed -- <league>`). `odds.json` and
+  `form.json` are bot-owned, edits to them will be overwritten and they are in
+  `.prettierignore` for that reason.
+- `form.json` is the only data file the board can open without. It does not
+  exist until the first refresh run that has something to fit, so anything
+  loading it treats its absence as normal and falls back to `ratings.json`,
+  which stays the FBS membership test either way. `npm run rate` refits it from
+  what is already on disk, with no API call, which is also how you rebuild it
+  after a hand-edit to `odds.json`.
 - Any change to a `plan.json` must pass `npm test`, which enforces each pool's
   own rules: the declared weeks and picks per week, no repeated team, eligible
   conferences, every pick a real game at the site claimed, every pick favoured,

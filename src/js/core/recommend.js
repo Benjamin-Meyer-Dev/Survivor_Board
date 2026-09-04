@@ -141,8 +141,18 @@ export function recommendPath({
         return sum + lp(option?.winProb ?? 0.5);
       }, 0);
 
+      // Both sides of one game cannot both come through it, so a team playing
+      // one this week already holds is no candidate: it would spend a slot on
+      // a certain loss.
+      const fixedOpponents = new Set(
+        fixed.flatMap((team) => {
+          const option = week.options.find((o) => o.team === team);
+          return option ? [option.opponent] : [];
+        }),
+      );
+
       const ranked = [...week.options]
-        .filter((option) => !fixed.includes(option.team))
+        .filter((option) => !fixed.includes(option.team) && !fixedOpponents.has(option.team))
         .sort((a, b) => b.winProb - a.winProb);
 
       // A two-pick week expands every beam into ~66 candidates, so this list
@@ -175,14 +185,28 @@ export function recommendPath({
           continue;
         }
 
+        // The same rule between two open slots: one game cannot fill both of
+        // them. When that pairing is all the week has left - one fixture still
+        // to play, both slots open - the week takes one pick rather than a
+        // guaranteed loss alongside it, and reports itself short.
+        let paired = false;
         for (let i = 0; i < available.length; i += 1) {
           for (let j = i + 1; j < available.length; j += 1) {
             const a = available[i];
             const b = available[j];
+            if (a.opponent === b.team) continue;
+            paired = true;
             next.push(
               propose(beam, [...fixed, a.team, b.team], fixedScore + lp(a.winProb) + lp(b.winProb)),
             );
           }
+        }
+
+        if (!paired) {
+          // Sorted by win probability, so this is the better side of the one
+          // game left.
+          const best = available[0];
+          next.push(propose(beam, [...fixed, best.team], fixedScore + lp(best.winProb), true));
         }
       }
 
