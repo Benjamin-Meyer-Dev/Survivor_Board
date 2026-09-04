@@ -277,9 +277,21 @@
   }
 }
 
+/* The strip fades a change in rather than settling it: its numbers sit in a
+   fixed row, and a bob there read as the whole strip flinching. The season
+   number itself counts to its new value in ui/strip.js and needs no fade. */
+@keyframes data-fade {
+  from {
+    opacity: 0.3;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .strip__value.is-data-updated,
 .strip__note.is-data-updated {
-  animation: data-settle 0.32s var(--ease-out) both;
+  animation: data-fade 0.3s ease-out both;
 }
 
 .burn__team.is-data-updated {

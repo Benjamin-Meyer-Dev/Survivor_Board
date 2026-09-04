@@ -18,6 +18,8 @@ export default [
         getComputedStyle: "readonly",
         matchMedia: "readonly",
         requestAnimationFrame: "readonly",
+        cancelAnimationFrame: "readonly",
+        performance: "readonly",
         navigator: "readonly",
         process: "readonly",
         URL: "readonly",

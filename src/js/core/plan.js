@@ -372,6 +372,9 @@ export function buildBoard({
   const nextRefresh = nextRefreshAt(Date.now(), refreshSchedule);
 
   const board = {
+    // Which pool this is, for anything in the UI that remembers across renders
+    // and must not carry one league's state onto the other's board.
+    league: plan.league ?? "cfb",
     weeks,
     rules,
     currentWeek,
