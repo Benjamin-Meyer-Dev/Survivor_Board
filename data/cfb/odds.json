@@ -1,6 +1,6 @@
 {
   "$comment": "Written by .github/workflows/refresh-odds.yml. Never edit by hand - your change will be overwritten on the next run. Line keys are \"<week>|<team>\", so a market line is found for any team, not just the two the plan names.",
-  "updatedAt": "2026-09-03T17:57:12Z",
+  "updatedAt": "2026-09-04T16:04:02Z",
   "currentWeek": 1,
   "lines": {
     "1|South Carolina": {
@@ -28,9 +28,9 @@
       "book": "consensus"
     },
     "1|Michigan State": {
-      "spread": -10,
+      "spread": -10.5,
       "source": "market",
-      "winProb": 0.7723,
+      "winProb": 0.7826,
       "book": "consensus"
     },
     "1|Oklahoma": {
@@ -42,13 +42,13 @@
     "1|USC": {
       "spread": -21.5,
       "source": "market",
-      "winProb": 0.9235,
+      "winProb": 0.9246,
       "book": "consensus"
     },
     "1|Nebraska": {
       "spread": -23.5,
       "source": "market",
-      "winProb": 0.9289,
+      "winProb": 0.9291,
       "book": "consensus"
     },
     "1|Ohio State": {
@@ -66,13 +66,13 @@
     "1|Texas": {
       "spread": -29.5,
       "source": "market",
-      "winProb": 0.9604,
+      "winProb": 0.9626,
       "book": "consensus"
     },
     "1|Penn State": {
       "spread": -24,
       "source": "market",
-      "winProb": 0.9314,
+      "winProb": 0.9313,
       "book": "consensus"
     },
     "1|Iowa": {
@@ -90,7 +90,7 @@
     "1|Mississippi State": {
       "spread": -28.5,
       "source": "market",
-      "winProb": 0.9488,
+      "winProb": 0.954,
       "book": "consensus"
     },
     "1|Michigan": {
@@ -102,7 +102,7 @@
     "1|Alabama": {
       "spread": -28,
       "source": "market",
-      "winProb": 0.9558,
+      "winProb": 0.9539,
       "book": "consensus"
     },
     "1|West Virginia": {
@@ -112,7 +112,7 @@
       "book": "consensus"
     },
     "1|Houston": {
-      "spread": -21,
+      "spread": -20.5,
       "source": "market",
       "winProb": 0.9083,
       "book": "consensus"
@@ -126,7 +126,7 @@
     "1|Oklahoma State": {
       "spread": -13.5,
       "source": "market",
-      "winProb": 0.8148,
+      "winProb": 0.8163,
       "book": "consensus"
     },
     "1|Auburn": {
@@ -144,7 +144,7 @@
     "1|LSU": {
       "spread": -10,
       "source": "market",
-      "winProb": 0.7664,
+      "winProb": 0.7614,
       "book": "consensus"
     },
     "1|Oregon": {
@@ -162,19 +162,19 @@
     "1|Washington": {
       "spread": -23.5,
       "source": "market",
-      "winProb": 0.9181,
+      "winProb": 0.9192,
       "book": "consensus"
     },
     "1|Ole Miss": {
-      "spread": -6.8,
+      "spread": -6.5,
       "source": "market",
-      "winProb": 0.6995,
+      "winProb": 0.6952,
       "book": "consensus"
     },
     "1|UCLA": {
       "spread": -2,
       "source": "market",
-      "winProb": 0.5395,
+      "winProb": 0.5427,
       "book": "consensus"
     },
     "1|Wisconsin": {
@@ -184,14 +184,16 @@
       "book": "consensus"
     }
   },
-  "results": {},
-  "flags": [
-    {
-      "week": 1,
-      "kind": "recommendation",
-      "message": "Recommendation moved in 6 week(s): wk1 Rutgers + South Carolina; wk3 Tennessee + UCF; wk4 Indiana + Kentucky; wk7 LSU + Oklahoma; wk10 Michigan + Texas Tech; wk13 Georgia + Utah"
-    }
-  ],
+  "results": {
+    "1|Rutgers": "L",
+    "1|UCF": "W",
+    "1|Missouri": "W",
+    "1|Minnesota": "W",
+    "1|Colorado": "W",
+    "1|Utah": "W",
+    "1|Illinois": "W"
+  },
+  "flags": [],
   "recommendation": {
     "picks": {
       "1": [

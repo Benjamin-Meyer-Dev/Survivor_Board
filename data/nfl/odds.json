@@ -1,30 +1,30 @@
 {
   "$comment": "Written by the refresh workflow. Line keys are \"<week>|<team>\".",
-  "updatedAt": "2026-09-03T17:57:11Z",
+  "updatedAt": "2026-09-04T16:04:02Z",
   "currentWeek": 1,
   "lines": {
     "1|Seahawks": {
       "spread": -3.5,
       "source": "market",
-      "winProb": 0.6261,
+      "winProb": 0.6304,
       "book": "consensus"
     },
     "1|Patriots": {
       "spread": 3.5,
       "source": "market",
-      "winProb": 0.3739,
+      "winProb": 0.3696,
       "book": "consensus"
     },
     "1|Panthers": {
       "spread": 2.5,
       "source": "market",
-      "winProb": 0.417,
+      "winProb": 0.4189,
       "book": "consensus"
     },
     "1|Bears": {
       "spread": -2.5,
       "source": "market",
-      "winProb": 0.583,
+      "winProb": 0.5811,
       "book": "consensus"
     },
     "1|Bengals": {
@@ -54,37 +54,37 @@
     "1|Texans": {
       "spread": 0,
       "source": "market",
-      "winProb": 0.492,
+      "winProb": 0.4957,
       "book": "consensus"
     },
     "1|Bills": {
       "spread": 0,
       "source": "market",
-      "winProb": 0.508,
+      "winProb": 0.5043,
       "book": "consensus"
     },
     "1|Colts": {
       "spread": 3.5,
       "source": "market",
-      "winProb": 0.3845,
+      "winProb": 0.386,
       "book": "consensus"
     },
     "1|Ravens": {
       "spread": -3.5,
       "source": "market",
-      "winProb": 0.6155,
+      "winProb": 0.614,
       "book": "consensus"
     },
     "1|Jaguars": {
       "spread": -8,
       "source": "market",
-      "winProb": 0.7664,
+      "winProb": 0.7659,
       "book": "consensus"
     },
     "1|Browns": {
       "spread": 8,
       "source": "market",
-      "winProb": 0.2336,
+      "winProb": 0.2341,
       "book": "consensus"
     },
     "1|Steelers": {
@@ -114,13 +114,13 @@
     "1|Chargers": {
       "spread": -10,
       "source": "market",
-      "winProb": 0.8134,
+      "winProb": 0.8138,
       "book": "consensus"
     },
     "1|Cardinals": {
       "spread": 10,
       "source": "market",
-      "winProb": 0.1866,
+      "winProb": 0.1862,
       "book": "consensus"
     },
     "1|Raiders": {
@@ -162,13 +162,13 @@
     "1|Giants": {
       "spread": 3,
       "source": "market",
-      "winProb": 0.4146,
+      "winProb": 0.414,
       "book": "consensus"
     },
     "1|Cowboys": {
       "spread": -3,
       "source": "market",
-      "winProb": 0.5854,
+      "winProb": 0.586,
       "book": "consensus"
     },
     "1|Chiefs": {
