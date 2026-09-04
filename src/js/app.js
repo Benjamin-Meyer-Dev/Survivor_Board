@@ -68,15 +68,6 @@ const app = {
 const EFFECT_FOR = { lock: "fx-lock", pick: "fx-swap" };
 
 /**
- * Effects that already move the slot's rows into place. The generic settle in
- * playDataUpdates stands down on a slot playing one of these: the two target
- * the same rows, and a slot arriving twice reads as the pick landing twice.
- * The other effects paint over the slot (a ring, a wash, a kick) and leave the
- * changed rows to the settle.
- */
-const ROW_EFFECTS = new Set(["fx-swap"]);
-
-/**
  * Feedback has to be applied AFTER the render that produced the new markup -
  * innerHTML replaces the node, so anything set beforehand is thrown away.
  *
@@ -223,14 +214,20 @@ function motionSignature(node) {
 /**
  * Animate only nodes whose content or state styling changed during the render.
  *
+ * The slot a tap just changed is left out: its own effect is the feedback, and
+ * this settle on top of it read as the card dipping and rising again. A pick's
+ * rise moves the same rows this would; a lock's ring and wash are the whole of
+ * what a lock should do. The settle is for changes that arrive without a tap -
+ * another device's edit, the optimiser filling in behind a stand-in, a refresh.
+ *
  * @param {Map<string,string>} previous Signatures from before the render.
  * @param {{className:string, nodes:HTMLElement[]}|null} effect What playEffect
- *   just decorated. Nodes whose effect moves the rows itself are skipped.
+ *   just decorated.
  */
 function playDataUpdates(previous, effect = null) {
   if (previous.size === 0 || app.switching) return;
 
-  const skip = new Set(effect && ROW_EFFECTS.has(effect.className) ? effect.nodes : []);
+  const skip = new Set(effect?.nodes ?? []);
   const changed = [];
   for (const node of el.shell?.querySelectorAll("[data-motion-key]") ?? []) {
     if (skip.has(node)) continue;
