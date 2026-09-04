@@ -87,9 +87,12 @@ export function requireGate(root, check) {
 }
 
 function markup() {
+  const hashSections = "<i></i>".repeat(10);
   return `
     <div class="gate__stadium" aria-hidden="true">
       <span class="gate__endzone gate__endzone--top">Survivor</span>
+      <span class="gate__hashes gate__hashes--left">${hashSections}</span>
+      <span class="gate__hashes gate__hashes--right">${hashSections}</span>
       <span class="gate__yard-number gate__yard-number--20"><i>20</i><i>20</i></span>
       <span class="gate__yard-number gate__yard-number--40"><i>40</i><i>40</i></span>
       <svg class="gate__midfield-ball" viewBox="0 0 54 34">

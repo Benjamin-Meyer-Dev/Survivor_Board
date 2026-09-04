@@ -446,15 +446,6 @@
    marks between yard lines constant as the viewport changes shape. */
 .gate__stadium::before {
   --chalk: rgb(147 180 240 / 11%);
-  --hash: rgb(147 180 240 / 14%);
-  --hash-run: repeating-linear-gradient(
-    180deg,
-    transparent 0 calc(3.3333% - 1px),
-    var(--hash) calc(3.3333% - 1px) calc(3.3333% + 1px),
-    transparent calc(3.3333% + 1px) calc(6.6667% - 1px),
-    var(--hash) calc(6.6667% - 1px) calc(6.6667% + 1px),
-    transparent calc(6.6667% + 1px) 10%
-  );
   content: "";
   position: absolute;
   inset: 10% 0;
@@ -464,9 +455,42 @@
       180deg,
       transparent 0 calc(10% - 1px),
       var(--chalk) calc(10% - 1px) 10%
-    ),
-    var(--hash-run) left 38% top / 12px 100% no-repeat,
-    var(--hash-run) left 62% top / 12px 100% no-repeat;
+    );
+}
+
+/* Ten equal sections place two hashes at each section's thirds. Real fixed-size
+   marks avoid the subpixel variation gradient stops can produce. */
+.gate__hashes {
+  position: absolute;
+  top: 10%;
+  bottom: 10%;
+  width: 12px;
+  display: grid;
+  grid-template-rows: repeat(10, 1fr);
+}
+
+.gate__hashes--left {
+  left: 38%;
+}
+
+.gate__hashes--right {
+  left: 62%;
+}
+
+.gate__hashes i {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-evenly;
+}
+
+.gate__hashes i::before,
+.gate__hashes i::after {
+  content: "";
+  width: 12px;
+  height: 2px;
+  flex: none;
+  background: rgb(147 180 240 / 14%);
 }
 
 .gate__endzone {
