@@ -3,7 +3,7 @@
  *
  * A real tablist: roving tabindex, arrow/Home/End keys, aria-selected, and
  * `hidden` on the panels rather than `display:none` in a stylesheet, so the
- * state lives in one place. The chosen tab is remembered per device.
+ * state lives in one place. Every new page load begins on This Week.
  *
  * The bar is built ONCE and updated in place afterwards. renderTabs runs on
  * every board render, and rewriting the markup would hand the browser a brand
@@ -15,8 +15,6 @@
  * jump under your thumb.
  */
 
-const STORAGE_KEY = "survivor-board/tab";
-
 /** Long enough to read as a move, short enough not to be in the way. */
 const FADE_MS = 220;
 const SLIDE_MS = 280;
@@ -27,14 +25,8 @@ export const TABS = Object.freeze([
   { id: "burn", label: "Depth Chart", panel: "view-burn" },
 ]);
 
-/** Last tab this device used, falling back to the week view. */
+/** Every visit opens on This Week, regardless of the previous session. */
 export function initialTab() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (TABS.some((tab) => tab.id === stored)) return stored;
-  } catch {
-    /* storage blocked - use the default */
-  }
   return TABS[0].id;
 }
 
@@ -70,7 +62,6 @@ export function renderTabs(root, activeId, onSelect) {
   lastRendered = activeId;
 
   applyPanels(activeId, changed);
-  remember(activeId);
 }
 
 function buildTabBar(root) {
@@ -169,12 +160,4 @@ function applyPanels(activeId, animate) {
 
 function prefersReducedMotion() {
   return globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-}
-
-function remember(activeId) {
-  try {
-    localStorage.setItem(STORAGE_KEY, activeId);
-  } catch {
-    /* storage blocked - the choice just will not persist */
-  }
 }

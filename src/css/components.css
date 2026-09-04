@@ -1835,6 +1835,9 @@
     min-height: 86px;
     padding: 11px 7px;
     gap: 4px;
+    /* A wrapped note may make one cell taller, but it must only grow downward;
+       independently centring each cell knocks the primary values off a row. */
+    justify-content: flex-start;
   }
 
   .strip__key {
@@ -1845,7 +1848,11 @@
 
   .strip__value {
     min-width: 0;
+    min-height: 1.2em;
+    display: flex;
+    align-items: center;
     font-size: clamp(18px, 5vw, 20px);
+    white-space: nowrap;
   }
 
   #countdown {
