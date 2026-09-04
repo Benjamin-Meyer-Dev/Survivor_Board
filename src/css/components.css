@@ -234,10 +234,15 @@
 /* startup screen --------------------------------------------------------- */
 
 .startup {
-  /* Startup has a fixed identity: it stays NFL blue regardless of whichever
-     league was saved for the board underneath it. */
-  --startup-accent: var(--switch-nfl, #2c3f8f);
-  --startup-accent-soft: color-mix(in srgb, var(--startup-accent) 18%, var(--ground));
+  /* These are deliberately self-contained rather than aliases to the root
+     theme. The overlay paints before JavaScript applies the NFL attribute, so
+     even one inherited token can produce a green first-frame flash. */
+  --ground: #080b12;
+  --line: #29314a;
+  --ink: #e9ecf4;
+  --ink-3: #737c92;
+  --startup-accent: #93b4f0;
+  --startup-accent-soft: #17203a;
   position: fixed;
   inset: 0;
   z-index: 20;
