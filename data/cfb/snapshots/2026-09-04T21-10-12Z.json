@@ -1,40 +1,8 @@
 {
-  "$comment": "Written by .github/workflows/refresh-odds.yml. Never edit by hand - your change will be overwritten on the next run. Line keys are \"<week>|<team>\", so a market line is found for any team, not just the two the plan names. Same keys in `results`, which is W/L and is what the board marks a locked pick from, and in `scores`, which is the signed margin and is what the rating fit in form.json learns from.",
-  "updatedAt": "2026-09-04T21:10:12Z",
-  "currentWeek": 1,
+  "$comment": "One run's lines, written by scripts/refresh-odds.mjs and never rewritten. Read by scripts/backtest.mjs to score what the board showed against what happened.",
+  "at": "2026-09-04T21:10:12Z",
+  "week": 1,
   "lines": {
-    "1|South Carolina": {
-      "spread": -36,
-      "total": 53.5,
-      "source": "market",
-      "winProb": 0.9911,
-      "moneyline": -100000,
-      "moneylineProb": null,
-      "books": 9,
-      "moneylineBooks": 0,
-      "capped": 2,
-      "opened": -36,
-      "openedAt": null,
-      "updatedAt": "2026-09-04T21:10:12Z"
-    },
-    "1|Rutgers": {
-      "spread": -29,
-      "source": "market",
-      "winProb": 0.9612,
-      "book": "consensus"
-    },
-    "1|Colorado": {
-      "spread": 6.5,
-      "source": "market",
-      "winProb": 0.3208,
-      "book": "consensus"
-    },
-    "1|Illinois": {
-      "spread": -27.5,
-      "source": "market",
-      "winProb": 0.9426,
-      "book": "consensus"
-    },
     "1|Michigan State": {
       "spread": -9.5,
       "total": 48.5,
@@ -116,6 +84,20 @@
       "moneylineBooks": 0,
       "capped": 1,
       "opened": -40.5,
+      "openedAt": null,
+      "updatedAt": "2026-09-04T21:10:12Z"
+    },
+    "1|South Carolina": {
+      "spread": -36,
+      "total": 53.5,
+      "source": "market",
+      "winProb": 0.9911,
+      "moneyline": -100000,
+      "moneylineProb": null,
+      "books": 9,
+      "moneylineBooks": 0,
+      "capped": 2,
+      "opened": -36,
       "openedAt": null,
       "updatedAt": "2026-09-04T21:10:12Z"
     },
@@ -400,25 +382,69 @@
       "updatedAt": "2026-09-04T21:10:12Z"
     }
   },
-  "results": {
-    "1|Rutgers": "L",
-    "1|UCF": "W",
-    "1|Missouri": "W",
-    "1|Minnesota": "W",
-    "1|Colorado": "W",
-    "1|Utah": "W",
-    "1|Illinois": "W"
+  "form": {
+    "updatedAt": "2026-09-04T21:10:12Z",
+    "ratings": {
+      "Alabama": 18.88,
+      "Auburn": 11.45,
+      "Ball State": -22.87,
+      "Baylor": 3.85,
+      "Boise State": 5.58,
+      "Boston College": -2.39,
+      "California": 2.41,
+      "Cincinnati": 2.89,
+      "Clemson": 13.05,
+      "Coastal Carolina": -15.86,
+      "Colorado": 2.03,
+      "East Carolina": -3.58,
+      "Florida": 15.81,
+      "Florida Atlantic": -6.71,
+      "Fresno State": -0.56,
+      "Georgia Tech": 4.57,
+      "Houston": 8.65,
+      "Illinois": 8.81,
+      "Indiana": 25.94,
+      "Iowa": 13.96,
+      "Kent State": -22.06,
+      "LSU": 20.45,
+      "Louisville": 10.85,
+      "Marshall": -7.43,
+      "Michigan": 17.46,
+      "Michigan State": 1.22,
+      "Mississippi State": 3.05,
+      "Missouri State": -18.64,
+      "Nebraska": 9.28,
+      "North Texas": -11.74,
+      "Northern Illinois": -16.56,
+      "Notre Dame": 26,
+      "Ohio": -11.78,
+      "Ohio State": 30.47,
+      "Oklahoma": 18.89,
+      "Oklahoma State": 7.58,
+      "Ole Miss": 16.75,
+      "Oregon": 28.72,
+      "Oregon State": -6.85,
+      "Penn State": 15.43,
+      "Rutgers": -6.42,
+      "South Carolina": 12.26,
+      "Texas": 23.28,
+      "Texas A&M": 20.44,
+      "Texas State": -2.58,
+      "Toledo": -8.12,
+      "Tulsa": -6.78,
+      "UAB": -15.91,
+      "UCLA": 5.99,
+      "UL Monroe": -27.15,
+      "UMass": -23.78,
+      "USC": 16.86,
+      "UTEP": -19.39,
+      "Washington": 16,
+      "Washington State": -4.5,
+      "West Virginia": -0.14,
+      "Western Michigan": -6.46,
+      "Wisconsin": 4.3
+    }
   },
-  "scores": {
-    "1|Rutgers": -16,
-    "1|UCF": 67,
-    "1|Missouri": 40,
-    "1|Minnesota": 52,
-    "1|Colorado": 1,
-    "1|Utah": 52,
-    "1|Illinois": 19
-  },
-  "flags": [],
   "recommendation": {
     "picks": {
       "1": [
