@@ -240,7 +240,8 @@ function lineOf(pick) {
  * @param {object} args.entry shared user state
  * @param {boolean} args.allowSearch Pass false to build without running the
  *   optimiser when its answer is not already cached. The board comes back with
- *   `recommendationPending` set, and the caller is expected to paint it and
+ *   `recommendationPending` set and the previous plan standing in where there
+ *   is one (`recommendationStale`), and the caller is expected to paint it and
  *   then build again. The search takes a few hundred milliseconds and blocks
  *   the main thread, so this is what stops a league switch freezing mid-fade.
  */
@@ -397,13 +398,23 @@ export function buildBoard({
   // the remaining weeks), and it depends only on the week, what is locked, and
   // the odds - NOT on the unlocked picks you are still weighing. So it is
   // memoised on those: locking or unlocking re-plans, picking does not.
-  const cached = memoisedRecommendation(board, plan, odds, allowSearch);
+  const { value: cached, fresh } = memoisedRecommendation(board, plan, odds, allowSearch);
   const recommendation = cached ?? { picks: {}, pathProbability: 0, shortfalls: [] };
   board.recommendation = recommendation;
-  board.recommendationPending = cached === null;
+  // A search is still owed; app.js schedules it once this board is painted.
+  board.recommendationPending = !fresh;
+  // Meanwhile the previous plan is what is painted, not a blank: see
+  // memoisedRecommendation.
+  board.recommendationStale = !fresh && cached !== null;
 
   for (const week of board.weeks) {
-    const names = recommendation.picks[week.week] ?? [];
+    // A stand-in plan can still name a team that has since been locked into
+    // another week. A fresh search never does, so this only ever touches the
+    // stand-in, and it stops a burned team wearing the coach's badge for the
+    // beat before the search lands.
+    const names = (recommendation.picks[week.week] ?? []).filter(
+      (team) => spentTeams[team] === undefined || spentTeams[team] === week.week,
+    );
     // The optimizer's path contains locked teams because they are constraints,
     // not because the coach chose them. Keep that path separate from the calls
     // displayed as advice.
@@ -569,8 +580,20 @@ export function buildBoard({
   return board;
 }
 
-let recommendationCache = { signature: null, value: null };
+/**
+ * The one cached plan, keyed on everything the search depends on. The league
+ * sits beside the key so that when the key no longer matches and the caller
+ * cannot wait for a search, the previous plan for the SAME league can stand in.
+ * Painting an empty plan there instead made every coach badge, the season
+ * number and the gameplan's open rows vanish for the beat between a lock or an
+ * unlock and the search that follows it, then come back.
+ */
+let recommendationCache = { signature: null, league: null, value: null };
 
+/**
+ * @returns {{value: object|null, fresh: boolean}} `fresh` is false when the
+ *   plan is a stand-in, or there is none, and a search is still owed.
+ */
 function memoisedRecommendation(board, plan, odds, allowSearch) {
   const committed = [];
   for (const week of board.weeks) {
@@ -581,19 +604,26 @@ function memoisedRecommendation(board, plan, odds, allowSearch) {
     }
   }
 
+  const league = plan.league ?? "cfb";
   const signature = [
     // The league is part of the key: switching swaps every input at once, and
     // two boards must never share a cached path.
-    plan.league ?? "cfb",
+    league,
     board.currentWeek,
     board.buyBack?.left ?? 0,
     odds.updatedAt,
     Object.keys(odds.lines ?? {}).length,
     committed.join(","),
   ].join("|");
-  if (recommendationCache.signature === signature) return recommendationCache.value;
-  // Nothing cached for this board and the caller does not want to wait.
-  if (!allowSearch) return null;
+  if (recommendationCache.signature === signature) {
+    return { value: recommendationCache.value, fresh: true };
+  }
+  // Nothing cached for this board and the caller does not want to wait. The
+  // last plan for this league stands in; another league's plan never does.
+  if (!allowSearch) {
+    const stale = recommendationCache.league === league ? recommendationCache.value : null;
+    return { value: stale, fresh: false };
+  }
 
   // The authored plan competes as one more finalist, so the coach never comes
   // back with a path worse than the one in plan.json. A locked slot takes the
@@ -608,8 +638,8 @@ function memoisedRecommendation(board, plan, odds, allowSearch) {
   }
 
   const value = recommendForBoard(board, seed);
-  recommendationCache = { signature, value };
-  return value;
+  recommendationCache = { signature, league, value };
+  return { value, fresh: true };
 }
 
 function clampWeek(week, total) {

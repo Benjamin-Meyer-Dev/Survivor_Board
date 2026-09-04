@@ -57,7 +57,11 @@ function refreshTime(nextRefreshAt) {
 
 function seasonSurvival(board) {
   if (board.eliminated) return { value: "Out", note: "Run is over" };
-  if (board.recommendationPending) return { value: "…", note: "Working out the path" };
+  // Only with nothing to show. When the previous plan is standing in for the
+  // one being worked out, its number holds until the new one lands.
+  if (board.recommendationPending && !board.recommendationStale) {
+    return { value: "…", note: "Working out the path" };
+  }
   if (board.previewPathProbability === null) {
     return { value: formatPercent(board.pathProbability), note: survivalNote(board) };
   }
