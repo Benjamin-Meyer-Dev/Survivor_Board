@@ -159,21 +159,6 @@ body::before {
   transform: scaleY(1.5);
 }
 
-/* A locked pick reads like a called play on a wristband; a pick that is not
-   locked yet carries a thinner line. */
-.slot--locked {
-  box-shadow: inset 3px 0 0 var(--accent);
-}
-
-.slot--picked {
-  box-shadow: inset 2px 0 0 var(--accent);
-}
-
-/* The coach's suggestion stays visibly pencilled-in until a user picks. */
-.slot--empty {
-  box-shadow: inset 3px 0 0 var(--chalk);
-}
-
 /* --- burn board as a depth chart ----------------------------------------- */
 
 .burn__team {

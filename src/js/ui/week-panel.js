@@ -294,8 +294,8 @@ function weekMarkup(week, board, canWrite) {
  * unlocked. Empty slots are handled apart.
  *
  * Every slot has the same rows in the same order - eyebrow, team, matchup,
- * numbers, actions, stamp, list - so a pick or lock changes what
- * the rows say without moving the list beneath them.
+ * numbers, actions, list - so a pick or lock changes what the rows say without
+ * moving the list beneath them.
  */
 function renderSlot(pick, board, canWrite) {
   if (!pick.team) return renderEmptySlot(pick, board, canWrite);
@@ -324,8 +324,6 @@ function renderSlot(pick, board, canWrite) {
         ${button("won", pick, "Won", status.result === "W" ? "btn--won" : "", canWrite && status.locked)}
         ${button("lost", pick, "Lost", status.result === "L" ? "btn--lost" : "", canWrite && status.locked)}
       </div>
-
-      ${stamp(status)}
 
       ${renderTeamList(pick, canWrite)}
     </div>`;
@@ -367,8 +365,6 @@ function renderEmptySlot(pick, board, canWrite) {
         ${button("won", pick, "Won", "", false)}
         ${button("lost", pick, "Lost", "", false)}
       </div>
-
-      ${stamp(pick.status)}
 
       ${renderTeamList(pick, canWrite)}
     </div>`;
@@ -492,24 +488,6 @@ function numbers(line) {
         ${metric("Win prob", line ? formatPercent(line.winProb) : "—", false, line?.tier)}
         ${metric("Line", line ? (line.source === "market" ? "Market" : "Projected") : "—", true)}
       </div>`;
-}
-
-/** Who committed the slot and when. Unlocked picks need no extra status row. */
-function stamp(status) {
-  if (!status.by) return "";
-  const text = `${escapeHtml(status.by)} &middot; ${escapeHtml(formatStamp(status.at))}`;
-  return `<div class="slot__stamp">${text}</div>`;
-}
-
-/** Absolute, unambiguous, and always carrying the year. */
-function formatStamp(at) {
-  return new Date(at).toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 }
 
 function metric(key, value, isText = false, tier = null) {

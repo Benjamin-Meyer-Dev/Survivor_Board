@@ -290,8 +290,7 @@
 
 .slot.is-data-updated .slot__head,
 .slot.is-data-updated .slot__numbers,
-.slot.is-data-updated .actions,
-.slot.is-data-updated .slot__stamp {
+.slot.is-data-updated .actions {
   animation: data-settle 0.34s var(--ease-out) both;
 }
 
@@ -299,8 +298,7 @@
   animation-delay: 35ms;
 }
 
-.slot.is-data-updated .actions,
-.slot.is-data-updated .slot__stamp {
+.slot.is-data-updated .actions {
   animation-delay: 65ms;
 }
 

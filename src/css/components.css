@@ -924,15 +924,13 @@
 
 .slot--picked {
   background: var(--surface);
-  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 /* Nothing picked. The coach's suggestion is drawn in as a ghost: muted ink,
-   dimmed chips and numbers, a faint sideline. Everything about it says
+   dimmed chips and numbers on the recessed surface. Everything about it says
    "pencilled in", and the disabled actions beneath say it is not yours yet. */
 .slot--empty {
   background: var(--surface-2);
-  box-shadow: inset 3px 0 0 var(--line);
 }
 
 .slot--empty .slot__team {
@@ -1088,14 +1086,6 @@
   border-top: 1px solid var(--line-soft);
   border-bottom: 1px solid var(--line-soft);
   margin-bottom: var(--sp-3);
-}
-
-.slot__stamp {
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--ink-3);
-  margin-top: 9px;
-  font-family: var(--font-mono);
 }
 
 .metric__key {
@@ -1823,6 +1813,24 @@
 /* phone ------------------------------------------------------------------ */
 
 @media (max-width: 660px) {
+  /* The tab card runs edge to edge. The gutter is worth a tenth of a phone's
+     width, and the slots make better use of it than a margin does. With
+     nothing beside the card its side borders and corners had nothing left to
+     separate it from, so they go too; the strip and masthead above keep the
+     gutter, which is what makes the card read as the page's body rather than
+     one more box in it. The bleed sits on .views, not on each .view, so the
+     overflow clip during a tab cross-fade never trims the edges mid-move. */
+  .tabs,
+  .views {
+    margin-inline: calc(-1 * var(--gutter-base));
+  }
+
+  .tabs,
+  .view {
+    border-inline: 0;
+    border-radius: 0;
+  }
+
   .view {
     margin-bottom: var(--sp-4);
   }
@@ -1975,10 +1983,6 @@
 
   .metric__value--text {
     font-size: 15px;
-  }
-
-  .slot__stamp {
-    font-size: 12.5px;
   }
 
   .chip {

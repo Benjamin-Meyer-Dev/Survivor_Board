@@ -4,10 +4,15 @@
    ========================================================================== */
 
 .shell {
+  /* The page gutter: the spacing token, or the notch if that is wider. On a
+     phone the tab card pulls itself out by --gutter-base (see the phone block
+     in components.css), so it reaches the screen edge on every upright phone
+     and still stops short of a notch in landscape. */
+  --gutter-base: var(--sp-5);
+  --gutter: max(var(--gutter-base), env(safe-area-inset-left));
   max-width: 1180px;
   margin: 0 auto;
-  padding: 20px max(var(--sp-5), env(safe-area-inset-left))
-    calc(var(--sp-5) + env(safe-area-inset-bottom));
+  padding: 20px var(--gutter) calc(var(--sp-5) + env(safe-area-inset-bottom));
 }
 
 /* masthead --------------------------------------------------------------- */
@@ -66,7 +71,10 @@
 /* phone ------------------------------------------------------------------ */
 
 @media (max-width: 660px) {
+  /* A narrower gutter gives the masthead and the strip a little more room;
+     the tab card below gives the whole gutter back to the slots. */
   .shell {
+    --gutter-base: var(--sp-4);
     padding-top: var(--sp-4);
   }
 

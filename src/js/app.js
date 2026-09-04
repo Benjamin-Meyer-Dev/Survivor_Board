@@ -151,7 +151,11 @@ function playSwitch() {
   setTimeout(() => shell.classList.remove("is-switching"), 500);
 }
 
-/** Local identity for the "who changed this" stamp. */
+/**
+ * Local identity, saved as `by` on every lock and result. The board no longer
+ * shows it, but it stays in the shared row so the entry still records who did
+ * what and when.
+ */
 const ME = resolveIdentity();
 
 /**
