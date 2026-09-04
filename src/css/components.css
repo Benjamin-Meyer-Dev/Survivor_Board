@@ -441,10 +441,10 @@
         rgb(147 180 240 / 11%) 10%
       )
       0 10% / 100% 80% no-repeat,
-    repeating-linear-gradient(180deg, transparent 0 22px, rgb(147 180 240 / 14%) 22px 24px) 38%
-      14% / 12px 76% no-repeat,
-    repeating-linear-gradient(180deg, transparent 0 22px, rgb(147 180 240 / 14%) 22px 24px) 62%
-      14% / 12px 76% no-repeat;
+    repeating-linear-gradient(180deg, transparent 0 22px, rgb(147 180 240 / 14%) 22px 24px) left 38%
+      top 14% / 12px 76% no-repeat,
+    repeating-linear-gradient(180deg, transparent 0 22px, rgb(147 180 240 / 14%) 22px 24px) left 62%
+      top 14% / 12px 76% no-repeat;
   box-shadow:
     inset 0 0 0 5px rgb(8 11 18 / 35%),
     inset 0 0 80px rgb(147 180 240 / 3%);
@@ -493,11 +493,11 @@
 }
 
 .gate__yard-number--40 {
-  top: 39%;
+  top: 42%;
 }
 
 .gate__yard-number--opposing-40 {
-  top: 61%;
+  top: 58%;
 }
 
 .gate__yard-number--opposing-20 {
