@@ -5,6 +5,10 @@
  * The coach suggests; it never picks. A slot holds a team only when a user put
  * one there, a team is spent only when a user locked it, and the coach plans
  * the rest of the season around the locks and nothing else.
+ *
+ * A played game is the one thing on the board the feed settles on its own, and
+ * only for the week it was played in: it leaves that week's menu and the
+ * coach's pool, and it still takes a lock to spend the team or mark the entry.
  */
 
 import assert from "node:assert/strict";
@@ -75,10 +79,12 @@ const other = first.options.find(
     !option.disabled && option.team !== coachTeam && option.team !== plan.weeks[0].picks[0].team,
 ).team;
 
-// Finals for both teams, so the feed has something to hand out.
+// A final for the team that gets picked and locked below, so the feed has
+// something to hand out. Only that one: a settled game leaves the coach's pool
+// (see the settled-option checks further down), and settling the coach's own
+// call here would be testing that rule rather than this one.
 const withFeedResult = structuredClone(odds);
 withFeedResult.updatedAt = `${odds.updatedAt}-state-check`;
-withFeedResult.results[lineKey(first.week, coachTeam)] = "W";
 withFeedResult.results[lineKey(first.week, other)] = "W";
 
 // A feed result cannot turn a suggestion into a pick.
@@ -158,6 +164,79 @@ assert.ok(
   locked.weeks.slice(1).every((week) => week.recommended.every((option) => option.team !== other)),
   "the coach builds the future path around the lock",
 );
+
+// A played game is off the menu for its own week, whoever picked it and
+// whether or not anyone did. That is a fact about the fixture rather than
+// about an entry, so unlike a pick's result it needs no lock behind it.
+const settledWeek = first.week;
+const settledTeam = empty.weeks[0].options.find((option) => option.team !== coachTeam).team;
+// A later week this team plays again, to show the block is per week.
+const laterWeek = empty.weeks
+  .slice(1)
+  .find((week) => week.options.some((option) => option.team === settledTeam));
+assert.ok(laterWeek, "the fixture needs a team that plays more than once");
+
+const withSettled = structuredClone(odds);
+withSettled.updatedAt = `${odds.updatedAt}-settled-check`;
+withSettled.results[lineKey(settledWeek, settledTeam)] = "L";
+
+const settled = build(nothing(), withSettled);
+const settledRow = settled.weeks[0].picks[0].options.find((option) => option.team === settledTeam);
+assert.equal(settledRow.result, "L", "a played game carries its result into the list");
+assert.equal(settledRow.disabled, true, "a played game cannot be picked");
+assert.equal(settledRow.reason, "Lost", "the row says how it went in place of its line");
+assert.equal(settledRow.isCoach, false, "the coach never advises a game already played");
+assert.ok(
+  settled.weeks[0].recommended.every((option) => option.team !== settledTeam),
+  "a played game is no candidate for its week",
+);
+assert.equal(
+  settled.spentCount,
+  0,
+  "a played game nobody locked spends nothing: only a lock burns a team",
+);
+assert.equal(
+  settled.weeks[0].picks[0].status.result,
+  null,
+  "a played game does not put a result on a slot nobody picked",
+);
+
+const laterRow = settled.weeks
+  .find((week) => week.week === laterWeek.week)
+  .picks[0].options.find((option) => option.team === settledTeam);
+assert.equal(laterRow.result, null, "the block is that week's game, not the team");
+assert.equal(laterRow.disabled, false, "a played game leaves the team's other weeks alone");
+
+// A row nobody holds sinks once its game is played, so the top of the list
+// stays teams that can actually be taken.
+const rowsWhenFree = settled.weeks[0].picks[0].options;
+assert.equal(
+  rowsWhenFree.at(-1).team,
+  settledTeam,
+  "a played game nobody holds sinks to the bottom of the list",
+);
+assert.equal(
+  rowsWhenFree.filter((option) => option.result).length,
+  1,
+  "only the settled fixture is marked settled",
+);
+
+// The slot's own team is the exception: it keeps the place the spread order
+// gave it, so the row does not move out from under the thumb that picked it.
+const pickedKey = slotKey(settledWeek, 0);
+const heldEntry = { picks: {}, swaps: { [pickedKey]: settledTeam } };
+const indexOf = (board) =>
+  board.weeks[0].picks[0].options.findIndex((option) => option.team === settledTeam);
+assert.equal(
+  indexOf(build(heldEntry, withSettled)),
+  indexOf(build(heldEntry, odds)),
+  "the slot's own team holds its place in the list when its game goes final",
+);
+const heldRow = build(heldEntry, withSettled).weeks[0].picks[0].options.find(
+  (option) => option.team === settledTeam,
+);
+assert.equal(heldRow.isCurrent, true);
+assert.equal(heldRow.result, "L", "the slot's own row still shows how the game went");
 assert.ok(
   locked.weeks
     .slice(1)
@@ -225,5 +304,6 @@ assert.equal(out.weeks[fatal].picks[0].suggestion, null, "no suggestion for a we
 assert.equal(out.weeks[fatal - 1].picks[0].status.result, "L");
 
 console.log(
-  "Board state OK: slots are user-picked, coach plans stay advisory, locks own burns and results, a fatal loss puts the board in review.",
+  "Board state OK: slots are user-picked, coach plans stay advisory, locks own burns and results, " +
+    "a played game leaves its week's menu, a fatal loss puts the board in review.",
 );

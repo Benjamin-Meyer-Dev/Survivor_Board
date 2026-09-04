@@ -164,7 +164,10 @@ function resolvePick({ weekPlan, odds, entry, teams, options, week, slot, tiers 
  * makes that game an invalid pick.
  *
  * Spread comes from the market when odds.json has a line for the team,
- * otherwise it is projected from the power ratings.
+ * otherwise it is projected from the power ratings. An option also carries how
+ * its game went, once the refresh job has recorded a final: a played game is
+ * no longer a choice, so it leaves the coach's pool and the list shows the
+ * outcome where the line used to be.
  */
 function weekOptions({ schedule, ratings, teams, odds, week }) {
   const games = schedule.weeks?.[String(week)] ?? [];
@@ -199,6 +202,10 @@ function weekOptions({ schedule, ratings, teams, odds, week }) {
         source: line ? "market" : "projected",
         winProb: line?.winProb ?? winProbFromSpread(spread),
         conference: eligible[team].conference,
+        // "W", "L", or null while the game is still to come. Unlike a pick's
+        // result this needs no lock: it is a fact about the fixture, not about
+        // anyone's entry, which is why it shows on every row in the list.
+        result: odds.results?.[lineKey(week, team)] ?? null,
       });
     }
   }
@@ -324,27 +331,40 @@ export function buildBoard({
       // never rearranges it under the thumb that made it.
       const spentElsewhere = (team) =>
         spentTeams[team] !== undefined && spentTeams[team] !== week.week;
+      // A row you cannot take sinks to the bottom, so the top of the list is
+      // teams you can actually have. The slot's own team is the exception and
+      // keeps its place even once its game is final, so a tap on the list
+      // never rearranges it under the thumb that made it.
+      const sunk = (option) =>
+        !option.isCurrent && (spentElsewhere(option.team) || Boolean(option.result));
       pick.options = week.options
         .map((option) => {
           const takenBySibling = siblings.has(option.team);
           const usedElsewhere = spentElsewhere(option.team);
+          // Its game is over, so there is nothing left to pick here. Only for
+          // this week: the team's other fixtures are still ahead of it.
+          const settled = option.result;
           return {
             ...option,
             tier: confidenceTier(option.winProb, rules.tiers),
             isCurrent: option.team === pick.team,
             isCoach: false,
-            disabled: takenBySibling || usedElsewhere,
-            reason: takenBySibling
-              ? "other slot this week"
-              : usedElsewhere
-                ? `locked week ${spentTeams[option.team]}`
-                : "",
+            disabled: Boolean(settled) || takenBySibling || usedElsewhere,
+            reason: settled
+              ? settled === "W"
+                ? "Won"
+                : "Lost"
+              : takenBySibling
+                ? "other slot this week"
+                : usedElsewhere
+                  ? `locked week ${spentTeams[option.team]}`
+                  : "",
           };
         })
         .sort((a, b) => {
-          const aSpent = spentElsewhere(a.team);
-          const bSpent = spentElsewhere(b.team);
-          if (aSpent !== bSpent) return aSpent ? 1 : -1;
+          const aSunk = sunk(a);
+          const bSunk = sunk(b);
+          if (aSunk !== bSunk) return aSunk ? 1 : -1;
           return a.spread - b.spread;
         });
     }

@@ -311,10 +311,16 @@ export function recommendForBoard(board, seed = null) {
 
     if (isPast) continue;
 
+    const fixed = week.picks.map((pick) => (pick.status.locked ? pick.team : null));
     upcoming.push({
       week: week.week,
-      options: week.options,
-      fixed: week.picks.map((pick) => (pick.status.locked ? pick.team : null)),
+      // A game already played is not a pick anyone can still make, so it is no
+      // candidate: advising it would put a badge on a row the board disables.
+      // A locked slot's team stays in the list even once its game is final,
+      // because `fixed` places it rather than choosing it and the search still
+      // needs its number to score the path.
+      options: week.options.filter((option) => !option.result || fixed.includes(option.team)),
+      fixed,
     });
   }
 
