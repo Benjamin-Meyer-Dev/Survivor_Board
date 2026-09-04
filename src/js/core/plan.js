@@ -130,9 +130,10 @@ function resolvePick({ weekPlan, odds, entry, teams, options, week, slot, tiers 
   const line = odds.lines?.[lineKey(week, base.team)];
   const spread = line?.spread ?? base.spread;
   const winProb = line?.winProb ?? winProbFromSpread(spread);
-  // A result you set by hand always wins. Otherwise the refresh job's recorded
-  // final stands, so a locked pick keeps up on its own. An unlocked pick never
-  // receives one: the feed cannot commit a choice for you.
+  // Results are the refresh job's recorded finals, so a locked pick keeps up on
+  // its own. A result saved in the entry, from when they were tapped in, is
+  // still honoured and still wins. An unlocked pick never receives one: the
+  // feed cannot commit a choice for you.
   const fetched = locked ? (odds.results?.[lineKey(week, base.team)] ?? null) : null;
 
   return {
@@ -379,6 +380,11 @@ export function buildBoard({
     totalTeams: Object.keys(allTeams(teams)).length,
     record: outcome.record,
     eliminated: outcome.eliminated,
+    // The week of the loss that ended the run, and the loss itself. The UI
+    // goes into review on these: nothing more to pick or lock, the deck opened
+    // on that week, later weeks marked as never played.
+    eliminatedWeek: outcome.eliminatedWeek,
+    elimination: eliminationOf(weeks, outcome),
     pathProbability: outcome.probability,
     // Null when the pool grants none, so the UI can simply omit the cell.
     buyBack: rules.buyBacks
@@ -398,22 +404,42 @@ export function buildBoard({
   // the remaining weeks), and it depends only on the week, what is locked, and
   // the odds - NOT on the unlocked picks you are still weighing. So it is
   // memoised on those: locking or unlocking re-plans, picking does not.
-  const { value: cached, fresh } = memoisedRecommendation(board, plan, odds, allowSearch);
+  const {
+    value: cached,
+    fresh,
+    constraints,
+  } = memoisedRecommendation(board, plan, odds, allowSearch);
   const recommendation = cached ?? { picks: {}, pathProbability: 0, shortfalls: [] };
   board.recommendation = recommendation;
   // A search is still owed; app.js schedules it once this board is painted.
   board.recommendationPending = !fresh;
-  // Meanwhile the previous plan is what is painted, not a blank: see
-  // memoisedRecommendation.
-  board.recommendationStale = !fresh && cached !== null;
+  // Meanwhile a recent plan is what is painted, not a blank (see
+  // memoisedRecommendation). Its badges always show. Its numbers show only if
+  // it still fills every open week: a team it planned for a later week may
+  // since have been locked into this one, and a path with a week missing reads
+  // higher than any real path, not lower. Settled below, once that is known.
+  let standInComplete = !fresh && cached !== null;
 
   for (const week of board.weeks) {
-    // A stand-in plan can still name a team that has since been locked into
-    // another week. A fresh search never does, so this only ever touches the
-    // stand-in, and it stops a burned team wearing the coach's badge for the
-    // beat before the search lands.
-    const names = (recommendation.picks[week.week] ?? []).filter(
-      (team) => spentTeams[team] === undefined || spentTeams[team] === week.week,
+    const lockedTeams = new Set(
+      week.picks.filter((pick) => pick.status.locked).map((pick) => pick.team),
+    );
+    // Two names a stand-in plan can carry that a fresh search never would: a
+    // team locked into another week since the plan was made, and a lock the
+    // plan was made around that has since been undone. Neither is the coach's
+    // call, so neither wears the badge for the beat before the search lands.
+    const planned = (recommendation.picks[week.week] ?? []).filter(
+      (team) =>
+        (spentTeams[team] === undefined || spentTeams[team] === week.week) &&
+        (lockedTeams.has(team) || !constraints.has(`${week.week}:${team}`)),
+    );
+    // And one name it can miss: a lock made since it was planned. On the path
+    // a locked slot holds its team, so the locks go first and the plan's own
+    // calls fill what is left. A fresh plan already names its locks, so for it
+    // this changes nothing but the order.
+    const names = [...lockedTeams, ...planned.filter((team) => !lockedTeams.has(team))].slice(
+      0,
+      rules.picksPerWeek,
     );
     // The optimizer's path contains locked teams because they are constraints,
     // not because the coach chose them. Keep that path separate from the calls
@@ -422,9 +448,9 @@ export function buildBoard({
       const option = week.options.find((o) => o.team === team);
       return option ? [{ ...option, tier: confidenceTier(option.winProb, rules.tiers) }] : [];
     });
-    const lockedTeams = new Set(
-      week.picks.filter((pick) => pick.status.locked).map((pick) => pick.team),
-    );
+    if (week.week >= currentWeek && week.pathRecommendation.length < rules.picksPerWeek) {
+      standInComplete = false;
+    }
     const liveCalls = week.pathRecommendation.filter((option) => !lockedTeams.has(option.team));
     const weekPlan = plan.weeks.find((candidate) => candidate.week === week.week);
     let next = 0;
@@ -473,6 +499,9 @@ export function buildBoard({
     week.pathTier =
       week.pathWinProb === null ? null : confidenceTier(week.pathWinProb, rules.tiers);
   }
+
+  /** A stand-in plan is painted and covers every open week, so its numbers hold. */
+  board.recommendationStale = standInComplete;
 
   // Cumulative chance of being alive after each week on the visible path.
   // Before the current week only committed history counts; from the current
@@ -581,49 +610,79 @@ export function buildBoard({
 }
 
 /**
- * The one cached plan, keyed on everything the search depends on. The league
- * sits beside the key so that when the key no longer matches and the caller
- * cannot wait for a search, the previous plan for the SAME league can stand in.
- * Painting an empty plan there instead made every coach badge, the season
- * number and the gameplan's open rows vanish for the beat between a lock or an
- * unlock and the search that follows it, then come back.
+ * The plans the search has produced lately, most recent first, each keyed on
+ * everything the search depends on.
+ *
+ * More than one is kept because a lock and its undo are the common pair: the
+ * unlock returns the board to a key that was just seen, so it is answered from
+ * here with no search at all. And when the key is new and the caller cannot
+ * wait, the closest of these plans stands in (see standInFor). Painting an
+ * empty plan there instead made every coach badge, the season number and the
+ * gameplan's open rows vanish for the beat between the tap and the search that
+ * follows it, then come back.
  */
-let recommendationCache = { signature: null, league: null, value: null };
+const CACHE_SIZE = 8;
+let recommendationCache = [];
+
+/** No stand-in constraints: every name in the plan is the coach's own call. */
+const NO_CONSTRAINTS = new Set();
 
 /**
- * @returns {{value: object|null, fresh: boolean}} `fresh` is false when the
- *   plan is a stand-in, or there is none, and a search is still owed.
+ * @returns {{value: object|null, fresh: boolean, constraints: Set<string>}}
+ *   `fresh` is false when the plan is a stand-in, or there is none, and a
+ *   search is still owed. `constraints` lists, as "week:team", the locks the
+ *   stand-in was planned around that are no longer locked: the plan's name for
+ *   that week is a lock it obeyed, not a call it made, and must not be shown
+ *   as one.
  */
 function memoisedRecommendation(board, plan, odds, allowSearch) {
-  const committed = [];
+  // An eliminated entry has no season left to plan. The coach stands down and
+  // the board goes into review: what happened, not what could.
+  if (board.eliminated) {
+    return {
+      value: { picks: {}, pathProbability: 0, shortfalls: [] },
+      fresh: true,
+      constraints: NO_CONSTRAINTS,
+    };
+  }
+
+  // The locked slots are the search's constraints. The result rides along in
+  // the key because a win or a loss changes the path too.
+  const locks = [];
   for (const week of board.weeks) {
     for (const pick of week.picks) {
       if (pick.status.locked) {
-        committed.push(`${week.week}:${pick.slot}:${pick.team}:${pick.status.result ?? "L"}`);
+        locks.push({
+          key: `${week.week}:${pick.slot}:${pick.team}`,
+          week: week.week,
+          team: pick.team,
+          result: pick.status.result ?? "L",
+        });
       }
     }
   }
 
-  const league = plan.league ?? "cfb";
-  const signature = [
-    // The league is part of the key: switching swaps every input at once, and
-    // two boards must never share a cached path.
-    league,
+  // Everything but the locks. Two plans with the same base differ only in what
+  // is locked, which is what makes one a fair stand-in for the other. The
+  // league is part of it: switching swaps every input at once, and two boards
+  // must never share a cached path.
+  const base = [
+    plan.league ?? "cfb",
     board.currentWeek,
     board.buyBack?.left ?? 0,
     odds.updatedAt,
     Object.keys(odds.lines ?? {}).length,
-    committed.join(","),
   ].join("|");
-  if (recommendationCache.signature === signature) {
-    return { value: recommendationCache.value, fresh: true };
+  const signature = `${base}|${locks.map((lock) => `${lock.key}:${lock.result}`).join(",")}`;
+
+  const hit = recommendationCache.find((entry) => entry.signature === signature);
+  if (hit) {
+    // To the front, so the two plans a toggle flips between outlive the rest.
+    recommendationCache = [hit, ...recommendationCache.filter((entry) => entry !== hit)];
+    return { value: hit.value, fresh: true, constraints: NO_CONSTRAINTS };
   }
-  // Nothing cached for this board and the caller does not want to wait. The
-  // last plan for this league stands in; another league's plan never does.
-  if (!allowSearch) {
-    const stale = recommendationCache.league === league ? recommendationCache.value : null;
-    return { value: stale, fresh: false };
-  }
+
+  if (!allowSearch) return standInFor(base, locks);
 
   // The authored plan competes as one more finalist, so the coach never comes
   // back with a path worse than the one in plan.json. A locked slot takes the
@@ -638,8 +697,54 @@ function memoisedRecommendation(board, plan, odds, allowSearch) {
   }
 
   const value = recommendForBoard(board, seed);
-  recommendationCache = { signature, league, value };
-  return { value, fresh: true };
+  recommendationCache = [{ signature, base, locks, value }, ...recommendationCache].slice(
+    0,
+    CACHE_SIZE,
+  );
+  return { value, fresh: true, constraints: NO_CONSTRAINTS };
+}
+
+/**
+ * The cached plan that stands in while the search for the current board waits.
+ *
+ * Preferred is a plan made under a subset of the current locks, the largest
+ * such: every slot it planned freely is still free, so each of its calls is a
+ * call the coach actually made. That is the plan from before a lock when the
+ * lock is undone, or from before the latest lock when another is added. With no
+ * subset to hand (the page opened with these locks already in place, say) the
+ * most recent plan for the same base stands in, and its former locks come back
+ * as constraints so those weeks show no call rather than the wrong one. A plan
+ * for another base - another league, other odds - never stands in.
+ */
+function standInFor(base, locks) {
+  const current = new Set(locks.map((lock) => lock.key));
+  const candidates = recommendationCache.filter((entry) => entry.base === base);
+  if (candidates.length === 0) return { value: null, fresh: false, constraints: NO_CONSTRAINTS };
+
+  // Stable sort, so among equal sizes the more recent plan keeps its place.
+  const subsets = candidates
+    .filter((entry) => entry.locks.every((lock) => current.has(lock.key)))
+    .sort((a, b) => b.locks.length - a.locks.length);
+  const chosen = subsets[0] ?? candidates[0];
+  const constraints = new Set(
+    chosen.locks
+      .filter((lock) => !current.has(lock.key))
+      .map((lock) => `${lock.week}:${lock.team}`),
+  );
+  return { value: chosen.value, fresh: false, constraints };
+}
+
+/**
+ * What ended the run: the week, and the locked loss (or losses, in a two-pick
+ * league) in it. Null while the entry is alive.
+ */
+function eliminationOf(weeks, outcome) {
+  if (!outcome.eliminated) return null;
+  const week = weeks.find((entry) => entry.week === outcome.eliminatedWeek);
+  const losses = (week?.picks ?? [])
+    .filter((pick) => pick.status.locked && pick.status.result === "L")
+    .map((pick) => ({ team: pick.team, opponent: pick.opponent, site: pick.site }));
+  return { week: outcome.eliminatedWeek, losses };
 }
 
 function clampWeek(week, total) {

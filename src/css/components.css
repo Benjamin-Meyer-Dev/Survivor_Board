@@ -849,13 +849,14 @@
   border-bottom-color: var(--mulligan);
 }
 
-/* slot state chips ------------------------------------------------------- */
-
-.chip--final {
-  background: var(--surface-2);
-  color: var(--ink-2);
-  box-shadow: inset 0 0 0 1px var(--line);
+/* Weeks after the run ended, in review. Still readable, plainly moot. */
+.week-slide--moot .panel__head,
+.week-slide--moot .panel__slots {
+  opacity: 0.6;
+  filter: saturate(0.6);
 }
+
+/* slot state chips ------------------------------------------------------- */
 
 /* A pick that agrees with the coach. Tinted, not outlined: it confirms a
    choice already made rather than proposing one. */
@@ -928,7 +929,7 @@
 
 /* Nothing picked. The coach's suggestion is drawn in as a ghost: muted ink,
    dimmed chips and numbers on the recessed surface. Everything about it says
-   "pencilled in", and the disabled actions beneath say it is not yours yet. */
+   "pencilled in", and the disabled lock beside it says it is not yours yet. */
 .slot--empty {
   background: var(--surface-2);
 }
@@ -1258,52 +1259,70 @@
   box-shadow: inset 0 0 0 1px currentcolor;
 }
 
-/* actions ---------------------------------------------------------------- */
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
+/* A week that was never played, in review. */
+.chip--moot {
+  background: transparent;
+  color: var(--ink-3);
+  box-shadow: inset 0 0 0 1px var(--line);
 }
 
-.btn {
-  font-family: var(--font-body);
-  font-size: 11.5px;
-  font-weight: 500;
-  padding: 4px 10px;
-  border-radius: 6px;
+/* lock toggle ------------------------------------------------------------ */
+
+/* The slot's one control, sitting with the badges. Open and outlined while the
+   pick is still yours to change; closed and filled in the lock colour once it
+   is committed. Round, so it reads as a switch rather than one more chip. */
+.lock-toggle {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--ink);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--ink-2);
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.btn:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent);
+.lock-toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.btn--active {
-  background: var(--accent);
-  border-color: var(--accent);
+.lock-toggle:hover:not(:disabled) {
+  border-color: var(--lock);
+  color: var(--lock);
+}
+
+.lock-toggle--on,
+.lock-toggle--on:hover:not(:disabled) {
+  background: var(--lock);
+  border-color: var(--lock);
   color: var(--on-accent);
 }
 
-.btn--won {
-  background: var(--safe-bg);
-  border-color: var(--safe);
-  color: var(--safe);
+.lock-toggle:focus-visible {
+  outline: 2px solid var(--lock);
+  outline-offset: 2px;
 }
 
-.btn--lost {
-  background: var(--danger-bg);
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
-.btn:disabled {
+.lock-toggle:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+/* A resolved slot keeps its closed lock at near full strength: it is a record
+   now, not a control that has been taken away. */
+.lock-toggle--on:disabled {
+  opacity: 0.85;
 }
 
 /* swap list -------------------------------------------------------------- */
@@ -1555,6 +1574,12 @@
 
 .ladder tr.is-resolved td {
   color: var(--ink-3);
+}
+
+/* Weeks after the run ended, in review: never played. */
+.ladder tr.is-moot td {
+  color: var(--ink-3);
+  opacity: 0.7;
 }
 
 /* Locked and picked teams are drawn solid; the coach's suggestions are faint
@@ -1826,6 +1851,41 @@
   border: 1px solid var(--thin);
 }
 
+/* The season's end. Heavier than a warning, because it is not one: the board
+   beneath is in review from here, and this says so once, above every view. */
+.notice--out {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px 13px;
+  background: var(--danger-bg);
+  color: var(--ink);
+  border: 1px solid var(--danger);
+}
+
+.notice__eyebrow {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--danger);
+}
+
+.notice__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.notice__text {
+  margin-top: 4px;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+
 /* phone ------------------------------------------------------------------ */
 
 @media (max-width: 660px) {
@@ -2009,19 +2069,16 @@
     font-size: 12.5px;
   }
 
-  .actions {
-    gap: 5px;
-    flex-wrap: nowrap;
+  /* A full thumb target; the identity beside it is taller still, so the head's
+     first row does not grow for it. */
+  .lock-toggle {
+    width: 44px;
+    height: 44px;
   }
 
-  /* All three on one row rather than wrapping the action group. */
-  .actions .btn {
-    flex: 1 1 0;
-    min-width: 0;
-    min-height: 44px;
-    padding: 8px 3px;
-    font-size: 13px;
-    white-space: nowrap;
+  .lock-toggle svg {
+    width: 22px;
+    height: 22px;
   }
 
   .swap__filter {

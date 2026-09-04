@@ -135,7 +135,7 @@
 
 /* --- press and hover, the states that outlive a render ------------------- */
 
-.btn,
+.lock-toggle,
 .tab,
 .swap__option,
 .panel__nav button {
@@ -146,7 +146,10 @@
     transform 0.12s var(--ease-out);
 }
 
-.btn:active:not(:disabled),
+.lock-toggle:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
 .swap__option:active:not(:disabled) {
   transform: scale(0.965);
 }
@@ -289,17 +292,12 @@
 }
 
 .slot.is-data-updated .slot__head,
-.slot.is-data-updated .slot__numbers,
-.slot.is-data-updated .actions {
+.slot.is-data-updated .slot__numbers {
   animation: data-settle 0.34s var(--ease-out) both;
 }
 
 .slot.is-data-updated .slot__numbers {
   animation-delay: 35ms;
-}
-
-.slot.is-data-updated .actions {
-  animation-delay: 65ms;
 }
 
 /* --- a pick changing ----------------------------------------------------- */
@@ -308,7 +306,7 @@
   position: relative;
 }
 
-/* Colour wash for a result, painted over the slot so it does not fight the
+/* Colour wash for a lock, painted over the slot so it does not fight the
    slot's own background. */
 .slot::after {
   content: "";
@@ -326,45 +324,6 @@
   to {
     opacity: 0;
   }
-}
-
-.slot.fx-won::after {
-  background: radial-gradient(circle at 50% 42%, var(--safe), transparent 70%);
-  animation: touchdown 0.72s var(--ease-out);
-}
-
-/* A win expands outward from the pick rather than just tinting it. */
-@keyframes touchdown {
-  0% {
-    opacity: 0.55;
-    transform: scale(0.85);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(1.25);
-  }
-}
-
-/* Goalposts going up: the team name kicks briefly. */
-@keyframes kick {
-  0% {
-    transform: none;
-  }
-  35% {
-    transform: translateY(-5px) scale(1.03);
-  }
-  100% {
-    transform: none;
-  }
-}
-
-.slot.fx-won .slot__team {
-  animation: kick 0.5s var(--ease-snap);
-}
-
-.slot.fx-lost::after {
-  background: var(--danger);
-  animation: wash 0.6s ease-out;
 }
 
 .slot.fx-lock::after {
@@ -409,29 +368,6 @@
 .slot.fx-swap .slot__numbers {
   animation: rise 0.36s var(--ease-out) both;
   animation-delay: 0.05s;
-}
-
-.slot.fx-swap .actions {
-  animation: rise 0.36s var(--ease-out) both;
-  animation-delay: 0.09s;
-}
-
-/* A lost pick gets a short nudge - failure should not feel the same as a win. */
-@keyframes nudge {
-  0%,
-  100% {
-    transform: none;
-  }
-  30% {
-    transform: translateX(-4px);
-  }
-  70% {
-    transform: translateX(4px);
-  }
-}
-
-.slot.fx-lost .slot__identity {
-  animation: nudge 0.32s ease;
 }
 
 /* --- week pips ----------------------------------------------------------- */

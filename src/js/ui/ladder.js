@@ -32,9 +32,12 @@ function rowMarkup(week, pick, board, showWeekProbability) {
   const shown = pick.onPath;
   const kind = shown?.kind ?? "empty";
   const pending = !shown && board.recommendationPending && week.week >= board.currentWeek;
+  // Past the week the run ended, in review: these weeks were never played.
+  const moot = board.eliminated && week.week > board.eliminatedWeek;
   const classes = [
     week.week === board.currentWeek ? "is-current" : "",
     pick.status.result ? "is-resolved" : "",
+    moot ? "is-moot" : "",
     `is-${kind}`,
   ]
     .filter(Boolean)
@@ -44,7 +47,7 @@ function rowMarkup(week, pick, board, showWeekProbability) {
     <tr class="${classes}" data-week="${week.week}" data-motion-key="ladder-${week.week}-${pick.slot}">
       <td class="ladder__week ladder__sticky ladder__sticky--week">${isFirstSlot ? week.week : ""}</td>
       <td class="is-wide-only ladder__date">${isFirstSlot ? escapeHtml(week.labelFull) : ""}</td>
-      <td class="ladder__team ladder__sticky ladder__sticky--pick">${shown ? escapeHtml(shown.team) : pending ? PLANNING : "No pick"}</td>
+      <td class="ladder__team ladder__sticky ladder__sticky--pick">${shown ? escapeHtml(shown.team) : moot ? "Not played" : pending ? PLANNING : "No pick"}</td>
       <td class="is-wide-only">${shown ? escapeHtml(formatMatchup(shown.site, shown.opponent)) : "—"}</td>
       <td class="is-wide-only ladder__site">${shown ? escapeHtml(shown.site) : "—"}</td>
       <td class="ladder__num${shown ? ` confidence--${shown.tier}` : ""}">${shown ? formatSpread(shown.spread) : "—"}</td>
@@ -56,13 +59,14 @@ function rowMarkup(week, pick, board, showWeekProbability) {
           : ""
       }
       <td class="ladder__num ladder__season${isFirstSlot && week.seasonTier ? ` confidence--${week.seasonTier}` : ""}">${isFirstSlot && week.seasonWinProb !== null ? formatPercent(week.seasonWinProb) : ""}</td>
-      <td>${statusChip(pick.status, kind)}</td>
+      <td>${statusChip(pick.status, kind, moot)}</td>
     </tr>`;
 }
 
-function statusChip(status, kind) {
+function statusChip(status, kind, moot) {
   if (status.result === "W") return '<span class="chip chip--safe">Won</span>';
   if (status.result === "L") return '<span class="chip chip--danger">Lost</span>';
+  if (moot) return '<span class="ladder__blank">Not played</span>';
   if (kind === "locked") return '<span class="chip chip--locked">Locked</span>';
   if (kind === "picked") return '<span class="chip chip--picked">Picked</span>';
   if (kind === "coach") return '<span class="chip chip--coach">Coach plan</span>';

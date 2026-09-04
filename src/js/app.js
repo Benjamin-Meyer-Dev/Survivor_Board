@@ -65,7 +65,7 @@ const app = {
 };
 
 /** Which keyframe an action should play on the slot it changed. */
-const EFFECT_FOR = { lock: "fx-lock", won: "fx-won", lost: "fx-lost", pick: "fx-swap" };
+const EFFECT_FOR = { lock: "fx-lock", pick: "fx-swap" };
 
 /**
  * Effects that already move the slot's rows into place. The generic settle in
@@ -176,6 +176,19 @@ async function loadJson(name, league = app.league) {
 
 let lastBoard = null;
 
+/** Everything buildBoard needs from the loaded league, minus the search flag. */
+function boardInputs() {
+  return {
+    plan: app.plan,
+    odds: app.odds,
+    teams: app.teams,
+    schedule: app.schedule,
+    ratings: app.ratings,
+    entry: app.entry,
+    refreshSchedule: CONFIG.refresh,
+  };
+}
+
 /** Capture stable UI nodes before a render so changed replacements can settle in. */
 function captureMotionState() {
   const state = new Map();
@@ -242,16 +255,7 @@ function playDataUpdates(previous, effect = null) {
  */
 function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
   const previousMotion = captureMotionState();
-  const board = buildBoard({
-    plan: app.plan,
-    odds: app.odds,
-    teams: app.teams,
-    schedule: app.schedule,
-    ratings: app.ratings,
-    entry: app.entry,
-    refreshSchedule: CONFIG.refresh,
-    allowSearch: search,
-  });
+  const board = buildBoard({ ...boardInputs(), allowSearch: search });
 
   lastBoard = board;
   renderLeagueSwitch(el.league, app.league, switchLeague);
@@ -259,7 +263,9 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
   renderStrip(el.strip, board);
   renderTabs(el.tabs, app.activeTab, selectTab);
   renderWeekDeck(el.deck, board, app.viewWeek, {
-    canWrite: app.store.canWrite,
+    // Once the run is over the board is a review, and a review is read-only:
+    // nothing more can be picked or locked, whatever the store allows.
+    canWrite: app.store.canWrite && !board.eliminated,
     // Swiping must not re-render - that would yank the track out from under
     // the gesture. Just record where we are.
     onWeekChange: (week) => {
@@ -297,11 +303,11 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
 const RECOMMEND_DELAY_MS = 380;
 
 /**
- * A lock, an unlock or a result changes what the coach has to plan around, so
- * the search runs again. This is how long its feedback keyframe needs to finish
- * first: the win wash is the longest of them at 720 ms.
+ * A lock or an unlock changes what the coach has to plan around, so the search
+ * runs again. This is how long its feedback keyframe needs to finish first: the
+ * lock ring is the longest of them at 550 ms.
  */
-const REPLAN_DELAY_MS = 750;
+const REPLAN_DELAY_MS = 600;
 
 /** Run the optimiser once the board the user asked for is on screen and settled. */
 function scheduleRecommendation(delay = RECOMMEND_DELAY_MS) {
@@ -344,6 +350,8 @@ function selectTab(id) {
 
 function handleAction({ action, week, slot, team }) {
   if (!app.store.canWrite) return;
+  // The controls are disabled in review; this is the same rule, held here too.
+  if (lastBoard?.eliminated) return;
 
   const key = slotKey(week, slot);
   const current = app.entry.picks[key] ?? {};
@@ -383,30 +391,14 @@ function handleAction({ action, week, slot, team }) {
         };
       }
       break;
-    case "won":
-      app.entry.picks[key] = {
-        ...current,
-        result: current.result === "W" ? null : "W",
-        by: ME,
-        at: Date.now(),
-      };
-      break;
-    case "lost":
-      app.entry.picks[key] = {
-        ...current,
-        result: current.result === "L" ? null : "L",
-        by: ME,
-        at: Date.now(),
-      };
-      break;
     default:
       return;
   }
 
   app.effect = { week, slot, className: EFFECT_FOR[action] };
 
-  // A lock, an unlock or a result changes what the coach has to plan around,
-  // and the search that answers it blocks the main thread. Paint the change
+  // A lock or an unlock changes what the coach has to plan around, and the
+  // search that answers it blocks the main thread. Paint the change
   // first and let the timer run the search once the feedback has played. An
   // action that did not move the plan comes straight out of the memo.
   // Restart rather than inherit an earlier recommendation timer. Otherwise a
@@ -502,6 +494,10 @@ async function openLeague(league) {
     render({ search: false, settle: REPLAN_DELAY_MS });
   });
 
+  // An eliminated entry opens on the week it ended rather than the week the
+  // league is in: the board is a review now, and that is the page to review.
+  const opening = buildBoard({ ...boardInputs(), allowSearch: false });
+  if (opening.eliminated && opening.eliminatedWeek) app.viewWeek = opening.eliminatedWeek;
   render({ search: false });
 }
 

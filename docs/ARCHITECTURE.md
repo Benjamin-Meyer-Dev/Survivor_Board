@@ -28,7 +28,7 @@ A static site with no build step, one scheduled job, and one tiny database.
         │                    data/<league>/{plan,teams,schedule,
         │                                 ratings,odds}.json
         │                                  │
-        └──── picks / locks / results ─────┴──▶ Supabase (realtime)
+        └──── picks / locks ───────────────┴──▶ Supabase (realtime)
                 one row per league
 ```
 
@@ -83,8 +83,8 @@ bot and a human edit is impossible because they never write the same file.
 Two different things, deliberately kept apart:
 
 - **Your pick** is the team you put in a slot, and **locking** it is what
-  commits it. Picks, locks and results are the only things stored in the shared
-  entry. A slot nobody has picked is empty.
+  commits it. Picks and locks are the only things stored in the shared entry;
+  results come from the daily refresh. A slot nobody has picked is empty.
 - **The coach's suggestion** is what `core/recommend.js` computes from the
   current odds. It is never written to state and never becomes a pick on its
   own. It shows as a badge on the team in the list, as a ghosted stand-in where
@@ -161,11 +161,10 @@ its own in three situations:
 1. **You pick or change a team.** The board rebuilds, the new team's
    probability replaces the old one, or the coach's suggestion where a slot is
    left empty.
-2. **You mark a pick won or lost.**
-3. **A game finishes.** The refresh job reads the Odds API scores endpoint and
+2. **A game finishes.** The refresh job reads the Odds API scores endpoint and
    writes `results` into `data/odds.json`, keyed `"<week>|<team>"`. The board
-   applies those automatically, so the number keeps up with the weekend
-   without anyone tapping anything.
+   applies those to locked picks automatically, so the number keeps up with
+   the weekend without anyone tapping anything. There are no buttons for it.
 
 With a buy back in play the number is not a plain product any more. Surviving
 means at most one of the forgiving weeks going down, which is a Poisson
@@ -178,12 +177,29 @@ can never disagree.
 A buy back is spent, not refunded: losing week 1 costs the team as well as the
 cushion, and the board burns it either way.
 
-A result you set by hand always beats a fetched one, on the grounds that you
-can see something the feed cannot. A pick resolved by the feed carries a
-`Final` chip so the two are never confused.
+A resolved pick shows a `Won` or `Lost` chip and its lock can no longer be
+undone. A game the feed does not settle (a tie, or one it never returns) stays
+unresolved; if the pool counts it, add the `"<week>|<team>"` key to `results`
+in `data/<league>/odds.json` by hand and the next run keeps it. Results saved
+into the shared entry by the old buttons are still honoured and still win.
 
-Scores are best effort: if that call fails the run logs it and carries on,
-because odds are the job's actual purpose.
+Scores are read from the first kickoff until a week after the last, so the
+final week's Monday night game is recorded even though the lines side of the
+job has already called the season over. They are best effort: if that call
+fails the run logs it and carries on, and the next day's run sees the same
+games again.
+
+### Review mode
+
+A loss no buy back can cover ends the run, and `survival()` says which week
+did it. From then on the board is in review. The coach stands down (the
+optimiser returns an empty plan without searching), every pick and lock control
+is disabled whatever the store allows, a banner above the views says when and
+how it ended with the final record, the strip's clock cell becomes the
+elimination week, weeks after it read as not played, and the deck opens on the
+week it ended. Nothing is deleted: the locks and results stay exactly as they
+were, so the season can be read back. Only the result itself changing, by a
+correction in `odds.json`, can bring the board out of review.
 
 ## What the refresh job does with it
 
@@ -208,7 +224,7 @@ Three sources, merged in `core/plan.js` and nowhere else:
 
 - **plan**, what we intend to do
 - **odds**, what the market currently says
-- **entry**, what the two of us have actually done (picks, locks, results)
+- **entry**, what the two of us have actually done (picks and locks)
 
 `buildBoard()` folds them into one derived object. Every module under
 `src/js/ui/` renders from that object and never reads the raw JSON. That is

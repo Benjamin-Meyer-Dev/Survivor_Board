@@ -7,12 +7,15 @@ import { formatDuration } from "../core/refresh.js";
 
 export function renderStrip(root, board) {
   const season = seasonSurvival(board);
+  // In review the clock has stopped: the cell names the week the run ended
+  // instead of the week the league is in.
+  const shownWeek = board.eliminated ? board.eliminatedWeek : board.currentWeek;
   const cells = [
     {
       id: "clock",
-      key: "On the clock",
-      value: `Week ${board.currentWeek}`,
-      note: board.weeks[board.currentWeek - 1]?.labelFull ?? "",
+      key: board.eliminated ? "Eliminated" : "On the clock",
+      value: `Week ${shownWeek}`,
+      note: board.weeks[shownWeek - 1]?.labelFull ?? "",
       motionValue: true,
       motionNote: true,
     },
@@ -56,7 +59,9 @@ function refreshTime(nextRefreshAt) {
 }
 
 function seasonSurvival(board) {
-  if (board.eliminated) return { value: "Out", note: "Run is over" };
+  if (board.eliminated) {
+    return { value: "Out", note: `Final record ${board.record.won}-${board.record.lost}` };
+  }
   // Only with nothing to show. When the previous plan is standing in for the
   // one being worked out, its number holds until the new one lands.
   if (board.recommendationPending && !board.recommendationStale) {

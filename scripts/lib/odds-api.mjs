@@ -76,9 +76,18 @@ export function winnerOf(event) {
     score: Number(entry.score),
   }));
   if (!Number.isFinite(a.score) || !Number.isFinite(b.score)) return null;
-  if (a.score === b.score) return null; // ties do not exist in this sport, so this is bad data
+  // Level after overtime. Rare, but real in the NFL, and what it means for a
+  // survivor entry is the pool's own rule, so no result is recorded for it.
+  if (a.score === b.score) return null;
 
   return a.score > b.score ? { winner: a.name, loser: b.name } : { winner: b.name, loser: a.name };
+}
+
+/** A completed event that ended level, so winnerOf has nothing to say. */
+export function isTie(event) {
+  if (!event?.completed || !Array.isArray(event.scores) || event.scores.length < 2) return false;
+  const [a, b] = event.scores.map((entry) => Number(entry.score));
+  return Number.isFinite(a) && Number.isFinite(b) && a === b;
 }
 
 /** Do two spellings refer to the same programme? */

@@ -29,10 +29,11 @@ import {
   consensusFor,
   fetchScores,
   winnerOf,
+  isTie,
   sameTeam,
   SPORT_KEYS,
 } from "./lib/odds-api.mjs";
-import { currentWeekFor } from "./lib/weeks.mjs";
+import { currentWeekFor, resultsDueFor } from "./lib/weeks.mjs";
 import { winProbFromSpread, devig } from "../src/js/core/probability.js";
 import { lineKey, buildBoard } from "../src/js/core/plan.js";
 import { LEAGUE_IDS, LEAGUES } from "../src/js/leagues.js";
@@ -91,9 +92,16 @@ async function refreshLeague(league, apiKey) {
   const previous = JSON.parse(await readFile(oddsPath, "utf8"));
   const schedule = JSON.parse(await readFile(pathFor(league, "schedule.json"), "utf8"));
   const ratings = JSON.parse(await readFile(pathFor(league, "ratings.json"), "utf8"));
+  const teams = JSON.parse(await readFile(pathFor(league, "teams.json"), "utf8"));
+  const isEligible = (team) => Object.values(teams.conferences).some((roster) => team in roster);
 
+  // Two clocks. Lines are priced while there is a week to price. Scores are
+  // read from the first kickoff until a week after the last, because the first
+  // clock calls the season over while the final week is still being played,
+  // and the board marks wins and losses from these scores alone.
   const week = currentWeekFor(plan);
-  if (week === null) {
+  const scoresDue = resultsDueFor(plan);
+  if (week === null && !scoresDue) {
     console.log("Season is over. Leaving odds.json untouched.");
     return [];
   }
@@ -112,11 +120,57 @@ async function refreshLeague(league, apiKey) {
     return [];
   }
 
+  const sport = SPORT_KEYS[league];
+
+  let priced = {
+    lines: previous.lines,
+    flags: [],
+    recommendation: previous.recommendation,
+    count: 0,
+    total: 0,
+  };
+  if (week === null) {
+    console.log("Season is over. Reading the last scores; lines stay as they were.");
+  } else {
+    priced = await priceWeek({ apiKey, sport, week, plan, previous, schedule, ratings, teams });
+  }
+
+  const results = { ...(previous.results ?? {}) };
+  if (scoresDue) {
+    await recordResults({ apiKey, sport, schedule, isEligible, results });
+  } else {
+    console.log("No games played yet. Skipping the scores call.");
+  }
+
+  const next = {
+    $comment: previous.$comment,
+    updatedAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
+    currentWeek: week ?? previous.currentWeek,
+    lines: priced.lines,
+    results,
+    flags: priced.flags,
+    recommendation: priced.recommendation,
+  };
+
+  await writeFile(oddsPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
+  console.log(`Priced ${priced.count}/${priced.total} lines. ${priced.flags.length} flag(s).`);
+
+  // Prefixed so a flag in an issue says which pool it came from.
+  return priced.flags.map((flag) => ({
+    ...flag,
+    message: `[${LEAGUES[league].label}] ${flag.message}`,
+  }));
+}
+
+/**
+ * Price every legal option for the week and re-run the optimiser on the new
+ * numbers. Returns the merged lines, the flags raised, the recommendation to
+ * publish, and how many lines the market actually covered.
+ */
+async function priceWeek({ apiKey, sport, week, plan, previous, schedule, ratings, teams }) {
   const weekPlan = plan.weeks.find((entry) => entry.week === week);
-  const teams = JSON.parse(await readFile(pathFor(league, "teams.json"), "utf8"));
   const isEligible = (team) => Object.values(teams.conferences).some((roster) => team in roster);
   const threshold = plan.dangerThreshold ?? -10;
-  const sport = SPORT_KEYS[league];
 
   console.log(`Refreshing week ${week} (${weekPlan.label}, ${plan.season}).`);
   const events = await fetchEvents(apiKey, sport);
@@ -219,17 +273,44 @@ async function refreshLeague(league, apiKey) {
     `Path odds: ${(before.pathProbability * 100).toFixed(2)}% -> ${(after.pathProbability * 100).toFixed(2)}%`,
   );
 
-  // Final scores. Recorded against the schedule so the board can mark picks
-  // won or lost on its own, which is what keeps season survival honest without
-  // anyone tapping a button.
-  const results = { ...(previous.results ?? {}) };
+  return {
+    lines,
+    flags,
+    recommendation: {
+      picks: after.picks,
+      pathProbability: Number(after.pathProbability.toFixed(6)),
+    },
+    count: priced,
+    total: targets.length,
+  };
+}
+
+/**
+ * Final scores, recorded into `results` against the schedule, keyed
+ * "<week>|<team>". The board marks a locked pick won or lost from these and
+ * nothing else: there are no buttons for it. A game the feed does not settle
+ * (a tie, or one it never returns) stays unresolved until someone adds the key
+ * to `results` in odds.json by hand.
+ *
+ * The free tier looks back three days, and the job runs daily, so every game
+ * is seen at least twice before it falls out of the window.
+ */
+async function recordResults({ apiKey, sport, schedule, isEligible, results }) {
   let recorded = 0;
 
   try {
     const scored = await fetchScores(apiKey, sport, 3);
     for (const event of scored) {
       const outcome = winnerOf(event);
-      if (!outcome) continue;
+      if (!outcome) {
+        if (isTie(event)) {
+          console.warn(
+            `  ${event.away_team} at ${event.home_team} ended level. No result recorded: ` +
+              `what a tie means is the pool's rule, so set it in odds.json if it counts.`,
+          );
+        }
+        continue;
+      }
 
       for (const [weekNumber, games] of Object.entries(schedule.weeks)) {
         const game = games.find(
@@ -251,31 +332,10 @@ async function refreshLeague(league, apiKey) {
     }
     console.log(`Recorded ${recorded} new result(s) from ${scored.length} scored event(s).`);
   } catch (error) {
-    // Scores are a bonus; never fail the run over them.
+    // Scores must not cost the run its lines. The next day's run sees the same
+    // games again, so a miss here is a delay, not a gap.
     console.warn(`Could not read scores: ${error.message}`);
   }
-
-  const next = {
-    $comment: previous.$comment,
-    updatedAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
-    currentWeek: week,
-    lines,
-    results,
-    flags,
-    recommendation: {
-      picks: after.picks,
-      pathProbability: Number(after.pathProbability.toFixed(6)),
-    },
-  };
-
-  await writeFile(oddsPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
-  console.log(`Priced ${priced}/${targets.length} lines. ${flags.length} flag(s).`);
-
-  // Prefixed so a flag in an issue says which pool it came from.
-  return flags.map((flag) => ({
-    ...flag,
-    message: `[${LEAGUES[league].label}] ${flag.message}`,
-  }));
 }
 
 main().catch((error) => {

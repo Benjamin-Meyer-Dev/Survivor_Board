@@ -7,12 +7,14 @@ import { escapeHtml } from "../core/format.js";
 
 export function renderNotices(root, { store, board, message }) {
   const notices = [];
+  // Said once, above every view: the run is over and the board is in review.
+  const banner = board.eliminated ? reviewBanner(board) : "";
 
   if (message) notices.push(message);
 
   if (!store.shared) {
     notices.push(
-      "Shared saving is off, so picks, locks and results stay on this device only. The coach's suggestions and the odds are still current.",
+      "Shared saving is off, so picks and locks stay on this device only. The coach's suggestions, the odds and the results are still current.",
     );
   }
 
@@ -28,7 +30,29 @@ export function renderNotices(root, { store, board, message }) {
     );
   }
 
-  root.innerHTML = notices
-    .map((text) => `<div class="notice notice--warn">${escapeHtml(text)}</div>`)
-    .join("");
+  root.innerHTML =
+    banner +
+    notices.map((text) => `<div class="notice notice--warn">${escapeHtml(text)}</div>`).join("");
+}
+
+/**
+ * How the season ended. The board beneath it is in review from here on: the
+ * run as it happened, with nothing left to pick or lock, opened on the week it
+ * ended. There is no way back from this short of the result itself changing.
+ */
+function reviewBanner(board) {
+  const { week, losses } = board.elimination;
+  const label = board.weeks[week - 1]?.labelFull ?? `Week ${week}`;
+  const what = losses.length
+    ? losses.map((loss) => `${loss.team} lost to ${loss.opponent}`).join(" and ") + "."
+    : "";
+  const { won, lost } = board.record;
+  const used = board.buyBack?.used ?? 0;
+  const buyBacks = used ? `, ${used} buy back${used === 1 ? "" : "s"} used` : "";
+
+  return `<div class="notice notice--out" role="status">
+    <span class="notice__eyebrow">Season over</span>
+    <strong class="notice__title">Eliminated in week ${week}</strong>
+    <span class="notice__text">${escapeHtml(`${label}. ${what} Final record ${won}-${lost}${buyBacks}. The board is in review: the run as it happened, with nothing left to pick or lock.`)}</span>
+  </div>`;
 }

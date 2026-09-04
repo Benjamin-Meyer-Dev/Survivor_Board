@@ -32,3 +32,23 @@ export function currentWeekFor(plan, now = new Date()) {
 
   return null;
 }
+
+/**
+ * Whether there can be final scores worth reading.
+ *
+ * From the first kickoff until a week after the last one. That trailing week
+ * matters: currentWeekFor calls the season over two days after the final
+ * kickoff, while the games of that week are still being played, and without it
+ * the last Monday night result would never reach the board.
+ *
+ * @param {object} plan data/plan.json
+ * @param {Date} now
+ * @returns {boolean}
+ */
+export function resultsDueFor(plan, now = new Date()) {
+  const weeks = plan.weeks;
+  const time = now.getTime();
+  const first = new Date(`${weeks[0].kickoff}T00:00:00Z`).getTime();
+  const last = new Date(`${weeks[weeks.length - 1].kickoff}T00:00:00Z`).getTime();
+  return time >= first && time < last + 7 * 24 * 3600 * 1000;
+}

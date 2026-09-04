@@ -264,9 +264,13 @@ function weekMarkup(week, board, canWrite) {
   const isCurrent = week.week === board.currentWeek;
   // A buy back only means something while one is still unspent.
   const covered = week.isBuyBack && (board.buyBack?.left ?? 0) > 0;
+  // In review: the week the run ended, and the weeks after it that were never
+  // played. The clock chip goes, since nothing is on the clock any more.
+  const ended = board.eliminated && week.week === board.eliminatedWeek;
+  const moot = board.eliminated && week.week > board.eliminatedWeek;
 
   return `
-    <article class="panel week-slide${covered ? " week-slide--covered" : ""}"
+    <article class="panel week-slide${covered ? " week-slide--covered" : ""}${moot ? " week-slide--moot" : ""}"
              aria-label="Week ${week.week}">
       <div class="panel__head">
         <h2 class="scoreboard">
@@ -280,7 +284,9 @@ function weekMarkup(week, board, canWrite) {
                      title="A loss this week costs the buy back, not the season. The team is still burned.">Buy back</span>`
             : ""
         }
-        ${isCurrent ? '<span class="chip chip--clock">On the clock</span>' : ""}
+        ${ended ? '<span class="chip chip--danger">Eliminated</span>' : ""}
+        ${moot ? '<span class="chip chip--moot">Not played</span>' : ""}
+        ${isCurrent && !board.eliminated ? '<span class="chip chip--clock">On the clock</span>' : ""}
       </div>
       <div class="panel__slots">
         ${week.picks.map((pick) => renderSlot(pick, board, canWrite)).join("")}
@@ -294,8 +300,8 @@ function weekMarkup(week, board, canWrite) {
  * unlocked. Empty slots are handled apart.
  *
  * Every slot has the same rows in the same order - eyebrow, team, matchup,
- * numbers, actions, list - so a pick or lock changes what the rows say without
- * moving the list beneath them.
+ * numbers, list - so a pick or lock changes what the rows say without moving
+ * the list beneath them. The lock toggle sits with the badges in the head.
  */
 function renderSlot(pick, board, canWrite) {
   if (!pick.team) return renderEmptySlot(pick, board, canWrite);
@@ -312,20 +318,14 @@ function renderSlot(pick, board, canWrite) {
         </div>
         <span class="chip chip--${pick.tier}">${TIER_LABEL[pick.tier]}</span>
         ${pick.isRecommended ? '<span class="chip chip--rec" title="This is the coach’s call">Coach</span>' : ""}
-        ${status.locked ? '<span class="chip chip--locked">Locked</span>' : '<span class="chip chip--picked">Picked</span>'}
-        ${status.resultSource === "final" ? '<span class="chip chip--final">Final</span>' : ""}
+        ${resultChip(status)}
+        ${lockToggle(pick, canWrite && !status.result, board)}
         ${matchupLine(pick, pick, canWrite)}
       </div>
 
       ${numbers(pick)}
 
-      <div class="actions">
-        ${button("lock", pick, status.locked ? "Locked" : "Lock in", status.locked ? "btn--active" : "", canWrite && !status.result)}
-        ${button("won", pick, "Won", status.result === "W" ? "btn--won" : "", canWrite && status.locked)}
-        ${button("lost", pick, "Lost", status.result === "L" ? "btn--lost" : "", canWrite && status.locked)}
-      </div>
-
-      ${renderTeamList(pick, canWrite)}
+      ${renderTeamList(pick, board, canWrite)}
     </div>`;
 }
 
@@ -337,6 +337,22 @@ function renderSlot(pick, board, canWrite) {
 function renderEmptySlot(pick, board, canWrite) {
   const suggestion = pick.suggestion;
   const pending = !suggestion && board.recommendationPending && pick.week >= board.currentWeek;
+  // In review nothing is open any more: a slot past the end was never played,
+  // and one before it simply went unpicked.
+  const moot = board.eliminated && pick.week > board.eliminatedWeek;
+  const blank = moot
+    ? {
+        eyebrow: "Not played",
+        team: "Season over",
+        text: `The run ended in week ${board.eliminatedWeek}.`,
+      }
+    : board.eliminated
+      ? { eyebrow: "Open slot", team: "No pick", text: "Nothing was picked here." }
+      : {
+          eyebrow: "Open slot",
+          team: pending ? WORKING : "No pick yet",
+          text: pending ? "The coach is planning the season." : "Pick a team from the list below.",
+        };
 
   // The matchup line comes last so it takes the head's second row, the same
   // place it has in a picked slot (see .slot__matchup in components.css).
@@ -347,13 +363,15 @@ function renderEmptySlot(pick, board, canWrite) {
         </div>
         <span class="chip chip--${suggestion.tier}">${TIER_LABEL[suggestion.tier]}</span>
         <span class="chip chip--coach">Suggestion</span>
+        ${lockToggle(pick, false, board)}
         ${matchupLine(pick, suggestion, canWrite)}`
     : `<div class="slot__identity">
-          <div class="u-eyebrow slot__eyebrow">Open slot</div>
-          <div class="slot__team slot__team--blank">${pending ? WORKING : "No pick yet"}</div>
+          <div class="u-eyebrow slot__eyebrow">${blank.eyebrow}</div>
+          <div class="slot__team slot__team--blank">${blank.team}</div>
         </div>
+        ${lockToggle(pick, false, board)}
         <div class="slot__matchup">
-          <span>${pending ? "The coach is planning the season." : "Pick a team from the list below."}</span>
+          <span>${blank.text}</span>
         </div>`;
 
   return `
@@ -362,14 +380,56 @@ function renderEmptySlot(pick, board, canWrite) {
 
       ${numbers(suggestion)}
 
-      <div class="actions">
-        ${button("lock", pick, "Lock in", "", false)}
-        ${button("won", pick, "Won", "", false)}
-        ${button("lost", pick, "Lost", "", false)}
-      </div>
-
-      ${renderTeamList(pick, canWrite)}
+      ${renderTeamList(pick, board, canWrite)}
     </div>`;
+}
+
+/**
+ * The lock, as a toggle, and the slot's one control. An open padlock means the
+ * pick is still yours to change: tap to commit it. Closed and filled means it
+ * is locked: tap to undo that. It also marks the slot's state, in place of a
+ * Picked or Locked chip, so the head says each thing once. Disabled when there
+ * is nothing to lock (an empty slot, a read-only board) and once a result is
+ * in, when the lock is history rather than a choice.
+ */
+function lockToggle(pick, enabled, board) {
+  const locked = Boolean(pick.status.locked);
+  const label = pick.status.result
+    ? "Locked in and final"
+    : board.eliminated
+      ? locked
+        ? "Locked in. The season is over"
+        : "Season over"
+      : locked
+        ? "Locked in. Tap to unlock"
+        : pick.team
+          ? "Lock in this pick"
+          : "Nothing to lock yet";
+  // The shackle: down both sides when closed, lifted clear on the right when open.
+  const shackle = locked ? "M7 9V6.5a3 3 0 0 1 6 0V9" : "M7 9V6.5a3.1 3.1 0 0 1 6-.6";
+
+  return `<button type="button" class="lock-toggle${locked ? " lock-toggle--on" : ""}"
+    data-action="lock" data-week="${pick.week}" data-slot="${pick.slot}"
+    aria-pressed="${locked}" aria-label="${label}" title="${label}"
+    ${enabled ? "" : "disabled"}>
+    <svg viewBox="0 0 20 20" focusable="false" aria-hidden="true">
+      <rect x="4.5" y="9" width="11" height="8" rx="1.8" />
+      <path d="${shackle}" />
+    </svg>
+  </button>`;
+}
+
+/**
+ * Won or lost, once the game is final. Results arrive with the daily refresh
+ * (scripts/refresh-odds.mjs writes them into odds.json), so there is nothing to
+ * tap: a resolved slot says how it went, and its lock can no longer be undone.
+ */
+function resultChip(status) {
+  if (status.result === "W") return '<span class="chip chip--safe" title="Final score">Won</span>';
+  if (status.result === "L") {
+    return '<span class="chip chip--danger" title="Final score">Lost</span>';
+  }
+  return "";
 }
 
 /**
@@ -415,13 +475,18 @@ function matchupLine(pick, shown, canWrite) {
  * A locked slot keeps the list, so the week's other lines stay in view, but
  * its rows cannot be tapped: a lock is a lock until it is undone.
  */
-function renderTeamList(pick, canWrite) {
+function renderTeamList(pick, board, canWrite) {
   const id = `${pick.week}-${pick.slot}`;
   const locked = Boolean(pick.status.locked);
   const available = pick.options.filter((option) => !option.disabled).length;
-  const label = locked
-    ? "Unlock to change the team"
-    : `${pick.team ? "Change the team" : "Pick a team"}: ${available} available`;
+  // In review the list is a record of what the week offered, not a menu.
+  const label = board.eliminated
+    ? locked
+      ? "Locked in"
+      : "In review: nothing more to pick"
+    : locked
+      ? "Unlock to change the team"
+      : `${pick.team ? "Change the team" : "Pick a team"}: ${available} available`;
 
   // data-motion-ignore: the settle in app.js animates the slot's head, numbers
   // and actions, not this list, so a change here alone (the sibling slot
@@ -497,10 +562,4 @@ function metric(key, value, isText = false, tier = null) {
     <div class="metric__key">${escapeHtml(key)}</div>
     <div class="metric__value${isText ? " metric__value--text" : ""}${tier ? ` confidence--${tier}` : ""}">${escapeHtml(value)}</div>
   </div>`;
-}
-
-function button(action, pick, label, modifier, enabled) {
-  return `<button type="button" class="btn${modifier ? ` ${modifier}` : ""}"
-    data-action="${action}" data-week="${pick.week}" data-slot="${pick.slot}"
-    ${enabled ? "" : "disabled"}>${escapeHtml(label)}</button>`;
 }

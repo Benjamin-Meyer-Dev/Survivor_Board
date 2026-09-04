@@ -179,6 +179,51 @@ assert.equal(
 );
 assert.equal(legacy.weeks[0].picks[0].status.locked, true);
 
+// A loss in a forgiving week costs the buy back, not the run.
+const forgiving = plan.rules.buyBackWeeks[0];
+const forgivingSlot = empty.weeks[forgiving - 1].picks[0];
+const forgivingTeam = forgivingSlot.options.find((option) => !option.disabled).team;
+const softLoss = structuredClone(odds);
+softLoss.updatedAt = `${odds.updatedAt}-soft-loss`;
+softLoss.results[lineKey(forgiving, forgivingTeam)] = "L";
+const bought = build(
+  {
+    picks: { [slotKey(forgiving, 0)]: { locked: true } },
+    swaps: { [slotKey(forgiving, 0)]: forgivingTeam },
+  },
+  softLoss,
+);
+assert.equal(bought.eliminated, false, "a buy back covers a loss in a forgiving week");
+assert.equal(bought.buyBack.used, 1);
+assert.equal(bought.eliminatedWeek, null);
+assert.equal(bought.elimination, null);
+
+// A loss nothing covers ends the run, and the board goes into review: the week
+// is named, the coach stands down without a search, and later weeks are open
+// to nothing.
+const fatal = plan.weeks.find((week) => !plan.rules.buyBackWeeks.includes(week.week)).week;
+const fatalSlot = empty.weeks[fatal - 1].picks[0];
+const fatalTeam = fatalSlot.options.find((option) => !option.disabled).team;
+const hardLoss = structuredClone(odds);
+hardLoss.updatedAt = `${odds.updatedAt}-hard-loss`;
+hardLoss.results[lineKey(fatal, fatalTeam)] = "L";
+const out = build(
+  { picks: { [slotKey(fatal, 0)]: { locked: true } }, swaps: { [slotKey(fatal, 0)]: fatalTeam } },
+  hardLoss,
+);
+assert.equal(out.eliminated, true, "an uncovered loss eliminates");
+assert.equal(out.eliminatedWeek, fatal, "the fatal week is named");
+assert.deepEqual(
+  out.elimination.losses.map((loss) => loss.team),
+  [fatalTeam],
+  "the fatal loss is named",
+);
+assert.equal(out.pathProbability, 0);
+assert.equal(out.recommendationPending, false, "review waits on no search");
+assert.deepEqual(out.recommendation.picks, {}, "the coach stands down in review");
+assert.equal(out.weeks[fatal].picks[0].suggestion, null, "no suggestion for a week never played");
+assert.equal(out.weeks[fatal - 1].picks[0].status.result, "L");
+
 console.log(
-  "Board state OK: slots are user-picked, coach plans stay advisory, locks own burns and results.",
+  "Board state OK: slots are user-picked, coach plans stay advisory, locks own burns and results, a fatal loss puts the board in review.",
 );

@@ -6,8 +6,9 @@ masthead.
 The NFL board opens by default; the switch remembers whichever you used last,
 and each league carries its own palette so a glance tells you where you are.
 
-Two people, two devices, one entry per league. Market lines refresh once a
-day; picks, locks and results sync between phones in real time.
+Two people, two devices, one entry per league. Market lines and final scores
+refresh once a day, so wins and losses mark themselves; picks and locks sync
+between phones in real time.
 
 |              | College              | NFL                         |
 | ------------ | -------------------- | --------------------------- |
