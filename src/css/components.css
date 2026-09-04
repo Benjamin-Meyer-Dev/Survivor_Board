@@ -970,10 +970,14 @@
   color: var(--ink-3);
 }
 
+/* Two rows: the eyebrow and team with the badges beside them, then the matchup
+   line across the full width beneath (it is the last child and claims the whole
+   row, see .slot__matchup). */
 .slot__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 4px 10px;
   margin-bottom: var(--sp-3);
   min-height: 46px;
 }
@@ -992,14 +996,26 @@
   overflow-wrap: anywhere;
 }
 
+/* The matchup has the slot's full width, so the flip control sits beside the
+   text rather than dropping under it; when the two are still too wide, the
+   text wraps inside its own box and the control stays put. The row is never
+   shorter than that control, so the head keeps its height when the control is
+   absent - a locked slot, a read-only board, an opponent that is not an
+   eligible pick. Without this the lock button jumped up under a thumb each
+   time a slot was locked and back down when it was unlocked. */
 .slot__matchup {
+  flex: 1 0 100%;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 5px 8px;
+  gap: 8px;
+  min-height: 30px;
   font-size: 13px;
   color: var(--ink-2);
-  margin-top: var(--sp-1);
+  min-width: 0;
+}
+
+.slot__matchup > span:first-child {
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -1947,7 +1963,9 @@
     font-size: 27px;
   }
 
+  /* Same height as the phone-sized flip control below. */
   .slot__matchup {
+    min-height: 44px;
     font-size: 14px;
   }
 

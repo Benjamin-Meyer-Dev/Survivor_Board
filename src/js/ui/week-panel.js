@@ -309,12 +309,12 @@ function renderSlot(pick, board, canWrite) {
         <div class="slot__identity">
           <div class="u-eyebrow slot__eyebrow">${status.locked ? "Locked in" : "Your pick"}</div>
           <div class="slot__team">${escapeHtml(pick.team)}</div>
-          ${matchupLine(pick, pick, canWrite)}
         </div>
         <span class="chip chip--${pick.tier}">${TIER_LABEL[pick.tier]}</span>
         ${pick.isRecommended ? '<span class="chip chip--rec" title="This is the coach’s call">Coach</span>' : ""}
         ${status.locked ? '<span class="chip chip--locked">Locked</span>' : '<span class="chip chip--picked">Picked</span>'}
         ${status.resultSource === "final" ? '<span class="chip chip--final">Final</span>' : ""}
+        ${matchupLine(pick, pick, canWrite)}
       </div>
 
       ${numbers(pick)}
@@ -338,20 +338,22 @@ function renderEmptySlot(pick, board, canWrite) {
   const suggestion = pick.suggestion;
   const pending = !suggestion && board.recommendationPending && pick.week >= board.currentWeek;
 
+  // The matchup line comes last so it takes the head's second row, the same
+  // place it has in a picked slot (see .slot__matchup in components.css).
   const head = suggestion
     ? `<div class="slot__identity">
           <div class="u-eyebrow slot__eyebrow slot__eyebrow--coach">Coach suggests</div>
           <div class="slot__team">${escapeHtml(suggestion.team)}</div>
-          ${matchupLine(pick, suggestion, canWrite)}
         </div>
         <span class="chip chip--${suggestion.tier}">${TIER_LABEL[suggestion.tier]}</span>
-        <span class="chip chip--coach">Suggestion</span>`
+        <span class="chip chip--coach">Suggestion</span>
+        ${matchupLine(pick, suggestion, canWrite)}`
     : `<div class="slot__identity">
           <div class="u-eyebrow slot__eyebrow">Open slot</div>
           <div class="slot__team slot__team--blank">${pending ? WORKING : "No pick yet"}</div>
-          <div class="slot__matchup">
-            ${pending ? "The coach is planning the season." : "Pick a team from the list below."}
-          </div>
+        </div>
+        <div class="slot__matchup">
+          <span>${pending ? "The coach is planning the season." : "Pick a team from the list below."}</span>
         </div>`;
 
   return `

@@ -401,7 +401,8 @@
   }
 }
 
-.slot.fx-swap .slot__identity {
+.slot.fx-swap .slot__identity,
+.slot.fx-swap .slot__matchup {
   animation: rise 0.36s var(--ease-out) both;
 }
 
