@@ -1,6 +1,7 @@
 /**
  * The week deck: every week laid out horizontally, one per screen, moved
- * between by swiping, or by tapping a pip in the row beneath.
+ * between by swiping, by tapping the row of pips beneath, or by pressing and
+ * holding that row and sliding along it, which runs the deck under the finger.
  *
  * Built on CSS scroll-snap rather than touch handlers, so it gets native
  * momentum, rubber-banding and trackpad support for free and cannot fight the
@@ -38,6 +39,12 @@ let release = null;
 /** What an open slot says while the optimiser has not reported yet. */
 const WORKING = "Working out the path…";
 
+/** Hold the pip row this long and it becomes a scrubber under the finger. */
+const HOLD_MS = 200;
+
+/** Or slide this far sideways from where the press landed, whichever is first. */
+const SLIDE_PX = 6;
+
 /** A padlock, drawn like the flip arrows: strokes in the current colour. */
 const LOCK_ICON = `<span class="swap__lock" role="img" aria-label="Locked in">
   <svg viewBox="0 0 20 20" focusable="false" aria-hidden="true">
@@ -60,7 +67,7 @@ export function renderWeekDeck(root, board, viewWeek, handlers) {
          role="group" aria-label="Weeks, swipe sideways to change">
       ${board.weeks.map((week) => weekMarkup(week, board, handlers.canWrite)).join("")}
     </div>
-    <div class="week-pips" role="group" aria-label="Jump to a week">
+    <div class="week-pips" role="group" aria-label="Jump to a week, or hold and slide">
       ${board.weeks
         .map(
           (week) =>
@@ -105,13 +112,15 @@ export function renderWeekDeck(root, board, viewWeek, handlers) {
     track.addEventListener(type, takeOver, { passive: true });
   }
 
-  // Moving the track ourselves, for a pip tap or an arrow key. The scroll
-  // events it fires are ignored above, so the pips and the app are told here.
-  const jumpTo = (index) => {
+  // Moving the track ourselves, for a pip tap, a scrub or an arrow key. The
+  // scroll events it fires are ignored above, so the pips and the app are told
+  // here. A scrub asks for `instant`: it is already moving the deck at the
+  // speed of the finger, and a smooth move per week would trail behind it.
+  const jumpTo = (index, instant = false) => {
     const next = Math.min(Math.max(index, 0), slides.length - 1);
     markActive(root, next + 1);
     handlers.onWeekChange(next + 1);
-    centreOn(track, slides, next, reducedMotion.matches ? "auto" : "smooth");
+    centreOn(track, slides, next, instant || reducedMotion.matches ? "auto" : "smooth");
   };
 
   // Keyboard equivalent of the swipe, for anyone not on a touchscreen.
@@ -122,12 +131,10 @@ export function renderWeekDeck(root, board, viewWeek, handlers) {
     jumpTo(nearestIndex(track, slides) + step);
   });
 
-  // A tap on a pip goes straight to that week. The pips are out of the tab
-  // order because the track's arrow keys already cover the keyboard.
-  root.querySelector(".week-pips").addEventListener("click", (event) => {
-    const pip = event.target.closest("[data-pip]");
-    if (pip) jumpTo(Number(pip.dataset.pip) - 1);
-  });
+  // Tap the row to jump, hold it and slide to run through the weeks. The pips
+  // are out of the tab order because the track's arrow keys already cover the
+  // keyboard.
+  attachScrubber(root.querySelector(".week-pips"), jumpTo);
 
   root.querySelectorAll("[data-filter]").forEach((input) => {
     input.addEventListener("input", () => applyFilter(root, input));
@@ -214,6 +221,132 @@ function applyFilter(root, input) {
   list.querySelectorAll("[data-search]").forEach((option) => {
     option.hidden = needle !== "" && !option.dataset.search.includes(needle);
   });
+}
+
+/**
+ * The pip row, as one control. What it reads is where along the row you are,
+ * not which mark you hit: a tap goes to the nearest week, and a press held for
+ * a beat - or slid sideways, whichever comes first - hands the deck to the
+ * finger, which then runs through the weeks as it moves. Letting go leaves the
+ * deck wherever it stopped.
+ *
+ * Position rather than hit testing is what makes the gesture worth having: the
+ * marks are a few pixels wide, the slices between them are twenty, and the row
+ * is spread as wide as the deck allows (see .week-pips) so those slices are as
+ * big as they can be.
+ *
+ * @param {HTMLElement} pips
+ * @param {(index:number, instant?:boolean) => void} jumpTo
+ */
+function attachScrubber(pips, jumpTo) {
+  /** The press under way, or null. Its centres are measured once, at the down. */
+  let press = null;
+
+  /** Set by a scrub, so the click its release fires does not jump again. */
+  let swallowClick = false;
+
+  const goTo = (x) => {
+    const index = nearestCentre(press.centres, x);
+    if (index === press.index) return;
+    press.index = index;
+    jumpTo(index, true);
+  };
+
+  const engage = (x) => {
+    if (!press || press.live) return;
+    press.live = true;
+    swallowClick = true;
+    pips.classList.add("week-pips--scrubbing");
+    // Keeps the moves coming once the finger leaves the row, which on a phone
+    // it will: the row is barely a thumb deep. A render can replace the row
+    // mid-press, and capturing on a node no longer in the page throws.
+    if (pips.isConnected) pips.setPointerCapture(press.id);
+    goTo(x);
+  };
+
+  const end = () => {
+    if (!press) return;
+    clearTimeout(press.hold);
+    if (press.live) {
+      pips.classList.remove("week-pips--scrubbing");
+      if (pips.hasPointerCapture(press.id)) pips.releasePointerCapture(press.id);
+    }
+    press = null;
+  };
+
+  pips.addEventListener("pointerdown", (event) => {
+    // Anything but the primary button is somebody else's gesture.
+    if (event.button > 0) return;
+    end();
+    swallowClick = false;
+    press = {
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      centres: pipCentres(pips),
+      // Where the deck already is, so a scrub that never leaves the week it
+      // started on moves nothing.
+      index: [...pips.children].findIndex((pip) => pip.classList.contains("week-pip--active")),
+      live: false,
+      hold: setTimeout(() => engage(event.clientX), HOLD_MS),
+    };
+  });
+
+  pips.addEventListener("pointermove", (event) => {
+    if (!press || event.pointerId !== press.id) return;
+    if (press.live) {
+      // Ours now: on a mouse this is also what stops the drag selecting text.
+      event.preventDefault();
+      goTo(event.clientX);
+      return;
+    }
+    const dx = Math.abs(event.clientX - press.x);
+    const dy = Math.abs(event.clientY - press.y);
+    // Sideways is a scrub before the hold is up. Downwards is the page being
+    // scrolled - touch-action lets the browser have it - and the press was
+    // only ever on the way past.
+    if (dx > SLIDE_PX && dx > dy) engage(event.clientX);
+    else if (dy > SLIDE_PX) end();
+  });
+
+  for (const type of ["pointerup", "pointercancel"]) {
+    pips.addEventListener(type, (event) => {
+      if (press && event.pointerId === press.id) end();
+    });
+  }
+
+  pips.addEventListener("click", (event) => {
+    // The release of a scrub. The deck is already where the finger left it.
+    if (swallowClick) {
+      swallowClick = false;
+      return;
+    }
+    // A click with no pointer behind it - a screen reader activating a mark -
+    // has no position to read, so that mark's own week is the answer.
+    const pip = event.detail === 0 ? event.target.closest("[data-pip]") : null;
+    jumpTo(pip ? Number(pip.dataset.pip) - 1 : nearestCentre(pipCentres(pips), event.clientX));
+  });
+}
+
+/** Where each pip sits along the row, measured once at the start of a press. */
+function pipCentres(pips) {
+  return [...pips.querySelectorAll("[data-pip]")].map((pip) => {
+    const box = pip.getBoundingClientRect();
+    return box.left + box.width / 2;
+  });
+}
+
+/**
+ * The week whose mark is nearest a point on the row. Past either end this
+ * settles on the end itself, so a finger that runs off the row parks on week
+ * one or the last week rather than falling off the gesture.
+ */
+function nearestCentre(centres, x) {
+  let best = 0;
+  for (const [index, centre] of centres.entries()) {
+    if (Math.abs(centre - x) < Math.abs(centres[best] - x)) best = index;
+  }
+  return best;
 }
 
 /** Which slide is closest to the track's current scroll position. */

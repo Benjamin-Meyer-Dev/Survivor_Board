@@ -766,19 +766,31 @@
   scroll-snap-stop: always;
 }
 
+/* The row under the deck: a mark per week, and the deck's scrubber. Tap it to
+   jump; press and hold it, then slide, and the deck runs under the finger
+   (attachScrubber in week-panel.js). What it reads is the position along the
+   row rather than which mark was hit, so what matters is how much of the row
+   each week owns: the marks are spread as wide as the deck allows, and the
+   band is deep enough to press without aiming at it. */
 .week-pips {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  gap: 7px;
-  padding: var(--sp-3) 0 var(--sp-4);
+  /* Full width, so the rule above still spans the card, with the marks held to
+     a comfortable span down the middle of it. */
+  padding: var(--sp-4) max(var(--sp-4), calc((100% - 460px) / 2)) calc(var(--sp-4) + 2px);
   border-top: 1px solid var(--line-soft);
+  /* Along the row is the scrub's. Up and down stays the page's, and a pinch
+     that happens to land here still zooms. */
+  touch-action: pan-y pinch-zoom;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-/* Each pip is a button that jumps the deck to its week, drawn as a bare mark. */
+/* One week. The row above does the hit testing, so a pip is a mark of where
+   the deck is rather than a target in its own right. */
 .week-pip {
   appearance: none;
-  position: relative;
   flex-shrink: 0;
   width: 7px;
   height: 7px;
@@ -787,19 +799,11 @@
   border-radius: 50%;
   background: var(--line);
   cursor: pointer;
-  touch-action: manipulation;
+  touch-action: pan-y pinch-zoom;
   -webkit-tap-highlight-color: transparent;
   transition:
     background 0.18s ease,
     transform 0.18s ease;
-}
-
-/* The mark is a few pixels wide. The tap target is the whole column above and
-   below it, out to the middle of the gap on either side. */
-.week-pip::after {
-  content: "";
-  position: absolute;
-  inset: -12px -4px;
 }
 
 /* The week actually on the clock, so the deck has a fixed reference point. */
@@ -2058,18 +2062,18 @@
     font-size: 22px;
   }
 
+  /* A phone is where the scrub is used, so the row takes the whole width it
+     can and the band is a comfortable thumb deep. Nothing here can overflow:
+     space-between only ever hands out what is left over, so the eighteen NFL
+     weeks still sit 17px apart on a 320px phone and 21px apart on a 390px one,
+     against the 12px they had when the row was centred at its natural width. */
   .week-pips {
-    gap: 6px;
-    padding: 15px 0 17px;
+    padding: 17px max(var(--sp-4), calc((100% - 430px) / 2)) 19px;
   }
 
   .week-pip {
     width: 9px;
     height: 9px;
-  }
-
-  .week-pip::after {
-    inset: -15px -3px;
   }
 
   /* One column, and the cards run to the screen edge like the tab card they

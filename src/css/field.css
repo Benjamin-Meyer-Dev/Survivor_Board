@@ -145,13 +145,15 @@ body::before {
 
 /* --- week pips as yard markers ------------------------------------------- */
 
-.week-pips {
-  gap: 8px;
-}
+/* No gap: the row spaces the markers out to fill its width (see .week-pips in
+   components.css), which is what gives each week a slice wide enough to stop a
+   sliding thumb on. */
 
+/* A yard marker, thick enough to read as a rung of the ladder the thumb slides
+   along rather than a dot in a row of dots. */
 .week-pip {
-  width: 4px;
-  height: 12px;
+  width: 6px;
+  height: 14px;
   border-radius: 1px;
 }
 
@@ -178,10 +180,12 @@ body::before {
 
 /* --- the goal line ------------------------------------------------------- */
 
-/* Week 13 is the end zone; give the last pip an end-line. */
+/* Week 13 is the end zone; give the last pip an end-line. Narrower than the
+   markers and taller, the way a goal line is drawn - it is still the same
+   slice of the row to slide onto. */
 .week-pip:last-child {
-  width: 3px;
-  height: 16px;
+  width: 4px;
+  height: 19px;
   background: var(--accent);
   opacity: 0.55;
 }

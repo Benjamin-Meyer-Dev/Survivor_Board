@@ -428,3 +428,9 @@
     background-color 0.22s ease,
     transform 0.28s var(--ease-snap);
 }
+
+/* Under the finger the marker has to keep up with it, so a scrub cuts from one
+   week to the next where a tap eases across. */
+.week-pips--scrubbing .week-pip {
+  transition: none;
+}
