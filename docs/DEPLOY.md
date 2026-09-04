@@ -66,9 +66,9 @@ device; that is expected until step 3.
    about two minutes to provision.
 2. **SQL Editor** → **New query** → paste the whole of `supabase/schema.sql` →
    **Run**. It creates the `entries` table, seeds one row per league (`cfb` and
-   `nfl`), turns on row-level security with policies limited to those two rows,
-   and adds the table to realtime. The editor reports "Success. No rows
-   returned".
+   `nfl`), grants the public key's role access to the table, turns on row-level
+   security with policies limited to those two rows, and adds the table to
+   realtime. The editor reports "Success. No rows returned".
 3. **Table Editor** → `entries`: two rows, `cfb` and `nfl`.
 
 **Already ran an earlier version of the file?** Then the table exists with rows
@@ -252,6 +252,20 @@ npm run lint && npm run format:check && npm test
 - **Deploy from a branch is the wrong source.** That option runs Jekyll over the
   repo. The `.nojekyll` file guards against it, but the GitHub Actions source is
   the one the repo is built for.
+- **"Could not sync this change: permission denied for table entries."** The
+  `anon` role the publishable key uses has no privileges on the table, so every
+  read and write is refused before the RLS policies are even consulted. The
+  board still opens, but empty, because a failed read falls back to a blank
+  entry. Re-run `supabase/schema.sql` in the SQL Editor; the `grant` statements
+  in it fix this, and it is safe to run over an existing table. Then reload
+  both phones. To confirm from a terminal, this should return both rows rather
+  than a `42501` error:
+
+  ```bash
+  curl "https://<ref>.supabase.co/rest/v1/entries?select=id" \
+    -H "apikey: <publishable key>"
+  ```
+
 - **The odds quota, if you speed up the cron.** See step 4. When the quota runs
   out the failure is quiet: the workflow logs a quota error and the board keeps
   showing the last market lines as if they were fresh.

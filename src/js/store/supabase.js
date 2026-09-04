@@ -14,6 +14,22 @@ import { emptyEntry } from "../core/plan.js";
 
 const CDN = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
 
+/**
+ * Whether two `updated_at` values name the same instant.
+ *
+ * Ours goes out as JavaScript's ISO string (`...789Z`) and comes back, from
+ * realtime and from a poll alike, in Postgres's rendering of a timestamptz
+ * (`...789+00:00`). Compared as text they never matched, so every save's own
+ * echo was let through as though it were someone else's change and the board
+ * rendered twice for each tap. Anything that does not parse falls back to text.
+ */
+function sameVersion(a, b) {
+  if (!a || !b) return false;
+  const left = Date.parse(a);
+  const right = Date.parse(b);
+  return Number.isNaN(left) || Number.isNaN(right) ? a === b : left === right;
+}
+
 export async function createSupabaseStore(league) {
   const { url, publishableKey, table } = CONFIG.supabase;
   if (!url || !publishableKey) return null;
@@ -100,7 +116,7 @@ export async function createSupabaseStore(league) {
 
       function publish(row) {
         const entry = row?.entry;
-        if (!entry || (row.updated_at && row.updated_at === lastVersion)) return;
+        if (!entry || sameVersion(row.updated_at, lastVersion)) return;
         lastVersion = row.updated_at ?? lastVersion;
         listener({ ...emptyEntry(), ...entry });
       }

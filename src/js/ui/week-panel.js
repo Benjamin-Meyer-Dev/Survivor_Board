@@ -38,6 +38,14 @@ let release = null;
 /** What an open slot says while the optimiser has not reported yet. */
 const WORKING = "Working out the path…";
 
+/** A padlock, drawn like the flip arrows: strokes in the current colour. */
+const LOCK_ICON = `<span class="swap__lock" role="img" aria-label="Locked in">
+  <svg viewBox="0 0 20 20" focusable="false" aria-hidden="true">
+    <rect x="4.5" y="9" width="11" height="8" rx="1.8" />
+    <path d="M7 9V6.5a3 3 0 0 1 6 0V9" />
+  </svg>
+</span>`;
+
 /**
  * @param {HTMLElement} root
  * @param {object} board Result of buildBoard().
@@ -417,8 +425,11 @@ function renderTeamList(pick, canWrite) {
     ? "Unlock to change the team"
     : `${pick.team ? "Change the team" : "Pick a team"}: ${available} available`;
 
+  // data-motion-ignore: the settle in app.js animates the slot's head, numbers
+  // and actions, not this list, so a change here alone (the sibling slot
+  // picking a team, say) must not count as the slot changing.
   return `
-      <div class="swap${locked ? " swap--locked" : ""}">
+      <div class="swap${locked ? " swap--locked" : ""}" data-motion-ignore>
         <label class="u-eyebrow swap__label" for="filter-${id}">${label}</label>
         <input class="swap__filter" type="search" id="filter-${id}"
                placeholder="Filter teams" autocomplete="off"
@@ -429,14 +440,28 @@ function renderTeamList(pick, canWrite) {
       </div>`;
 }
 
+/**
+ * One row of the list. The slot's own team is marked current; when the slot is
+ * locked that row also wears the lock, so the list agrees with the slot head
+ * about what is committed and the row reads as "not yours to tap" rather than
+ * merely selected.
+ */
 function renderOption(pick, option, canPick) {
+  const locked = option.isCurrent && Boolean(pick.status.locked);
   const classes = [
     "swap__option",
     option.isCurrent ? "swap__option--current" : "",
+    locked ? "swap__option--locked" : "",
     option.disabled && !option.isCurrent ? "swap__option--disabled" : "",
   ]
     .filter(Boolean)
     .join(" ");
+
+  const current = locked
+    ? 'aria-current="true" title="Locked in. Unlock the slot to change it"'
+    : option.isCurrent
+      ? 'aria-current="true" title="Tap again to clear this pick"'
+      : "";
 
   return `
     <button type="button" class="${classes}"
@@ -444,9 +469,9 @@ function renderOption(pick, option, canPick) {
             data-team="${escapeHtml(option.team)}"
             data-search="${escapeHtml((option.team + " " + option.opponent).toLowerCase())}"
             ${canPick && (!option.disabled || option.isCurrent) ? "" : "disabled"}
-            ${option.isCurrent ? 'aria-current="true" title="Tap again to clear this pick"' : ""}>
+            ${current}>
       <span class="swap__team">
-        <span class="swap__name">${escapeHtml(option.team)}</span>${option.isCoach ? '<span class="swap__tag">Coach</span>' : ""}
+        ${locked ? LOCK_ICON : ""}<span class="swap__name">${escapeHtml(option.team)}</span>${option.isCoach ? '<span class="swap__tag">Coach</span>' : ""}
       </span>
       <span class="swap__matchup">${escapeHtml(formatMatchup(option.site, option.opponent))}</span>
       <span class="swap__spread swap__spread--${option.tier}">

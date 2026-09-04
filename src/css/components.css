@@ -1385,6 +1385,32 @@
   color: var(--accent-ink);
 }
 
+/* The locked team's row takes the slot's lock tint and carries the padlock,
+   so the list says the same thing the slot head does. */
+.swap__option--locked {
+  background: var(--lock-bg);
+  color: var(--lock);
+}
+
+.swap__lock {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  color: var(--lock);
+}
+
+.swap__lock svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .swap__option--disabled {
   opacity: 0.45;
   cursor: default;
@@ -2015,6 +2041,16 @@
     height: 22px;
     padding: 0 8px;
     font-size: 11.5px;
+  }
+
+  .swap__lock {
+    width: 20px;
+    height: 20px;
+  }
+
+  .swap__lock svg {
+    width: 17px;
+    height: 17px;
   }
 
   .swap__spread {

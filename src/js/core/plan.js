@@ -49,6 +49,27 @@ export function emptyEntry() {
   return { picks: {}, swaps: {} };
 }
 
+/**
+ * Whether two entries hold the same picks, whatever order their keys are in.
+ * A round trip through a store can reorder keys (jsonb does) without changing
+ * a thing, and the board should not repaint for that.
+ */
+export function sameEntry(a, b) {
+  return canonical(a) === canonical(b);
+}
+
+/** JSON with object keys sorted, so equal values serialise identically. */
+function canonical(value) {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (value && typeof value === "object") {
+    const keys = Object.keys(value)
+      .filter((key) => value[key] !== undefined)
+      .sort();
+    return `{${keys.map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
+
 /** Stable key for a pick slot. Also the key format used in data/odds.json. */
 export function slotKey(week, slot) {
   return `${week}-${slot}`;

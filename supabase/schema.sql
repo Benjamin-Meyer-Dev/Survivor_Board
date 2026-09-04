@@ -35,6 +35,19 @@ end $$;
 
 alter table public.entries enable row level security;
 
+-- Table privileges. RLS decides which rows a role may touch, but only once the
+-- role is allowed at the table at all, and that is a separate grant. Supabase
+-- used to hand these out by default to every table in public; a project where
+-- it did not, or where they were revoked, fails every request with
+-- "permission denied for table entries" (SQLSTATE 42501). The app's reads
+-- swallow that and show an empty board, and its saves surface it as
+-- "Could not sync this change". The publishable key acts as `anon`;
+-- `authenticated` is for the day Supabase Auth is turned on. No delete: the
+-- app never removes a row, so nothing holding the public key can either.
+grant usage on schema public to anon, authenticated, service_role;
+grant select, insert, update on public.entries to anon, authenticated;
+grant all on public.entries to service_role;
+
 -- The anon key is public by necessity in a static site, so these policies are
 -- what actually protect the rows. They allow read and write to the two league
 -- rows and nothing else: no listing other rows, no inserting new ids. Insert

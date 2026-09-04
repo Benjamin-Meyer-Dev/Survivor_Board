@@ -8,7 +8,7 @@
 
 import { CONFIG } from "./config.js";
 import { LEAGUES } from "./leagues.js";
-import { buildBoard, slotKey } from "./core/plan.js";
+import { buildBoard, slotKey, sameEntry } from "./core/plan.js";
 import { createStore } from "./store/index.js";
 import { renderLeagueSwitch } from "./ui/league-switch.js";
 import { renderStrip } from "./ui/strip.js";
@@ -68,29 +68,55 @@ const app = {
 const EFFECT_FOR = { lock: "fx-lock", won: "fx-won", lost: "fx-lost", pick: "fx-swap" };
 
 /**
+ * Effects that already move the slot's rows into place. The generic settle in
+ * playDataUpdates stands down on a slot playing one of these: the two target
+ * the same rows, and a slot arriving twice reads as the pick landing twice.
+ * The other effects paint over the slot (a ring, a wash, a kick) and leave the
+ * changed rows to the settle.
+ */
+const ROW_EFFECTS = new Set(["fx-swap"]);
+
+/**
  * Feedback has to be applied AFTER the render that produced the new markup -
  * innerHTML replaces the node, so anything set beforehand is thrown away.
+ *
+ * @returns {{className:string, nodes:HTMLElement[]}|null} What was decorated,
+ *   so the render can keep other motion off the same nodes.
  */
 function playEffect() {
   const effect = app.effect;
   app.effect = null;
-  if (!effect) return;
+  if (!effect) return null;
 
   const slide = el.deck.querySelectorAll(".week-slide")[effect.week - 1];
-  if (!slide) return;
+  if (!slide) return null;
 
   const slots =
     effect.slot === null
       ? [...slide.querySelectorAll(".slot")]
-      : [slide.querySelectorAll(".slot")[effect.slot]];
+      : [slide.querySelectorAll(".slot")[effect.slot]].filter(Boolean);
 
   for (const slot of slots) {
-    if (!slot) continue;
     slot.classList.add(effect.className);
-    slot.addEventListener("animationend", () => slot.classList.remove(effect.className), {
-      once: true,
-    });
+    afterAnimations(slot, () => slot.classList.remove(effect.className));
   }
+  return { className: effect.className, nodes: slots };
+}
+
+/**
+ * Run `done` once every animation under `node` has finished.
+ *
+ * An effect's keyframes sit on the slot's children and its ::after, staggered,
+ * so they end at different times. Listening for animationend on the slot heard
+ * the FIRST of them bubble up and dropped the class while the rest were still
+ * running: a ring or a wash was cut short, and on a pick the numbers and
+ * actions fell through to the settle keyframe mid-flight and played again from
+ * the start. An animation cancelled by a re-render counts as finished, and
+ * with motion reduced there is nothing to wait for.
+ */
+function afterAnimations(node, done) {
+  const animations = node.getAnimations?.({ subtree: true }) ?? [];
+  Promise.allSettled(animations.map((animation) => animation.finished)).then(done);
 }
 
 /**
@@ -155,17 +181,42 @@ function captureMotionState() {
   return state;
 }
 
+/**
+ * What counts as the node's state for the settle: its classes and its content,
+ * minus two things. Motion classes (the settle itself and the fx- action
+ * keyframes) are feedback, not state; a render landing while one is still
+ * playing must not read it as a change and settle the node again. And a child
+ * marked data-motion-ignore is left out, because the settle does not animate
+ * it: a slot's team list is rewritten whenever the sibling slot picks, and the
+ * slot's head should not move for that.
+ */
 function motionSignature(node) {
-  const classes = [...node.classList].filter((name) => name !== "is-data-updated").join(" ");
-  return `${classes}|${node.innerHTML}`;
+  const classes = [...node.classList]
+    .filter((name) => name !== "is-data-updated" && !name.startsWith("fx-"))
+    .join(" ");
+  const content = node.querySelector(":scope > [data-motion-ignore]")
+    ? [...node.children]
+        .filter((child) => !child.hasAttribute("data-motion-ignore"))
+        .map((child) => child.outerHTML)
+        .join("")
+    : node.innerHTML;
+  return `${classes}|${content}`;
 }
 
-/** Animate only nodes whose content or state styling changed during the render. */
-function playDataUpdates(previous) {
+/**
+ * Animate only nodes whose content or state styling changed during the render.
+ *
+ * @param {Map<string,string>} previous Signatures from before the render.
+ * @param {{className:string, nodes:HTMLElement[]}|null} effect What playEffect
+ *   just decorated. Nodes whose effect moves the rows itself are skipped.
+ */
+function playDataUpdates(previous, effect = null) {
   if (previous.size === 0 || app.switching) return;
 
+  const skip = new Set(effect && ROW_EFFECTS.has(effect.className) ? effect.nodes : []);
   const changed = [];
   for (const node of el.shell?.querySelectorAll("[data-motion-key]") ?? []) {
+    if (skip.has(node)) continue;
     const before = previous.get(node.dataset.motionKey);
     if (before !== undefined && before !== motionSignature(node)) {
       node.classList.add("is-data-updated");
@@ -221,8 +272,10 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
   renderBurnBoard(el.burn, el.burnLegend, board, app.teams);
-  playDataUpdates(previousMotion);
-  playEffect();
+  // The action's own feedback first, so the settle knows which slot to leave
+  // to it.
+  const effect = playEffect();
+  playDataUpdates(previousMotion, effect);
 
   if (board.recommendationPending) scheduleRecommendation(settle);
 }
@@ -432,6 +485,10 @@ async function openLeague(league) {
   app.unsubscribe = app.store.subscribe((entry) => {
     // A late push from the store we just replaced must not land on this board.
     if (app.league !== league) return;
+    // The store confirming our own save, or a poll that found nothing new, is
+    // not a change. Rendering it would rebuild the deck under the feedback
+    // still playing for the tap that caused it, and play it a second time.
+    if (sameEntry(entry, app.entry)) return;
     app.entry = entry;
     // Paint another user's change immediately, then let the season optimiser
     // catch up after the interaction has settled. Running it inline here made
