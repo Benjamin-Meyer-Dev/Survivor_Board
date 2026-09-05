@@ -139,10 +139,6 @@ body::before {
   border-bottom: 1px dashed var(--chalk);
 }
 
-.swap {
-  border-top: 1px dashed var(--chalk);
-}
-
 /* --- week pips as yard markers ------------------------------------------- */
 
 /* No gap: the row spaces the markers out to fill its width (see .week-pips in

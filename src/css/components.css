@@ -777,14 +777,19 @@
   /* The marks' distance from the rail's top edge; the cue hangs off it. */
   --rail-pad-y: 15px;
   position: relative;
-  background: var(--surface-2);
+  /* The same surface as the slots above, not a band of its own: the rail is
+     the foot of the card, ruled off from the slots the way they are ruled off
+     from each other. */
+  background: var(--surface);
   border-top: 2px solid var(--line);
 }
 
 .week-pips {
-  /* Full width, so the rail spans the card, with the marks held to a
-     comfortable span down the middle of it. */
-  --rail-pad-x: max(var(--sp-4), calc((100% - 460px) / 2));
+  /* The marks run the width of the card, from the slots' own left inset to
+     their right, so the first and last weeks line up with the content above
+     and the row reads as a ruler under the cards rather than a strip centred
+     beneath them. */
+  --rail-pad-x: var(--sp-5);
   /* The marks' width, so the line can start and end on their centres. */
   --pip-w: 7px;
   position: relative;
@@ -1480,9 +1485,9 @@
 
 /* swap list -------------------------------------------------------------- */
 
+/* No rule of its own: the numbers above close with one, and a second a few
+   pixels under it read as a double line rather than a divider. */
 .swap {
-  margin-top: var(--sp-3);
-  border-top: 1px dashed var(--line);
   padding-top: var(--sp-3);
 }
 
@@ -2197,17 +2202,17 @@
     font-size: 22px;
   }
 
-  /* A phone is where the scrub is used, so the row takes the whole width it
-     can and the band is a comfortable thumb deep. Nothing here can overflow:
-     space-between only ever hands out what is left over, so the eighteen NFL
-     weeks still sit 17px apart on a 320px phone and 21px apart on a 390px one,
-     against the 12px they had when the row was centred at its natural width. */
+  /* A phone is where the scrub is used, so the band is a comfortable thumb
+     deep and the marks keep the slots' narrower inset. Nothing here can
+     overflow: space-between only ever hands out what is left over, so the
+     eighteen NFL weeks sit 17px apart on a 320px phone and 21px apart on a
+     390px one. */
   .week-rail {
     --rail-pad-y: 18px;
   }
 
   .week-pips {
-    --rail-pad-x: max(var(--sp-4), calc((100% - 430px) / 2));
+    --rail-pad-x: var(--sp-4);
     --pip-w: 9px;
   }
 
