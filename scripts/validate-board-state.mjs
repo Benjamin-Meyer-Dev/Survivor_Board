@@ -477,13 +477,13 @@ assert.equal(
 // team wears the padlock there, a merely picked one does not.
 const heldByLock = lockedDerbyWeek.picks[1].options.find((option) => option.team === lockedSide);
 assert.equal(heldByLock.disabled, true, "a team locked in the other slot cannot be taken here");
-assert.equal(heldByLock.reason, "Other Slot This Week");
+assert.equal(heldByLock.reason, "Other Slot");
 assert.equal(heldByLock.siblingLocked, true, "and the row knows the hold is a lock");
 const heldByPick = buildCollege({ picks: {}, swaps: { [lockKey]: lockedSide } }, cfbOdds)
   .weeks.find((week) => week.week === openWeek.week)
   .picks[1].options.find((option) => option.team === lockedSide);
 assert.equal(heldByPick.disabled, true, "a team picked in the other slot cannot be taken here");
-assert.equal(heldByPick.reason, "Other Slot This Week");
+assert.equal(heldByPick.reason, "Other Slot");
 assert.equal(heldByPick.siblingLocked, false, "but an unlocked pick is not a lock");
 
 // The ghost in the other slot is solved around the pick, so it never names

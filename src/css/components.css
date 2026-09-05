@@ -1524,26 +1524,30 @@
   color: var(--ink-3);
 }
 
-/* Roughly seven rows, then scroll - the full list can run past 40 teams. */
+/* Six rows and the top of a seventh, then scroll - the full list can run
+   past 40 teams, and the part row is what says so. */
 .swap__list {
-  max-height: 244px;
+  max-height: 262px;
   overflow-y: auto;
   overscroll-behavior-y: contain;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-sm);
 }
 
+/* Two pixels taller than the text alone asks for, so the coach's mark in the
+   corner (.swap__coach) clears the numbers under it. */
 .swap__option {
+  position: relative;
   display: flex;
   align-items: center;
-  min-height: 38px;
+  min-height: 40px;
   gap: 9px;
   width: 100%;
   text-align: left;
   background: none;
   border: 0;
   border-bottom: 1px solid var(--line-soft);
-  padding: 8px 9px;
+  padding: 9px 9px;
   cursor: pointer;
   color: var(--ink);
   font-size: 12.5px;
@@ -1623,25 +1627,29 @@
   min-width: 0;
 }
 
-/* Filled rather than tinted: this marks the coach's call, and it is the whole
-   of how the coach steers a pick, so it should be the loudest thing in the row
-   after the team name. It shares the name's line box so both centres align. */
-.swap__tag {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 18px;
-  padding: 0 7px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-size: 10.5px;
-  line-height: 1;
+/* The coach's call, as a small mark pinned to the row's top right corner
+   rather than a pill beside the name: the name keeps the whole of its share
+   of the row, so a long school name no longer loses its tail to the badge.
+   Filled in the accent, since it is the whole of how the coach steers a pick
+   and the tier colours on the numbers are close cousins of a bare accent
+   letter. Sized to clear those numbers: the row is 40px tall and their glyphs
+   start about 15.5px down, so an 11px mark 2px in has a little air below. */
+.swap__coach {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: inline-grid;
+  place-items: center;
+  width: 11px;
+  height: 11px;
   border-radius: 3px;
   background: var(--accent);
   color: var(--on-accent);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 8px;
+  line-height: 1;
+  pointer-events: none;
 }
 
 .swap__matchup {
@@ -1673,9 +1681,30 @@
   text-align: right;
 }
 
+/* A hairline between the two numbers, so the spread and the percentage read
+   as two figures rather than one run of digits. It wears the row's own colour,
+   faded, so it holds up on the tinted current and locked rows where a fixed
+   rule colour would sink into the ground. The bar and its clearance sit inside
+   the probability's box, so the floor width below is widened by the same
+   amount and the right-aligned column stays where it was. */
 .swap__prob {
-  min-width: 4ch;
+  --rule-gap: 9px;
+  position: relative;
+  min-width: calc(4ch + var(--rule-gap));
+  padding-left: var(--rule-gap);
   text-align: right;
+}
+
+.swap__prob::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 1px;
+  height: 0.8em;
+  transform: translateY(-50%);
+  background: currentcolor;
+  opacity: 0.35;
 }
 
 .swap__line--safe {
@@ -2337,10 +2366,13 @@
     padding: 11px 8px;
   }
 
-  .swap__tag {
-    height: 22px;
-    padding: 0 8px;
-    font-size: 11.5px;
+  /* The rows are 50px here, so the mark can grow and still clear the numbers. */
+  .swap__coach {
+    top: 3px;
+    right: 3px;
+    width: 14px;
+    height: 14px;
+    font-size: 10px;
   }
 
   .swap__lock {
@@ -2356,6 +2388,10 @@
   .swap__line {
     gap: 8px;
     font-size: 13.5px;
+  }
+
+  .swap__prob {
+    --rule-gap: 8px;
   }
 
   .swap__option--disabled .swap__line {

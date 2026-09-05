@@ -60,6 +60,13 @@ const LOCK_ICON = `<span class="swap__lock" role="img" aria-label="Locked in">
 </span>`;
 
 /**
+ * The coach's call, as a mark pinned to the row's corner (see .swap__coach)
+ * rather than a word beside the name, so the name keeps the row's width. The
+ * letter is decoration; the button's name says it in full.
+ */
+const COACH_MARK = `<span class="swap__coach" aria-hidden="true">C</span><span class="u-visually-hidden">Coach's call</span>`;
+
+/**
  * @param {HTMLElement} root
  * @param {object} board Result of buildBoard().
  * @param {number} viewWeek Week to centre (1-based).
@@ -770,10 +777,11 @@ function renderOption(pick, option, canPick) {
             ${canPick && (!option.disabled || option.isCurrent) ? "" : "disabled"}
             ${current}>
       <span class="swap__team">
-        ${locked || held ? LOCK_ICON : ""}<span class="swap__name">${escapeHtml(option.team)}</span>${option.isCoach ? '<span class="swap__tag">Coach</span>' : ""}
+        ${locked || held ? LOCK_ICON : ""}<span class="swap__name">${escapeHtml(option.team)}</span>
       </span>
       <span class="swap__matchup">${escapeHtml(formatMatchup(option.site, option.opponent))}</span>
       ${line(option)}
+      ${option.isCoach ? COACH_MARK : ""}
     </button>`;
 }
 

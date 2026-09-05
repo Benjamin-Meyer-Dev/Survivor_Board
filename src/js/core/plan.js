@@ -524,7 +524,7 @@ export function buildBoard({
                 ? "Won"
                 : "Lost"
               : takenBySibling
-                ? "Other Slot This Week"
+                ? "Other Slot"
                 : usedElsewhere
                   ? `Locked Week ${spentTeams[option.team]}`
                   : "",
