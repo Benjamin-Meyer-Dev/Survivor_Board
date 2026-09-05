@@ -429,8 +429,22 @@
     transform 0.28s var(--ease-snap);
 }
 
+/* The filled stretch of the rail follows the active mark the same way. */
+.week-pips::after {
+  transition: width 0.28s var(--ease-out);
+}
+
 /* Under the finger the marker has to keep up with it, so a scrub cuts from one
    week to the next where a tap eases across. */
-.week-pips--scrubbing .week-pip {
+.week-pips--scrubbing .week-pip,
+.week-pips--scrubbing::after {
   transition: none;
+}
+
+/* The week cue rises into place and sinks back out. Its position is never
+   eased: under a finger or a mouse it has to be over the right mark at once. */
+.week-cue {
+  transition:
+    opacity 0.2s ease,
+    transform 0.24s var(--ease-out);
 }

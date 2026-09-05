@@ -146,10 +146,10 @@ Every probability on the board comes through a model fitted to the league's
 own history: how margins scatter around a spread, how much a moneyline is
 worth against it, and how far a projection made today misses the line the
 market will post in six weeks. The coach then judges this week's choice across
-futures rather than on one path, and shows the two to four openings worth
-weighing with what each costs. See
+futures rather than on one path; the refresh job prints the two to four
+openings it weighed and what each costs. See
 [The probability model](docs/ARCHITECTURE.md#the-probability-model) and
-[Futures and the coach's board](docs/ARCHITECTURE.md#futures-and-the-coachs-board).
+[Futures](docs/ARCHITECTURE.md#futures).
 
 The refresh bot rewrites each league's `odds.json` and `form.json` and nothing
 else, which is why it can run every day without ever conflicting with a human

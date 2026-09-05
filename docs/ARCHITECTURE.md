@@ -152,7 +152,7 @@ Four details make it work:
 
 That gives the best path on the numbers as they stand. What the coach
 actually calls this week is decided a layer up, across futures; see
-[Futures and the coach's board](#futures-and-the-coachs-board).
+[Futures](#futures).
 
 Anything locked is a hard constraint, the optimiser works around a decision you
 have committed to rather than pretending you can take it back. The seed takes
@@ -241,7 +241,7 @@ and moves a projection always. No entry is no adjustment, reported as "no
 report" rather than as health: the conferences publish availability on their
 own schedules and most non-conference games have none.
 
-## Futures and the coach's board
+## Futures
 
 The best path is priced to the decimal on numbers that will be wrong by an
 amount the calibration knows. Committing this week's pick to it values a
@@ -270,16 +270,17 @@ through that opening. Because every candidate meets the same futures, the
 comparison between them is far steadier than the futures themselves, and
 because the draws are seeded, the refresh job and the browser agree.
 
-The week on the clock shows the result as the **coach's board**: two to four
+The board itself shows only the outcome: the call as a badge on the team and
+as the ghost in an empty slot. The comparison behind it - two to four
 openings, each with its chance this week, the season it leads to on the
 numbers as they stand, its mean across the futures, how often it holds up,
-and what it costs against the call. A row is a button that fills the open
-slots with its teams, through the same handler a tap on the list goes through.
-On the first week of the 2026 college board it read: South Carolina with
-Mississippi State or Alabama at no cost, Texas A&M for 1.8% of the season, and
-Iowa - the week's single biggest favourite - for 12%, because Iowa is worth far
-more in November. That is the shape of the choice, which one number cannot
-give.
+and what it costs against the call - is printed by the refresh job in its run
+summary and written to `odds.json` under `recommendation.frontier`, where the
+backtest reads it back. On the first week of the 2026 college season it read:
+South Carolina with Mississippi State or Alabama at no cost, Texas A&M for
+1.8% of the season, and Iowa - the week's single biggest favourite - for 12%,
+because Iowa is worth far more in November. That is the shape of the choice,
+which one number cannot give.
 
 ## Pool equity
 
@@ -298,8 +299,8 @@ probability, a two-pick field at the rate squared), the inverse of that as
 leverage, and survival across futures times leverage as equity. The file
 chooses the mode: `safest` (the default), `equity`, or `balanced`, which is
 equity subject to a floor on this week's chance. The coach's own call never
-moves; the pool's preference is shown beside it as a second chip, and the
-call stays what survival alone would say. It is the standard one-week
+moves; the pool's preference is reported beside it in the refresh summary,
+and the call stays what survival alone would say. It is the standard one-week
 approximation of a season-long game whose proper treatment needs every rival's
 spent teams.
 

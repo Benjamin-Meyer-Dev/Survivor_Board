@@ -766,20 +766,33 @@
   scroll-snap-stop: always;
 }
 
-/* The row under the deck: a mark per week, and the deck's scrubber. Tap it to
-   jump; press and hold it, then slide, and the deck runs under the finger
-   (attachScrubber in week-panel.js). What it reads is the position along the
-   row rather than which mark was hit, so what matters is how much of the row
-   each week owns: the marks are spread as wide as the deck allows, and the
-   band is deep enough to press without aiming at it. */
+/* The rail under the deck: a mark per week on one line, filled up to the week
+   in view, and the deck's scrubber. Tap it to jump; press and hold it, then
+   slide, and the deck runs under the finger (attachScrubber in week-panel.js).
+   What it reads is the position along the row rather than which mark was hit,
+   so what matters is how much of the row each week owns: the marks are spread
+   as wide as the deck allows, and the band is deep enough to press without
+   aiming at it. It sits on its own ground at the foot of the card so it reads
+   as the card's control, not a row of dots left under it. */
+.week-rail {
+  /* The marks' distance from the rail's top edge; the cue hangs off it. */
+  --rail-pad-y: 15px;
+  position: relative;
+  background: var(--surface-2);
+  border-top: 1px solid var(--line);
+}
+
 .week-pips {
+  /* Full width, so the rail spans the card, with the marks held to a
+     comfortable span down the middle of it. */
+  --rail-pad-x: max(var(--sp-4), calc((100% - 460px) / 2));
+  /* The marks' width, so the line can start and end on their centres. */
+  --pip-w: 7px;
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  /* Full width, so the rule above still spans the card, with the marks held to
-     a comfortable span down the middle of it. */
-  padding: var(--sp-4) max(var(--sp-4), calc((100% - 460px) / 2)) calc(var(--sp-4) + 2px);
-  border-top: 1px solid var(--line-soft);
+  padding: var(--rail-pad-y) var(--rail-pad-x);
   /* Along the row is the scrub's. Up and down stays the page's, and a pinch
      that happens to land here still zooms. */
   touch-action: pan-y pinch-zoom;
@@ -787,12 +800,39 @@
   -webkit-user-select: none;
 }
 
+/* The line the marks stand on, from the first centre to the last, and over it
+   the part already travelled, up to the week in view. Both sit under the
+   marks, which is what the z-index pair is for. */
+.week-pips::before,
+.week-pips::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: calc(50% - 0.5px);
+  left: calc(var(--rail-pad-x) + var(--pip-w) / 2);
+  height: 1px;
+  pointer-events: none;
+}
+
+.week-pips::before {
+  right: calc(var(--rail-pad-x) + var(--pip-w) / 2);
+  background: var(--line);
+}
+
+.week-pips::after {
+  width: calc((100% - 2 * var(--rail-pad-x) - var(--pip-w)) * var(--rail-pos, 0));
+  background: var(--accent);
+  opacity: 0.7;
+}
+
 /* One week. The row above does the hit testing, so a pip is a mark of where
    the deck is rather than a target in its own right. */
 .week-pip {
+  position: relative;
+  z-index: 1;
   appearance: none;
   flex-shrink: 0;
-  width: 7px;
+  width: var(--pip-w);
   height: 7px;
   padding: 0;
   border: 0;
@@ -806,14 +846,92 @@
     transform 0.18s ease;
 }
 
+/* Weeks already passed on the way to the one in view take the fill's tint, so
+   the travelled stretch reads as one piece rather than a line with gaps. */
+.week-pip:has(~ .week-pip--active) {
+  background: color-mix(in srgb, var(--accent) 55%, var(--line));
+}
+
 /* The week actually on the clock, so the deck has a fixed reference point. */
 .week-pip--now {
   background: var(--ink-3);
 }
 
+/* The week in view is the rail's thumb: the accent, grown, with a sliver of
+   the rail's ground around it to lift it off the line. */
 .week-pip--active {
   background: var(--accent);
   transform: scale(1.5);
+  box-shadow: 0 0 0 2px var(--surface-2);
+}
+
+/* The cue: which week the rail is landing on, over the mark it belongs to,
+   shown by a tap, a scrub, an arrow key or a mouse over the row, and gone
+   again after a beat (weekCue in week-panel.js). It hangs from just above the
+   marks and can overlap the slide's foot; the week on screen is the same
+   week, so nothing it covers is being read at that moment. */
+.week-cue {
+  position: absolute;
+  z-index: 2;
+  left: var(--cue-x, 50%);
+  bottom: calc(100% - var(--rail-pad-y) + 6px);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 5px 9px 4px;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: var(--ground);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  pointer-events: none;
+}
+
+.week-cue.is-on {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* The tip. Centred on the cue, except at the rail's ends where the cue stops
+   short and the tip slides along it to stay over the mark. */
+.week-cue::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: calc(50% + var(--cue-tip, 0px));
+  border: 5px solid transparent;
+  border-top-color: var(--ink);
+  border-bottom: 0;
+  transform: translateX(-50%);
+}
+
+.week-cue__label {
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  opacity: 0.7;
+}
+
+.week-cue__num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.week-cue__date {
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  opacity: 0.8;
 }
 
 .panel {
@@ -1206,140 +1324,6 @@
 
 .slot__numbers > div:last-child {
   align-items: flex-end;
-}
-
-/* coach's board (ui/week-panel.js frontierMarkup) ------------------------ */
-
-/* Under the slots of the week on the clock: the openings any good path starts
-   with, side by side. It is one card on the slide's ground, like the slots
-   above it, and every row is a button that fills the open slots. */
-.frontier {
-  display: grid;
-  gap: var(--sp-3);
-  margin: 0 var(--sp-4) var(--sp-5);
-  padding: var(--sp-4);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
-
-.frontier__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--sp-1) var(--sp-3);
-}
-
-.frontier__meta {
-  font-size: 11.5px;
-  color: var(--ink-3);
-}
-
-.frontier__list {
-  display: grid;
-  gap: var(--sp-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.frontier__pick {
-  appearance: none;
-  display: grid;
-  gap: 7px;
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  color: var(--ink);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    border-color 150ms ease,
-    background-color 150ms ease;
-}
-
-.frontier__pick:disabled {
-  cursor: default;
-}
-
-.frontier__pick:hover:not(:disabled) {
-  border-color: var(--accent);
-}
-
-.frontier__pick:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* The call reads as the coach's, in the accent, the way its badge does. */
-.frontier__row--call .frontier__pick {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
-  background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface-2));
-}
-
-.frontier__top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 10px;
-}
-
-.frontier__teams {
-  margin-right: auto;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 18px;
-  line-height: 1.1;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  overflow-wrap: anywhere;
-}
-
-/* Five numbers a row; on a phone they wrap to a second line rather than
-   shrink, because the digits are the point. */
-.frontier__stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
-  gap: 6px 10px;
-}
-
-.frontier__stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.frontier__key {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-
-.frontier__value {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-/* What an alternative gives up against the call, in the caution colour. */
-.frontier__value--cost {
-  color: var(--thin);
-}
-
-.frontier__notes {
-  font-size: 11.5px;
-  line-height: 1.4;
-  color: var(--ink-2);
 }
 
 /* chips ------------------------------------------------------------------ */
@@ -2201,12 +2185,16 @@
      space-between only ever hands out what is left over, so the eighteen NFL
      weeks still sit 17px apart on a 320px phone and 21px apart on a 390px one,
      against the 12px they had when the row was centred at its natural width. */
+  .week-rail {
+    --rail-pad-y: 18px;
+  }
+
   .week-pips {
-    padding: 17px max(var(--sp-4), calc((100% - 430px) / 2)) 19px;
+    --rail-pad-x: max(var(--sp-4), calc((100% - 430px) / 2));
+    --pip-w: 9px;
   }
 
   .week-pip {
-    width: 9px;
     height: 9px;
   }
 

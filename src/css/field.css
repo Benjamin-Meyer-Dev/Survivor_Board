@@ -149,10 +149,18 @@ body::before {
    components.css), which is what gives each week a slice wide enough to stop a
    sliding thumb on. */
 
+/* The line the markers stand on is chalk, like every other hairline here. */
+.week-pips {
+  --pip-w: 6px;
+}
+
+.week-pips::before {
+  background: var(--chalk);
+}
+
 /* A yard marker, thick enough to read as a rung of the ladder the thumb slides
    along rather than a dot in a row of dots. */
 .week-pip {
-  width: 6px;
   height: 14px;
   border-radius: 1px;
 }

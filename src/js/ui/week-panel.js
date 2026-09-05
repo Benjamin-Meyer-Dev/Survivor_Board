@@ -25,7 +25,7 @@
  */
 
 import { formatSpread, formatPercent, formatMatchup, escapeHtml } from "../core/format.js";
-import { TIER_LABEL, confidenceTier } from "../core/probability.js";
+import { TIER_LABEL } from "../core/probability.js";
 
 /**
  * Where a move of our own is heading, so the scroll events it fires are not
@@ -44,6 +44,12 @@ const HOLD_MS = 200;
 
 /** Or slide this far sideways from where the press landed, whichever is first. */
 const SLIDE_PX = 6;
+
+/** How long the week cue stays up after the last thing that showed it. */
+const CUE_MS = 1100;
+
+/** The cue stops this far short of the rail's ends rather than overhanging. */
+const CUE_INSET = 6;
 
 /** A padlock, drawn like the flip arrows: strokes in the current colour. */
 const LOCK_ICON = `<span class="swap__lock" role="img" aria-label="Locked in">
@@ -67,16 +73,23 @@ export function renderWeekDeck(root, board, viewWeek, handlers) {
          role="group" aria-label="Weeks, swipe sideways to change">
       ${board.weeks.map((week) => weekMarkup(week, board, handlers.canWrite)).join("")}
     </div>
-    <div class="week-pips" role="group" aria-label="Jump to a week, or hold and slide">
-      ${board.weeks
-        .map(
-          (week) =>
-            `<button type="button"
-                     class="week-pip${week.week === board.currentWeek ? " week-pip--now" : ""}"
-                     data-pip="${week.week}" tabindex="-1"
-                     aria-label="Week ${week.week}, ${escapeHtml(week.labelFull)}"></button>`,
-        )
-        .join("")}
+    <div class="week-rail">
+      <div class="week-pips" role="group" aria-label="Jump to a week, or hold and slide">
+        ${board.weeks
+          .map(
+            (week) =>
+              `<button type="button"
+                       class="week-pip${week.week === board.currentWeek ? " week-pip--now" : ""}"
+                       data-pip="${week.week}" data-label="${escapeHtml(week.label)}" tabindex="-1"
+                       aria-label="Week ${week.week}, ${escapeHtml(week.labelFull)}"></button>`,
+          )
+          .join("")}
+      </div>
+      <div class="week-cue" aria-hidden="true">
+        <span class="week-cue__label">Wk</span>
+        <span class="week-cue__num"></span>
+        <span class="week-cue__date"></span>
+      </div>
     </div>`;
 
   const track = root.querySelector("#weeks-track");
@@ -116,9 +129,11 @@ export function renderWeekDeck(root, board, viewWeek, handlers) {
   // scroll events it fires are ignored above, so the pips and the app are told
   // here. A scrub asks for `instant`: it is already moving the deck at the
   // speed of the finger, and a smooth move per week would trail behind it.
+  const cue = weekCue(root.querySelector(".week-rail"));
   const jumpTo = (index, instant = false) => {
     const next = Math.min(Math.max(index, 0), slides.length - 1);
     markActive(root, next + 1);
+    cue.show(next);
     handlers.onWeekChange(next + 1);
     centreOn(track, slides, next, instant || reducedMotion.matches ? "auto" : "smooth");
   };
@@ -134,7 +149,7 @@ export function renderWeekDeck(root, board, viewWeek, handlers) {
   // Tap the row to jump, hold it and slide to run through the weeks. The pips
   // are out of the tab order because the track's arrow keys already cover the
   // keyboard.
-  attachScrubber(root.querySelector(".week-pips"), jumpTo);
+  attachScrubber(root.querySelector(".week-pips"), jumpTo, cue);
 
   root.querySelectorAll("[data-filter]").forEach((input) => {
     input.addEventListener("input", () => applyFilter(root, input));
@@ -147,26 +162,6 @@ export function renderWeekDeck(root, board, viewWeek, handlers) {
         week: Number(button.dataset.week),
         slot: Number(button.dataset.slot),
         team: button.dataset.team,
-      });
-    });
-  });
-
-  // A row on the coach's board fills the week's open slots with its teams, one
-  // pick per slot through the same handler a tap on the list goes through, so
-  // it is a pick like any other: unlocked, and the coach's to re-plan around
-  // only once it is locked.
-  root.querySelectorAll("[data-frontier-teams]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const week = Number(button.dataset.week);
-      const teams = JSON.parse(button.dataset.frontierTeams);
-      const current = board.weeks.find((entry) => entry.week === week);
-      if (!current) return;
-      const unlocked = current.picks.filter((pick) => !pick.status.locked);
-      const missing = teams.filter((team) => !unlocked.some((pick) => pick.team === team));
-      const free = unlocked.filter((pick) => !teams.includes(pick.team));
-      missing.forEach((team, index) => {
-        const slot = free[index];
-        if (slot) handlers.onAction({ action: "pick", week, slot: slot.slot, team });
       });
     });
   });
@@ -257,8 +252,9 @@ function applyFilter(root, input) {
  *
  * @param {HTMLElement} pips
  * @param {(index:number, instant?:boolean) => void} jumpTo
+ * @param {ReturnType<typeof weekCue>} cue
  */
-function attachScrubber(pips, jumpTo) {
+function attachScrubber(pips, jumpTo, cue) {
   /** The press under way, or null. Its centres are measured once, at the down. */
   let press = null;
 
@@ -277,6 +273,10 @@ function attachScrubber(pips, jumpTo) {
     press.live = true;
     swallowClick = true;
     pips.classList.add("week-pips--scrubbing");
+    // The cue stays up for as long as the finger is down, since the finger is
+    // covering the marks it would otherwise be read from.
+    cue.hold("press", true);
+    cue.show(press.index);
     // Keeps the moves coming once the finger leaves the row, which on a phone
     // it will: the row is barely a thumb deep. A render can replace the row
     // mid-press, and capturing on a node no longer in the page throws.
@@ -290,6 +290,7 @@ function attachScrubber(pips, jumpTo) {
     if (press.live) {
       pips.classList.remove("week-pips--scrubbing");
       if (pips.hasPointerCapture(press.id)) pips.releasePointerCapture(press.id);
+      cue.hold("press", false);
     }
     press = null;
   };
@@ -306,13 +307,29 @@ function attachScrubber(pips, jumpTo) {
       centres: pipCentres(pips),
       // Where the deck already is, so a scrub that never leaves the week it
       // started on moves nothing.
-      index: [...pips.children].findIndex((pip) => pip.classList.contains("week-pip--active")),
+      index: [...pips.querySelectorAll("[data-pip]")].findIndex((pip) =>
+        pip.classList.contains("week-pip--active"),
+      ),
       live: false,
       hold: setTimeout(() => engage(event.clientX), HOLD_MS),
     };
   });
 
+  // A mouse over the row previews the week under it without moving the deck,
+  // and the cue stays while the mouse does. Touch has no hover, so there a tap
+  // or a scrub is what brings it up.
+  pips.addEventListener("pointerenter", (event) => {
+    if (event.pointerType === "mouse") cue.hold("hover", true);
+  });
+  pips.addEventListener("pointerleave", (event) => {
+    if (event.pointerType === "mouse") cue.hold("hover", false);
+  });
+
   pips.addEventListener("pointermove", (event) => {
+    if (!press && event.pointerType === "mouse") {
+      cue.show(nearestCentre(pipCentres(pips), event.clientX));
+      return;
+    }
     if (!press || event.pointerId !== press.id) return;
     if (press.live) {
       // Ours now: on a mouse this is also what stops the drag selecting text.
@@ -408,9 +425,67 @@ function centreOn(track, slides, index, behavior) {
 }
 
 function markActive(root, week) {
-  root.querySelectorAll("[data-pip]").forEach((pip) => {
+  const pips = root.querySelectorAll("[data-pip]");
+  pips.forEach((pip) => {
     pip.classList.toggle("week-pip--active", Number(pip.dataset.pip) === week);
   });
+  // How far along the rail the active mark sits, for the filled part of the
+  // line (see .week-pips::after). The marks are spread evenly, so this is a
+  // fraction rather than a measurement and survives a resize.
+  const rail = root.querySelector(".week-pips");
+  if (rail)
+    rail.style.setProperty("--rail-pos", pips.length > 1 ? (week - 1) / (pips.length - 1) : 0);
+}
+
+/**
+ * The cue over the rail: which week a tap, a scrub or an arrow key is landing
+ * on, held over the mark it belongs to and gone again after a beat. It is what
+ * makes the row readable while a finger is on it, when the marks under the
+ * finger cannot be. Holds keep it up - the finger is down, or a mouse is over
+ * the row - and it fades once the last hold lifts.
+ *
+ * @param {HTMLElement} rail The .week-rail wrapping the pips and the cue.
+ */
+function weekCue(rail) {
+  const cue = rail.querySelector(".week-cue");
+  const pips = rail.querySelector(".week-pips");
+  const num = cue.querySelector(".week-cue__num");
+  const date = cue.querySelector(".week-cue__date");
+  const holds = new Set();
+  let timer = null;
+
+  const schedule = () => {
+    clearTimeout(timer);
+    if (holds.size) return;
+    timer = setTimeout(() => cue.classList.remove("is-on"), CUE_MS);
+  };
+
+  return {
+    /** Put the cue over a mark, by index, and start (or restart) its clock. */
+    show(index) {
+      const pip = pips.querySelectorAll("[data-pip]")[index];
+      if (!pip) return;
+      num.textContent = String(index + 1).padStart(2, "0");
+      date.textContent = pip.dataset.label ?? "";
+      // Centred on the mark, but kept inside the rail at either end; the tip
+      // then slides along the cue so it still points at the mark.
+      const railBox = rail.getBoundingClientRect();
+      const pipBox = pip.getBoundingClientRect();
+      const centre = pipBox.left + pipBox.width / 2 - railBox.left;
+      const half = cue.offsetWidth / 2;
+      const x = Math.min(Math.max(centre, half + CUE_INSET), railBox.width - half - CUE_INSET);
+      cue.style.setProperty("--cue-x", `${x}px`);
+      cue.style.setProperty("--cue-tip", `${centre - x}px`);
+      cue.classList.add("is-on");
+      schedule();
+    },
+    /** Something is keeping the cue up: the row is pressed, or hovered. */
+    hold(key, on) {
+      if (on) holds.add(key);
+      else holds.delete(key);
+      schedule();
+    },
+  };
 }
 
 function weekMarkup(week, board, canWrite) {
@@ -444,116 +519,7 @@ function weekMarkup(week, board, canWrite) {
       <div class="panel__slots">
         ${week.picks.map((pick) => renderSlot(pick, board, canWrite)).join("")}
       </div>
-      ${frontierMarkup(week, board, canWrite)}
     </article>`;
-}
-
-/**
- * The coach's board for the week on the clock: the two to four openings any
- * good path starts with, each with its chance this week, the season it leads
- * to on the numbers as they stand, how it holds up across the futures the
- * coach played, and what it costs against the call. One answer priced to the
- * decimal would be false precision; this is the shape of the choice.
- *
- * Only the week the frontier was judged for carries it, and only while the
- * plan is fresh: a stand-in plan's frontier belongs to the locks it was made
- * around (see core/plan.js).
- */
-function frontierMarkup(week, board, canWrite) {
-  const frontier = board.frontier;
-  if (!frontier || frontier.week !== week.week || board.eliminated) return "";
-  if (!frontier.candidates?.length) return "";
-
-  const unlocked = week.picks.filter((pick) => !pick.status.locked);
-  const pool = frontier.pool;
-  const meta = [
-    `${frontier.scenarios} futures`,
-    pool ? `pool ${pool.mode}${pool.entriesAlive ? `, ${pool.entriesAlive} alive` : ""}` : "",
-  ]
-    .filter(Boolean)
-    .join(" · ");
-
-  return `
-      <footer class="frontier" data-motion-key="frontier-${week.week}"
-              aria-label="The coach's board for week ${week.week}">
-        <div class="frontier__head">
-          <span class="u-eyebrow">Coach's board</span>
-          <span class="frontier__meta">${escapeHtml(meta)}</span>
-        </div>
-        <ol class="frontier__list">
-          ${frontier.candidates.map((candidate) => frontierRow(candidate, week, board, unlocked, canWrite)).join("")}
-        </ol>
-      </footer>`;
-}
-
-function frontierRow(candidate, week, board, unlocked, canWrite) {
-  // Already in the slots, or there is no open slot left to put it in.
-  const held = candidate.teams.every((team) => unlocked.some((pick) => pick.team === team));
-  const missing = candidate.teams.filter((team) => !unlocked.some((pick) => pick.team === team));
-  const free = unlocked.filter((pick) => !candidate.teams.includes(pick.team));
-  const enabled = canWrite && !held && missing.length <= free.length;
-  const weekTier = confidenceTier(candidate.weekWinProb, board.rules.tiers);
-  // What the opening gives up against the call, as a share of the call's
-  // survival across the futures. Two openings the futures cannot tell apart
-  // (the same favourite with either of two equal partners, say) read as such.
-  const cost = candidate.chosen
-    ? "best"
-    : candidate.scenarioCost < 0.0005
-      ? "same"
-      : `−${formatPercent(candidate.scenarioCost, candidate.scenarioCost < 0.1 ? 1 : 0)}`;
-
-  const notes = [];
-  for (const option of candidate.options ?? []) {
-    if (option.movement !== null && option.movement !== undefined) {
-      const opened = option.spread - option.movement;
-      notes.push(`${option.team} ${formatSpread(option.spread)}, opened ${formatSpread(opened)}`);
-    }
-    if (option.availability?.note) notes.push(`${option.team}: ${option.availability.note}`);
-  }
-  if (candidate.leverage) {
-    notes.push(
-      `${formatPercent(candidate.popularity, 0)} of the pool on it · leverage ×${candidate.leverage.toFixed(2)}`,
-    );
-  }
-
-  const chips = [
-    candidate.chosen ? '<span class="chip chip--rec" title="The coach’s call">Call</span>' : "",
-    candidate.preferred && !candidate.chosen
-      ? '<span class="chip chip--coach" title="What the pool’s numbers prefer">Pool</span>'
-      : "",
-    held ? '<span class="chip chip--picked">Picked</span>' : "",
-  ]
-    .filter(Boolean)
-    .join("");
-
-  return `
-          <li class="frontier__row${candidate.chosen ? " frontier__row--call" : ""}">
-            <button type="button" class="frontier__pick"
-                    data-frontier-teams="${escapeHtml(JSON.stringify(candidate.teams))}"
-                    data-week="${week.week}"
-                    ${enabled ? "" : "disabled"}
-                    aria-label="${escapeHtml(`Pick ${candidate.teams.join(" and ")} for week ${week.week}`)}">
-              <span class="frontier__top">
-                <span class="frontier__teams">${escapeHtml(candidate.teams.join(" + "))}</span>
-                ${chips}
-              </span>
-              <span class="frontier__stats">
-                ${frontierStat("This week", formatPercent(candidate.weekWinProb), `confidence--${weekTier}`)}
-                ${frontierStat("Season", formatPercent(candidate.season))}
-                ${frontierStat("Futures", formatPercent(candidate.scenarioMean))}
-                ${frontierStat("Holds up", formatPercent(candidate.robust, 0))}
-                ${frontierStat("Cost", cost, candidate.chosen ? "" : "frontier__value--cost")}
-              </span>
-              ${notes.length ? `<span class="frontier__notes">${escapeHtml(notes.join(" · "))}</span>` : ""}
-            </button>
-          </li>`;
-}
-
-function frontierStat(key, value, className = "") {
-  return `<span class="frontier__stat">
-                  <span class="frontier__key">${escapeHtml(key)}</span>
-                  <span class="frontier__value${className ? ` ${className}` : ""}">${escapeHtml(value)}</span>
-                </span>`;
 }
 
 /**
