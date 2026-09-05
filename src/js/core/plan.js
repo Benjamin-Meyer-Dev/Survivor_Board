@@ -622,6 +622,22 @@ export function buildBoard({
   board.frontier = fresh ? frontierOf(recommendation.frontier, board.weeks, rules, pool) : null;
   // A search is still owed; app.js schedules it once this board is painted.
   board.recommendationPending = !fresh;
+
+  // While a pick is being weighed, the ghosts in the open slots and the "if
+  // locked" number come from a preview: the rest of the season re-solved
+  // around the picks as if they were locked. Without it the plan went on
+  // spending the picked team later - the Jaguars in week 1 and again in week
+  // 12 - and the preview priced that path half a point above what the lock
+  // then produced. The exact assignment does the re-solve in a millisecond,
+  // so a tap stays a tap. The committed plan and its number are untouched:
+  // they still move only on a lock.
+  const weighing = board.weeks.some((week) =>
+    week.picks.some((pick) => pick.team && !pick.status.locked),
+  );
+  const preview = weighing
+    ? (memoisedPreview(board, plan, odds, form, { calibration, availability, pool }) ??
+      recommendation)
+    : recommendation;
   // Meanwhile a recent plan is what is painted, not a blank (see
   // memoisedRecommendation). Its badges always show. Its numbers show only if
   // it still fills every open week: a team it planned for a later week may
@@ -679,8 +695,27 @@ export function buildBoard({
       standInComplete = false;
     }
     const liveCalls = week.pathRecommendation.filter((option) => !lockedTeams.has(option.team));
+    // What fills the open slots on screen. With nothing being weighed it is
+    // the plan's own calls; with a pick pending it is the preview's, solved
+    // around the pick, so a ghost never names the team just picked and the
+    // path on screen is one that could actually be locked.
+    const heldTeams = new Set(week.picks.filter((pick) => pick.team).map((pick) => pick.team));
+    const ghostNames =
+      preview === recommendation
+        ? planned
+        : (preview.picks[week.week] ?? []).filter(
+            (team) =>
+              (spentTeams[team] === undefined || spentTeams[team] === week.week) &&
+              !settledTeams.has(team),
+          );
+    const ghosts = ghostNames
+      .filter((team) => !heldTeams.has(team))
+      .map((team) => week.options.find((option) => option.team === team))
+      .filter(Boolean)
+      .map((option) => ({ ...option, tier: confidenceTier(option.winProb, rules.tiers) }));
     const weekPlan = plan.weeks.find((candidate) => candidate.week === week.week);
     let next = 0;
+    let ghost = 0;
 
     for (const pick of week.picks) {
       if (pick.status.locked) {
@@ -706,7 +741,7 @@ export function buildBoard({
     for (const pick of week.picks) {
       pick.isRecommended =
         Boolean(pick.team) && !pick.status.locked && liveCoachTeams.has(pick.team);
-      pick.suggestion = pick.team ? null : pick.coachCall;
+      pick.suggestion = pick.team ? null : (ghosts[ghost++] ?? null);
       for (const option of pick.options) option.isCoach = coachTeams.has(option.team);
     }
 
@@ -812,11 +847,8 @@ export function buildBoard({
     buyBackWeeks: rules.buyBackWeeks,
     buyBacks: rules.buyBacks,
   });
-  const hasUnlockedPick = board.weeks.some((week) =>
-    week.picks.some((pick) => pick.team && !pick.status.locked),
-  );
   board.pathProbability = committedOutcome.probability;
-  board.previewPathProbability = hasUnlockedPick ? previewOutcome.probability : null;
+  board.previewPathProbability = weighing ? previewOutcome.probability : null;
 
   // The depth chart carries all three truths: crossed-out teams are locked,
   // outlined teams are picked but not yet locked, and ghosted teams are only
@@ -859,6 +891,56 @@ let recommendationCache = [];
 const NO_CONSTRAINTS = new Set();
 
 /**
+ * Everything a search depends on but the locks. Two plans with the same base
+ * differ only in what is locked, which is what makes one a fair stand-in for
+ * the other. The league is part of it: switching swaps every input at once,
+ * and two boards must never share a cached path.
+ */
+function signatureBase(board, plan, odds, form, inputs) {
+  return [
+    plan.league ?? "cfb",
+    board.currentWeek,
+    board.buyBack?.left ?? 0,
+    odds.updatedAt,
+    Object.keys(odds.lines ?? {}).length,
+    // The fit prices every week the market has not posted, so a new one is a
+    // different search. Without this a refit would be answered from the cache.
+    form?.updatedAt ?? "",
+    // So are a new calibration, a new availability report and a new read on
+    // the pool: each changes what the search is scoring.
+    inputs.calibration?.fittedAt ?? "",
+    inputs.availability?.updatedAt ?? "",
+    inputs.pool?.updatedAt ?? "",
+  ].join("|");
+}
+
+/** Previews lately solved, keyed on the locks and the picks they were solved around. */
+let previewCache = [];
+
+/**
+ * The season re-solved around the picks being weighed as if they were locked,
+ * by the exact assignment alone (see recommendPath's `quick`). Null for an
+ * eliminated entry, which has nothing left to preview.
+ */
+function memoisedPreview(board, plan, odds, form, inputs) {
+  if (board.eliminated) return null;
+  const held = [];
+  for (const week of board.weeks) {
+    for (const pick of week.picks) {
+      if (!pick.team) continue;
+      const state = pick.status.locked ? (pick.status.result ?? "L") : "picked";
+      held.push(`${week.week}:${pick.slot}:${pick.team}:${state}`);
+    }
+  }
+  const signature = `${signatureBase(board, plan, odds, form, inputs)}|${held.join(",")}`;
+  const hit = previewCache.find((entry) => entry.signature === signature);
+  if (hit) return hit.value;
+  const value = recommendForBoard(board, null, { holdPicks: true, quick: true });
+  previewCache = [{ signature, value }, ...previewCache].slice(0, CACHE_SIZE);
+  return value;
+}
+
+/**
  * @returns {{value: object|null, fresh: boolean, constraints: Set<string>}}
  *   `fresh` is false when the plan is a stand-in, or there is none, and a
  *   search is still owed. `constraints` lists, as "week:team", the locks the
@@ -893,25 +975,7 @@ function memoisedRecommendation(board, plan, odds, form, allowSearch, inputs = {
     }
   }
 
-  // Everything but the locks. Two plans with the same base differ only in what
-  // is locked, which is what makes one a fair stand-in for the other. The
-  // league is part of it: switching swaps every input at once, and two boards
-  // must never share a cached path.
-  const base = [
-    plan.league ?? "cfb",
-    board.currentWeek,
-    board.buyBack?.left ?? 0,
-    odds.updatedAt,
-    Object.keys(odds.lines ?? {}).length,
-    // The fit prices every week the market has not posted, so a new one is a
-    // different search. Without this a refit would be answered from the cache.
-    form?.updatedAt ?? "",
-    // So are a new calibration, a new availability report and a new read on
-    // the pool: each changes what the search is scoring.
-    inputs.calibration?.fittedAt ?? "",
-    inputs.availability?.updatedAt ?? "",
-    inputs.pool?.updatedAt ?? "",
-  ].join("|");
+  const base = signatureBase(board, plan, odds, form, inputs);
   const signature = `${base}|${locks.map((lock) => `${lock.key}:${lock.result}`).join(",")}`;
 
   const hit = recommendationCache.find((entry) => entry.signature === signature);

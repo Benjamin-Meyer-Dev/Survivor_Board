@@ -84,6 +84,10 @@ const logp = (p) => Math.log(Math.max(p, 1e-9));
  * @param {object|null} [args.seed] A path to compete as a finalist.
  * @param {object} [args.model] The probability model, for the futures.
  * @param {number} [args.scenarios] How many futures to play; 0 skips the frontier.
+ * @param {boolean} [args.quick] The exact assignment alone, no beam and no
+ *   frontier: a millisecond's answer for a preview, where the full search's
+ *   hundred would be felt on every tap. The beam still runs if the assignment
+ *   has no legal answer.
  * @returns {{picks:Object<number,string[]>, pathProbability:number, shortfalls:number[],
  *            frontier:object|null}}
  */
@@ -96,6 +100,7 @@ export function recommendPath({
   seed = null,
   model = DEFAULT_MODEL,
   scenarios = SCENARIO_COUNT,
+  quick = false,
 }) {
   const forgiving = new Set(buyBacks > 0 ? buyBackWeeks : []);
 
@@ -113,14 +118,20 @@ export function recommendPath({
 
   const finalists = [];
   for (const credit of credits) {
-    finalists.push(...search(credit).slice(0, FINALISTS));
+    if (!quick) finalists.push(...search(credit).slice(0, FINALISTS));
     // The same problem with the coupling between weeks dropped is an
     // assignment, solved exactly in a millisecond (core/assignment.js). When
     // its answer breaks no rule - it never takes a spent team, and only the
     // two-sides-of-one-game rule is outside it - it is a finalist too, and
-    // the exact re-score below decides between it and the beam's own.
+    // the exact re-score below decides between it and the beam's own. A quick
+    // answer is this finalist alone.
     const exact = assignedFinalist(credit);
     if (exact) finalists.push(exact);
+  }
+  // Nothing legal from the assignment at any level, so the beam has to run
+  // after all: quick was a preference, not a promise of a worse answer.
+  if (quick && finalists.length === 0) {
+    for (const credit of credits) finalists.push(...search(credit).slice(0, FINALISTS));
   }
 
   // The path already on the board competes on equal terms, so the
@@ -142,7 +153,7 @@ export function recommendPath({
 
   // This week's call, judged across futures rather than on one path.
   const frontier =
-    scenarios > 0
+    scenarios > 0 && !quick
       ? judgeFrontier({
           weeks,
           burned,
@@ -708,21 +719,32 @@ function quantile(values, q) {
  * @returns {{picks:Object<number,string[]>, pathProbability:number, shortfalls:number[],
  *            frontier:object|null}}
  */
-export function recommendForBoard(board, seed = null) {
+/**
+ * @param {object} board From buildBoard, far enough along to carry weeks,
+ *   options and locks.
+ * @param {object|null} [seed] A path to compete as a finalist.
+ * @param {object} [options]
+ * @param {boolean} [options.holdPicks] Treat a picked slot the way a locked
+ *   one is treated - its team placed and spent - to see what locking it would
+ *   do. Off, only locks constrain the search.
+ * @param {boolean} [options.quick] The assignment alone; see recommendPath.
+ */
+export function recommendForBoard(board, seed = null, { holdPicks = false, quick = false } = {}) {
   const burned = new Set();
   const upcoming = [];
   const { picksPerWeek, buyBackWeeks, buyBacks } = board.rules;
+  const held = (pick) => pick.status.locked || (holdPicks && Boolean(pick.team));
 
   for (const week of board.weeks) {
     const isPast = week.week < board.currentWeek;
 
     for (const pick of week.picks) {
-      if (pick.status.locked) burned.add(pick.team);
+      if (held(pick)) burned.add(pick.team);
     }
 
     if (isPast) continue;
 
-    const fixed = week.picks.map((pick) => (pick.status.locked ? pick.team : null));
+    const fixed = week.picks.map((pick) => (held(pick) ? pick.team : null));
     upcoming.push({
       week: week.week,
       // A game already played is not a pick anyone can still make, so it is no
@@ -748,6 +770,7 @@ export function recommendForBoard(board, seed = null) {
     buyBacks: board.buyBack?.left ?? buyBacks,
     seed,
     model: board.model ?? DEFAULT_MODEL,
-    scenarios: board.scenarioCount ?? SCENARIO_COUNT,
+    scenarios: quick ? 0 : (board.scenarioCount ?? SCENARIO_COUNT),
+    quick,
   });
 }

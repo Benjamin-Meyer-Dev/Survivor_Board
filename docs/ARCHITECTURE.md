@@ -105,8 +105,14 @@ Two different things, deliberately kept apart:
 Locking is the boundary. The coach plans as if every unlocked slot were open,
 so picking a team and changing your mind cost nothing; the moment a pick is
 locked or unlocked, the rest of the season is re-planned around what is now
-committed. `plan.json` still carries an authored path, but only as the
-optimiser's seed and the season calendar. It never fills a slot.
+committed. While a pick is only being weighed, what you see is a preview of
+that: the ghosts in the open slots and the "if locked" number come from the
+season re-solved around the pick by the exact assignment alone, which takes a
+millisecond and almost always lands where the full search would. So the
+preview never spends the picked team again in a later week, and the number it
+quotes is the one the lock then produces. `plan.json` still carries an
+authored path, but only as the optimiser's seed and the season calendar. It
+never fills a slot.
 
 The coach only ever names a game still to be played, and what is left of a week
 is all it has to work with. That can be less than the pool asks for: with one

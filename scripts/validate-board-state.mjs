@@ -140,6 +140,31 @@ assert.ok(
   "the coach's call stays badged while a different team is picked",
 );
 
+// The preview says what locking would do. The rest of the season is re-solved
+// around the pick, so the picked team is not also spent in a later week, and
+// the number matches what a lock then produces (the full search can only
+// improve on the preview's exact assignment, and rarely does).
+const previewedTeams = picked.weeks.flatMap((week) =>
+  week.picks.map((pick) => pick.onPath?.team ?? pick.team ?? pick.suggestion?.team).filter(Boolean),
+);
+assert.equal(
+  new Set(previewedTeams).size,
+  previewedTeams.length,
+  "the previewed path never spends a team twice",
+);
+const lockedPending = build(
+  { picks: { [key]: { locked: true } }, swaps: { [key]: pending } },
+  withFeedResult,
+);
+assert.ok(
+  picked.previewPathProbability <= lockedPending.pathProbability + 1e-9,
+  "a lock can only improve on the preview",
+);
+assert.ok(
+  lockedPending.pathProbability - picked.previewPathProbability < 0.002,
+  `"if locked" (${picked.previewPathProbability}) says what the lock produces (${lockedPending.pathProbability})`,
+);
+
 // Locking commits: the team is spent, the final lands, and the coach plans the
 // rest of the season around it.
 const locked = build(
@@ -461,8 +486,21 @@ assert.equal(heldByPick.disabled, true, "a team picked in the other slot cannot 
 assert.equal(heldByPick.reason, "Other Slot This Week");
 assert.equal(heldByPick.siblingLocked, false, "but an unlocked pick is not a lock");
 
+// The ghost in the other slot is solved around the pick, so it never names
+// the team just picked, whatever the coach had called for that slot before.
+const weighingSide = buildCollege(
+  { picks: {}, swaps: { [lockKey]: lockedSide } },
+  cfbOdds,
+).weeks.find((week) => week.week === openWeek.week);
+assert.notEqual(
+  weighingSide.picks[1].suggestion?.team,
+  lockedSide,
+  "the other slot's ghost never names the team just picked",
+);
+assert.ok(weighingSide.picks[1].suggestion, "and the other slot still gets a suggestion");
+
 console.log(
   "Board state OK: slots are user-picked, coach plans stay advisory, locks own burns and results, " +
     "a played game leaves its week's menu and any unlocked pick on it, a week short of games " +
-    "holds one pick, the other slot's lock shows in the list, a fatal loss puts the board in review.",
+    "holds one pick, the other slot's lock shows in the list, a pending pick previews the season its lock would give, a fatal loss puts the board in review.",
 );
