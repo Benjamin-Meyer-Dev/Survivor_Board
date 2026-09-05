@@ -482,11 +482,12 @@ export function buildBoard({
   // coach likes an option is filled in below, once the recommendation is known.
   for (const week of weeks) {
     for (const pick of week.picks) {
-      // Every other slot's team this week. Empty in a one-pick league.
-      const siblings = new Set(
+      // Every other slot's team this week, and whether that slot has locked
+      // it. Empty in a one-pick league.
+      const siblings = new Map(
         week.picks
           .filter((other) => other.slot !== pick.slot && other.team)
-          .map((other) => other.team),
+          .map((other) => [other.team, Boolean(other.status.locked)]),
       );
       // Sorted by spread. A team locked in another week sinks to the bottom, so
       // the top of the list is teams you can actually take, and that order only
@@ -515,14 +516,17 @@ export function buildBoard({
             isCurrent: option.team === pick.team,
             isCoach: false,
             disabled: Boolean(settled) || takenBySibling || usedElsewhere,
+            // The other slot has not just picked this team but locked it: a
+            // firmer hold, and the list wears the padlock for it.
+            siblingLocked: takenBySibling && siblings.get(option.team) === true,
             reason: settled
               ? settled === "W"
                 ? "Won"
                 : "Lost"
               : takenBySibling
-                ? "other slot this week"
+                ? "Other Slot This Week"
                 : usedElsewhere
-                  ? `locked week ${spentTeams[option.team]}`
+                  ? `Locked Week ${spentTeams[option.team]}`
                   : "",
           };
         })

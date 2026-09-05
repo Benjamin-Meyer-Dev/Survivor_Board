@@ -735,16 +735,20 @@ function renderTeamList(pick, board, canWrite) {
  * One row of the list. The slot's own team is marked current; when the slot is
  * locked that row also wears the lock, so the list agrees with the slot head
  * about what is committed and the row reads as "not yours to tap" rather than
- * merely selected. A row whose game has been played is marked settled: it is
- * kept in view as a record of the week, but it is not a row anyone can take.
+ * merely selected. A team the other slot has locked wears the lock too, so
+ * the two lists of a two-pick week agree with each other about what is
+ * committed. A row whose game has been played is marked settled: it is kept
+ * in view as a record of the week, but it is not a row anyone can take.
  */
 function renderOption(pick, option, canPick) {
   const locked = option.isCurrent && Boolean(pick.status.locked);
+  const held = Boolean(option.siblingLocked) && !option.isCurrent;
   const classes = [
     "swap__option",
     option.isCurrent ? "swap__option--current" : "",
     locked ? "swap__option--locked" : "",
     option.disabled && !option.isCurrent ? "swap__option--disabled" : "",
+    held ? "swap__option--held" : "",
     option.result ? "swap__option--settled" : "",
   ]
     .filter(Boolean)
@@ -754,7 +758,9 @@ function renderOption(pick, option, canPick) {
     ? 'aria-current="true" title="Locked in. Unlock the slot to change it"'
     : option.isCurrent
       ? 'aria-current="true" title="Tap again to clear this pick"'
-      : "";
+      : held
+        ? 'title="Locked in the other slot this week"'
+        : "";
 
   return `
     <button type="button" class="${classes}"
@@ -764,7 +770,7 @@ function renderOption(pick, option, canPick) {
             ${canPick && (!option.disabled || option.isCurrent) ? "" : "disabled"}
             ${current}>
       <span class="swap__team">
-        ${locked ? LOCK_ICON : ""}<span class="swap__name">${escapeHtml(option.team)}</span>${option.isCoach ? '<span class="swap__tag">Coach</span>' : ""}
+        ${locked || held ? LOCK_ICON : ""}<span class="swap__name">${escapeHtml(option.team)}</span>${option.isCoach ? '<span class="swap__tag">Coach</span>' : ""}
       </span>
       <span class="swap__matchup">${escapeHtml(formatMatchup(option.site, option.opponent))}</span>
       ${line(option)}

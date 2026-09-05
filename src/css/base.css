@@ -116,9 +116,10 @@ button {
     scroll-snap-type: none;
   }
 
-  /* The action feedback in motion.css is decorative; the state it announces
-     is already visible in the chips and colours. */
-  .slot::after {
+  /* The lock feedback overlays in motion.css are decorative; the state they
+     announce is already visible in the chips and colours. */
+  .slot::after,
+  .slot__head::after {
     display: none;
   }
 }

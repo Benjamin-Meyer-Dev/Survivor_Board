@@ -747,7 +747,6 @@
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  padding-bottom: 2px;
 }
 
 .weeks::-webkit-scrollbar {
@@ -779,7 +778,7 @@
   --rail-pad-y: 15px;
   position: relative;
   background: var(--surface-2);
-  border-top: 1px solid var(--line);
+  border-top: 2px solid var(--line);
 }
 
 .week-pips {
@@ -1022,12 +1021,15 @@
   flex: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  /* Each slot is its own card on the page ground, with a gutter between. A
-     hairline was all that separated the two NCAA picks before, and once both
-     were locked their fills ran together into one field of colour. */
-  gap: var(--sp-3);
-  padding: var(--sp-4) var(--sp-4) var(--sp-5);
-  background: var(--ground);
+  /* The slots share the card, with a rule between them rather than a gutter
+     of page ground: the head, the slots and the rail then read as one piece.
+     A lock colours only a slot's head, so two locked slots side by side no
+     longer run together the way they did when the whole card took the fill.
+     What shows through here is the empty half of a one-pick week, recessed
+     like an empty slot so it reads as part of the card and not a hole. */
+  gap: 0;
+  padding: 0;
+  background: var(--surface-2);
 }
 
 .slot__numbers > *,
@@ -1044,20 +1046,25 @@
   --slot-pad-x: var(--sp-5);
   background: var(--surface);
   padding: var(--slot-pad-y) var(--slot-pad-x);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
   /* Grid items default to min-width:auto, so long content (a 44px badge plus
      "SOUTH CAROLINA") widens the track instead of wrapping. */
   min-width: 0;
 }
 
-/* A lock colours the head, not the whole card: a band across the top says
-   "locked in" and leaves the numbers and the list on the plain surface. The
-   edge takes a little of the lock colour so the card agrees with its head. */
-.slot--locked {
-  border-color: color-mix(in srgb, var(--lock) 35%, var(--line));
+/* The rule between slots: the same weight as the one over the rail, and
+   heavier than the dashed hairlines inside a slot, so it reads as the card's
+   structure rather than one more row. Side by side the rule stands between
+   the two; a one-pick week keeps it at the slot's edge, against the recess. */
+.slot + .slot {
+  border-left: 2px solid var(--line);
 }
 
+.slot:only-child {
+  border-right: 2px solid var(--line);
+}
+
+/* A lock colours the head, not the whole card: a band across the top says
+   "locked in" and leaves the numbers and the list on the plain surface. */
 .slot--locked .slot__head {
   background: var(--lock-bg);
   box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--lock) 30%, transparent);
@@ -1125,7 +1132,6 @@
      moves nothing inside it. */
   margin: calc(-1 * var(--slot-pad-y)) calc(-1 * var(--slot-pad-x)) var(--sp-3);
   padding: var(--slot-pad-y) var(--slot-pad-x) var(--sp-3);
-  border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
   /* 46px of content; the box is border-box, so the padding counts too. */
   min-height: calc(46px + var(--slot-pad-y) + var(--sp-3));
 }
@@ -1588,6 +1594,14 @@
   cursor: default;
 }
 
+/* A team the other slot has locked. Still not this slot's to take, so it is
+   dimmed like any spoken-for row, but it carries the padlock and keeps a
+   little more of its contrast: a lock is firmer than a pick, and the list
+   should say so at a glance. */
+.swap__option--held {
+  opacity: 0.6;
+}
+
 .swap__team {
   display: flex;
   align-items: center;
@@ -1728,7 +1742,10 @@
   letter-spacing: 0.09em;
   font-size: 12px;
   color: var(--ink-3);
-  text-align: left;
+  /* Every column is centred, headers and cells alike, so the sheet reads as a
+     grid of aligned columns rather than text ragged against one edge and
+     numbers against the other. */
+  text-align: center;
   padding: 12px 14px;
   border-bottom: 1px solid var(--line);
   background: var(--surface-2);
@@ -1740,6 +1757,7 @@
   padding: 12px 14px;
   border-bottom: 1px solid var(--line-soft);
   font-size: 14.5px;
+  text-align: center;
   vertical-align: middle;
 }
 
@@ -1836,7 +1854,6 @@
 .ladder__num {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  text-align: right;
   white-space: nowrap;
 }
 
@@ -2198,23 +2215,24 @@
     height: 9px;
   }
 
-  /* One column, and the cards run to the screen edge like the tab card they
-     sit in: no side borders or corners, the ground showing between them. */
+  /* One column, stacked, so the rule between slots runs across the card
+     rather than down it, and a lone slot has nothing beside it to rule off. */
   .panel__slots {
     grid-template-columns: 1fr;
-    gap: var(--sp-3);
-    padding: var(--sp-3) 0;
   }
 
   .slot {
     --slot-pad-y: 18px;
     --slot-pad-x: var(--sp-4);
-    border-inline: 0;
-    border-radius: 0;
   }
 
-  .slot__head {
-    border-radius: 0;
+  .slot + .slot {
+    border-left: 0;
+    border-top: 2px solid var(--line);
+  }
+
+  .slot:only-child {
+    border-right: 0;
   }
 
   .slot__team {
@@ -2410,7 +2428,7 @@
   }
 
   .ladder .ladder__sticky--pick {
-    padding-right: 4px;
+    padding-inline: 6px;
   }
 
   .ladder thead .ladder__sticky {

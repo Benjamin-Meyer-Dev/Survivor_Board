@@ -351,52 +351,67 @@
   animation-delay: 35ms;
 }
 
-/* --- a pick changing ----------------------------------------------------- */
+/* --- a lock changing ----------------------------------------------------- */
 
 .slot {
   position: relative;
 }
 
-/* Colour wash for a lock, painted over the head, where the lock colour
-   settles, so it does not fight the slot's own background. */
-.slot__head::after {
+/* Both halves of the lock feedback are overlays, drawn on top of the slot and
+   animated on opacity alone.
+
+   On top, so a lock and an unlock draw the same thing. The ring used to be an
+   inset shadow on the slot itself, and the head - once it had taken the lock
+   tint - covered the top of it: a lock showed the ring on three sides, an
+   unlock on all four.
+
+   Opacity alone, so the motion runs on the compositor and keeps running if
+   the re-plan that follows a lock lands early (see REPLAN_DELAY_MS in
+   app.js); an animated shadow stalls with the main thread and then jumps. */
+.slot__head::after,
+.slot::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
   opacity: 0;
+}
+
+/* The wash: the lock colour rising over the head, where that colour settles,
+   and draining away. A tint at its peak, never the full colour. */
+.slot__head::after {
+  background: color-mix(in srgb, var(--lock) 30%, transparent);
   border-radius: inherit;
 }
 
-@keyframes wash {
-  from {
-    opacity: 0.42;
+/* The ring, round the whole slot and over everything in it. */
+.slot::after {
+  z-index: 1;
+  box-shadow: inset 0 0 0 2px var(--lock);
+}
+
+/* Up quickly but not at once - an instant start is what reads as a flash -
+   then a long settle back to nothing. */
+@keyframes lock-pulse {
+  0% {
+    opacity: 0;
   }
-  to {
+  18% {
+    opacity: 1;
+  }
+  100% {
     opacity: 0;
   }
 }
 
 .slot.fx-lock .slot__head::after {
-  background: var(--lock);
-  animation: wash 0.5s ease-out;
+  animation: lock-pulse 0.85s cubic-bezier(0.33, 0, 0.2, 1) both;
 }
 
-/* A selected slot gets a ring that draws itself in. */
-@keyframes ring {
-  from {
-    box-shadow: inset 0 0 0 0 var(--lock);
-  }
-  60% {
-    box-shadow: inset 0 0 0 3px var(--lock);
-  }
-  to {
-    box-shadow: inset 0 0 0 0 var(--lock);
-  }
-}
-
-.slot.fx-lock {
-  animation: ring 0.55s var(--ease-out);
+/* The ring follows the wash by a beat, so the change reads as the head taking
+   the colour and the slot closing round it, not one flat blink. */
+.slot.fx-lock::after {
+  animation: lock-pulse 0.85s cubic-bezier(0.33, 0, 0.2, 1) 80ms both;
 }
 
 /* A new team arriving in the slot rises into place, numbers just behind it. */

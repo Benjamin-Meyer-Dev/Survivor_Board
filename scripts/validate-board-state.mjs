@@ -448,8 +448,21 @@ assert.equal(
   "the coach does not fill the other slot with the locked team's opponent",
 );
 
+// The other slot's list says how firmly its sibling holds a team: a locked
+// team wears the padlock there, a merely picked one does not.
+const heldByLock = lockedDerbyWeek.picks[1].options.find((option) => option.team === lockedSide);
+assert.equal(heldByLock.disabled, true, "a team locked in the other slot cannot be taken here");
+assert.equal(heldByLock.reason, "Other Slot This Week");
+assert.equal(heldByLock.siblingLocked, true, "and the row knows the hold is a lock");
+const heldByPick = buildCollege({ picks: {}, swaps: { [lockKey]: lockedSide } }, cfbOdds)
+  .weeks.find((week) => week.week === openWeek.week)
+  .picks[1].options.find((option) => option.team === lockedSide);
+assert.equal(heldByPick.disabled, true, "a team picked in the other slot cannot be taken here");
+assert.equal(heldByPick.reason, "Other Slot This Week");
+assert.equal(heldByPick.siblingLocked, false, "but an unlocked pick is not a lock");
+
 console.log(
   "Board state OK: slots are user-picked, coach plans stay advisory, locks own burns and results, " +
     "a played game leaves its week's menu and any unlocked pick on it, a week short of games " +
-    "holds one pick, a fatal loss puts the board in review.",
+    "holds one pick, the other slot's lock shows in the list, a fatal loss puts the board in review.",
 );

@@ -316,10 +316,12 @@ const RECOMMEND_DELAY_MS = 380;
 
 /**
  * A lock or an unlock changes what the coach has to plan around, so the search
- * runs again. This is how long its feedback keyframe needs to finish first: the
- * lock ring is the longest of them at 550 ms.
+ * runs again. This is how long its feedback keyframes need to finish first: the
+ * lock ring is the longest of them, 850 ms starting 80 ms in (see lock-pulse
+ * in motion.css). The render that follows the search rebuilds the slot, and a
+ * keyframe still running then is simply gone.
  */
-const REPLAN_DELAY_MS = 600;
+const REPLAN_DELAY_MS = 1000;
 
 /** Run the optimiser once the board the user asked for is on screen and settled. */
 function scheduleRecommendation(delay = RECOMMEND_DELAY_MS) {
