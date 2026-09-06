@@ -1,7 +1,7 @@
 {
-  "$comment": "Written by the refresh workflow. Line keys are \"<week>|<team>\", and the same keys carry W/L in `results` for the board and the signed margin in `scores` for the form.json rating fit.",
-  "updatedAt": "2026-09-06T16:19:39Z",
-  "currentWeek": 1,
+  "$comment": "One run's lines, written by scripts/refresh-odds.mjs and never rewritten. Read by scripts/backtest.mjs to score what the board showed against what happened.",
+  "at": "2026-09-06T16:19:39Z",
+  "week": 1,
   "lines": {
     "1|Seahawks": {
       "spread": -3.5,
@@ -452,9 +452,43 @@
       "updatedAt": "2026-09-06T16:19:39Z"
     }
   },
-  "results": {},
-  "scores": {},
-  "flags": [],
+  "form": {
+    "updatedAt": "2026-09-06T16:19:39Z",
+    "ratings": {
+      "49ers": 83,
+      "Bears": 82.1,
+      "Bengals": 82,
+      "Bills": 84.9,
+      "Broncos": 83.05,
+      "Browns": 76,
+      "Buccaneers": 80,
+      "Cardinals": 72.2,
+      "Chargers": 81.8,
+      "Chiefs": 83.95,
+      "Colts": 79.95,
+      "Commanders": 79,
+      "Cowboys": 80.1,
+      "Dolphins": 73.05,
+      "Eagles": 82,
+      "Falcons": 78,
+      "Giants": 75.9,
+      "Jaguars": 82,
+      "Jets": 73.05,
+      "Lions": 82,
+      "Packers": 82.05,
+      "Panthers": 77.9,
+      "Patriots": 83.05,
+      "Raiders": 74.95,
+      "Rams": 86.5,
+      "Ravens": 85.05,
+      "Saints": 77,
+      "Seahawks": 84.95,
+      "Steelers": 79,
+      "Texans": 82.1,
+      "Titans": 72.95,
+      "Vikings": 81.95
+    }
+  },
   "recommendation": {
     "picks": {
       "1": [
