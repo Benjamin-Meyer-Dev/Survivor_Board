@@ -1,6 +1,6 @@
 {
   "$comment": "Written by .github/workflows/refresh-odds.yml. Never edit by hand - your change will be overwritten on the next run. Ratings fitted to the market lines, final margins and efficiency margins the daily pull has collected, and used to price the weeks the market has not posted yet. Teams the pull has not seen are absent and keep their ratings.json value.",
-  "updatedAt": "2026-09-06T16:19:39Z",
+  "updatedAt": "2026-09-07T18:16:46Z",
   "throughWeek": 1,
   "homeFieldPoints": 2,
   "params": {
@@ -59,7 +59,7 @@
     "Bengals": 82,
     "Bills": 84.9,
     "Broncos": 83.05,
-    "Browns": 76,
+    "Browns": 75.95,
     "Buccaneers": 80,
     "Cardinals": 72.2,
     "Chargers": 81.8,
@@ -69,10 +69,10 @@
     "Cowboys": 80.1,
     "Dolphins": 73.05,
     "Eagles": 82,
-    "Falcons": 78,
+    "Falcons": 77.95,
     "Giants": 75.9,
-    "Jaguars": 82,
-    "Jets": 73.05,
+    "Jaguars": 82.05,
+    "Jets": 73.1,
     "Lions": 82,
     "Packers": 82.05,
     "Panthers": 77.9,
@@ -82,9 +82,9 @@
     "Ravens": 85.05,
     "Saints": 77,
     "Seahawks": 84.95,
-    "Steelers": 79,
+    "Steelers": 79.05,
     "Texans": 82.1,
-    "Titans": 72.95,
+    "Titans": 72.9,
     "Vikings": 81.95
   }
 }
