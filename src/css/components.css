@@ -673,10 +673,10 @@
    week at once (see the wide block). */
 .pitch__field {
   --zone-w: 30px;
-  --yard-w: 46px;
+  --yard-w: 44px;
   position: relative;
   display: flex;
-  height: 136px;
+  height: 152px;
   border: 2px solid var(--chalk);
   background: var(--turf-3);
   overflow-x: auto;
@@ -769,19 +769,25 @@
   color: var(--chalk-2);
 }
 
-/* The pick's name on the yard line, under the ball. */
+/* The pick's name, chalked down the yard line the way the end zones are
+   lettered. It runs between the mark and the ball; a name too long for the
+   column is cut with an ellipsis rather than spilling into the next week. */
 .pitch__label {
   position: absolute;
   left: 50%;
-  bottom: 24px;
+  top: 30px;
+  bottom: 42px;
   transform: translateX(-50%);
-  max-width: calc(100% - 4px);
+  display: flex;
+  align-items: center;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 10px;
-  letter-spacing: 0.02em;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--chalk-2);
+  writing-mode: vertical-rl;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -836,14 +842,14 @@
   color: var(--chalk);
 }
 
-/* The ball, on the week on the clock. */
+/* The ball, on the week on the clock: above the week's number. */
 .pitch__ball {
   position: absolute;
   left: 50%;
-  top: 46%;
+  bottom: 22px;
   width: 22px;
   height: 14px;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   pointer-events: none;
 }
 
@@ -858,16 +864,16 @@
    under the readouts when a phone cannot hold both on one row. */
 .pitch__drive {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px 14px;
+  gap: 10px;
 }
 
 .pitch__stats {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px 18px;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 1;
   min-width: 0;
 }
 
@@ -881,8 +887,8 @@
 .pitch__stat-key {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 0.16em;
+  font-size: 10px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--chalk-3);
   white-space: nowrap;
@@ -891,7 +897,7 @@
 .pitch__stat-value {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.1;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -903,7 +909,7 @@
 .pitch__stat-value #countdown {
   font-family: var(--font-mono);
   font-weight: 600;
-  font-size: 15px;
+  font-size: 13px;
   letter-spacing: 0;
   text-transform: none;
 }
@@ -925,34 +931,36 @@
   color: var(--chalk-2);
 }
 
-/* The season number, on the flag. Centred on the flag's own axis: the two
-   faces sit on different baselines, so a baseline alignment left the number
-   low. */
+/* The season number, on the flag: the same shape as the readouts beside it,
+   a key over a value, so the row reads as one line of stats with the one that
+   matters lit. */
 .pitch__tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 36px;
-  padding: 0 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 10px;
   border-radius: 4px;
   background: var(--flag);
   color: var(--on-flag);
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-size: 13px;
-  line-height: 1;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   white-space: nowrap;
   flex: none;
-  /* Alone on a row, when a phone wraps it, it keeps to the right. */
-  margin-left: auto;
+}
+
+.pitch__tag-key {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.85;
 }
 
 .pitch__tag-value {
   font-family: var(--font-mono);
   font-weight: 600;
-  font-size: 18px;
+  font-size: 17px;
   line-height: 1;
   letter-spacing: 0;
 }
@@ -1097,15 +1105,15 @@
 .call__team {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: 44px;
-  line-height: 0.9;
+  font-size: 36px;
+  line-height: 0.92;
   letter-spacing: 0.01em;
   text-transform: uppercase;
   overflow-wrap: anywhere;
 }
 
 .call__slots--two .call__team {
-  font-size: 30px;
+  font-size: 26px;
 }
 
 /* The coach's suggestion, pencilled in (field.css draws the dashed line). */
@@ -1619,13 +1627,13 @@
 .drive__head,
 .drive__row {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) 54px 60px;
+  grid-template-columns: 34px minmax(0, 1fr) 56px 74px;
   align-items: center;
   gap: 6px;
 }
 
 .drive__head {
-  padding: 2px 0 8px;
+  padding: 2px 8px 8px 4px;
   border-bottom: 1px solid var(--line);
   font-family: var(--font-display);
   font-weight: 700;
@@ -1674,7 +1682,7 @@
 .drive__wk {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 7px;
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 20px;
@@ -2892,7 +2900,15 @@
 
 @media (max-width: 380px) {
   .call__team {
-    font-size: 42px;
+    font-size: 32px;
+  }
+
+  .pitch__stats {
+    gap: 8px;
+  }
+
+  .pitch__stat-value {
+    font-size: 15px;
   }
 
   .league-bar__name {
@@ -2910,7 +2926,7 @@
   /* Every week fits, so the field stops scrolling and the weeks share it. */
   .pitch__field {
     --zone-w: 60px;
-    height: 160px;
+    height: 170px;
     overflow: hidden;
   }
 
@@ -2934,14 +2950,20 @@
   }
 
   .pitch__label {
-    bottom: 26px;
-    font-size: 11px;
-    letter-spacing: 0.04em;
+    top: 32px;
+    bottom: 46px;
+    font-size: 12px;
   }
 
   .pitch__ball {
     width: 26px;
     height: 16px;
+    bottom: 24px;
+  }
+
+  .pitch__stats {
+    justify-content: flex-start;
+    gap: 28px;
   }
 
   .pitch__stat-value {
@@ -2949,12 +2971,20 @@
   }
 
   .pitch__tag {
-    height: 40px;
-    font-size: 14px;
+    padding: 4px 14px;
+  }
+
+  .pitch__tag-key {
+    font-size: 11px;
   }
 
   .pitch__tag-value {
     font-size: 20px;
+  }
+
+  .drive__head,
+  .drive__row {
+    grid-template-columns: 34px minmax(0, 1fr) 60px 78px;
   }
 
   /* The call and its action in one row. */
@@ -3000,11 +3030,11 @@
   }
 
   .call__slots--two .call__team {
-    font-size: 36px;
+    font-size: 32px;
   }
 
   .call__team {
-    font-size: 54px;
+    font-size: 44px;
   }
 
   .tile {

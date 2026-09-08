@@ -26,7 +26,7 @@ export function renderDrive(root, board, viewWeek, onSelectWeek) {
   root.innerHTML = `
     <div class="drive">
       <div class="drive__head" aria-hidden="true">
-        <span>Wk</span><span>Pick</span><span class="drive__wide">Spread</span><span>Win</span><span>Alive</span><span class="drive__wide">Status</span>
+        <span>Wk</span><span>Pick</span><span class="drive__wide">Spread</span><span>Win %</span><span title="Chance of still being in the pool after this week">Survival</span><span class="drive__wide">Status</span>
       </div>
       ${board.weeks.map((week) => rowMarkup(week, board, viewWeek)).join("")}
     </div>`;

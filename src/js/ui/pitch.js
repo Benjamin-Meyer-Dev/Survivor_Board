@@ -65,9 +65,9 @@ export function renderPitch(root, board, viewWeek, handlers) {
       <div class="pitch__drive">
         <div class="pitch__stats">${stats(board)}</div>
         <span class="pitch__tag${season.out ? " pitch__tag--out" : ""}" data-cell="survival"
-              title="Chance of surviving the whole season on today's numbers">
+              title="The chance of surviving the whole season on today's numbers, every buy back counted">
+          <span class="pitch__tag-key">${season.out ? "Season" : "Season survival"}</span>
           <span class="pitch__tag-value">${escapeHtml(season.value)}</span>
-          <span>${season.out ? "season over" : "to the end zone"}</span>
         </span>
       </div>
     </div>`;
