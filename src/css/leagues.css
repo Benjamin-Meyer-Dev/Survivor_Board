@@ -1,96 +1,47 @@
 /* ===========================================================================
    League palettes.
 
-   Every league plays the same night game. The palette follows two attributes
-   on the root element: the season it plays (data-league, from src/js/sports.js)
-   and what its picks have to do (data-objective). College keeps the turf
-   palette from tokens.css, the NFL goes primetime blue, and any league picking
-   losers takes spoiler amber over its season's own surfaces - two leagues on
-   one schedule wanting opposite results must not look the same. The confidence
-   scale never changes between them.
+   Every league plays on the same turf under the same chalk: a football field
+   is green whoever is on it. What a league owns is the paint in its end zones
+   and the mark it wears on the home page. College paints them the turf's own
+   dark green; the NFL paints them navy; any league picking losers paints them
+   burnt orange, on whichever season it plays - two leagues on one schedule
+   wanting opposite results must not look the same. The chalk, the flag and
+   the confidence scale never change.
+
+   The palette follows two attributes on the root element: the season
+   (data-league, from src/js/sports.js) and what the picks have to do
+   (data-objective).
    ========================================================================== */
 
-/* --- NFL: primetime -------------------------------------------------------- */
+/* --- NFL: navy end zones ------------------------------------------------- */
 
 :root[data-league="nfl"] {
-  --ground: #04060d;
-  --ground-2: #0a1122;
-  --surface: #0b1222;
-  --surface-2: #10192d;
-  --surface-3: #16223c;
-  --line: #24304c;
-  --line-soft: #1b2539;
-  --line-strong: #33456c;
-
-  --ink: #eef2fb;
-  --ink-2: #a9b5cf;
-  --ink-3: #6d7b9b;
-
-  --accent: #5fa6ff;
-  --accent-2: #8fdcff;
-  --accent-soft: #10203e;
-  --accent-ink: #acceff;
-  --on-accent: #030f24;
-
-  --lock: #5fa6ff;
-  --lock-bg: #10203e;
-
-  /* Magenta stays distinct from the blue league accent. */
-  --mulligan: #f08bcb;
-  --mulligan-bg: #2c1429;
-
-  /* field.css tokens: a dome rather than green turf */
-  --yard: rgb(255 255 255 / 4.5%);
-  --yard-major: rgb(255 255 255 / 8%);
-  --chalk: rgb(255 255 255 / 12%);
-  --mow: rgb(95 166 255 / 2.4%);
-  --endzone: rgb(95 166 255 / 12%);
+  --paint: #0b1f4d;
+  --paint-2: #0d2559;
+  --paint-ink: #f3f7f1;
+  --paint-glow: rgb(127 166 255 / 14%);
 }
 
-/* --- picking losers: spoiler amber ---------------------------------------- */
+/* --- picking losers: burnt orange end zones ------------------------------- */
 
-/* Accents only. The ground, the surfaces and the ink stay the season's, so a
-   college losers league is still played on turf and an NFL one still under the
-   dome; what changes is every mark the board makes on top of them, which is
-   the half a glance actually lands on. */
 :root[data-objective="lose"] {
-  --accent: #ffb02e;
-  --accent-2: #ffe08a;
-  --accent-soft: #2c1d08;
-  --accent-ink: #ffd489;
-  --on-accent: #1c1100;
-
-  --lock: #ffb02e;
-  --lock-bg: #2c1d08;
-
-  /* Cool against the amber, as the magenta is against the blue. */
-  --mulligan: #7fdbe8;
-  --mulligan-bg: #10282d;
-
-  --mow: rgb(255 176 46 / 2.4%);
-  --endzone: rgb(255 176 46 / 12%);
+  --paint: #7a3d00;
+  --paint-2: #8a4600;
+  --paint-ink: #fff3e0;
+  --paint-glow: rgb(255 176 92 / 16%);
 }
 
 /* --- travelling colour ----------------------------------------------------- */
 
-/* Every board token changes with the pool, and the board is faded out while
-   that happens; the masthead and the league bar stay visible, so their colours
-   travel rather than jump. */
+/* The paint changes with the pool while the board is faded out, but the
+   topline stays visible, so its colours travel rather than jump. */
 body,
-.masthead::after,
-.mast-ball,
-.masthead__title span,
-.league-bar__back::before,
-.league-bar__back::after,
-.league-bar__pool::before,
-.league-bar__select,
-.league-bar__chevron,
-.settings__open::before,
-.settings__open::after {
+.league-bar__pool,
+.league-bar__mark,
+.pitch__zone {
   transition:
     background-color 0.3s ease,
     border-color 0.3s ease,
-    stroke 0.3s ease,
-    fill 0.3s ease,
     color 0.3s ease;
 }

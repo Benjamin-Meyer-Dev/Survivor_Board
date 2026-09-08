@@ -107,7 +107,7 @@ minus it in a losers pool - and `advanceResult` does the same to a recorded
 final, so the team that lost is the pick that won. The spread is never flipped:
 it is the market's statement about the game, and `+9.5` is what makes that
 team the good pick there. Every module below - the tiers, the beam search, the
-survival maths, the ladder, the burn board, the pool overlay - therefore works
+survival maths, the drive, the bench, the pool overlay - therefore works
 unchanged and never asks which pool it is in. The one exception is
 `core/scenarios.js`, which draws its own spreads and so has to be told which
 side of them to price.
@@ -129,7 +129,7 @@ late push from the store being replaced is dropped rather than landing on the
 new board. Each pool keeps its own entry (its own artifact document, its own
 Supabase row, its own storage key, all keyed by `scopeFor(code, kind)`), so
 locks in one pool can never appear in another - not in another league's, and
-not in the same league's other pools. The league bar under the masthead
+not in the same league's other pools. The topline at the top of the board
 (`ui/league-bar.js`) names the open league and holds a picker of its pools -
 "NFL winners", "NFL losers" - and nothing else; another league is a trip back
 through the home page. The hash records league and pool (`#/l/CODE/KIND`) so a
@@ -174,7 +174,7 @@ Two different things, deliberately kept apart:
 - **The coach's suggestion** is what `core/recommend.js` computes from the
   current odds. It is never written to state and never becomes a pick on its
   own. It shows as a badge on the team in the list, as a ghosted stand-in where
-  a slot is empty, and as faint rows on the Gameplan tab, and you decide.
+  a slot is empty, and as pencilled rows on the drive, and you decide.
 
 Locking is the boundary. The coach plans as if every unlocked slot were open,
 so picking a team and changing your mind cost nothing; the moment a pick is
@@ -536,7 +536,7 @@ means at most one of the forgiving weeks going down, which is a Poisson
 binomial tail, so `core/survival.js` builds it with a small DP over those weeks
 rather than a closed form. That keeps it right whether the pool grants one buy
 back or three, and it is the same function the optimiser scores its finalists
-on, so the number on the strip and the number the recommendation is chosen by
+on, so the number on the drive line and the number the recommendation is chosen by
 can never disagree.
 
 A buy back is spent, not refunded: losing week 1 costs the team as well as the
@@ -563,9 +563,9 @@ A loss no buy back can cover ends the run, and `survival()` says which week
 did it. From then on the board is in review. The coach stands down (the
 optimiser returns an empty plan without searching), every pick and lock control
 is disabled whatever the store allows, a banner above the views says when and
-how it ended with the final record, the strip's clock cell becomes the
-elimination week, weeks after it read as not played, and the deck opens on the
-week it ended. Nothing is deleted: the locks and results stay exactly as they
+how it ended with the final record, the drive line names the week it ended,
+weeks after it read as not played, and the board opens looking at the week it
+ended. Nothing is deleted: the locks and results stay exactly as they
 were, so the season can be read back. Only the result itself changing, by a
 correction in `odds.json`, can bring the board out of review.
 
@@ -609,6 +609,32 @@ Three sources, merged in `core/plan.js` and nowhere else:
 `src/js/ui/` renders from that object and never reads the raw JSON. That is
 the rule that keeps the UI honest: if a number is wrong, there is one place to
 look.
+
+## The screen: a field held sideways
+
+The board is one split screen, built for a phone in one hand. The top half is
+the readout and does not scroll: the pitch (`ui/pitch.js`), which draws the
+season as a football field laid sideways - kickoff on the left, the end zone
+on the right, a yard line per week, the ball on the week on the clock, a chalk
+bracket on the week being looked at, and a mark on each week for what it holds
+
+- with the drive line under it saying how far the season is from the end zone;
+  then the call (`ui/call.js`), the week being looked at, its slot or slots, and
+  the one action at the seam. The bottom half is the drawer, which takes what is
+  left and scrolls inside itself: the sideline (`ui/sideline.js`, every team the
+  active slot could hold), the drive (`ui/drive.js`, the season week by week) and
+  the bench (`ui/bench.js`, every team and where it sits on the path), behind
+  three tabs on a phone and side by side from 900px. Looking at a week - a tap on
+  the field, a row of the drive - redraws only the call, the sideline and the
+  drive's bracket, and never rebuilds the board, so a slide along the field costs
+  a few milliseconds a step. Tapping the field's yard line moves the bracket in
+  place rather than rebuilding the field under the finger.
+
+Colour is the one thing that does not come off the board: `app.js` stamps
+`data-league` and `data-objective` on the root element and `src/css/leagues.css`
+repaints the end zones and the league's mark from them. Everything else is the
+same turf and the same chalk whichever pool is open, because a field is green
+whoever is on it.
 
 ## Store fallback
 

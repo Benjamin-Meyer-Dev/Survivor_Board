@@ -50,36 +50,40 @@ src/js/app.js   the only module that wires the other three together
   scrolling still works everywhere, there is just no visible bar. Both
   `scrollbar-width: none` and `::-webkit-scrollbar` are declared because
   setting the former makes Chromium ignore the latter.
-- The tab bar and the view it switches are one card: the bar owns the top
-  corners and has no bottom edge, the view owns the bottom corners, and the
-  selected tab is lit by the slab that travels between tabs (`.tab-marker`)
-  rather than by a colour change on the label. Anything nested inside a view
-  drops its own border, radius and shadow rather than stacking a card inside a
-  card.
-- Cut corners come from `--clip-cut` in `tokens.css`, and `clip-path` clips a
-  border and a box-shadow with them. So a cut control is transparent and draws
-  its edge and its fill on `::before` and `::after`, coloured by `--edge` and
-  `--fill`, and a glow goes on the control itself as a `filter: drop-shadow`,
-  which follows the clipped outline. New cut controls join the selector list
-  at the top of `components.css`; do not hand-roll another one.
-- A tag (`.chip`) is coloured by `--tag-bg` and `--tag-fg`. A modifier sets
-  those two and nothing else, so every tag keeps the same cut and left bar.
-- A slot carries its pick's tier as `data-tier`, which sets `--tier`, and
-  everything in the slot that shows confidence (the edge bar, the meter) draws
-  from that one variable rather than from a tier class of its own.
+- The board is a split screen (`layout.css`): the readout at the top is sized
+  by its content and the drawer below takes the rest and scrolls inside
+  itself, and nothing under the shell scrolls while a board is up. Anything
+  new on the board goes in one or the other; never add a third scrolling
+  region, and never let the readout grow past what a phone can show above the
+  drawer's minimum.
+- A chalk tag (`.chip`) is coloured by `--tag-fg` alone. A modifier sets that
+  and nothing else, so every tag keeps the same chalk rectangle.
+- Buttons are chalk rectangles: outlined for the quiet ones, and the flag
+  (`--flag`) fills exactly one control per screen, the action that changes
+  something for everyone in the pool. A second yellow button on a screen is a
+  bug.
+- The coach's plan is always pencilled in: dashed lines in the flag's colour
+  (`field.css` draws the underlines). A lock is always painted on: solid
+  chalk. Never mix the two vocabularies, and never colour a suggestion the way
+  a pick is coloured.
+- The pitch (`.pitch__field`) is a grid with one column per week, set from
+  `--weeks`. A week owns its whole column, so anything added to a yard line is
+  absolutely positioned inside it and narrower than 17px at phone width.
 
 ## The theme
 
-`src/css/field.css` is the thematic layer: the stadium light and grain, the
-yard lines, the score-bug brackets and sidelines, the end zone on the week on
-the clock, the yard lines on the field-position meter. It is separate on
+`src/css/field.css` is the thematic layer: the turf and its grain, the
+floodlight on the week on the clock, the hash marks, the painted end zones,
+the chalk dashes under everything the coach only suggests. It is separate on
 purpose: it sets no layout and no state, so deleting the file leaves a working,
 plainer app. Keep it that way. Anything structural belongs in `components.css`.
 
 Football vocabulary is content, not decoration, and lives where the content
 does: `TIER_LABEL` in `core/probability.js` (Lock / Solid / Shaky / Close call /
-Upset alert), the tab labels in `ui/tabs.js`, the strip keys in `ui/strip.js`. Never
-let a themed word cost clarity, "Pick a team" stayed literal for that reason.
+Upset alert), the drawer's tab labels in `ui/tabs.js`, the drive line in
+`ui/pitch.js`. Never let a themed word cost clarity: "Pick a team" stayed
+literal for that reason, and the end zone says "Survive" because that is what
+reaching it means.
 
 ## Motion
 

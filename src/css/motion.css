@@ -26,14 +26,12 @@
    Every keyframe below moves only transform and opacity. Building the board
    runs a search that blocks the main thread for a few hundred milliseconds,
    and an animation on `left` or `clip-path` stalls for that whole stretch and
-   then jumps. Transform and opacity keep running on the compositor, which is
-   the only reason there is anything to watch while the board loads. */
+   then jumps. Transform and opacity keep running on the compositor. */
 
 .startup__scene {
   --startup-cycle: 1.6s;
 }
 
-/* Travel and spin are linear, a thrown ball does not slow down mid-air. */
 @keyframes startup-throw {
   0% {
     opacity: 0;
@@ -54,8 +52,6 @@
   }
 }
 
-/* The arc lives on the inner svg so it can carry its own easing: slowing into
-   the peak and accelerating out of it, independent of the travel. */
 @keyframes startup-arc {
   0%,
   8% {
@@ -72,7 +68,6 @@
   }
 }
 
-/* The curtain over the route pulls back in step with the ball. */
 @keyframes startup-route {
   0%,
   8% {
@@ -84,11 +79,10 @@
   }
 }
 
-/* The route leaves with the ball, so the curtain can close again unseen. */
 @keyframes startup-route-fade {
   0%,
   84% {
-    opacity: 0.45;
+    opacity: 0.55;
   }
   100% {
     opacity: 0;
@@ -111,9 +105,7 @@
   animation: startup-route var(--startup-cycle) linear infinite;
 }
 
-/* The play keeps running under this fade. Cutting the ball's iteration count
-   here instead ended its animation on the spot, which dropped it back to the
-   start the moment the board was ready. */
+/* The play keeps running under this fade. */
 .startup.is-ready {
   opacity: 0;
   transform: scale(1.025);
@@ -135,31 +127,16 @@
 
 /* --- press and hover, the states that outlive a render ------------------- */
 
-/* Cut controls draw their edge and fill on pseudo-elements and their glow as a
-   filter, so those are what travel on hover; colour is the label's. */
-.lock-toggle,
-.swap__option {
-  transition:
-    background-color 0.16s ease,
-    color 0.16s ease,
-    filter 0.16s ease,
-    transform 0.12s var(--ease-out);
-}
-
-.lock-toggle:active:not(:disabled) {
-  transform: scale(0.92);
-}
-
-.swap__option:active:not(:disabled) {
+.sideline__row:active:not(:disabled),
+.drive__row:active {
   transform: scale(0.985);
 }
 
-.tab {
-  transition: color 0.18s ease;
-}
-
-.tab:active {
-  transform: translateY(1px);
+.sideline__row,
+.drive__row {
+  transition:
+    background-color 0.16s ease,
+    transform 0.12s var(--ease-out);
 }
 
 .chip {
@@ -171,8 +148,7 @@
 /* --- sheets --------------------------------------------------------------- */
 
 /* A sheet rises into place and its backdrop fades up behind it. Keyed on the
-   open attribute, which the dialog gains every time it is shown, so the
-   entrance plays on each opening rather than once. */
+   open attribute, which the dialog gains every time it is shown. */
 @keyframes sheet-in {
   from {
     opacity: 0;
@@ -203,12 +179,12 @@
   animation: backdrop-in 0.3s ease both;
 }
 
-/* --- entering a tab ------------------------------------------------------ */
+/* --- the drawer changing panel ------------------------------------------- */
 
-@keyframes view-enter {
+@keyframes panel-enter {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -216,25 +192,11 @@
   }
 }
 
-.view.is-entering {
-  animation: view-enter 0.3s var(--ease-out) both;
+.drawer__panel.is-entering {
+  animation: panel-enter 0.26s var(--ease-out) both;
 }
 
-/* The other half of the cross-fade. It sinks rather than rises, so the two
-   panels read as one moving past the other instead of both arriving. */
-@keyframes view-leave {
-  from {
-    opacity: 1;
-    transform: none;
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-}
-
-/* Rows arrive in sequence rather than all at once - the eye reads the top of
-   the table first, which is the order it is sorted in. */
+/* Bench cards arrive in sequence, the order the chart is sorted in. */
 @keyframes row-enter {
   from {
     opacity: 0;
@@ -246,18 +208,16 @@
   }
 }
 
-.view.is-entering .burn__team {
-  animation: row-enter 0.34s var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 6ms);
+.drawer__panel.is-entering .bench__team {
+  animation: row-enter 0.3s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 5ms);
 }
 
-/* The board on its way out while the next league is being built. The masthead
-   is deliberately left alone: the picker you just tapped should stay solid and
-   responsive, and it is what tells you the tap landed. */
-.shell.is-swapping .notice,
-.shell.is-swapping .strip,
-.shell.is-swapping .tabs,
-.shell.is-swapping .views {
+/* The board on its way out while the next pool is being built. The topline
+   is left alone: the picker you just tapped should stay solid. */
+.shell.is-swapping .notices,
+.shell.is-swapping .readout,
+.shell.is-swapping .drawer {
   opacity: 0;
   transform: translateY(6px);
   transition:
@@ -265,8 +225,6 @@
     transform 0.16s ease;
 }
 
-/* Switching league replaces the whole board, so the change is announced once
-   at the top of the page rather than by every card moving independently. */
 @keyframes league-enter {
   from {
     opacity: 0;
@@ -278,21 +236,16 @@
   }
 }
 
-.shell.is-switching .strip,
-.shell.is-switching .tabs,
-.shell.is-switching .views {
+.shell.is-switching .readout,
+.shell.is-switching .drawer {
   animation: league-enter 0.36s var(--ease-out) both;
 }
 
-.shell.is-switching .tabs {
-  animation-delay: 0.03s;
+.shell.is-switching .drawer {
+  animation-delay: 0.05s;
 }
 
-.shell.is-switching .view {
-  animation-delay: 0.06s;
-}
-
-/* --- changing data ------------------------------------------------------ */
+/* --- changing data -------------------------------------------------------- */
 
 /* Re-rendered nodes cannot transition from their discarded predecessor, so
    stable data keys in the markup identify replacements whose value or state
@@ -301,126 +254,85 @@
   from {
     opacity: 0.38;
     transform: translateY(4px);
-    filter: saturate(0.72);
   }
   to {
     opacity: 1;
     transform: none;
-    filter: none;
   }
 }
 
-/* The strip fades a change in rather than settling it: its numbers sit in a
-   fixed row, and a bob there read as the whole strip flinching. The season
-   cell opts out of this too (ui/strip.js gives it no motion keys) and has its
-   own cue below. */
-@keyframes data-fade {
-  from {
-    opacity: 0.3;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.strip__value.is-data-updated,
-.strip__note.is-data-updated {
-  animation: data-fade 0.3s ease-out both;
-}
-
-/* The season number says which way it went rather than that it moved. It cuts
-   straight to the new value, wears the colour of the direction for a beat and
-   eases back to ink. Colour only: a count through the intermediate values
-   flickered, and any dip in opacity read as the number blinking. The keyframe
-   ends on the token the strip inherits, since `inherit` cannot be animated
-   to. */
+/* The season number says which way it went rather than that it moved: it cuts
+   to the new value, wears the direction's chalk for a beat, and eases back.
+   Colour only, on the flag: nothing on the drive line dims or shifts. 1.4s
+   here is PULSE_MS in ui/pitch.js. */
 @keyframes survival-rise {
   0%,
   35% {
-    color: var(--safe);
+    color: var(--on-flag-rise);
   }
   100% {
-    color: var(--ink);
+    color: var(--on-flag);
   }
 }
 
 @keyframes survival-fall {
   0%,
   35% {
-    color: var(--danger);
+    color: var(--on-flag-fall);
   }
   100% {
-    color: var(--ink);
+    color: var(--on-flag);
   }
 }
 
-/* 1.4s here is PULSE_MS in ui/strip.js; a render that lands mid-pulse resumes
-   it from where it was, and needs the same figure to know when it is over. */
-.strip__value.is-rising {
+.pitch__tag-value.is-rising {
   animation: survival-rise 1.4s ease-out both;
 }
 
-.strip__value.is-falling {
+.pitch__tag-value.is-falling {
   animation: survival-fall 1.4s ease-out both;
 }
 
-.burn__team.is-data-updated {
+.bench__team.is-data-updated {
   animation: data-settle 0.38s var(--ease-out) both;
   animation-delay: calc(var(--i, 0) * 3ms);
 }
 
-.ladder tr.is-data-updated > td {
+.drive__row.is-data-updated {
   animation: data-settle 0.3s var(--ease-out) both;
 }
 
-/* The head's children rather than the head: the head is also the lock band,
-   and the band should stay put while what it holds settles. */
-.slot.is-data-updated .slot__head > *,
-.slot.is-data-updated .slot__numbers,
-.slot.is-data-updated .slot__meter {
+.call__slot.is-data-updated > * {
   animation: data-settle 0.34s var(--ease-out) both;
 }
 
-.slot.is-data-updated .slot__numbers,
-.slot.is-data-updated .slot__meter {
-  animation-delay: 35ms;
-}
-
-/* --- a lock changing ----------------------------------------------------- */
-
-.slot {
-  position: relative;
-}
+/* --- a lock changing ------------------------------------------------------- */
 
 /* Both halves of the lock feedback are overlays, drawn on top of the slot and
    animated on opacity alone, so the motion runs on the compositor and keeps
    running if the re-plan that follows a lock lands early (see REPLAN_DELAY_MS
-   in app.js); an animated shadow stalls with the main thread and then jumps. */
-.slot__head::after,
-.slot::after {
+   in app.js). */
+.call__slot::before,
+.call__slot::after {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: -6px -8px;
+  border-radius: var(--radius-sm);
   pointer-events: none;
   opacity: 0;
 }
 
-/* The wash: the lock colour rising over the head, where that colour settles,
-   and draining away. A tint at its peak, never the full colour. */
-.slot__head::after {
-  background: color-mix(in srgb, var(--lock) 30%, transparent);
+/* The wash: chalk dust rising over the slot and settling. */
+.call__slot::before {
+  background: rgb(243 247 241 / 22%);
 }
 
-/* The ring, round the whole slot and over everything in it. */
-.slot::after {
+/* The ring: the chalk rectangle being painted round the pick. */
+.call__slot::after {
   z-index: 1;
-  box-shadow:
-    inset 0 0 0 2px var(--lock),
-    inset 0 0 30px var(--glow-soft);
+  box-shadow: inset 0 0 0 2px var(--chalk);
 }
 
-/* Up quickly but not at once - an instant start is what reads as a flash -
-   then a long settle back to nothing. */
 @keyframes lock-pulse {
   0% {
     opacity: 0;
@@ -433,18 +345,15 @@
   }
 }
 
-.slot.fx-lock .slot__head::after {
+.call__slot.fx-lock::before {
   animation: lock-pulse 0.85s cubic-bezier(0.33, 0, 0.2, 1) both;
 }
 
-/* The ring follows the wash by a beat, so the change reads as the head taking
-   the colour and the slot closing round it, not one flat blink. */
-.slot.fx-lock::after {
+.call__slot.fx-lock::after {
   animation: lock-pulse 0.85s cubic-bezier(0.33, 0, 0.2, 1) 80ms both;
 }
 
-/* A new team arriving in the slot rises into place, numbers just behind it,
-   and the meter runs out to the new chance from the goal line. */
+/* A new team arriving in the slot rises into place, the tiles just behind. */
 @keyframes rise {
   from {
     opacity: 0;
@@ -456,54 +365,25 @@
   }
 }
 
-@keyframes meter-run {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: none;
-  }
-}
-
-.slot.fx-swap .slot__identity,
-.slot.fx-swap .slot__matchup {
+.call__slot.fx-swap .call__team,
+.call__slot.fx-swap .call__matchup {
   animation: rise 0.36s var(--ease-out) both;
 }
 
-.slot.fx-swap .slot__numbers {
-  animation: rise 0.36s var(--ease-out) both;
-  animation-delay: 0.05s;
+.call__slot.fx-swap .call__tiles {
+  animation: rise 0.36s var(--ease-out) 0.05s both;
 }
 
-.slot.fx-swap .slot__meter i {
-  transform-origin: left;
-  animation: meter-run 0.5s var(--ease-out) 0.08s both;
-}
+/* --- the pitch ------------------------------------------------------------- */
 
-/* --- week pips ----------------------------------------------------------- */
-
-.week-pip {
+.pitch__yard {
   transition:
-    background-color 0.22s ease,
-    transform 0.28s var(--ease-snap);
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
-/* The filled stretch of the rail follows the active mark the same way. */
-.week-pips::after {
-  transition: width 0.28s var(--ease-out);
-}
-
-/* Under the finger the marker has to keep up with it, so a scrub cuts from one
-   week to the next where a tap eases across. */
-.week-pips--scrubbing .week-pip,
-.week-pips--scrubbing::after {
+/* Under the finger the bracket has to keep up with it, so a scrub cuts from
+   one week to the next where a tap eases across. */
+.pitch__field--scrubbing .pitch__yard {
   transition: none;
-}
-
-/* The week cue rises into place and sinks back out. Its position is never
-   eased: under a finger or a mouse it has to be over the right mark at once. */
-.week-cue {
-  transition:
-    opacity 0.2s ease,
-    transform 0.24s var(--ease-out);
 }

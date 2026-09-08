@@ -2,213 +2,101 @@
    Components. One block per UI module in src/js/ui/.
    Naming: .block, .block__element, .block--modifier.
 
-   Two patterns recur, so they are named once here:
+   Everything on the board is chalk on turf. Two marks recur:
 
-   Cut controls. A control with cut corners cannot carry its own border or
-   glow: clip-path clips both. So the control is transparent and draws two
-   layers behind its content, `::before` for the edge and `::after` inset one
-   pixel for the fill, each clipped to the same shape. A glow then goes on the
-   control as a drop-shadow filter, which follows the clipped outline rather
-   than the box. Set --edge and --fill on the control to colour it.
+   Chalk tags (.chip). A word in a chalk rectangle: solid where the state is
+   painted on (a lock, the week on the clock), the flag's colour where the
+   coach is speaking, a tier's pastel where a number is being judged. --tag-fg
+   colours one; the background is that colour thinned.
 
-   Tags. A tag is a small cut slab carrying a left bar in its own colour, so
-   the colour reads before the word does. --tag-bg and --tag-fg colour it.
+   Chalk controls. Buttons are chalk rectangles: outlined for the quiet ones,
+   filled in the flag for the one action that changes something for everyone.
    ========================================================================== */
 
-/* cut controls ------------------------------------------------------------ */
-
-.lock-toggle,
-.league-bar__back,
-.league-bar__pool,
-.settings__open,
-.settings__btn,
-.home__icon,
-.home__menu-btn,
-.home__btn,
-.gate__btn,
-.slot__flip {
-  --edge: var(--line-strong);
-  --fill: var(--surface-3);
-  position: relative;
-  isolation: isolate;
-  border: 0;
-  background: none;
-  color: var(--ink-2);
-  cursor: pointer;
-}
-
-.lock-toggle::before,
-.lock-toggle::after,
-.league-bar__back::before,
-.league-bar__back::after,
-.league-bar__pool::before,
-.league-bar__pool::after,
-.settings__open::before,
-.settings__open::after,
-.settings__btn::before,
-.settings__btn::after,
-.home__icon::before,
-.home__icon::after,
-.home__menu-btn::before,
-.home__menu-btn::after,
-.home__btn::before,
-.home__btn::after,
-.gate__btn::before,
-.gate__btn::after,
-.slot__flip::before,
-.slot__flip::after {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  clip-path: var(--clip-cut);
-  pointer-events: none;
-  transition:
-    background-color 180ms ease,
-    opacity 180ms ease;
-}
-
-.lock-toggle::before,
-.league-bar__back::before,
-.league-bar__pool::before,
-.settings__open::before,
-.settings__btn::before,
-.home__icon::before,
-.home__menu-btn::before,
-.home__btn::before,
-.gate__btn::before,
-.slot__flip::before {
-  inset: 0;
-  background: var(--edge);
-}
-
-.lock-toggle::after,
-.league-bar__back::after,
-.league-bar__pool::after,
-.settings__open::after,
-.settings__btn::after,
-.home__icon::after,
-.home__menu-btn::after,
-.home__btn::after,
-.gate__btn::after,
-.slot__flip::after {
-  inset: 1px;
-  background: var(--fill);
-}
-
-/* Filled controls: the fill is the edge, so the inner layer steps aside. */
-.lock-toggle--on::after,
-.league-bar__pool::after,
-.settings__btn--go::after,
-.home__btn--go::after,
-.gate__btn::after,
-.home__icon--done::after,
-.home__icon--failed::after {
-  opacity: 0;
-}
-
-/* tags -------------------------------------------------------------------- */
+/* chalk tags ---------------------------------------------------------------- */
 
 .chip {
-  --tag-bg: var(--surface-3);
-  --tag-fg: var(--ink-2);
+  --tag-fg: var(--chalk-2);
   display: inline-flex;
   align-items: center;
   gap: 6px;
   height: 22px;
-  padding: 0 9px 0 11px;
+  padding: 0 8px;
+  border: 1.5px solid color-mix(in srgb, var(--tag-fg) 65%, transparent);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--tag-fg) 10%, transparent);
+  color: var(--tag-fg);
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 11px;
+  font-weight: 800;
+  font-size: 11.5px;
   line-height: 1;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   white-space: nowrap;
   flex: none;
-  color: var(--tag-fg);
-  background: var(--tag-bg);
-  /* The left bar, in the tag's own colour. The cut at the bottom left notches
-     it, which is what makes it read as a ticket rather than a box. */
-  box-shadow: inset 3px 0 0 var(--tag-fg);
-  clip-path: var(--clip-cut-sm);
 }
 
 .chip--safe {
-  --tag-bg: var(--safe-bg);
   --tag-fg: var(--safe);
 }
 
 .chip--solid {
-  --tag-bg: var(--solid-bg);
   --tag-fg: var(--solid);
 }
 
 .chip--thin {
-  --tag-bg: var(--thin-bg);
   --tag-fg: var(--thin);
 }
 
 .chip--close {
-  --tag-bg: var(--close-bg);
   --tag-fg: var(--close);
 }
 
 .chip--danger {
-  --tag-bg: var(--danger-bg);
   --tag-fg: var(--danger);
 }
 
+/* Painted on: solid chalk. */
 .chip--lock,
 .chip--locked {
-  --tag-bg: var(--lock-bg);
-  --tag-fg: var(--lock);
+  --tag-fg: var(--chalk);
+  background: var(--chalk);
+  color: var(--on-flag);
+  border-color: var(--chalk);
 }
 
-/* A pick that agrees with the coach. Tinted, not outlined: it confirms a
-   choice already made rather than proposing one. */
-.chip--rec {
-  --tag-bg: var(--accent-soft);
-  --tag-fg: var(--accent-ink);
-}
-
-/* Picked but not locked: the accent at a whisper, so it reads as provisional. */
-.chip--picked {
-  --tag-bg: color-mix(in srgb, var(--accent) 10%, transparent);
-  --tag-fg: var(--accent);
-}
-
-/* The coach's suggestion. Its bar is dashed - the same "pencilled in" language
-   the ghosted slot, the ladder row and the depth chart use - so a suggestion
-   looks the same wherever it appears and is never taken for a pick. */
+/* The coach's words are in the flag's colour. */
+.chip--rec,
 .chip--coach {
-  --tag-bg: transparent;
-  --tag-fg: var(--accent);
-  box-shadow: none;
-  background-image: repeating-linear-gradient(180deg, var(--tag-fg) 0 3px, transparent 3px 5px);
-  background-size: 3px 100%;
-  background-repeat: no-repeat;
-  opacity: 0.85;
+  --tag-fg: var(--flag);
+}
+
+.chip--coach {
+  border-style: dashed;
+}
+
+.chip--picked {
+  --tag-fg: var(--flag);
+  background: transparent;
 }
 
 .chip--buyback {
-  --tag-bg: var(--mulligan-bg);
   --tag-fg: var(--mulligan);
 }
 
-/* A week that was never played, in review. */
 .chip--moot {
-  --tag-bg: transparent;
-  --tag-fg: var(--ink-3);
+  --tag-fg: var(--chalk-4);
+  background: transparent;
 }
 
-/* The week on the clock: solid accent, with the live dot of a broadcast bug.
-   This one belongs to the score bug, not to a pick's state. */
+/* The week on the clock: the flag, solid, with the live dot of a score bug. */
 .chip--clock {
-  --tag-bg: var(--accent);
-  --tag-fg: var(--on-accent);
-  height: 26px;
-  padding: 0 11px 0 10px;
-  font-weight: 800;
-  box-shadow: none;
+  --tag-fg: var(--flag);
+  background: var(--flag);
+  border-color: var(--flag);
+  color: var(--on-flag);
+  height: 24px;
+  padding: 0 9px 0 8px;
 }
 
 .chip--clock::before {
@@ -217,15 +105,10 @@
   height: 7px;
   flex: none;
   border-radius: 50%;
-  background: var(--on-accent);
+  background: var(--on-flag);
 }
 
-/* The kinds of pool a league runs, on its home card, each in its own colour so
-   an NFL league and a college one are told apart before their names are read. */
-.chip--kind {
-  --tag-bg: color-mix(in srgb, var(--tag-fg) 12%, transparent);
-}
-
+/* The kinds of pool a league runs, on its home card, each in its paint. */
 .chip--kind-nfl-win {
   --tag-fg: var(--kind-nfl);
 }
@@ -239,325 +122,229 @@
   --tag-fg: var(--kind-lose);
 }
 
-/* tabs (ui/tabs.js) ------------------------------------------------------ */
+/* chalk controls ------------------------------------------------------------ */
 
-/* Tabs and the view they switch are one object: the bar is the head of the
-   card, the view its body. The selected tab is lit by a slab that travels
-   between them (see .tab-marker), so the labels never change colour mid-move
-   and stay readable while the slab is on its way. */
-.tabs {
-  position: relative;
-  display: flex;
-  gap: 0;
-  padding: 6px;
-  background: linear-gradient(180deg, var(--surface-3), var(--surface-2));
-  border: 1px solid var(--line);
-  border-bottom: 0;
-  border-radius: var(--radius) var(--radius) 0 0;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%);
-  margin-bottom: 0;
-}
-
-.tab {
+/* Quiet buttons: a chalk outline, the label in chalk. */
+.btn,
+.league-bar__back,
+.settings__open,
+.settings__btn,
+.home__icon,
+.home__menu-btn,
+.home__btn,
+.gate__btn,
+.seam__flip,
+.seam__lock {
   appearance: none;
-  position: relative;
-  z-index: 1;
-  flex: 1;
-  min-height: 46px;
-  background: none;
-  border: 0;
-  border-radius: 0;
-  padding: 10px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--chalk);
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 15px;
-  text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--ink-3);
+  text-transform: uppercase;
   cursor: pointer;
-  transition: color 0.2s ease;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 120ms ease;
 }
 
-.tab:hover:not([aria-selected="true"]) {
-  color: var(--ink-2);
+.btn:hover:not(:disabled),
+.league-bar__back:hover,
+.settings__open:hover,
+.settings__btn:hover:not(:disabled),
+.home__icon:hover,
+.home__menu-btn:hover:not(:disabled),
+.home__btn:hover:not(:disabled) {
+  border-color: var(--chalk);
+  background: rgb(243 247 241 / 6%);
 }
 
-.tab[aria-selected="true"] {
-  color: var(--ink);
-  text-shadow: 0 0 18px var(--glow);
+.btn:active:not(:disabled),
+.settings__btn:active:not(:disabled),
+.home__menu-btn:active:not(:disabled),
+.home__btn:active:not(:disabled),
+.gate__btn:active:not(:disabled),
+.seam__lock:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
-/* The lit slab under the selected tab, promoted to its own element so it can
-   travel between tabs instead of blinking from one to the next. A skewed
-   parallelogram in the accent at part strength, with a solid accent foot. */
-.tab-marker {
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  left: 6px;
-  width: calc((100% - 12px) / var(--n));
-  transform: translateX(calc(100% * var(--i)));
-  transition: transform 0.3s var(--ease-snap, ease-out);
-  pointer-events: none;
+/* The flag: the one action, filled. */
+.btn--go,
+.settings__btn--go,
+.home__btn--go,
+.gate__btn,
+.seam__lock--go {
+  background: var(--flag);
+  border-color: var(--flag);
+  color: var(--on-flag);
+  box-shadow: 0 8px 24px -10px rgb(255 224 102 / 55%);
 }
 
-.tab-marker::before {
-  content: "";
-  position: absolute;
-  inset: 0 6px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--accent) 26%, transparent),
-    color-mix(in srgb, var(--accent) 10%, transparent)
-  );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
-  transform: skewX(-10deg);
-  transition: background-color 0.26s ease;
+.btn--go:hover:not(:disabled),
+.settings__btn--go:hover:not(:disabled),
+.home__btn--go:hover:not(:disabled),
+.gate__btn:hover:not(:disabled),
+.seam__lock--go:hover:not(:disabled) {
+  background: var(--flag-2);
+  border-color: var(--flag-2);
+  color: var(--on-flag);
 }
 
-.tab-marker::after {
-  content: "";
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  transform: skewX(-10deg);
-  box-shadow: 0 0 14px var(--glow);
-}
-
-/* One box for all three panels, so a tab change animates its height from the
-   old view to the new rather than the page jumping to the new one. */
-.views {
-  position: relative;
-  transition: height 0.28s var(--ease-out, ease);
-}
-
-/* Only while a panel is on its way out, so a settled view never clips a
-   focus ring or a shadow. */
-.views--moving {
-  overflow: hidden;
-}
-
-/* The view is the body of that same card. */
-.view {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-top: 1px solid var(--line-strong);
-  border-radius: 0 0 var(--radius) var(--radius);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-  margin-bottom: var(--sp-5);
-}
-
-/* Lifted out of flow so the incoming panel can take its place immediately and
-   the container's natural height becomes measurable. */
-.view--leaving {
-  position: absolute;
-  inset: 0 0 auto;
-  z-index: 1;
-  animation: view-leave 0.22s var(--ease-out, ease) both;
-  pointer-events: none;
-}
-
-/* scoreboard strip (ui/strip.js) ----------------------------------------- */
-
-/* The score bug. One row, always: three readouts on a top-lit slab, divided by
-   skewed hairlines, with the corner brackets field.css draws on it. Wrapping
-   them into a block made the top of the app feel like a form. */
-.strip {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  background: var(--sheen), linear-gradient(180deg, var(--surface-3), var(--surface));
-  border: 1px solid var(--line);
-  border-top-color: var(--line-strong);
-  border-radius: 2px;
-  box-shadow: var(--shadow);
-  margin-bottom: var(--sp-5);
-}
-
-.strip__cell {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-  padding: 14px var(--sp-5) 16px;
-  min-width: 0;
-}
-
-/* The divider between readouts, leaning with the rest of the board. */
-.strip__cell + .strip__cell::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 14%;
-  bottom: 14%;
-  width: 1px;
-  background: linear-gradient(180deg, transparent, var(--line-strong) 30% 70%, transparent);
-  transform: skewX(-12deg);
-}
-
-.strip__key {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  font-size: 11px;
-  line-height: 1.2;
-  color: var(--accent);
-}
-
-/* The live dot beside "On the clock". Still: anything that moves on this line
-   reads as the page glitching. */
-.strip__cell[data-cell="clock"] .strip__key::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 3px var(--glow-soft);
-}
-
-.strip__value {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 28px;
-  font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-}
-
-.strip__cell[data-cell="survival"] .strip__value {
-  font-size: 32px;
-}
-
-.strip__preview {
-  color: var(--accent);
-}
-
-.strip__preview--better {
-  color: var(--safe);
-}
-
-.strip__preview--worse {
+/* Taking things down: red chalk, never the shape of anything else. */
+.settings__btn--danger,
+.home__btn--danger {
+  border-color: var(--danger);
   color: var(--danger);
+  background: var(--danger-bg);
 }
 
-.strip__preview--even {
-  color: var(--ink-2);
+.settings__btn--danger:hover:not(:disabled),
+.home__btn--danger:hover:not(:disabled) {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--on-flag);
 }
 
-.strip__note {
-  font-size: 11.5px;
-  color: var(--ink-3);
+.settings__btn--quiet,
+.home__btn--quiet {
+  color: var(--chalk-3);
 }
 
-/* The season number as a bar across the foot of its cell, filled to the
-   chance: the same number twice, once to read and once to see. */
-.strip__bar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 3px;
-  background: var(--line-soft);
+.settings__btn:disabled,
+.home__btn:disabled,
+.seam__lock:disabled,
+.seam__flip:disabled {
+  opacity: 0.45;
+  cursor: default;
+  box-shadow: none;
 }
 
-.strip__bar::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: calc(var(--p, 0) * 100%);
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  box-shadow: 0 0 10px var(--glow);
+/* Fields: a chalk rectangle you type into, the turf's dark inside it. */
+.field,
+.settings__input,
+.home__input,
+.sideline__filter,
+.gate__input {
+  min-width: 0;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  background: rgb(4 30 16 / 55%);
+  color: var(--chalk);
+  font-family: var(--font-body);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
 }
 
-/* league bar (ui/league-bar.js) ------------------------------------------ */
+.field::placeholder,
+.settings__input::placeholder,
+.home__input::placeholder,
+.sideline__filter::placeholder,
+.gate__input::placeholder {
+  color: var(--chalk-4);
+}
 
-/* The way back to every league: a quiet cut tag, because leaving the board is
-   the rarer act and the pool picker beside it is the one that matters here. */
+.field:focus-visible,
+.settings__input:focus-visible,
+.home__input:focus-visible,
+.sideline__filter:focus-visible,
+.gate__input:focus-visible {
+  outline: none;
+  border-color: var(--flag);
+  box-shadow: 0 0 0 3px var(--flag-soft);
+}
+
+/* topline: league bar (ui/league-bar.js) ----------------------------------- */
+
+/* The way back to every league: a round chalk button with an arrow. */
 .league-bar__back {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 38px;
-  padding: 0 16px 0 12px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 12.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  transition: color 180ms ease;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  flex: none;
+  font-size: 0;
 }
 
 .league-bar__back svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   fill: none;
   stroke: currentcolor;
-  stroke-width: 2;
+  stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.league-bar__back:hover {
-  --edge: var(--ink-3);
-  color: var(--ink);
-}
-
-/* The league and the pool showing: the name, then the pool as a solid accent
-   tag holding a native select, so what the board shows is the pool's own name
-   and what opens is the platform's picker. The picker holds this league's
-   pools and nothing else; another league is a trip through the home page. */
 .league-bar__league {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 14px;
+  gap: 8px;
   min-width: 0;
+  flex: 1;
 }
 
+/* The league's name, chalked large. */
 .league-bar__name {
   font-family: var(--font-display);
   font-weight: 800;
-  font-style: italic;
-  font-size: 28px;
+  font-size: 21px;
   line-height: 1;
-  letter-spacing: -0.005em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+/* The pool showing, as a chalk pill holding a native select, with the
+   league's paint as a mark at its start. The picker holds this league's pools
+   and nothing else; another league is a trip through the home page. */
 .league-bar__pool {
-  --edge: var(--accent);
+  position: relative;
   display: inline-flex;
   align-items: center;
+  height: 30px;
+  padding-left: 10px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 999px;
   flex: none;
-  cursor: default;
 }
 
-/* Room on the right for the chevron, which is drawn over the select rather
-   than beside it: a select sized by its longest option would leave the tag
-   wider than the name it is showing. */
+.league-bar__mark {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--stripes), var(--paint);
+  box-shadow: 0 0 0 1.5px var(--chalk-4);
+  flex: none;
+  pointer-events: none;
+}
+
+/* Room on the right for the chevron, drawn over the select rather than beside
+   it: a select sized by its longest option would leave the pill wider than
+   the name it is showing. */
 .league-bar__select {
   appearance: none;
-  min-height: 38px;
-  max-width: min(100%, 260px);
-  padding: 0 34px 0 14px;
+  height: 28px;
+  max-width: min(100%, 220px);
+  padding: 0 28px 0 8px;
   border: 0;
   background: none;
-  color: var(--on-accent);
+  color: var(--chalk);
   font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 14px;
+  font-weight: 700;
+  font-size: 13px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   text-overflow: ellipsis;
@@ -565,33 +352,30 @@
 }
 
 /* The open picker is the platform's, and on a desktop it inherits nothing
-   from the tag: the rows have to carry their own ground or they land as dark
-   text on a dark menu. */
+   from the pill: the rows have to carry their own ground. */
 .league-bar__select option {
-  background: var(--surface);
-  color: var(--ink);
+  background: var(--board);
+  color: var(--chalk);
   text-transform: none;
   letter-spacing: normal;
 }
 
 .league-bar__chevron {
   position: absolute;
-  right: 12px;
-  width: 12px;
-  height: 12px;
+  right: 9px;
+  width: 11px;
+  height: 11px;
   fill: none;
-  stroke: var(--on-accent);
-  stroke-width: 2;
+  stroke: var(--chalk);
+  stroke-width: 2.6;
   stroke-linecap: round;
   stroke-linejoin: round;
-  /* The select owns every pointer event in the tag, chevron included. */
   pointer-events: none;
 }
 
-/* A league of one pool has nothing to pick: the tag just names it, without
-   the chevron that promises a choice, and the select underneath is shut. */
+/* A league of one pool has nothing to pick: the pill just names it. */
 .league-bar__pool--one .league-bar__select {
-  padding-right: 14px;
+  padding-right: 10px;
   opacity: 1;
   cursor: default;
 }
@@ -600,63 +384,51 @@
   display: none;
 }
 
-/* pool rules sheet (ui/settings.js) -------------------------------------- */
+/* pool rules sheet (ui/settings.js) ---------------------------------------- */
 
-/* The gear, at the end of the league bar. Quiet until it is the thing you
-   want: the league's name is what the bar is for, and this is the way in to
-   the rules under it, and to taking a pool or the league down. */
+/* The gear, at the end of the topline. */
 .settings__open {
-  display: inline-grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  flex: none;
-  color: var(--ink-3);
-  transition: color 180ms ease;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--chalk-2);
 }
 
-/* A filled cog, so it reads as settings and not as a sun. */
 .settings__open svg {
-  width: 19px;
-  height: 19px;
+  width: 17px;
+  height: 17px;
   fill: currentcolor;
   stroke: none;
 }
 
-.settings__open:hover {
-  --edge: var(--ink-3);
-  color: var(--ink);
-}
-
-/* A pool running rules of its own says so here, because everything else on
-   the board looks the same either way: a week showing one slot is either a
-   one-pick pool or a two-pick pool with a rule changed, and only the gear can
-   tell you which. */
+/* A pool running rules of its own says so here: the flag on the gear. */
 .settings__open--custom {
-  --edge: var(--accent);
-  color: var(--accent);
+  border-color: var(--flag);
+  color: var(--flag);
 }
 
-/* The sheet. Centred on a desktop, rising from the bottom edge on a phone,
-   where a thumb is and where every other sheet on the device opens. */
+/* The sheet: a chalkboard, centred on a desktop, rising from the bottom edge
+   on a phone. */
 .settings,
 .home__sheet {
   width: min(480px, calc(100vw - 2 * var(--sp-4)));
   max-height: min(86vh, 760px);
   padding: 0;
-  border: 1px solid var(--line-strong);
+  border: 0;
+  border-top: 3px solid var(--chalk);
   border-radius: var(--radius-lg);
-  background: var(--sheen), linear-gradient(180deg, var(--surface-3), var(--surface) 30%);
-  color: var(--ink);
+  background: var(--board);
+  color: var(--chalk);
   box-shadow: var(--shadow-lift);
   overflow: hidden;
 }
 
 .settings::backdrop,
 .home__sheet::backdrop {
-  background: rgb(2 5 4 / 68%);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  background: rgb(4 20 11 / 70%);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 
 .settings__form {
@@ -668,34 +440,21 @@
 .settings__head {
   position: relative;
   padding: var(--sp-5) var(--sp-5) var(--sp-4);
-  border-bottom: 1px solid var(--line-soft);
-}
-
-/* The accent running along the top of the sheet, as on every readout. */
-.settings__head::after,
-.home__sheet-head::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2) 40%, transparent 90%);
+  border-bottom: var(--dash);
 }
 
 .settings__title {
   font-family: var(--font-display);
-  font-weight: 800;
-  font-style: italic;
-  font-size: 24px;
+  font-weight: 900;
+  font-size: 26px;
   line-height: 1;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  letter-spacing: 0.01em;
 }
 
 .settings__pool {
   margin-top: 8px;
-  color: var(--ink-3);
+  color: var(--chalk-3);
   font-size: 12.5px;
   line-height: 1.45;
 }
@@ -705,10 +464,10 @@
   margin: var(--sp-4) 0 6px;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--chalk-3);
 }
 
 .settings__rename,
@@ -718,59 +477,21 @@
   gap: 8px;
 }
 
-/* Fields: sunk into the sheet, so they read as places to type against the
-   raised controls around them. */
-.settings__input,
-.home__input,
-.swap__filter,
-.gate__input {
-  min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--ground);
-  color: var(--ink);
-  font-family: var(--font-body);
-  box-shadow: inset 0 2px 6px rgb(0 0 0 / 35%);
-  transition:
-    border-color 160ms ease,
-    box-shadow 160ms ease;
-}
-
-.settings__input::placeholder,
-.home__input::placeholder,
-.swap__filter::placeholder,
-.gate__input::placeholder {
-  color: var(--ink-3);
-}
-
-.settings__input:focus-visible,
-.home__input:focus-visible,
-.swap__filter:focus-visible,
-.gate__input:focus-visible {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow:
-    inset 0 2px 6px rgb(0 0 0 / 35%),
-    0 0 0 3px var(--glow-soft);
-}
-
 .settings__input {
   flex: 1 1 auto;
-  min-height: 40px;
+  min-height: 42px;
   padding: 0 12px;
   font-size: 15px;
 }
 
-/* The code, in the face it is read in, and selectable: someone will copy it by
-   hand however many copy buttons are beside it. */
+/* The code, chalked in the face it is read in, and selectable. */
 .settings__code {
   flex: 1 1 auto;
   min-width: 0;
-  padding: 9px 12px;
-  border: 1px dashed var(--line-strong);
+  padding: 10px 12px;
+  border: var(--dash);
   border-radius: var(--radius-sm);
-  background: var(--ground);
-  color: var(--accent);
+  color: var(--flag);
   font-family: var(--font-mono);
   font-weight: 600;
   font-size: 14px;
@@ -779,8 +500,6 @@
   overflow-wrap: anywhere;
 }
 
-/* Scrolls, because three rule groups and eighteen week chips do not fit a
-   phone in landscape, and the actions must stay reachable. */
 .settings__body {
   display: grid;
   gap: var(--sp-5);
@@ -800,27 +519,23 @@
   margin-bottom: 8px;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--flag);
 }
 
 .settings__hint {
   margin-top: 8px;
-  color: var(--ink-3);
+  color: var(--chalk-3);
   font-size: 11.5px;
   line-height: 1.45;
 }
 
-/* A row of choices on a sunk track, the chosen one lit. */
+/* A row of choices as chalk pills, the chosen one in the flag. */
 .settings__choices {
   display: inline-flex;
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--ground);
+  gap: 6px;
   max-width: 100%;
   overflow-x: auto;
 }
@@ -828,37 +543,36 @@
 .settings__choice {
   flex: 1 0 auto;
   min-width: 54px;
-  min-height: 34px;
+  min-height: 36px;
   padding: 0 14px;
-  border: 0;
-  border-radius: 3px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
   background: none;
-  color: var(--ink-3);
+  color: var(--chalk-2);
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 13.5px;
+  font-size: 14px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
   transition:
-    background-color 180ms ease,
-    color 180ms ease,
-    box-shadow 180ms ease;
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
 }
 
 .settings__choice:hover:not(:disabled):not([aria-pressed="true"]) {
-  color: var(--ink);
-  background: var(--surface-2);
+  border-color: var(--chalk);
 }
 
 .settings__choice[aria-pressed="true"] {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: var(--on-accent);
-  box-shadow: 0 0 12px var(--glow);
+  background: var(--flag);
+  border-color: var(--flag);
+  color: var(--on-flag);
 }
 
-/* The weeks, as a grid of numbers rather than a row: eighteen of them wrap to
-   three tidy lines instead of scrolling sideways under a thumb. */
+/* The weeks, as a grid of chalk boxes; a week a buy back covers is chalked in
+   the buy back's own colour. */
 .settings__weeks {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
@@ -867,37 +581,32 @@
 
 .settings__week {
   min-height: 40px;
-  border: 1px solid var(--line);
+  border: 1.5px solid var(--line);
   border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  color: var(--ink-2);
+  background: none;
+  color: var(--chalk-2);
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 15px;
+  font-weight: 800;
+  font-size: 16px;
   cursor: pointer;
   transition:
-    background-color 180ms ease,
-    border-color 180ms ease,
-    color 180ms ease,
-    box-shadow 180ms ease;
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
 }
 
 .settings__week:hover:not(:disabled):not([aria-pressed="true"]) {
-  border-color: var(--line-strong);
-  color: var(--ink);
+  border-color: var(--chalk);
 }
 
 .settings__week[aria-pressed="true"] {
   background: var(--mulligan-bg);
   border-color: var(--mulligan);
   color: var(--mulligan);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--mulligan) 35%, transparent);
 }
 
-/* Disabled rules read as unavailable, not as off: a read-only device shows
-   the pool's rules exactly as they are and simply cannot move them. */
 .settings__body [data-rule]:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: default;
 }
 
@@ -908,8 +617,7 @@
   justify-content: space-between;
   gap: 10px;
   padding: var(--sp-4) var(--sp-5) calc(var(--sp-5) + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--line-soft);
-  background: var(--surface);
+  border-top: var(--dash);
 }
 
 .settings__actions {
@@ -918,101 +626,20 @@
   margin-left: auto;
 }
 
-/* buttons ----------------------------------------------------------------- */
-
 .settings__btn,
 .home__btn,
 .home__menu-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 42px;
-  padding: 0 18px;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 13px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  transition:
-    color 180ms ease,
-    transform 120ms var(--ease-out, ease),
-    filter 180ms ease;
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 14px;
 }
 
-.settings__btn:hover:not(:disabled),
-.home__btn:hover:not(:disabled),
-.home__menu-btn:hover:not(:disabled) {
-  --edge: var(--ink-3);
-  color: var(--ink);
-}
-
-.settings__btn:active:not(:disabled),
-.home__btn:active:not(:disabled),
-.home__menu-btn:active:not(:disabled),
-.gate__btn:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-/* The one button that changes something for everyone, in the pool's accent:
-   a gradient slab with the glow following its cut outline. */
-.settings__btn--go,
-.home__btn--go,
-.gate__btn {
-  --edge: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: var(--on-accent);
-}
-
-.settings__btn--go::before,
-.home__btn--go::before,
-.gate__btn::before {
-  background: var(--edge);
-}
-
-.settings__btn--go:hover:not(:disabled),
-.home__btn--go:hover:not(:disabled),
-.gate__btn:hover:not(:disabled) {
-  --edge: linear-gradient(135deg, var(--accent-2), var(--accent));
-  color: var(--on-accent);
-  filter: drop-shadow(0 0 12px var(--glow));
-}
-
-/* Taking things down. Red, and never the default look of anything else in the
-   sheet, so a thumb aiming for Save cannot land on it by shape alone. */
-.settings__btn--danger,
-.home__btn--danger {
-  --edge: var(--danger);
-  --fill: var(--danger-bg);
-  color: var(--danger);
-}
-
-.settings__btn--danger:hover:not(:disabled),
-.home__btn--danger:hover:not(:disabled) {
-  --edge: var(--danger);
-  --fill: var(--danger);
-  color: var(--ink);
-}
-
-.settings__btn--quiet,
-.home__btn--quiet {
-  color: var(--ink-3);
-}
-
-.settings__btn:disabled,
-.home__btn:disabled {
-  opacity: 0.45;
-  cursor: default;
-  filter: none;
-}
-
-/* The foot of the body, set apart: removing a pool or deleting the league is
-   for everyone in it, so each asks once more before it acts - in place, not in
-   a browser dialog that would look like nothing else on the board. */
+/* The foot of the body, set apart: taking a pool or the league down. */
 .settings__danger {
   display: grid;
   gap: 8px;
   padding-top: var(--sp-4);
-  border-top: 1px dashed var(--line-strong);
+  border-top: var(--dash);
 }
 
 .settings__danger-row {
@@ -1022,16 +649,1243 @@
 }
 
 .settings__danger-ask {
-  color: var(--ink-2);
+  color: var(--chalk-2);
   font-size: 12.5px;
   line-height: 1.45;
 }
 
-/* home page (ui/home.js) -------------------------------------------------- */
+/* the pitch (ui/pitch.js) --------------------------------------------------- */
+
+/* The season as the field, sideways: kickoff on the left, the end zone on the
+   right, a yard line per week. The ball stands on the week on the clock, a
+   chalk bracket on the week being looked at, and each week carries a mark
+   for what it holds. Tap a yard line to look at that week; press and slide
+   to run along the field. */
+.pitch {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pitch__field {
+  --zone-w: 26px;
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--zone-w) repeat(var(--weeks, 18), minmax(0, 1fr)) var(--zone-w);
+  height: 104px;
+  border: 2px solid var(--chalk);
+  background: var(--turf-3);
+  overflow: hidden;
+  touch-action: pan-y pinch-zoom;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.pitch__zone {
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+}
+
+.pitch__zone--kickoff {
+  border-right: 2px solid var(--chalk);
+  transform: rotate(180deg);
+  color: var(--paint-ink);
+  opacity: 0.85;
+}
+
+.pitch__zone--end {
+  border-left: 2px solid var(--chalk);
+}
+
+/* A yard line. The button is the whole column, so the target is the width of
+   the week, not the width of the line. */
+.pitch__yard {
+  appearance: none;
+  position: relative;
+  z-index: 1;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: none;
+  color: var(--chalk);
+  cursor: pointer;
+  touch-action: pan-y pinch-zoom;
+}
+
+.pitch__yard:first-of-type {
+  border-left: 0;
+}
+
+/* Every fifth week is heavier and numbered, the way a field is. */
+.pitch__yard--five {
+  border-left-width: 2px;
+  border-left-color: var(--line-strong);
+}
+
+.pitch__num {
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  transform: translateX(-50%);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--chalk-3);
+}
+
+/* The mark at the top of the week: what it holds. Solid chalk for a lock,
+   the flag for a pick, dashed flag for the coach's plan, nothing for nothing,
+   and the outcome's coloured chalk once the game is played. */
+.pitch__mark {
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  width: 3px;
+  height: 12px;
+  transform: translateX(-50%);
+  border-radius: 1px;
+}
+
+.pitch__mark--locked {
+  background: var(--chalk);
+}
+
+.pitch__mark--picked {
+  background: var(--flag);
+}
+
+.pitch__mark--coach {
+  background: repeating-linear-gradient(180deg, var(--flag) 0 3px, transparent 3px 5px);
+  opacity: 0.85;
+}
+
+.pitch__mark--won {
+  background: var(--safe);
+}
+
+.pitch__mark--lost {
+  background: var(--danger);
+}
+
+/* The week being looked at wears the chalk bracket. */
+.pitch__yard--viewing {
+  box-shadow: inset 0 0 0 2px var(--chalk);
+  background-color: rgb(255 255 255 / 10%);
+}
+
+.pitch__yard--viewing .pitch__num {
+  color: var(--chalk);
+}
+
+/* The pick's name on the yard line: only where the field is wide enough to
+   carry one (the wide block below shows it from 900px). */
+.pitch__label {
+  display: none;
+}
+
+/* The ball, on the week on the clock. */
+.pitch__ball {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 13px;
+  height: 8px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* Weeks the season never reached, in review. */
+.pitch__yard--moot {
+  opacity: 0.45;
+}
+
+/* The drive line under the field: where the ball is, and how far the season
+   is from the end zone on today's numbers. Short, because it shares a row with
+   the flag and must not wrap on a phone. */
+.pitch__drive {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pitch__drive-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pitch__drive-line {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--chalk-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pitch__drive-note {
+  font-size: 10.5px;
+  color: var(--chalk-4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The season number, on the flag. */
+.pitch__tag {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 3px;
+  background: var(--flag);
+  color: var(--on-flag);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex: none;
+}
+
+.pitch__tag-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+/* Eliminated: the flag comes down. */
+.pitch__tag--out {
+  background: var(--danger);
+  color: var(--on-flag);
+}
+
+/* the call (ui/call.js) ----------------------------------------------------- */
+
+/* The week being looked at: its date and its tags, then its slot or slots,
+   then the one action at the seam. */
+.call {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.call__box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-radius: var(--radius);
+}
+
+/* One row: the week and its date, the week's tags at the end. The when-line
+   gives way first, so the row never wraps and the drawer keeps its height. */
+.call__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.call__when {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--chalk-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.call__when--now::before {
+  flex: none;
+}
+
+.call__when--now::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--flag);
+  box-shadow: 0 0 8px var(--flag);
+}
+
+.call__tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: none;
+}
+
+/* One slot per pick the week takes. Two share the row; the one the sideline
+   is filling wears the bracket, and tapping the other hands it the sideline. */
+.call__slots {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.call__slots--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.call__slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+}
+
+/* Two slots: each is a button that hands the sideline to itself. */
+.call__slots--two .call__slot {
+  padding: 8px 10px 10px;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+}
+
+.call__slots--two .call__slot--active {
+  border-color: var(--chalk);
+  background: rgb(255 255 255 / 6%);
+}
+
+.call__eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--chalk-3);
+}
+
+.call__eyebrow > span:first-child {
+  white-space: nowrap;
+}
+
+.call__eyebrow--coach,
+.call__slot--empty .call__eyebrow {
+  color: var(--flag);
+}
+
+.call__slot--locked .call__eyebrow {
+  color: var(--chalk);
+}
+
+/* The team, chalked large. */
+.call__team {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 44px;
+  line-height: 0.9;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.call__slots--two .call__team {
+  font-size: 30px;
+}
+
+/* The coach's suggestion, pencilled in (field.css draws the dashed line). */
+.call__slot--empty .call__team {
+  color: var(--chalk-2);
+}
+
+/* Nothing to suggest, or nothing to suggest yet. */
+.call__team--blank {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--chalk-3);
+  text-decoration: none;
+}
+
+.call__matchup {
+  font-size: 13px;
+  color: var(--chalk-2);
+  min-height: 1.5em;
+}
+
+.call__slots--two .call__matchup {
+  font-size: 12px;
+}
+
+/* The stat line, under the name where it has the width: spread, the chance
+   the pick carries the week, where the line came from. Chalk tiles. */
+.call__tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.call__slots--two .call__tiles {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.call__slots--two .tile--line {
+  display: none;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 8px;
+  border: var(--dash);
+  border-radius: var(--radius-sm);
+  min-width: 0;
+}
+
+.tile__key {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--chalk-3);
+  white-space: nowrap;
+}
+
+.tile__value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 17px;
+  line-height: 1.15;
+  color: var(--chalk);
+  white-space: nowrap;
+}
+
+/* "Market" or "Projected": a word, in the display face. */
+.tile__value--text {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1.3;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--chalk-2);
+}
+
+/* One confidence language everywhere a single game's number appears. */
+.confidence--safe {
+  --confidence-color: var(--safe);
+  color: var(--confidence-color);
+}
+
+.confidence--solid {
+  --confidence-color: var(--solid);
+  color: var(--confidence-color);
+}
+
+.confidence--thin {
+  --confidence-color: var(--thin);
+  color: var(--confidence-color);
+}
+
+.confidence--close {
+  --confidence-color: var(--close);
+  color: var(--confidence-color);
+}
+
+.confidence--danger {
+  --confidence-color: var(--danger);
+  color: var(--confidence-color);
+}
+
+.call__slot--empty .tile__value:not([class*="confidence--"]) {
+  color: var(--chalk-2);
+}
+
+/* The seam: the one action, where a thumb rests, and the other side of the
+   game beside it. */
+.seam {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.seam__flip {
+  height: 54px;
+  padding: 0;
+  color: var(--chalk);
+}
+
+.seam__flip svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.seam__lock {
+  height: 54px;
+  padding: 0 14px;
+  font-size: 19px;
+  letter-spacing: 0.12em;
+  min-width: 0;
+}
+
+.seam__lock span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seam__lock svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Locked: chalk outline, painted on. Tap to undo. */
+.seam__lock--on {
+  border-color: var(--chalk);
+  background: rgb(243 247 241 / 8%);
+  color: var(--chalk);
+}
+
+/* Taking the coach's call for a week not yet on the clock: outlined flag. */
+.seam__lock--take {
+  border: 2px solid var(--flag);
+  color: var(--flag);
+}
+
+/* the drawer (ui/tabs.js) ---------------------------------------------------- */
+
+.drawer__handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--chalk-4);
+  margin: 8px auto 0;
+  flex: none;
+}
+
+.drawer__tabs {
+  display: flex;
+  gap: 6px;
+  padding: 10px var(--gutter) 10px;
+  flex: none;
+}
+
+.tab {
+  appearance: none;
+  flex: 1;
+  height: 38px;
+  padding: 0 8px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  color: var(--chalk-2);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.tab:hover:not([aria-selected="true"]) {
+  border-color: var(--chalk);
+  color: var(--chalk);
+}
+
+.tab[aria-selected="true"] {
+  background: var(--flag);
+  border-color: var(--flag);
+  color: var(--on-flag);
+}
+
+.tab__count {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+/* A drawer panel's caption row. */
+.drawer__caption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 0 8px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--chalk-3);
+}
+
+/* the sideline (ui/sideline.js) --------------------------------------------- */
+
+/* Every team the slot could hold this week. The coach's call carries a tag,
+   and that tag is the whole of how the coach steers a pick. A locked slot
+   keeps its list to read, but nothing in it can be tapped until the slot is
+   unlocked. */
+.sideline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.sideline__label {
+  display: block;
+}
+
+.sideline--locked .sideline__label {
+  color: var(--chalk);
+}
+
+.sideline__filter {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  font-size: 15px;
+}
+
+.sideline__list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+}
+
+/* One row: the team and its game, then the line in the tier's chalk. */
+.sideline__row {
+  appearance: none;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 6px 8px 6px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--chalk);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 0.16s ease;
+}
+
+.sideline__row[hidden] {
+  display: none;
+}
+
+.sideline__row:hover:not(:disabled) {
+  background: rgb(255 255 255 / 5%);
+}
+
+.sideline__row:disabled {
+  cursor: default;
+}
+
+/* The slot's own team, on the flag's tint with a chalk ring. */
+.sideline__row--current {
+  background: var(--flag-soft);
+  box-shadow: inset 0 0 0 1.5px var(--flag);
+}
+
+/* The locked team's row is painted on, like the slot head. */
+.sideline__row--locked {
+  background: var(--lock-bg);
+  box-shadow: inset 0 0 0 1.5px var(--chalk);
+}
+
+.sideline__row--disabled {
+  opacity: 0.45;
+}
+
+/* A team the other slot has locked: dimmed like any spoken-for row, but with
+   the padlock and a little more of its contrast. */
+.sideline__row--held {
+  opacity: 0.6;
+}
+
+/* Played: kept as the week's record, in the outcome's chalk. */
+.sideline__row--settled {
+  opacity: 0.72;
+}
+
+.sideline__team {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sideline__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 21px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  min-width: 0;
+}
+
+.sideline__name > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.sideline__matchup {
+  font-size: 12px;
+  color: var(--chalk-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The coach's call, as a small flag on the name. */
+.sideline__coach {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 3px;
+  background: var(--flag);
+  color: var(--on-flag);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  flex: none;
+}
+
+.sideline__lock {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  color: var(--chalk);
+  flex: none;
+}
+
+.sideline__lock svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Spread and chance, side by side in the tier's chalk, with a hairline
+   between them; floor widths keep the columns lined up down the list. */
+.sideline__line {
+  display: flex;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--chalk-2);
+  white-space: nowrap;
+}
+
+.sideline__spread {
+  min-width: 5ch;
+  text-align: right;
+}
+
+.sideline__prob {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  min-width: calc(4ch + 18px);
+}
+
+.sideline__prob::before {
+  content: "";
+  flex: none;
+  align-self: center;
+  margin-inline: auto;
+  width: 1px;
+  height: 0.8em;
+  background: currentcolor;
+  opacity: 0.4;
+}
+
+.sideline__line--safe {
+  color: var(--safe);
+}
+
+.sideline__line--solid {
+  color: var(--solid);
+}
+
+.sideline__line--thin {
+  color: var(--thin);
+}
+
+.sideline__line--close {
+  color: var(--close);
+}
+
+.sideline__line--danger {
+  color: var(--danger);
+}
+
+.sideline__line--won {
+  color: var(--safe);
+}
+
+.sideline__line--lost {
+  color: var(--danger);
+}
+
+/* An unavailable row says why in place of its numbers. */
+.sideline__row--disabled .sideline__line {
+  color: var(--chalk-3);
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 11.5px;
+}
+
+/* the drive (ui/drive.js) --------------------------------------------------- */
+
+/* The season as yard-line bands: week, pick, its chance, and how much of the
+   season is still alive by then. Tap a row to look at that week. */
+.drive {
+  display: flex;
+  flex-direction: column;
+  padding-top: 2px;
+}
+
+.drive__head,
+.drive__row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 54px 60px;
+  align-items: center;
+  gap: 6px;
+}
+
+.drive__head {
+  padding: 2px 0 8px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--chalk-3);
+}
+
+.drive__head > :nth-child(n + 3),
+.drive__row > :nth-child(n + 3) {
+  text-align: right;
+}
+
+.drive__row {
+  appearance: none;
+  position: relative;
+  min-height: 56px;
+  padding: 6px 8px 6px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--chalk);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 0.16s ease;
+}
+
+.drive__row:hover {
+  background: rgb(255 255 255 / 5%);
+}
+
+/* The week on the clock stands in a little of the floodlight. */
+.drive__row--now {
+  background: radial-gradient(ellipse 60% 100% at 50% 0%, rgb(255 255 255 / 8%), transparent 70%);
+}
+
+/* The week being looked at wears the bracket. */
+.drive__row--viewing {
+  box-shadow: inset 0 0 0 2px var(--chalk);
+  background-color: rgb(255 255 255 / 8%);
+}
+
+.drive__wk {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 20px;
+  color: var(--chalk-3);
+}
+
+.drive__row--now .drive__wk {
+  color: var(--flag);
+}
+
+.drive__row--viewing .drive__wk {
+  color: var(--chalk);
+}
+
+.drive__wk svg {
+  width: 14px;
+  height: 9px;
+  flex: none;
+}
+
+.drive__pick {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.drive__team {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The coach's plan, faint and pencilled in (field.css draws the line). */
+.drive__row--coach .drive__team {
+  color: var(--chalk-2);
+}
+
+.drive__row--empty .drive__team,
+.drive__row--moot .drive__team {
+  font-weight: 700;
+  font-size: 15px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--chalk-3);
+}
+
+.drive__row--moot {
+  opacity: 0.6;
+}
+
+.drive__sub {
+  font-size: 11px;
+  color: var(--chalk-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drive__win,
+.drive__alive {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.drive__win {
+  font-weight: 600;
+}
+
+.drive__alive {
+  font-size: 13px;
+  color: var(--chalk-2);
+}
+
+.drive__row--viewing .drive__alive {
+  color: var(--chalk);
+}
+
+/* Columns a phone has no room for. */
+.drive__wide {
+  display: none;
+}
+
+/* the bench (ui/bench.js) --------------------------------------------------- */
+
+/* Every eligible team, best first, as chalk cards: burned teams are struck
+   through in the flag, picks outlined in it, the coach's plan pencilled in. */
+.bench {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+  padding-top: 10px;
+}
+
+.bench__team {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 52px;
+  padding: 8px 10px 8px 12px;
+  border: 1.5px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  font-size: 14px;
+}
+
+.bench__identity {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.bench__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.bench__rating {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--chalk-3);
+  flex: none;
+}
+
+.bench__rank {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 18px;
+  color: var(--chalk-4);
+}
+
+/* The week a team is spoken for. */
+.bench__week {
+  height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 3px;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  background: var(--flag);
+  color: var(--on-flag);
+}
+
+/* Burned: struck through in the flag, on the end zone's stripes. */
+.bench__team--spent {
+  border-color: var(--chalk-4);
+  background: var(--stripes);
+  color: var(--chalk-2);
+}
+
+.bench__team--spent .bench__name {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--flag);
+}
+
+.bench__team--spent .bench__week {
+  background: var(--chalk);
+}
+
+/* Picked, not locked: outlined in the flag. */
+.bench__team--picked {
+  border-color: var(--flag);
+  background: var(--flag-soft);
+}
+
+/* Only in the coach's plan: dashed. */
+.bench__team--planned {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--flag) 55%, transparent);
+  color: var(--chalk-2);
+}
+
+.bench__team--planned .bench__week {
+  background: transparent;
+  color: var(--flag);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--flag) 60%, transparent);
+}
+
+/* The key, across the foot: each swatch is a real card in the state it
+   explains, so the key cannot drift from the chart above it. */
+.legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px 0 0;
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.legend__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.legend__swatch {
+  flex: none;
+  width: 104px;
+  height: 40px;
+  padding: 6px 8px 6px 10px;
+  font-size: 12px;
+}
+
+.legend__swatch .bench__name {
+  font-size: 13px;
+}
+
+.legend__swatch .bench__rating {
+  font-size: 11px;
+}
+
+.legend__swatch--open {
+  border-color: var(--line);
+}
+
+.legend__key {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 12px;
+  color: var(--chalk-2);
+}
+
+/* notices --------------------------------------------------------------------- */
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1.5px solid var(--line);
+  border-left: 4px solid var(--chalk-3);
+  border-radius: var(--radius-sm);
+  background: rgb(10 47 28 / 70%);
+  color: var(--chalk-2);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.notice--warn {
+  border-color: color-mix(in srgb, var(--thin) 40%, transparent);
+  border-left-color: var(--thin);
+  background: var(--thin-bg);
+  color: var(--thin);
+}
+
+/* The season's end: painted, not chalked, because it is not a warning. */
+.notice--out {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px 13px;
+  background: var(--stripes), var(--danger-bg);
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+  border-left-color: var(--danger);
+  color: var(--chalk);
+}
+
+.notice__eyebrow {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--danger);
+}
+
+.notice__title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 24px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.notice__text {
+  margin-top: 5px;
+  color: var(--chalk-2);
+  line-height: 1.45;
+}
+
+/* home page (ui/home.js) ------------------------------------------------------- */
 
 .home {
   display: grid;
-  gap: var(--sp-6);
+  gap: var(--sp-5);
 }
 
 .home__head {
@@ -1040,32 +1894,56 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 10px;
+  padding-bottom: var(--sp-3);
+  border-bottom: 3px solid var(--chalk);
+}
+
+/* The wordmark, chalked across the top of the field. */
+.home__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.home__brand svg {
+  width: 30px;
+  height: 19px;
+  color: var(--flag);
+}
+
+.home__brand span {
+  color: var(--flag);
 }
 
 .home__eyebrow {
-  color: var(--accent);
-  margin-bottom: 4px;
+  color: var(--chalk-3);
+  margin: 0 0 4px;
 }
 
 /* The person's name, as the headline of their home page. */
 .home__title {
   font-family: var(--font-display);
   font-weight: 900;
-  font-style: italic;
-  font-size: 44px;
+  font-size: 40px;
   line-height: 0.92;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.01em;
   text-transform: uppercase;
   overflow-wrap: anywhere;
 }
 
-/* Quiet, because changing your name is a thing you do once and by accident
-   otherwise. */
+/* Quiet, because changing your name is a thing you do once. */
 .home__name {
   border: 0;
   background: none;
   padding: 0 0 4px;
-  color: var(--ink-3);
+  color: var(--chalk-3);
   font-family: var(--font-body);
   font-size: 12.5px;
   text-decoration: underline;
@@ -1074,7 +1952,7 @@
 }
 
 .home__name:hover {
-  color: var(--ink-2);
+  color: var(--chalk);
 }
 
 .home__message {
@@ -1087,66 +1965,47 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
 }
 
-/* Nothing to show yet: an empty field, ruled and waiting. A paragraph, so the
-   browser gives it margins unless told otherwise; the grid's gap is all the
-   room this box should have around it. */
+/* Nothing to show yet: an empty field, ruled and waiting. */
 .home__empty {
   margin: 0;
   padding: var(--sp-6) var(--sp-5);
-  border: 1px dashed var(--line-strong);
+  border: var(--dash);
   border-radius: var(--radius);
-  background:
-    repeating-linear-gradient(90deg, transparent 0 calc(12.5% - 1px), var(--line-soft) 0 12.5%),
-    var(--surface);
-  color: var(--ink-2);
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(12.5% - 1px),
+    var(--line-soft) 0 12.5%
+  );
+  color: var(--chalk-2);
   font-size: 13.5px;
   line-height: 1.5;
   text-align: center;
   text-wrap: balance;
 }
 
-/* A league, as a card in its colours: top-lit, with the accent running along
-   its top edge. */
+/* A league, as a sheet chalked onto the field. */
 .home__card {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: var(--sp-5);
-  border: 1px solid var(--line);
+  border: var(--dash);
   border-radius: var(--radius);
-  background: var(--sheen), linear-gradient(180deg, var(--surface-3), var(--surface) 55%);
+  background: rgb(10 58 32 / 40%);
   box-shadow: var(--shadow);
-  overflow: hidden;
   transition:
     border-color 180ms ease,
-    box-shadow 180ms ease,
-    transform 180ms var(--ease-out, ease);
+    background-color 180ms ease;
 }
 
-.home__card::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2) 40%, transparent 90%);
+.home__card:hover {
+  border-color: var(--chalk);
 }
 
-@media (hover: hover) {
-  .home__card:hover {
-    border-color: var(--line-strong);
-    box-shadow: var(--shadow-lift);
-    transform: translateY(-2px);
-  }
-}
-
-/* A code that did not answer. Dimmed rather than hidden: it is still this
-   device's league until someone says otherwise. */
+/* A code that did not answer. Dimmed rather than hidden. */
 .home__card--missing {
-  opacity: 0.72;
-  border-style: dashed;
+  opacity: 0.7;
 }
 
 .home__card-head {
@@ -1156,8 +2015,6 @@
   gap: 8px;
 }
 
-/* Leave, as an icon in the card's corner: about the league rather than about
-   going into it, so apart from the Open button below. */
 .home__card-tools {
   display: flex;
   gap: 6px;
@@ -1165,15 +2022,12 @@
 }
 
 .home__icon {
-  display: inline-grid;
-  place-items: center;
   width: 36px;
   height: 36px;
   padding: 0;
-  color: var(--ink-3);
-  transition:
-    color 180ms ease,
-    filter 180ms ease;
+  border-radius: 50%;
+  color: var(--chalk-2);
+  font-size: 0;
 }
 
 .home__icon svg {
@@ -1181,28 +2035,23 @@
   height: 16px;
   fill: none;
   stroke: currentcolor;
-  stroke-width: 1.9;
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.home__icon:hover {
-  --edge: var(--ink-3);
-  color: var(--ink);
-}
-
-/* The copy icon reporting: a tick on the accent, or a cross on the warning. */
+/* The copy icon reporting: a tick on the flag, or a cross in red chalk. */
 .home__icon--done {
-  --edge: var(--accent);
-  color: var(--on-accent);
+  background: var(--flag);
+  border-color: var(--flag);
+  color: var(--on-flag);
 }
 
 .home__icon--failed {
-  --edge: var(--thin);
-  color: var(--on-accent);
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
-/* One tag per pool the league runs, in a row under the name. */
 .home__card-chips {
   display: flex;
   flex-wrap: wrap;
@@ -1211,21 +2060,18 @@
 
 .home__card-name {
   font-family: var(--font-display);
-  font-weight: 800;
-  font-style: italic;
+  font-weight: 900;
   font-size: 27px;
   line-height: 1;
-  letter-spacing: -0.005em;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   overflow-wrap: anywhere;
 }
 
-/* Paragraphs, so their browser margins are dropped: the card's gap is the
-   spacing, and a league of several pools has several of these in a row. */
 .home__card-rules,
 .home__card-warn {
   margin: 0;
-  color: var(--ink-3);
+  color: var(--chalk-3);
   font-size: 12.5px;
   line-height: 1.45;
 }
@@ -1234,24 +2080,17 @@
   color: var(--close);
 }
 
-/* The code, as the ticket stub: the thing to read out or screenshot. Sunk into
-   the card behind a perforated edge, in mono, spaced, and selectable, because
-   copying it by hand is a real way to share it. */
+/* The code, as the ticket stub: chalked in mono, spaced, selectable. */
 .home__code {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 7px 7px 7px 14px;
-  border: 1px dashed var(--line-strong);
+  padding: 6px 6px 6px 12px;
+  border: var(--dash);
   border-radius: var(--radius-sm);
-  background: var(--ground);
-  box-shadow: inset 0 2px 8px rgb(0 0 0 / 40%);
 }
 
-/* The copy icon, at the end of the code's own row: the thing it copies is
-   right beside it. Smaller than the corner icon so the row stays a row. */
 .home__code-copy {
-  --fill: var(--surface-2);
   width: 32px;
   height: 32px;
   margin-left: auto;
@@ -1260,10 +2099,10 @@
 .home__code-label {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 10px;
+  font-size: 10.5px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--chalk-3);
 }
 
 .home__code-value {
@@ -1271,7 +2110,7 @@
   font-weight: 600;
   font-size: 15px;
   letter-spacing: 0.14em;
-  color: var(--accent);
+  color: var(--flag);
   user-select: all;
   overflow-wrap: anywhere;
 }
@@ -1283,12 +2122,11 @@
   margin-top: auto;
 }
 
-/* The way in, and the card's one big action: the full width, taller than any
-   other button here, with an arrow, so it is the thing a thumb finds first. */
+/* The way in: the flag, full width. */
 .home__open {
   flex: 1 1 100%;
   min-height: 52px;
-  font-size: 15px;
+  font-size: 16px;
   letter-spacing: 0.12em;
 }
 
@@ -1301,16 +2139,8 @@
   stroke-width: 2.4;
   stroke-linecap: round;
   stroke-linejoin: round;
-  transition: transform 180ms var(--ease-out, ease);
 }
 
-.home__open:hover svg {
-  transform: translateX(3px);
-}
-
-/* Leaving, asked in place of the Open button: the question takes its row so
-   the tap that means "no" cannot open a board instead. Both carry a display,
-   so the attribute needs saying. */
 .home__card-actions[hidden],
 .home__confirm[hidden] {
   display: none;
@@ -1324,7 +2154,7 @@
 
 .home__confirm-ask {
   margin: 0;
-  color: var(--ink-2);
+  color: var(--chalk-2);
   font-size: 12.5px;
   line-height: 1.45;
 }
@@ -1335,8 +2165,6 @@
   gap: 8px;
 }
 
-/* Two buttons, side by side: making a league and joining one. Each opens its
-   sheet over the page, so the page itself shows the cards and nothing else. */
 .home__menu {
   display: flex;
   gap: 10px;
@@ -1359,10 +2187,6 @@
   stroke-linejoin: round;
 }
 
-/* The two sheets, cut from the same cloth as the rules sheet (see .settings):
-   a native dialog over a dimmed page, a head with the name and a way out, and
-   the form scrolling beneath. Laid out as a column only while open, because a
-   display on a shut dialog would show it. */
 .home__sheet[open] {
   display: flex;
   flex-direction: column;
@@ -1376,20 +2200,18 @@
   justify-content: space-between;
   gap: 10px;
   padding: var(--sp-5) var(--sp-4) var(--sp-4) var(--sp-5);
-  border-bottom: 1px solid var(--line-soft);
+  border-bottom: var(--dash);
 }
 
 .home__sheet-title {
   font-family: var(--font-display);
-  font-weight: 800;
-  font-style: italic;
-  font-size: 24px;
+  font-weight: 900;
+  font-size: 26px;
   line-height: 1;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  letter-spacing: 0.01em;
 }
 
-/* The form is the sheet's body, and scrolls when the sheet cannot grow. */
 .home__form {
   display: grid;
   gap: 9px;
@@ -1400,7 +2222,7 @@
 }
 
 .home__label {
-  color: var(--ink-2);
+  color: var(--chalk-2);
   font-size: 13px;
 }
 
@@ -1411,8 +2233,7 @@
   font-size: 15px;
 }
 
-/* Codes are read back character by character, so they are set in the mono
-   face and spaced out. 16px keeps iOS from zooming the page on focus. */
+/* Codes are read back character by character. 16px keeps iOS from zooming. */
 .home__input--code {
   font-family: var(--font-mono);
   font-weight: 600;
@@ -1428,26 +2249,21 @@
   min-width: 0;
 }
 
-/* One line per kind of pool a league can run, as a plain list of checkboxes:
-   any number can be ticked, and each one ticked is a board the league gets. */
 .home__options {
   display: grid;
   gap: 8px;
   margin-top: 8px;
 }
 
-/* The whole line is the tap target, drawn as a row that lights when ticked;
-   the box is the platform's own checkbox, in the accent, so it reads as a
-   checkbox on every phone rather than as one more tag that happens to toggle. */
+/* The whole line is the tap target; the box is the platform's own checkbox. */
 .home__option {
   display: flex;
   align-items: center;
   gap: 12px;
   min-height: 44px;
   padding: 0 12px;
-  border: 1px solid var(--line-soft);
+  border: 1.5px solid var(--line-soft);
   border-radius: var(--radius-sm);
-  background: var(--surface-2);
   cursor: pointer;
   transition:
     border-color 160ms ease,
@@ -1460,7 +2276,7 @@
   width: 20px;
   height: 20px;
   margin: 0;
-  accent-color: var(--accent);
+  accent-color: var(--flag);
   cursor: pointer;
 }
 
@@ -1470,27 +2286,25 @@
   font-size: 15px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--ink-2);
+  color: var(--chalk-2);
 }
 
 .home__option:has(input:checked) {
-  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-  background: var(--accent-soft);
+  border-color: var(--flag);
+  background: var(--flag-soft);
 }
 
 .home__option:has(input:checked) .home__option-name {
-  color: var(--ink);
+  color: var(--chalk);
 }
 
 .home__hint {
-  color: var(--ink-3);
+  color: var(--chalk-3);
   font-size: 11.5px;
   line-height: 1.45;
 }
 
-/* Why a join or a create did not go through, under the field it is about.
-   Never at the top of the page: whoever tapped the button is at the bottom of
-   it, and an answer that lands out of sight reads as no answer at all. */
+/* Why a join or a create did not go through, under the field it is about. */
 .home__form-error {
   margin: 0;
   padding: 8px 12px;
@@ -1502,29 +2316,22 @@
   line-height: 1.4;
 }
 
-.home__btn {
-  min-height: 44px;
-}
-
-/* Create, until a pool is ticked. Dimmed rather than hidden: the button is
-   still where it will be, it just is not available yet. */
 .home__form .home__btn--go {
   margin-top: 4px;
   min-height: 48px;
 }
 
-/* startup screen --------------------------------------------------------- */
+/* startup screen --------------------------------------------------------------- */
 
 .startup {
-  /* These are deliberately self-contained rather than aliases to the root
-     theme. The overlay paints before JavaScript applies the NFL attribute, so
-     even one inherited token can produce a green first-frame flash. */
-  --ground: #04060d;
-  --line: #24304c;
-  --ink: #eef2fb;
-  --ink-3: #6d7b9b;
-  --startup-accent: #5fa6ff;
-  --startup-accent-soft: #10203e;
+  /* Self-contained rather than aliases to the root theme: the overlay paints
+     before JavaScript applies any league attribute. */
+  --ground: #0f4d2c;
+  --line: rgb(243 247 241 / 35%);
+  --ink: #f3f7f1;
+  --ink-3: rgb(243 247 241 / 58%);
+  --startup-accent: #ffe066;
+  --startup-accent-soft: #0a3a20;
   position: fixed;
   inset: 0;
   z-index: 20;
@@ -1536,8 +2343,8 @@
   overflow: hidden;
   color: var(--ink);
   background:
-    radial-gradient(ellipse 70% 44% at 50% -8%, rgb(95 166 255 / 16%), transparent 70%),
-    var(--ground);
+    radial-gradient(ellipse 90% 40% at 50% -6%, rgb(255 255 255 / 14%), transparent 70%),
+    repeating-linear-gradient(180deg, rgb(0 0 0 / 5%) 0 48px, transparent 48px 96px), var(--ground);
 }
 
 .startup[hidden] {
@@ -1550,14 +2357,12 @@
 
 .startup__scene {
   --startup-scene: min(72vw, 310px);
-  /* How far the ball travels, 20% to 80% of the scene, in the scene's own
-     unit so motion.css can move it with a transform rather than `left`. */
   --startup-track: calc(var(--startup-scene) * 0.6);
   position: relative;
   width: var(--startup-scene);
   height: 84px;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  border-top: 2px solid var(--line);
+  border-bottom: 2px solid var(--line);
 }
 
 .startup__scene::before,
@@ -1580,7 +2385,7 @@
 .startup__yard {
   position: absolute;
   top: 50%;
-  font: 600 11px/1 var(--font-mono);
+  font: 800 12px/1 var(--font-display);
   color: var(--ink-3);
   transform: translateY(-50%);
 }
@@ -1600,11 +2405,9 @@
   top: 50%;
   height: 2px;
   background: repeating-linear-gradient(90deg, var(--startup-accent) 0 6px, transparent 6px 11px);
-  opacity: 0.45;
+  opacity: 0.55;
 }
 
-/* A curtain in the ground colour that motion.css pulls back to draw the route
-   in. It rests open, so with animation switched off the whole route shows. */
 .startup__route::after {
   content: "";
   position: absolute;
@@ -1622,7 +2425,6 @@
   width: 36px;
   height: 24px;
   color: var(--startup-accent);
-  filter: drop-shadow(0 0 10px rgb(95 166 255 / 45%));
 }
 
 .startup__ball svg {
@@ -1633,14 +2435,14 @@
 }
 
 .startup__ball path:first-child {
-  fill: var(--startup-accent-soft);
-  stroke: currentColor;
-  stroke-width: 2.5;
+  fill: var(--startup-accent);
+  stroke: var(--startup-accent-soft);
+  stroke-width: 2;
 }
 
 .startup__ball path:last-child {
   fill: none;
-  stroke: currentColor;
+  stroke: var(--startup-accent-soft);
   stroke-width: 2;
   stroke-linecap: round;
 }
@@ -1652,13 +2454,12 @@
 
 .startup__brand {
   font-family: var(--font-display);
-  font-size: 30px;
+  font-size: 32px;
   font-weight: 900;
-  font-style: italic;
   line-height: 1;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--startup-accent);
+  color: var(--ink);
 }
 
 .startup__status {
@@ -1667,30 +2468,21 @@
   color: var(--ink-3);
 }
 
-/* start screen (ui/name.js) ---------------------------------------------- */
+/* start screen (ui/name.js) ------------------------------------------------------ */
 
-/* Sits over everything until the device has answered once. The shell is hidden
-   underneath rather than merely covered, so nothing of the board shows through
-   a slow paint or a resize. */
+/* Sits over everything until the device has answered once: a portrait field
+   with the card on midfield. */
 .gate {
-  /* The gate opens before a league is chosen for this visit, so it must not
-     inherit the palette saved by the previous NFL/NCAA session. */
-  --ground: #04060d;
-  --surface: #0b1222;
-  --surface-2: #10192d;
-  --surface-3: #16223c;
-  --line: #24304c;
-  --line-strong: #33456c;
-  --ink: #eef2fb;
-  --ink-2: #a9b5cf;
-  --ink-3: #6d7b9b;
-  --accent: #5fa6ff;
-  --accent-2: #8fdcff;
-  --accent-soft: #10203e;
-  --accent-ink: #acceff;
-  --on-accent: #030f24;
-  --glow: rgb(95 166 255 / 45%);
-  --glow-soft: rgb(95 166 255 / 22%);
+  --ground: #0f4d2c;
+  --surface: #0a2f1c;
+  --line: rgb(243 247 241 / 35%);
+  --line-strong: rgb(243 247 241 / 55%);
+  --ink: #f3f7f1;
+  --ink-2: rgb(243 247 241 / 78%);
+  --ink-3: rgb(243 247 241 / 58%);
+  --flag: #ffe066;
+  --on-flag: #0a3a20;
+  --paint: #0a3a20;
   position: fixed;
   inset: 0;
   z-index: 30;
@@ -1698,37 +2490,11 @@
   place-items: center;
   padding: var(--sp-6);
   overflow: hidden;
-  background: var(--ground);
-}
-
-/* Floodlights: two beams from above the top corners meeting over midfield,
-   separated from the field itself so the markings stay crisp enough to read
-   as football rather than a generic grid. */
-.gate::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
   background:
-    conic-gradient(
-      from 155deg at 12% -6%,
-      transparent 0 8%,
-      rgb(95 166 255 / 9%) 11%,
-      transparent 15%
-    ),
-    conic-gradient(
-      from 195deg at 88% -6%,
-      transparent 0 8%,
-      rgb(95 166 255 / 9%) 11%,
-      transparent 15%
-    ),
-    radial-gradient(ellipse 60% 40% at 50% 0%, rgb(95 166 255 / 18%), transparent 70%),
-    radial-gradient(circle at 50% 50%, rgb(95 166 255 / 8%), transparent 45%);
+    radial-gradient(ellipse 90% 40% at 50% -6%, rgb(255 255 255 / 14%), transparent 70%),
+    repeating-linear-gradient(180deg, rgb(0 0 0 / 5%) 0 48px, transparent 48px 96px), var(--ground);
 }
 
-/* A portrait field suits phones: end zones run across the short edges and the
-   playing area between them is drawn by the pseudo-element below. */
 .gate__stadium {
   position: absolute;
   top: clamp(16px, 4vw, 52px);
@@ -1737,40 +2503,28 @@
   z-index: 0;
   width: min(calc(100% - 32px), 680px);
   overflow: hidden;
-  border: 1px solid rgb(95 166 255 / 14%);
-  border-radius: var(--radius);
+  border: 2px solid var(--line-strong);
   pointer-events: none;
   background:
-    repeating-linear-gradient(135deg, rgb(95 166 255 / 5%) 0 6px, transparent 6px 14px) 0 0 / 100%
+    repeating-linear-gradient(135deg, rgb(243 247 241 / 9%) 0 5px, transparent 5px 12px) 0 0 / 100%
       10% no-repeat,
-    repeating-linear-gradient(135deg, rgb(95 166 255 / 5%) 0 6px, transparent 6px 14px) 0 100% /
+    repeating-linear-gradient(135deg, rgb(243 247 241 / 9%) 0 5px, transparent 5px 12px) 0 100% /
       100% 10% no-repeat,
-    linear-gradient(
-      180deg,
-      rgb(95 166 255 / 10%) 0 10%,
-      transparent 10% 90%,
-      rgb(95 166 255 / 10%) 90% 100%
-    );
-  box-shadow:
-    inset 0 0 0 5px rgb(4 6 13 / 35%),
-    inset 0 0 80px rgb(95 166 255 / 4%);
+    linear-gradient(180deg, var(--paint) 0 10%, transparent 10% 90%, var(--paint) 90% 100%);
   transform: translateX(-50%);
 }
 
-/* The playing area is its own box so every marking shares one grid: ten
-   10-yard sections between the goal lines, with two hash marks per side at a
-   third and two thirds of each section. */
 .gate__stadium::before {
-  --chalk: rgb(95 166 255 / 13%);
   content: "";
   position: absolute;
   inset: 10% 0;
   background:
-    linear-gradient(var(--chalk), var(--chalk)) top / 100% 1px no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) top / 100% 2px no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) bottom / 100% 2px no-repeat,
     repeating-linear-gradient(
       180deg,
       transparent 0 calc(10% - 1px),
-      var(--chalk) calc(10% - 1px) 10%
+      var(--line) calc(10% - 1px) 10%
     );
 }
 
@@ -1804,7 +2558,7 @@
   width: 12px;
   height: 2px;
   flex: none;
-  background: rgb(95 166 255 / 16%);
+  background: var(--line);
 }
 
 .gate__endzone {
@@ -1812,11 +2566,11 @@
   left: 50%;
   font-family: var(--font-display);
   font-size: clamp(16px, 4vw, 28px);
-  font-weight: 800;
+  font-weight: 900;
   line-height: 1;
-  letter-spacing: 0.28em;
+  letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: rgb(95 166 255 / 20%);
+  color: rgb(243 247 241 / 55%);
 }
 
 .gate__endzone--top {
@@ -1835,13 +2589,13 @@
   right: 10%;
   display: flex;
   justify-content: space-between;
-  font: italic 800 clamp(16px, 3.2vw, 26px) / 1 var(--font-display);
-  color: rgb(95 166 255 / 16%);
+  font: 900 clamp(16px, 3.2vw, 26px) / 1 var(--font-display);
+  color: rgb(243 247 241 / 35%);
   transform: translateY(-50%);
 }
 
 .gate__yard-number i {
-  font-style: inherit;
+  font-style: normal;
 }
 
 .gate__yard-number--20 {
@@ -1865,21 +2619,18 @@
   top: 50%;
   left: 50%;
   width: clamp(58px, 12vw, 92px);
-  color: rgb(95 166 255 / 18%);
+  color: var(--flag);
+  opacity: 0.35;
   transform: translate(-50%, -50%) rotate(-18deg);
 }
 
-.gate__midfield-ball path:first-child {
-  fill: rgb(95 166 255 / 4%);
-  stroke: currentcolor;
-  stroke-width: 2;
+.gate__midfield-ball ellipse {
+  fill: var(--flag);
+  stroke: var(--on-flag);
 }
 
-.gate__midfield-ball path:last-child {
-  fill: none;
-  stroke: currentcolor;
-  stroke-width: 2;
-  stroke-linecap: round;
+.gate__midfield-ball path {
+  stroke: var(--on-flag);
 }
 
 .gate[hidden] {
@@ -1890,7 +2641,7 @@
   display: none;
 }
 
-/* The card, lit from above like every readout on the board. */
+/* The card, a chalkboard on midfield. */
 .gate__card {
   position: relative;
   z-index: 1;
@@ -1898,37 +2649,21 @@
   display: grid;
   gap: var(--sp-3);
   padding: var(--sp-6);
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 5%), transparent 38%),
-    linear-gradient(180deg, var(--surface-3), var(--surface) 40%);
-  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  border-top: 3px solid var(--ink);
   border-radius: var(--radius);
-  box-shadow:
-    0 30px 80px -20px rgb(0 0 0 / 85%),
-    0 0 60px -20px var(--glow);
-  overflow: hidden;
-}
-
-.gate__card::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2) 40%, transparent 90%);
+  box-shadow: var(--shadow-lift);
 }
 
 .gate__brand {
   margin: 0 0 var(--sp-2);
   font-family: var(--font-display);
   font-weight: 900;
-  font-style: italic;
   font-size: 26px;
   line-height: 1;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--flag);
 }
 
 .gate__label {
@@ -1945,7 +2680,6 @@
   font: inherit;
   font-family: var(--font-body);
   font-size: 18px;
-  letter-spacing: 0.02em;
   padding: 11px 14px;
   min-height: 48px;
 }
@@ -1955,13 +2689,9 @@
 }
 
 .gate__btn {
-  min-height: 48px;
-  padding: 10px 16px;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 15px;
+  min-height: 50px;
+  font-size: 17px;
   letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .gate__btn:disabled {
@@ -1969,8 +2699,6 @@
   cursor: progress;
 }
 
-/* Why the field is there: a name is going on other people's screens, and that
-   is worth a line. */
 .gate__hint {
   margin: 0;
   color: var(--ink-3);
@@ -2002,1957 +2730,18 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .gate__card.is-wrong {
-    animation: none;
-  }
-}
+/* phone ----------------------------------------------------------------------- */
 
-/* week deck (ui/week-panel.js) ------------------------------------------- */
-
-/* All the weeks side by side; swiping is native scroll-snap, not a handler. */
-.weeks {
-  /* Makes the track the slides' offsetParent, so slide.offsetLeft is in the
-     same coordinate space as track.scrollLeft. Without this the deck lands
-     a few pixels off every snap point. */
-  position: relative;
-  display: flex;
-  gap: 0;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.weeks::-webkit-scrollbar {
-  display: none;
-}
-
-/* The track stretches every slide to the tallest one, so a slide is a column
-   whose slot grid grows to its foot. */
-.week-slide {
-  flex: 0 0 100%;
-  display: flex;
-  flex-direction: column;
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
-}
-
-/* The rail under the deck: a yard marker per week on one line, filled up to
-   the week in view, and the deck's scrubber. Tap it to jump; press and hold
-   it, then slide, and the deck runs under the finger (attachScrubber in
-   week-panel.js). What it reads is the position along the row rather than
-   which mark was hit, so the marks are spread as wide as the deck allows and
-   the band is deep enough to press without aiming at it. */
-.week-rail {
-  /* The marks' distance from the rail's top edge; the cue hangs off it. */
-  --rail-pad-y: 16px;
-  position: relative;
-  background: linear-gradient(180deg, var(--surface), var(--surface-2));
-  border-top: 1px solid var(--line);
-}
-
-.week-pips {
-  /* The marks run the width of the card, from the slots' own left inset to
-     their right, so the first and last weeks line up with the content above. */
-  --rail-pad-x: var(--sp-5);
-  /* The marks' width, so the line can start and end on their centres. */
-  --pip-w: 4px;
-  position: relative;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--rail-pad-y) var(--rail-pad-x);
-  /* Along the row is the scrub's. Up and down stays the page's, and a pinch
-     that happens to land here still zooms. */
-  touch-action: pan-y pinch-zoom;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-/* The line the marks stand on, from the first centre to the last, and over it
-   the part already travelled, up to the week in view. Both sit under the
-   marks, which is what the z-index pair is for. */
-.week-pips::before,
-.week-pips::after {
-  content: "";
-  position: absolute;
-  z-index: 0;
-  top: calc(50% - 0.5px);
-  left: calc(var(--rail-pad-x) + var(--pip-w) / 2);
-  height: 1px;
-  pointer-events: none;
-}
-
-.week-pips::before {
-  right: calc(var(--rail-pad-x) + var(--pip-w) / 2);
-  background: var(--line);
-}
-
-.week-pips::after {
-  width: calc((100% - 2 * var(--rail-pad-x) - var(--pip-w)) * var(--rail-pos, 0));
-  background: linear-gradient(90deg, var(--accent-2), var(--accent));
-  box-shadow: 0 0 8px var(--glow);
-  opacity: 0.85;
-}
-
-/* One week, as a yard marker: a short rung rather than a dot. The row above
-   does the hit testing, so a mark is where the deck is, not a target. */
-.week-pip {
-  position: relative;
-  z-index: 1;
-  appearance: none;
-  flex-shrink: 0;
-  width: var(--pip-w);
-  height: 14px;
-  padding: 0;
-  border: 0;
-  border-radius: 1px;
-  background: var(--line-strong);
-  cursor: pointer;
-  touch-action: pan-y pinch-zoom;
-}
-
-/* Weeks already passed on the way to the one in view take the fill's tint, so
-   the travelled stretch reads as one piece rather than a line with gaps. */
-.week-pip:has(~ .week-pip--active) {
-  background: color-mix(in srgb, var(--accent) 60%, var(--line));
-}
-
-/* The week actually on the clock, so the deck has a fixed reference point. */
-.week-pip--now {
-  background: var(--ink-2);
-}
-
-/* The week in view is the rail's thumb: the accent, grown, lit. */
-.week-pip--active {
-  background: var(--accent);
-  transform: scale(1.8, 1.45);
-  box-shadow: 0 0 10px var(--glow);
-}
-
-/* The cue: which week the rail is landing on, over the mark it belongs to,
-   shown by a tap, a scrub, an arrow key or a mouse over the row, and gone
-   again after a beat (weekCue in week-panel.js). */
-.week-cue {
-  position: absolute;
-  z-index: 2;
-  left: var(--cue-x, 50%);
-  bottom: calc(100% - var(--rail-pad-y) + 8px);
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 6px 10px 5px;
-  border-radius: 3px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: var(--on-accent);
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 13px;
-  line-height: 1;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  box-shadow:
-    var(--shadow),
-    0 0 18px var(--glow);
-  opacity: 0;
-  transform: translate(-50%, 4px);
-  pointer-events: none;
-}
-
-.week-cue.is-on {
-  opacity: 1;
-  transform: translate(-50%, 0);
-}
-
-/* The tip. Centred on the cue, except at the rail's ends where the cue stops
-   short and the tip slides along it to stay over the mark. */
-.week-cue::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: calc(50% + var(--cue-tip, 0px));
-  border: 5px solid transparent;
-  border-top-color: var(--accent);
-  border-bottom: 0;
-  transform: translateX(-50%);
-}
-
-.week-cue__label {
-  font-weight: 700;
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  opacity: 0.75;
-}
-
-.week-cue__num {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.week-cue__date {
-  font-weight: 600;
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  opacity: 0.85;
-}
-
-.panel {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-  margin-bottom: var(--sp-6);
-}
-
-/* The week's score bug: the number, the date and the week's tags on a top-lit
-   band, with the week faint and enormous behind them (field.css draws it from
-   data-week) and the accent sideline under it. */
-.panel__head {
-  position: relative;
-  z-index: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px var(--sp-4);
-  padding: 14px var(--sp-5) 14px;
-  border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, var(--surface-3), var(--surface));
-  overflow: hidden;
-}
-
-/* Over the watermark. */
-.panel__head > * {
-  position: relative;
-  z-index: 1;
-}
-
-.scoreboard {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-right: auto;
-}
-
-.scoreboard__label {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-
-/* The week, as the number on the bug. */
-.scoreboard__num {
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-style: italic;
-  font-size: 42px;
-  line-height: 1;
-  letter-spacing: -0.03em;
-  color: var(--ink);
-  text-shadow: 0 0 22px var(--glow-soft);
-}
-
-.panel__head .u-eyebrow {
-  color: var(--ink-3);
-  letter-spacing: 0.12em;
-}
-
-/* The tag in the header carries the whole story, so a forgiving week gets a
-   coloured sideline and nothing else. */
-.week-slide--covered .panel__head {
-  border-bottom-color: var(--mulligan);
-}
-
-/* Weeks after the run ended, in review. Still readable, plainly moot. */
-.week-slide--moot .panel__head,
-.week-slide--moot .panel__slots {
-  opacity: 0.6;
-  filter: saturate(0.6);
-}
-
-/* Declared after .panel on purpose: a slide sits inside the tab card now, so
-   it drops the card chrome it would otherwise carry. An equal-specificity
-   rule earlier in the file would lose to .panel. */
-.view .week-slide {
-  margin-bottom: 0;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  background: transparent;
-}
-
-.panel__slots {
-  /* Takes whatever height the slide has left, so the slots (and the empty
-     column of a one-pick week) always run to the bottom of the card. */
-  flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  /* The slots share the card, with a rule between them rather than a gutter
-     of page ground. What shows through here is the empty half of a one-pick
-     week, recessed like an empty slot so it reads as part of the card. */
-  gap: 0;
-  padding: 0;
-  background: var(--surface-2);
-}
-
-.slot__numbers > *,
-.metric__value {
-  min-width: 0;
-}
-
-/* slot ------------------------------------------------------------------- */
-
-/* The slot wears its pick's confidence: --tier is the tier's colour, set from
-   data-tier, and the head's edge bar, the meter and the numbers all draw in
-   it. So a glance at the colour says how safe the week is before a word is
-   read. */
-.slot {
-  --tier: var(--line-strong);
-  /* The inset, as a pair so the head can bleed out to the card's edge and
-     take it back as padding (see .slot__head). The phone block narrows it. */
-  --slot-pad-y: var(--sp-5);
-  --slot-pad-x: var(--sp-5);
-  position: relative;
-  background: var(--surface);
-  padding: var(--slot-pad-y) var(--slot-pad-x);
-  /* Grid items default to min-width:auto, so long content (a 44px tag plus
-     "SOUTH CAROLINA") widens the track instead of wrapping. */
-  min-width: 0;
-}
-
-.slot[data-tier="safe"] {
-  --tier: var(--safe);
-}
-
-.slot[data-tier="solid"] {
-  --tier: var(--solid);
-}
-
-.slot[data-tier="thin"] {
-  --tier: var(--thin);
-}
-
-.slot[data-tier="close"] {
-  --tier: var(--close);
-}
-
-.slot[data-tier="danger"] {
-  --tier: var(--danger);
-}
-
-/* The rule between slots. Side by side the rule stands between the two; a
-   one-pick week keeps it at the slot's edge, against the recess. */
-.slot + .slot {
-  border-left: 1px solid var(--line);
-}
-
-.slot:only-child {
-  border-right: 1px solid var(--line);
-}
-
-/* The line above the team name says whose the team is: yours, locked in, the
-   coach's, or nobody's yet. Every slot carries one so the head is the same
-   height whatever it holds. */
-.slot__eyebrow {
-  margin-bottom: 5px;
-}
-
-.slot__eyebrow--coach {
-  color: var(--accent);
-}
-
-.slot--locked .slot__eyebrow {
-  color: var(--lock);
-}
-
-/* An empty slot with nothing to suggest yet, or nothing to suggest at all. */
-.slot__team--blank {
-  font-weight: 600;
-  color: var(--ink-3);
-}
-
-/* Two rows: the eyebrow and team with the tags beside them, then the matchup
-   line across the full width beneath. The head is a band across the top of
-   the card: it bleeds out to the card's edge and takes the inset back as
-   padding, so painting it (a lock) moves nothing inside it. */
-.slot__head {
-  position: relative;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 10px;
-  margin: calc(-1 * var(--slot-pad-y)) calc(-1 * var(--slot-pad-x)) var(--sp-3);
-  padding: var(--slot-pad-y) var(--slot-pad-x) var(--sp-3) calc(var(--slot-pad-x) + 4px);
-  /* 50px of content; the box is border-box, so the padding counts too. */
-  min-height: calc(50px + var(--slot-pad-y) + var(--sp-3));
-}
-
-/* The edge bar: the pick's confidence, as a lit rule down the head's left. */
-.slot__head::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: var(--tier);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--tier) 50%, transparent);
-}
-
-/* A lock colours the head, not the whole card: the lock tint rising from the
-   edge says "locked in" and leaves the numbers and the list on the plain
-   surface. */
-.slot--locked .slot__head {
-  background: linear-gradient(90deg, var(--lock-bg), transparent 72%);
-}
-
-/* Nothing picked. The coach's suggestion is drawn in as a ghost: muted ink,
-   dimmed tags and numbers on the recessed surface, and a dashed edge bar.
-   Everything about it says "pencilled in", and the disabled lock beside it
-   says it is not yours yet. */
-.slot--empty {
-  background: var(--surface-2);
-}
-
-.slot--empty .slot__head::before {
-  background: repeating-linear-gradient(180deg, var(--tier) 0 6px, transparent 6px 10px);
-  box-shadow: none;
-  opacity: 0.7;
-}
-
-.slot--empty .slot__team {
-  color: var(--ink-2);
-}
-
-.slot--empty .slot__matchup,
-.slot--empty .metric__value {
-  color: var(--ink-3);
-}
-
-.slot--empty .slot__head .chip,
-.slot--empty .slot__numbers {
-  opacity: 0.7;
-}
-
-.slot__identity {
-  min-width: 0;
-  margin-right: auto;
-}
-
-/* The team, as the name on the back of the jersey. */
-.slot__team {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-style: italic;
-  font-size: 34px;
-  line-height: 0.95;
-  letter-spacing: -0.01em;
-  text-transform: uppercase;
-  overflow-wrap: anywhere;
-}
-
-/* The matchup has the slot's full width, so the flip control sits beside the
-   text rather than dropping under it. The row is never shorter than that
-   control, so the head keeps its height when the control is absent. */
-.slot__matchup {
-  flex: 1 0 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 32px;
-  font-size: 13px;
-  color: var(--ink-2);
-  min-width: 0;
-}
-
-.slot__matchup > span:first-child {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-/* The other side of the game, as a cut tag with the arrows in an accent disc. */
-.slot__flip {
-  --edge: color-mix(in srgb, var(--accent) 55%, var(--line-strong));
-  --fill: var(--surface-3);
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 32px;
-  max-width: 100%;
-  padding: 3px 12px 3px 4px;
-  color: var(--accent-ink);
-  font-family: var(--font-body);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.35;
-  white-space: nowrap;
-  transition:
-    transform 150ms ease,
-    filter 150ms ease;
-}
-
-.slot__flip-icon {
-  display: inline-grid;
-  place-items: center;
-  flex: none;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: var(--on-accent);
-}
-
-.slot__flip-icon svg {
-  width: 14px;
-  height: 14px;
-  fill: none;
-  stroke: currentcolor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.slot__flip strong {
-  font-weight: 700;
-}
-
-.slot__flip:hover {
-  --edge: var(--accent);
-  filter: drop-shadow(0 0 8px var(--glow-soft));
-  transform: translateY(-1px);
-}
-
-.slot__flip:active {
-  transform: translateY(0) scale(0.98);
-}
-
-/* The stat line: spread, chance, where the line came from. */
-.slot__numbers {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: stretch;
-  gap: var(--sp-3);
-  padding: 12px 0 12px;
-  border-top: 1px solid var(--line-soft);
-  border-bottom: 1px solid var(--line-soft);
-  margin-bottom: 10px;
-}
-
-.metric__key {
-  font-family: var(--font-display);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  font-size: 10.5px;
-  color: var(--ink-3);
-}
-
-.metric__value {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 21px;
-  font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-}
-
-/* "Market" or "Projected": a word, set like a tag rather than a number. */
-.metric__value--text {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 15px;
-  line-height: 1.55;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-2);
-}
-
-/* One confidence language everywhere a single game's spread or probability
-   appears. The season percentage uses change colors instead; it is the product
-   of a whole path and does not belong to a single-game tier. */
-.confidence--safe {
-  --confidence-color: var(--safe);
-  color: var(--confidence-color);
-}
-
-.confidence--solid {
-  --confidence-color: var(--solid);
-  color: var(--confidence-color);
-}
-
-.confidence--thin {
-  --confidence-color: var(--thin);
-  color: var(--confidence-color);
-}
-
-.confidence--close {
-  --confidence-color: var(--close);
-  color: var(--confidence-color);
-}
-
-.confidence--danger {
-  --confidence-color: var(--danger);
-  color: var(--confidence-color);
-}
-
-/* Ghost cards mute their general numbers, but confidence values retain their
-   semantic hue. Opacity still keeps the coach suggestion visually lighter. */
-.slot--empty .metric__value[class*="confidence--"] {
-  color: var(--confidence-color);
-}
-
-/* Each metric is a column; justifying to the end bottom-aligns the values
-   across columns even though "Market" is smaller than "-35.5". */
-.slot__numbers > div {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 3px;
-  min-width: 0;
-}
-
-.slot__numbers > div:nth-child(2) {
-  align-items: center;
-}
-
-.slot__numbers > div:last-child {
-  align-items: flex-end;
-}
-
-/* The yard-line meter: the chance the pick carries the week, drawn as field
-   position under the numbers. The fill runs out from the left in the tier's
-   colour and the ball sits where it stops; field.css lays the yard lines over
-   the track. --p is the probability, set on the element by week-panel.js. */
-.slot__meter {
-  position: relative;
-  height: 10px;
-  margin: 0 6px var(--sp-3) 0;
-  border: 1px solid var(--line-soft);
-  border-radius: 2px;
-  background: var(--ground);
-}
-
-.slot__meter i {
-  position: absolute;
-  top: 1px;
-  bottom: 1px;
-  left: 1px;
-  width: calc(var(--p, 0) * (100% - 2px));
-  background: linear-gradient(90deg, color-mix(in srgb, var(--tier) 35%, transparent), var(--tier));
-  box-shadow: 0 0 12px color-mix(in srgb, var(--tier) 55%, transparent);
-}
-
-/* The ball, on the yard line the pick reached. */
-.slot__meter i::after {
-  content: "";
-  position: absolute;
-  right: -7px;
-  top: 50%;
-  width: 13px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--ink);
-  transform: translateY(-50%);
-  box-shadow:
-    0 0 0 2px var(--surface),
-    0 0 10px var(--glow-soft);
-}
-
-/* Nothing to price: the empty field. */
-.slot__meter--none i {
-  display: none;
-}
-
-.slot--empty .slot__meter i {
-  opacity: 0.6;
-}
-
-/* lock toggle ------------------------------------------------------------ */
-
-/* The slot's one control, sitting with the tags. Open and outlined while the
-   pick is still yours to change; closed and filled in the lock colour once it
-   is committed, with the glow following its cut outline. */
-.lock-toggle {
-  flex: none;
-  display: inline-grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  color: var(--ink-2);
-  touch-action: manipulation;
-}
-
-.lock-toggle svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentcolor;
-  stroke-width: 1.9;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.lock-toggle:hover:not(:disabled) {
-  --edge: var(--lock);
-  color: var(--lock);
-}
-
-.lock-toggle--on,
-.lock-toggle--on:hover:not(:disabled) {
-  --edge: var(--lock);
-  color: var(--on-accent);
-  filter: drop-shadow(0 0 8px var(--glow));
-}
-
-.lock-toggle:focus-visible {
-  outline: 2px solid var(--lock);
-  outline-offset: 2px;
-}
-
-.lock-toggle:disabled {
-  opacity: 0.4;
-  cursor: default;
-  filter: none;
-}
-
-/* A resolved slot keeps its closed lock at near full strength: it is a record
-   now, not a control that has been taken away. */
-.lock-toggle--on:disabled {
-  opacity: 0.85;
-}
-
-/* swap list -------------------------------------------------------------- */
-
-/* No rule of its own: the meter above closes the numbers, and a second line
-   a few pixels under it read as a double rule rather than a divider. */
-.swap {
-  padding-top: var(--sp-1);
-}
-
-.swap__label {
-  display: block;
-  margin-bottom: 8px;
-}
-
-/* A locked slot keeps its list to read - the week's other lines are still
-   worth a look - but nothing in it can be tapped until the slot is unlocked.
-   The rows keep their full colour: they are not unavailable, only not yours to
-   change right now. The list itself says how to change that. */
-.swap--locked .swap__label {
-  color: var(--lock);
-}
-
-.swap__option:disabled {
-  cursor: default;
-}
-
-.swap__filter {
-  width: 100%;
-  min-height: 38px;
-  padding: 8px 12px;
-  margin-bottom: var(--sp-2);
-  font-size: 13px;
-}
-
-/* Six rows and the top of a seventh, then scroll - the full list can run
-   past 40 teams, and the part row is what says so. */
-.swap__list {
-  max-height: 268px;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-}
-
-/* One row: the team, its game, and its line, with the tier's colour as a bar
-   down the row's left edge so the list reads as a depth chart of the week
-   before a single number is read. */
-.swap__option {
-  --tier: var(--line-strong);
-  position: relative;
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  gap: 10px;
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: 0;
-  border-bottom: 1px solid var(--line-soft);
-  padding: 8px 12px 8px 15px;
-  cursor: pointer;
-  color: var(--ink);
-  font-size: 12.5px;
-}
-
-.swap__option::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 7px;
-  bottom: 7px;
-  width: 3px;
-  border-radius: 0 2px 2px 0;
-  background: var(--tier);
-  opacity: 0.85;
-}
-
-.swap__option:has(.swap__line--safe),
-.swap__option:has(.swap__line--won) {
-  --tier: var(--safe);
-}
-
-.swap__option:has(.swap__line--solid) {
-  --tier: var(--solid);
-}
-
-.swap__option:has(.swap__line--thin) {
-  --tier: var(--thin);
-}
-
-.swap__option:has(.swap__line--close) {
-  --tier: var(--close);
-}
-
-.swap__option:has(.swap__line--danger),
-.swap__option:has(.swap__line--lost) {
-  --tier: var(--danger);
-}
-
-/* Author styles outrank the browser's native [hidden] rule. Without this,
-   filtering marks non-matches hidden but display:flex keeps drawing them. */
-.swap__option[hidden] {
-  display: none;
-}
-
-.swap__option:last-child {
-  border-bottom: 0;
-}
-
-.swap__option:hover:not(:disabled) {
-  background: var(--surface-3);
-}
-
-/* The slot's own team: the accent rising from the edge, the row lit. */
-.swap__option--current {
-  background: linear-gradient(
-    90deg,
-    var(--accent-soft),
-    color-mix(in srgb, var(--accent-soft) 35%, transparent)
-  );
-  color: var(--ink);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
-}
-
-/* The locked team's row takes the slot's lock tint and carries the padlock,
-   so the list says the same thing the slot head does. */
-.swap__option--locked {
-  background: linear-gradient(
-    90deg,
-    var(--lock-bg),
-    color-mix(in srgb, var(--lock-bg) 35%, transparent)
-  );
-  color: var(--lock);
-}
-
-.swap__lock {
-  flex: none;
-  display: inline-grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
-  color: var(--lock);
-}
-
-.swap__lock svg {
-  width: 14px;
-  height: 14px;
-  fill: none;
-  stroke: currentcolor;
-  stroke-width: 1.9;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.swap__option--disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.swap__option--disabled::before {
-  opacity: 0.3;
-}
-
-/* A team the other slot has locked. Still not this slot's to take, so it is
-   dimmed like any spoken-for row, but it carries the padlock and keeps a
-   little more of its contrast: a lock is firmer than a pick. */
-.swap__option--held {
-  opacity: 0.6;
-}
-
-.swap__team {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-}
-
-/* The name, in the roster face. */
-.swap__name {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 15px;
-  line-height: 18px;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-/* The coach's call, as a pennant pinned to the row's top right corner rather
-   than a pill beside the name: the name keeps the whole of its share of the
-   row. Filled in the accent, since it is the whole of how the coach steers a
-   pick. */
-.swap__coach {
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: inline-grid;
-  place-items: center;
-  width: 22px;
-  height: 14px;
-  padding-left: 4px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: var(--on-accent);
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 9.5px;
-  line-height: 1;
-  clip-path: polygon(7px 0, 100% 0, 100% 100%, 0 100%);
-  pointer-events: none;
-}
-
-.swap__matchup {
-  color: var(--ink-3);
-  font-size: 11.5px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* The line, pushed to the right: spread and win probability side by side in
-   the tier's colour. Each has a floor width so the two columns line up down
-   the list whatever the digits. */
-.swap__line {
-  flex: none;
-  display: flex;
-  align-items: baseline;
-  margin-left: auto;
-  font-family: var(--font-mono);
-  font-weight: 500;
-  font-size: 12.5px;
-  color: var(--ink-2);
-  white-space: nowrap;
-}
-
-.swap__spread {
-  min-width: 5ch;
-  text-align: right;
-}
-
-/* A hairline between the two numbers, so the spread and the percentage read
-   as two figures rather than one run of digits. The mark and the air on
-   either side of it live inside this box, which keeps the floor width that
-   holds the column. */
-.swap__prob {
-  display: flex;
-  align-items: baseline;
-  justify-content: flex-end;
-  min-width: calc(4ch + 18px);
-}
-
-.swap__prob::before {
-  content: "";
-  flex: none;
-  align-self: center;
-  margin-inline: auto;
-  width: 1px;
-  height: 0.8em;
-  background: currentcolor;
-  opacity: 0.35;
-}
-
-.swap__line--safe {
-  color: var(--safe);
-}
-
-.swap__line--solid {
-  color: var(--solid);
-}
-
-.swap__line--thin {
-  color: var(--thin);
-}
-
-.swap__line--close {
-  color: var(--close);
-}
-
-.swap__line--danger {
-  color: var(--danger);
-}
-
-/* An unavailable row says why in place of its numbers. */
-.swap__option--disabled .swap__line {
-  color: var(--ink-3);
-  font-family: var(--font-body);
-  font-size: 11px;
-}
-
-/* A played game is unavailable too, but for a reason worth reading rather than
-   fading out: the week's record. Both rules come after the disabled pair on
-   purpose - they tie on specificity and win on order. */
-.swap__option--settled {
-  opacity: 0.72;
-}
-
-.swap__option--settled .swap__line--won {
-  color: var(--safe);
-}
-
-.swap__option--settled .swap__line--lost {
-  color: var(--danger);
-}
-
-/* ladder (ui/ladder.js) -------------------------------------------------- */
-
-.table-scroll {
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  -webkit-overflow-scrolling: touch;
-  background: var(--surface);
-}
-
-.ladder {
-  border-collapse: collapse;
-  width: 100%;
-  min-width: 790px;
-}
-
-/* The drive chart: the season as one sheet, roomier than the deck because this
-   is the view you sit back and read on. */
-.ladder th {
-  font-family: var(--font-display);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  font-size: 11px;
-  color: var(--accent);
-  /* Every column is centred, headers and cells alike, so the sheet reads as a
-     grid of aligned columns rather than text ragged against one edge and
-     numbers against the other. */
-  text-align: center;
-  padding: 13px 14px;
-  border-bottom: 1px solid var(--line-strong);
-  background: linear-gradient(180deg, var(--surface-3), var(--surface-2));
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-/* Cell grounds are background-color throughout, because the Season column
-   draws its bar as a background-image (see .ladder__season) and a shorthand
-   here would wipe it. */
-.ladder td {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--line-soft);
-  font-size: 14.5px;
-  text-align: center;
-  vertical-align: middle;
-}
-
-.ladder tbody tr:nth-child(even) td {
-  background-color: color-mix(in srgb, var(--surface-2) 55%, transparent);
-}
-
-.ladder tr:last-child td {
-  border-bottom: 0;
-}
-
-.ladder tr {
-  cursor: pointer;
-}
-
-.ladder tbody tr:hover td {
-  background-color: var(--surface-3);
-}
-
-/* The week on the clock: lit, with the accent down its left edge. */
-.ladder tr.is-current td {
-  background-color: var(--accent-soft);
-}
-
-.ladder tr.is-current td:first-child {
-  box-shadow: inset 3px 0 0 var(--accent);
-}
-
-.ladder tr.is-resolved td {
-  color: var(--ink-3);
-}
-
-/* Weeks after the run ended, in review: never played. */
-.ladder tr.is-moot td {
-  color: var(--ink-3);
-  opacity: 0.7;
-}
-
-/* Locked and picked teams are drawn solid; the coach's suggestions are faint
-   and pencilled in, so the season reads as one line while making plain which
-   weeks are actually decided. */
-.ladder tr.is-locked .ladder__team {
-  color: var(--ink);
-  font-weight: 800;
-}
-
-.ladder tr.is-picked .ladder__team {
-  color: var(--ink);
-  font-weight: 700;
-}
-
-.ladder tr.is-coach td {
-  color: var(--ink-3);
-}
-
-.ladder tr.is-coach .ladder__team {
-  font-weight: 600;
-  color: var(--ink-2);
-  text-decoration: underline dashed;
-  text-decoration-color: color-mix(in srgb, var(--accent) 55%, transparent);
-  text-underline-offset: 5px;
-}
-
-.ladder tr.is-empty .ladder__team {
-  font-style: normal;
-  font-weight: 500;
-  font-size: 15px;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--ink-3);
-}
-
-/* Row-state colors describe ownership; these two cells still describe game
-   confidence, so their semantic color wins in locked, picked and coach rows. */
-.ladder tr td[class*="confidence--"] {
-  color: var(--confidence-color);
-}
-
-.ladder__week {
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-style: italic;
-  font-size: 22px;
-  letter-spacing: -0.02em;
-  color: var(--ink-3);
-  width: 52px;
-}
-
-.ladder tr.is-current .ladder__week {
-  color: var(--accent);
-}
-
-.ladder__team {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-style: italic;
-  font-size: 21px;
-  letter-spacing: 0.005em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.ladder__date,
-.ladder__site,
-.ladder__source {
-  color: var(--ink-3);
-}
-
-.ladder__date {
-  font-size: 12px;
-}
-
-.ladder__source {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.ladder__blank {
-  color: var(--ink-3);
-  font-size: 12px;
-}
-
-.ladder__num {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-/* The season number with its bar behind it, filled to the chance in the
-   tier's colour, so the sheet shows the season thinning out down the page.
-   --p is set on the cell by ladder.js. */
-.ladder__season {
-  font-weight: 600;
-  background-image: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--confidence-color, var(--ink-3)) 22%, transparent),
-    color-mix(in srgb, var(--confidence-color, var(--ink-3)) 22%, transparent)
-  );
-  background-size: calc(var(--p, 0) * 100%) 100%;
-  background-repeat: no-repeat;
-  background-position: left center;
-}
-
-/* burn board (ui/burn-board.js) ------------------------------------------ */
-
-/* The depth chart: every eligible team as a roster card, best first. Nothing
-   here is a control, so the grid spends its width on fewer, larger cards. */
-.burn {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
-  gap: 8px;
-  padding: var(--sp-4) var(--sp-5);
-}
-
-/* Every card occupies the same track height. Team names may wrap inside that
-   box, but no row is allowed to grow taller than another. */
-.burn > .burn__team {
-  height: 58px;
-  min-height: 58px;
-  overflow: hidden;
-}
-
-.burn__team {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 54px;
-  padding: 10px 12px 10px 15px;
-  border: 1px solid var(--line-soft);
-  border-radius: 3px;
-  background: var(--surface-2);
-  font-size: 14.5px;
-  transition:
-    border-color 160ms ease,
-    background-color 160ms ease;
-}
-
-/* The state bar down the card's left edge. */
-.burn__team::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--line-strong);
-}
-
-/* The team name stays on the left while its power rank and optional week
-   marker keep a fixed position on the right. */
-.burn__identity {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-
-/* A name wraps between words when the card is narrow, and only a single word
-   too long for the card ("Northwestern" on a small phone) is broken, rather
-   than running under the rating. */
-.burn__name {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 15px;
-  line-height: 1.1;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-
-.burn__rating {
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  color: var(--ink-3);
-}
-
-/* The ordinal rank takes the trailing position; a week tag sits beside it
-   when the team is spoken for. */
-.burn__rating--ranked {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 7px;
-  min-width: 34px;
-  line-height: 1;
-  text-align: right;
-}
-
-.burn__power-rank {
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-style: italic;
-  font-size: 20px;
-  letter-spacing: -0.02em;
-  color: var(--ink-3);
-}
-
-/* The week a team is spent in, as a solid accent tag. */
-.burn__week {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  padding: 3px 7px;
-  background: var(--accent);
-  color: var(--on-accent);
-  clip-path: var(--clip-cut-sm);
-}
-
-/* Burned. Hazard stripes over the card, the name struck through in the
-   accent, the week it went in stamped beside the rank. */
-.burn__team--spent {
-  background: var(--stripes), var(--surface-2);
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
-  color: var(--ink-2);
-}
-
-.burn__team--spent::before {
-  background: var(--accent);
-}
-
-.burn__team--spent .burn__name {
-  text-decoration: line-through;
-  text-decoration-thickness: 2px;
-  text-decoration-color: var(--accent);
-}
-
-.burn__team--spent .burn__power-rank,
-.burn__team--spent .burn__rating {
-  color: var(--accent);
-  font-weight: 700;
-}
-
-/* Picked but not locked: outlined and lit in the accent, solid. */
-.burn__team--picked {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  box-shadow: 0 0 18px -6px var(--glow);
-  color: var(--ink);
-}
-
-.burn__team--picked::before {
-  background: var(--accent);
-}
-
-.burn__team--picked .burn__week {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
-  color: var(--accent);
-}
-
-.burn__team--picked .burn__power-rank,
-.burn__team--picked .burn__rating {
-  color: var(--accent);
-  font-weight: 700;
-}
-
-/* Only in the coach's plan: a dashed edge and muted ink, not fully coloured,
-   so it reads as pencilled in beside the solid picks. */
-.burn__team--planned {
-  border: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent);
-  color: var(--ink-3);
-}
-
-.burn__team--planned::before {
-  background: repeating-linear-gradient(180deg, var(--accent) 0 5px, transparent 5px 9px);
-  opacity: 0.75;
-}
-
-.burn__team--planned .burn__week {
-  background: transparent;
-  color: var(--accent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
-  opacity: 0.85;
-}
-
-.burn__team--planned .burn__rating {
-  color: var(--accent);
-  opacity: 0.75;
-}
-
-/* Legend, across the foot of the chart. Each swatch is a real card in the
-   state it explains, so the key cannot drift from the chart above it. */
-.legend {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--sp-3);
-  padding: var(--sp-4) var(--sp-5);
-  border-top: 1px solid var(--line);
-  background: var(--surface);
-}
-
-.legend__item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-/* Sized as a sample, not a cell: fixed width so the four line up. */
-.legend__swatch {
-  flex: none;
-  width: 112px;
-  min-height: 0;
-  padding: 7px 10px 7px 12px;
-  font-size: 12px;
-}
-
-.legend__swatch .burn__name {
-  font-size: 13px;
-}
-
-.legend__swatch .burn__rating {
-  font-size: 11px;
-}
-
-/* An open card is only visible in the grid because of the gaps around it, so
-   on its own it needs an edge. */
-.legend__swatch--open {
-  border-color: var(--line);
-}
-
-.legend__key {
-  font-family: var(--font-display);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 12px;
-}
-
-/* notices ---------------------------------------------------------------- */
-
-.notice {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 40px;
-  padding: 9px 14px;
-  margin-bottom: var(--sp-4);
-  border: 1px solid var(--line);
-  border-left: 4px solid var(--ink-3);
-  border-radius: 3px;
-  background: var(--surface-2);
-  color: var(--ink-2);
-  font-size: 12.5px;
-  line-height: 1.45;
-}
-
-.notice--warn {
-  border-color: color-mix(in srgb, var(--thin) 35%, var(--line));
-  border-left-color: var(--thin);
-  background: var(--thin-bg);
-  color: var(--thin);
-}
-
-/* The season's end. Heavier than a warning, because it is not one: the board
-   beneath is in review from here, and this says so once, above every view. */
-.notice--out {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 14px 16px 15px;
-  background: var(--stripes), var(--danger-bg);
-  border-color: color-mix(in srgb, var(--danger) 45%, var(--line));
-  border-left-color: var(--danger);
-  color: var(--ink);
-}
-
-.notice__eyebrow {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--danger);
-}
-
-.notice__title {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-style: italic;
-  font-size: 24px;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.notice__text {
-  margin-top: 5px;
-  color: var(--ink-2);
-  line-height: 1.45;
-}
-
-/* phone ------------------------------------------------------------------ */
-
-@media (max-width: 660px) {
-  /* The tab card runs edge to edge. The gutter is worth a tenth of a phone's
-     width, and the slots make better use of it than a margin does. The bleed
-     sits on .views, not on each .view, so the overflow clip during a tab
-     cross-fade never trims the edges mid-move. */
-  .tabs,
-  .views {
-    margin-inline: calc(-1 * var(--gutter-base));
-  }
-
-  .tabs,
-  .view {
-    border-inline: 0;
-    border-radius: 0;
-  }
-
-  .view {
-    margin-bottom: var(--sp-4);
-  }
-
-  .tabs {
-    padding: 5px;
-  }
-
-  .tab {
-    min-height: 50px;
-    padding: 12px 4px;
-    font-size: clamp(14px, 3.9vw, 16px);
-    letter-spacing: 0.07em;
-  }
-
-  .tab-marker {
-    top: 5px;
-    bottom: 5px;
-    left: 5px;
-    width: calc((100% - 10px) / var(--n));
-  }
-
-  .tab-marker::before {
-    inset: 0 4px;
-  }
-
-  .league-bar__name {
-    font-size: 26px;
-  }
-
-  .league-bar__select {
-    padding: 0 32px 0 12px;
-    font-size: 14px;
-  }
-
-  .league-bar__pool--one .league-bar__select {
-    padding-right: 12px;
-  }
-
-  .startup__status,
-  .gate__error {
-    font-size: 14px;
-  }
-
-  .gate__btn {
-    min-height: 50px;
-    font-size: 16px;
-  }
-
-  .strip {
-    margin-bottom: var(--sp-4);
-  }
-
-  .strip__cell {
-    min-width: 0;
-    min-height: 90px;
-    padding: 12px 8px 14px;
-    gap: 4px;
-    /* A wrapped note may make one cell taller, but it must only grow downward;
-       independently centring each cell knocks the primary values off a row. */
-    justify-content: flex-start;
-  }
-
-  .strip__key {
-    font-size: clamp(10px, 2.7vw, 11px);
-    letter-spacing: 0.1em;
-  }
-
-  .strip__value {
-    min-width: 0;
-    min-height: 1.2em;
-    display: flex;
-    align-items: center;
-    font-size: clamp(19px, 5.2vw, 22px);
-    white-space: nowrap;
-  }
-
-  .strip__cell[data-cell="survival"] .strip__value {
-    font-size: clamp(21px, 5.8vw, 24px);
-  }
-
-  #countdown {
-    font-size: clamp(17px, 4.6vw, 19px);
-    letter-spacing: -0.04em;
-  }
-
-  .strip__note {
-    min-width: 0;
-    font-size: clamp(10.5px, 2.8vw, 11.5px);
-    line-height: 1.25;
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
-
-  .panel {
-    margin-bottom: 20px;
-  }
-
-  .panel__head {
-    padding: var(--sp-3) var(--sp-4);
-    gap: var(--sp-2) 10px;
-  }
-
-  .scoreboard__num {
-    font-size: 38px;
-  }
-
-  /* A phone is where the scrub is used, so the band is a comfortable thumb
-     deep and the marks keep the slots' narrower inset. */
-  .week-rail {
-    --rail-pad-y: 18px;
-  }
-
-  .week-pips {
-    --rail-pad-x: var(--sp-4);
-    --pip-w: 5px;
-  }
-
-  .week-pip {
-    height: 12px;
-  }
-
-  /* One column, stacked, so the rule between slots runs across the card
-     rather than down it, and a lone slot has nothing beside it to rule off. */
-  .panel__slots {
-    grid-template-columns: 1fr;
-  }
-
-  .slot {
-    --slot-pad-y: 18px;
-    --slot-pad-x: var(--sp-4);
-  }
-
-  .slot + .slot {
-    border-left: 0;
-    border-top: 1px solid var(--line);
-  }
-
-  .slot:only-child {
-    border-right: 0;
-  }
-
-  .slot__team {
-    font-size: 32px;
-  }
-
-  /* Same height as the phone-sized flip control below. */
-  .slot__matchup {
-    min-height: 44px;
-    font-size: 14px;
-  }
-
-  .slot__flip {
-    min-height: 44px;
-    padding: 5px 14px 5px 6px;
-    gap: 8px;
-    font-size: 12.5px;
-  }
-
-  .slot__flip-icon {
-    width: 30px;
-    height: 30px;
-  }
-
-  .slot__flip-icon svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  .slot__numbers {
-    gap: 0;
-    justify-content: space-between;
-  }
-
-  .metric__value {
-    font-size: 21px;
-  }
-
-  .metric__key {
-    font-size: 11px;
-  }
-
-  .metric__value--text {
+@media (max-width: 899px) {
+  body {
     font-size: 15px;
   }
 
-  .chip {
-    height: 26px;
-    padding: 0 10px 0 12px;
+  .u-eyebrow {
     font-size: 12px;
   }
 
-  .chip--clock {
-    height: 28px;
-  }
-
-  /* A full thumb target; the identity beside it is taller still, so the head's
-     first row does not grow for it. */
-  .lock-toggle {
-    width: 44px;
-    height: 44px;
-  }
-
-  .lock-toggle svg {
-    width: 22px;
-    height: 22px;
-  }
-
-  .swap__filter {
-    min-height: 46px;
-    padding: 10px 12px;
-    font-size: 16px;
-  }
-
-  .swap__list {
-    max-height: 330px;
-  }
-
-  .swap__option {
-    gap: 8px;
-    padding: 10px 10px 10px 15px;
-    min-height: 52px;
-    font-size: 14px;
-  }
-
-  /* With the full roster in this list, the opponent is what makes a row
-     meaningful - keep it, and let it truncate instead of disappearing. */
-  .swap__matchup {
-    flex: 1 1 auto;
-    min-width: 0;
-    font-size: 12.5px;
-  }
-
-  .swap__team {
-    flex: 0 1 auto;
-    max-width: 52%;
-    min-width: 0;
-  }
-
-  .swap__name {
-    font-size: 16px;
-  }
-
-  .swap__coach {
-    width: 26px;
-    height: 16px;
-    font-size: 10.5px;
-  }
-
-  .swap__lock {
-    width: 20px;
-    height: 20px;
-  }
-
-  .swap__lock svg {
-    width: 17px;
-    height: 17px;
-  }
-
-  .swap__line {
-    font-size: 13.5px;
-  }
-
-  /* One pixel tighter each side than the desktop box, to match the row. */
-  .swap__prob {
-    min-width: calc(4ch + 16px);
-  }
-
-  .swap__option--disabled .swap__line {
-    font-size: 12px;
-  }
-
-  .ladder {
-    min-width: 1020px;
-    border-collapse: separate;
-    border-spacing: 0;
-  }
-
-  .ladder .is-wide-only {
-    display: table-cell;
-  }
-
-  .ladder th[hidden] {
-    display: none;
-  }
-
-  .ladder th,
-  .ladder td {
-    padding: 13px 8px;
-  }
-
-  .ladder th {
-    font-size: 11px;
-    letter-spacing: 0.1em;
-  }
-
-  .ladder td {
-    font-size: 14.5px;
-  }
-
-  .ladder__team {
-    font-size: 18px;
-    white-space: normal;
-    line-height: 1.1;
-  }
-
-  .ladder__week {
-    width: 48px;
-    font-size: 20px;
-  }
-
-  .ladder__date,
-  .ladder__source {
-    font-size: 13px;
-  }
-
-  /* Week and Pick remain readable while the rest of the season sheet moves
-     underneath. Sticky cells need an opaque ground, so the zebra tint is
-     mixed into the surface here rather than laid over it. */
-  .ladder__sticky {
-    position: sticky;
-    background-color: var(--surface);
-  }
-
-  .ladder tbody tr:nth-child(even) .ladder__sticky {
-    background-color: color-mix(in srgb, var(--surface-2) 55%, var(--surface));
-  }
-
-  .ladder tbody tr:hover .ladder__sticky {
-    background-color: var(--surface-3);
-  }
-
-  .ladder__sticky--week {
-    left: 0;
-    z-index: 3;
-    width: 48px;
-    min-width: 48px;
-    max-width: 48px;
-  }
-
-  .ladder__sticky--pick {
-    left: 48px;
-    z-index: 2;
-    width: 140px;
-    min-width: 140px;
-    max-width: 140px;
-    box-shadow:
-      1px 0 0 var(--line),
-      9px 0 12px -12px rgb(0 0 0 / 45%);
-  }
-
-  .ladder .ladder__sticky--pick {
-    padding-inline: 6px;
-  }
-
-  .ladder thead .ladder__sticky {
-    z-index: 5;
-    background: linear-gradient(180deg, var(--surface-3), var(--surface-2));
-  }
-
-  .ladder tr.is-current .ladder__sticky {
-    background-color: var(--accent-soft);
-  }
-
-  /* Wide enough for "Mississippi State" and its rank on one line, so a phone
-     gets two big cards a row rather than three cramped ones. */
-  .burn {
-    grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
-    gap: 6px;
-    padding: var(--sp-3) var(--sp-4);
-  }
-
-  .burn__team {
-    padding: 10px 10px 10px 14px;
-    font-size: 14.5px;
-  }
-
-  .burn > .burn__team {
-    height: 62px;
-    min-height: 62px;
-  }
-
-  .burn__power-rank {
-    font-size: 21px;
-  }
-
-  .legend {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--sp-3);
-    padding: var(--sp-4);
-  }
-
-  .legend__item {
-    display: grid;
-    grid-template-rows: auto auto;
-    align-items: stretch;
-    gap: 6px;
-  }
-
-  .legend__swatch {
-    width: 100%;
-    padding: 8px 10px 8px 12px;
-  }
-
-  .legend__key {
-    font-size: 12px;
-    line-height: 1.15;
-    text-align: center;
-    overflow-wrap: anywhere;
-  }
-
-  .notice {
-    min-height: 44px;
-    padding: 10px 12px;
-    font-size: 14px;
-  }
-
-  /* Sheets rise from the bottom edge, where a thumb is, with a grab handle. */
+  /* Sheets rise from the bottom edge, with a grab handle. */
   .settings,
   .home__sheet {
     width: 100vw;
@@ -3961,7 +2750,6 @@
     margin: 0;
     inset: auto 0 0 0;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    border-bottom: 0;
   }
 
   .settings__head,
@@ -3978,84 +2766,180 @@
     width: 44px;
     height: 4px;
     border-radius: 2px;
-    background: var(--line-strong);
+    background: var(--chalk-4);
     transform: translateX(-50%);
   }
-}
 
-@media (max-width: 460px) {
-  .ladder th,
-  .ladder td {
-    padding: 11px 6px;
-  }
-
-  .burn {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  }
-
-  .burn__team {
-    padding: 10px 10px 10px 13px;
-    font-size: 14px;
+  .notice {
+    font-size: 13.5px;
   }
 }
 
-@media (max-width: 720px) and (min-width: 661px) {
-  .panel__slots {
-    grid-template-columns: 1fr;
+@media (max-width: 380px) {
+  .call__team {
+    font-size: 42px;
+  }
+
+  .league-bar__name {
+    font-size: 18px;
+  }
+
+  .pitch__drive-line {
+    font-size: 11px;
   }
 }
 
-/* wide -------------------------------------------------------------------- */
+/* wide ------------------------------------------------------------------------- */
 
-@media (min-width: 721px) {
-  /* A one-pick week has the whole card to itself, so its slot spreads out
-     rather than leaving an empty half beside a narrow column: the head across
-     the top, the numbers and the meter down the left, and the week's list
-     beside them with room to show more of itself. */
-  .panel__slots:has(.slot:only-child) {
-    grid-template-columns: 1fr;
+@media (min-width: 900px) {
+  .pitch__field {
+    --zone-w: 60px;
+    height: 150px;
   }
 
-  .slot:only-child {
+  .pitch__zone {
+    font-size: 18px;
+  }
+
+  .pitch__num {
+    font-size: 13px;
+    bottom: 6px;
+  }
+
+  .pitch__mark {
+    height: 14px;
+    top: 8px;
+  }
+
+  .pitch__ball {
+    width: 26px;
+    height: 16px;
+  }
+
+  /* With a yard line 60px wide, every week names its pick on the field. */
+  .pitch__label {
+    display: block;
+    position: absolute;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    max-width: calc(100% - 6px);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--chalk-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pitch__yard--now .pitch__label,
+  .pitch__yard--viewing .pitch__label {
+    color: var(--chalk);
+  }
+
+  .pitch__drive-line {
+    font-size: 13px;
+  }
+
+  .pitch__drive-note {
+    font-size: 11.5px;
+  }
+
+  /* The call and its action in one row. */
+  .call {
     display: grid;
-    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-    grid-template-rows: auto auto auto 1fr;
+    grid-template-columns: minmax(0, 1fr) 400px;
+    gap: 14px;
+    align-items: stretch;
+  }
+
+  .call__box {
+    padding: 14px 18px 16px;
+  }
+
+  /* A lone slot has the width to put its numbers beside the name. */
+  .call__slots:not(.call__slots--two) .call__slot {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      "head head"
-      "numbers swap"
-      "meter swap"
-      ". swap";
-    column-gap: var(--sp-6);
-    align-content: start;
-    border-right: 0;
+      "eyebrow eyebrow"
+      "team tiles"
+      "matchup tiles";
+    align-items: end;
+    column-gap: 24px;
   }
 
-  .slot:only-child .slot__head {
-    grid-area: head;
+  .call__slots:not(.call__slots--two) .call__eyebrow {
+    grid-area: eyebrow;
   }
 
-  .slot:only-child .slot__numbers {
-    grid-area: numbers;
+  .call__slots:not(.call__slots--two) .call__team {
+    grid-area: team;
   }
 
-  .slot:only-child .slot__meter {
-    grid-area: meter;
+  .call__slots:not(.call__slots--two) .call__matchup {
+    grid-area: matchup;
   }
 
-  .slot:only-child .swap {
-    grid-area: swap;
+  .call__slots:not(.call__slots--two) .call__tiles {
+    grid-area: tiles;
+    grid-template-columns: repeat(3, auto);
+    margin-top: 0;
+  }
+
+  .call__slots--two .call__team {
+    font-size: 36px;
+  }
+
+  .call__team {
+    font-size: 54px;
+  }
+
+  .tile {
+    padding: 6px 14px;
+  }
+
+  .tile__value {
+    font-size: 20px;
+  }
+
+  .seam {
+    grid-template-columns: 54px minmax(0, 1fr);
+    align-content: end;
+  }
+
+  .seam__lock {
+    height: 56px;
+    font-size: 17px;
+  }
+
+  /* Every panel is open, so the tabs have nothing to switch and there is no
+     sheet to grab. */
+  .drawer__tabs,
+  .drawer__handle {
+    display: none;
+  }
+
+  /* Drawer panels open side by side, each a chalk panel. */
+  .drawer__panel {
+    padding: 12px 14px 14px;
+    border: var(--dash);
+    border-radius: var(--radius);
+    background: rgb(10 47 28 / 60%);
+    overflow-y: auto;
+  }
+
+  /* One card a row in the narrow panel: a name broken mid-word is worse than
+     a longer list. */
+  .bench {
+    grid-template-columns: minmax(0, 1fr);
     padding-top: 0;
   }
 
-  .slot:only-child .swap__list {
-    max-height: 380px;
-  }
-
-  .strip__value {
-    font-size: 30px;
-  }
-
-  .strip__cell[data-cell="survival"] .strip__value {
-    font-size: 36px;
+  .legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

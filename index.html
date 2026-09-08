@@ -9,12 +9,11 @@
       content="Shared college and NFL survivor pool tracker with market lines, backups and a burn board."
     />
     <meta name="color-scheme" content="dark" />
-    <meta name="theme-color" content="#04060d" />
+    <meta name="theme-color" content="#0f4d2c" />
 
     <!-- Installable to a phone home screen. Chrome needs the manifest's 192
          and 512 icons plus the service worker registered in app.js before it
-         will offer Install; iOS reads the apple-* tags instead. The icons are
-         the startup animation's football; `npm run icons` redraws them. -->
+         will offer Install; iOS reads the apple-* tags instead. -->
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="icon" href="./icons/icon-192.png" sizes="192x192" type="image/png" />
@@ -28,7 +27,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,700;1,800;1,900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
       crossorigin
     />
 
@@ -57,119 +56,84 @@
         <span class="startup__route"></span>
       </div>
       <p class="startup__brand">Survivor Board</p>
-      <p class="startup__status" id="startup-status">Drawing up the game plan…</p>
+      <p class="startup__status" id="startup-status">Chalking up the field…</p>
     </div>
 
     <!-- Start screen: the name, once per device. app.js fills it and clears it. -->
     <div class="gate" id="start" hidden></div>
 
     <main class="shell">
-      <header class="masthead">
-        <div class="masthead__brand">
-          <svg class="mast-ball" viewBox="0 0 34 21" width="30" height="19" aria-hidden="true">
-            <ellipse
-              cx="17"
-              cy="10.5"
-              rx="15.6"
-              ry="9.2"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.1"
-            />
-            <path
-              d="M11.6 10.5h10.8M14 7.6v5.8M17 7.1v6.8M20 7.6v5.8"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linecap="round"
-            />
-          </svg>
-          <h1 class="masthead__title">Survivor <span>Board</span></h1>
-        </div>
-      </header>
-
-      <!-- The open league, under the masthead: the way back to every league,
-           the league's name, which of its pools the board is showing, and the
-           gear for its settings (ui/league-bar.js and ui/settings.js). Hidden
-           on the home page, where there is no board for it to be about. -->
-      <div class="league-bar" id="league-bar" hidden>
-        <div class="league-bar__holder" id="league"></div>
-        <div class="league-bar__gear" id="settings"></div>
-      </div>
-
-      <div id="notices"></div>
+      <!-- Banners: a message from app.js, the storage mode, a rule break. Shown
+           above whichever screen is up. -->
+      <div class="notices" id="notices"></div>
 
       <!-- The home page: this device's leagues, and where they are made,
-           joined and shared. app.js shows one of these two at a time, so the
-           board keeps its markup - and the week it was scrolled to - while the
-           home page is up. -->
+           joined and shared. app.js shows one of the two screens at a time. -->
       <div id="home" hidden></div>
-      <!-- The home page's two sheets, making a league and joining one, built
-           once and kept outside the list above: the list is redrawn as leagues
-           arrive, and a sheet someone is typing into must not be redrawn with
-           it. -->
+      <!-- The home page's two sheets, built once and kept outside the list
+           above, which is redrawn as leagues arrive. -->
       <div id="home-sheets"></div>
 
-      <div id="board">
-        <div class="strip" id="strip"></div>
+      <!-- The board: a split screen held in one hand. The readout at the top
+           is the field, the drive line and the week's call; the drawer below
+           is what you touch. -->
+      <div class="board" id="board">
+        <!-- The topline: the way back, the league and its pool (ui/league-bar.js),
+             and the gear for the pool's rules (ui/settings.js). -->
+        <header class="topline" id="league-bar">
+          <div class="topline__league" id="league"></div>
+          <div class="topline__gear" id="settings"></div>
+        </header>
 
-        <div class="tabs" role="tablist" aria-label="Board views" id="tabs"></div>
+        <section class="readout" aria-label="The field">
+          <!-- The season as the field, and the drive line under it (ui/pitch.js). -->
+          <div id="pitch"></div>
+          <!-- The week being looked at, and the one action at the seam (ui/call.js). -->
+          <div id="call"></div>
+        </section>
 
-        <!-- The three panels share one box so a tab change can cross-fade over
-           an animated height instead of the page jumping. -->
-        <div class="views" id="views">
-          <section
-            class="view"
-            id="view-week"
-            role="tabpanel"
-            aria-labelledby="tab-week"
-            tabindex="0"
-          >
-            <div id="week-deck"></div>
-          </section>
+        <section class="drawer" id="drawer" aria-label="The drawer">
+          <div class="drawer__handle" aria-hidden="true"></div>
+          <div class="drawer__tabs" role="tablist" aria-label="Drawer panels" id="tabs"></div>
 
-          <section
-            class="view"
-            id="view-path"
-            role="tabpanel"
-            aria-labelledby="tab-path"
-            tabindex="0"
-            hidden
-          >
-            <div class="table-scroll">
-              <table class="ladder" id="ladder">
-                <thead>
-                  <tr>
-                    <th scope="col" class="ladder__sticky ladder__sticky--week">Wk</th>
-                    <th scope="col" class="is-wide-only">Date</th>
-                    <th scope="col" class="ladder__sticky ladder__sticky--pick">Pick</th>
-                    <th scope="col" class="is-wide-only">Opponent</th>
-                    <th scope="col" class="is-wide-only">Site</th>
-                    <th scope="col">Spread</th>
-                    <th scope="col" class="is-wide-only">Line</th>
-                    <th scope="col">Win</th>
-                    <th scope="col" class="is-wide-only" data-week-probability>Week</th>
-                    <th scope="col" title="Chance of surviving through this week">Season</th>
-                    <th scope="col">Status</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </section>
+          <div class="drawer__panels" id="views">
+            <section
+              class="drawer__panel"
+              id="view-week"
+              role="tabpanel"
+              aria-labelledby="tab-week"
+              tabindex="0"
+            >
+              <!-- Every team the slot could hold this week (ui/sideline.js). -->
+              <div id="sideline"></div>
+            </section>
 
-          <section
-            class="view"
-            id="view-burn"
-            role="tabpanel"
-            aria-labelledby="tab-burn"
-            tabindex="0"
-            hidden
-          >
-            <div class="burn" id="burn"></div>
-            <!-- Key to the marks above, filled by burn-board.js. -->
-            <footer class="legend" id="burn-legend"></footer>
-          </section>
-        </div>
+            <section
+              class="drawer__panel"
+              id="view-path"
+              role="tabpanel"
+              aria-labelledby="tab-path"
+              tabindex="0"
+              hidden
+            >
+              <!-- The season, week by week (ui/drive.js). -->
+              <div id="drive"></div>
+            </section>
+
+            <section
+              class="drawer__panel"
+              id="view-burn"
+              role="tabpanel"
+              aria-labelledby="tab-burn"
+              tabindex="0"
+              hidden
+            >
+              <!-- Every eligible team, and where it sits on the path (ui/bench.js). -->
+              <div id="bench"></div>
+              <footer class="legend" id="bench-legend"></footer>
+            </section>
+          </div>
+        </section>
       </div>
     </main>
 

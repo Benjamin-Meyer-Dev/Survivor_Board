@@ -4,34 +4,20 @@
    The thematic layer, kept in its own file so the functional CSS underneath
    stays readable. Four ideas carry it:
 
-     1. The stadium - floodlight falling from above the page, yard lines and
-        mown stripes under it, and the grain of a broadcast picture over all
-        of it. Fixed, so the page pans over the field like a camera.
-     2. The score bug - corner brackets and an accent sideline on the readouts
-        (the scoreboard strip, the week header), the furniture of a TV graphic.
-     3. Chalk - hairline dividers and uppercase condensed labels.
-     4. The end zone - the week on the clock wears the accent wash and the
-        hazard stripes of the painted end zone.
+     1. Turf - mown in stripes, lit from above, the ground of every screen.
+     2. Chalk - everything written on the field is chalk: solid where it is
+        painted on, dashed where it is only pencilled in.
+     3. Paint - the end zones and the league's mark wear the league's paint
+        (leagues.css), with the hazard stripes an end zone is painted with.
+     4. The floodlight - the week on the clock stands in a patch of light.
 
    Nothing here changes layout or state; strip this file and the app still
    works exactly the same.
    ========================================================================== */
 
-:root {
-  /* Chalk on the permanent dark turf. */
-  --yard: rgb(255 255 255 / 4.5%);
-  --yard-major: rgb(255 255 255 / 8%);
-  --chalk: rgb(255 255 255 / 12%);
-  --mow: rgb(75 228 135 / 2.4%);
-  --endzone: rgb(75 228 135 / 12%);
-}
+/* --- turf ------------------------------------------------------------------ */
 
-/* --- the stadium ---------------------------------------------------------- */
-
-/* Fixed rather than scrolling: the page moves over the field, the way a
-   camera pans over a pitch. The floodlight is the accent falling from above
-   the top edge; the vignette pulls the corners down so the board sits in the
-   lit middle of the picture. */
+/* Fixed, so the page pans over the field like a camera on a boom. */
 body::before {
   content: "";
   position: fixed;
@@ -39,214 +25,90 @@ body::before {
   z-index: 0;
   pointer-events: none;
   background:
-    /* floodlight */
-    radial-gradient(
-      ellipse 70% 44% at 50% -8%,
-      color-mix(in srgb, var(--accent) 18%, transparent),
-      transparent 70%
-    ),
-    /* the second light, off to the side, so the field is not lit flat */
-    radial-gradient(
-        ellipse 40% 30% at 92% 4%,
-        color-mix(in srgb, var(--accent-2) 7%, transparent),
-        transparent 70%
-      ),
-    /* hash marks down the middle of the field */
-    repeating-linear-gradient(180deg, var(--yard-major) 0 8px, transparent 8px 34px) 50% 0 / 1px
-      100% no-repeat,
-    /* yard lines every five, heavier every twenty */
-    repeating-linear-gradient(
-        90deg,
-        transparent 0 calc(6.25% - 1px),
-        var(--yard) calc(6.25% - 1px),
-        var(--yard) 6.25%
-      ),
-    repeating-linear-gradient(
-      90deg,
-      transparent 0 calc(25% - 1px),
-      var(--yard-major) calc(25% - 1px),
-      var(--yard-major) 25%
-    ),
-    /* mown stripes - the bands a groundsman leaves behind */
-    repeating-linear-gradient(180deg, var(--mow) 0 64px, transparent 64px 128px),
-    /* vignette */
-    radial-gradient(ellipse 120% 90% at 50% 50%, transparent 55%, rgb(0 0 0 / 55%) 100%),
-    linear-gradient(180deg, var(--ground-2), var(--ground) 38%);
-  transition: background 0.3s ease;
+    var(--floodlight), var(--mow),
+    radial-gradient(ellipse 120% 90% at 50% 60%, transparent 55%, rgb(0 0 0 / 30%) 100%),
+    var(--turf);
 }
 
-/* Grain: the noise of a broadcast picture, laid over the field at a strength
-   that reads as texture rather than dirt. A tiled SVG rather than an image
-   file, so it ships inside this stylesheet. */
+/* Grain: the nap of the turf, laid over the whole picture at a strength that
+   reads as texture rather than dirt. A tiled SVG, so it ships inside this
+   stylesheet. */
 body::after {
   content: "";
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.045;
+  opacity: 0.05;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
   background-size: 220px 220px;
 }
 
-.shell {
-  position: relative;
-  z-index: 1;
-}
+/* --- the pitch ------------------------------------------------------------- */
 
-/* --- masthead ------------------------------------------------------------- */
-
-.mast-ball {
-  color: var(--accent);
-  flex: none;
-  filter: drop-shadow(0 0 10px var(--glow));
-}
-
-/* "Board", in the accent, so the wordmark carries the league's colour. */
-.masthead__title span {
-  color: var(--accent);
-}
-
-/* Sideline: the accent running out from the wordmark and fading along the
-   line, with the hash ticks a field has under it. */
-.masthead::after {
-  content: "";
-  flex: 1 0 100%;
-  height: 8px;
-  margin-top: var(--sp-3);
-  background:
-    linear-gradient(90deg, var(--accent), var(--accent-2) 30%, transparent 78%) 0 0 / 100% 3px
-      no-repeat,
-    repeating-linear-gradient(90deg, var(--chalk) 0 2px, transparent 2px 16px) 0 5px / 100% 3px
-      no-repeat;
-}
-
-/* --- score bugs ----------------------------------------------------------- */
-
-/* The corner brackets of a broadcast graphic: an L in the top left and the
-   bottom right of the readouts. Drawn with borders on two pseudo-elements the
-   components already give these boxes room for. */
-.strip::before,
-.strip::after {
+/* Hash marks, two rows across the playing field between the end zones. */
+.pitch__field::before,
+.pitch__field::after {
   content: "";
   position: absolute;
-  z-index: 2;
-  width: 14px;
-  height: 14px;
-  pointer-events: none;
-  border: 2px solid var(--accent);
-}
-
-.strip::before {
-  top: -1px;
-  left: -1px;
-  border-right: 0;
-  border-bottom: 0;
-}
-
-.strip::after {
-  right: -1px;
-  bottom: -1px;
-  border-left: 0;
-  border-top: 0;
-}
-
-/* The week's number, enormous and faint behind the header, the way a score
-   bug carries the quarter. */
-.panel__head::before {
-  content: attr(data-week);
-  position: absolute;
-  right: 8px;
-  top: -14px;
+  left: var(--zone-w);
+  right: var(--zone-w);
   z-index: 0;
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-style: italic;
-  font-size: 118px;
-  line-height: 1;
-  letter-spacing: -0.05em;
-  color: var(--ink);
-  opacity: 0.07;
+  border-top: 2px dashed var(--line-soft);
   pointer-events: none;
-  user-select: none;
 }
 
-/* The accent sideline under the week header, running out from the left. */
-.panel__head::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2) 35%, transparent 85%);
+.pitch__field::before {
+  top: 36%;
 }
 
-/* A week a buy back covers wears the buy back's colour on its sideline. */
-.week-slide--covered .panel__head::after {
-  background: linear-gradient(90deg, var(--mulligan), transparent 85%);
+.pitch__field::after {
+  top: 64%;
 }
 
-/* --- chalk dividers ------------------------------------------------------- */
-
-.slot__numbers {
-  border-top: 1px dashed var(--chalk);
-  border-bottom: 1px dashed var(--chalk);
+/* The end zones, painted, with the hazard stripes a painted end zone has. */
+.pitch__zone {
+  background: var(--stripes), var(--paint);
+  color: var(--paint-ink);
 }
 
-/* --- the yard-line meter -------------------------------------------------- */
-
-/* The chance a pick carries the week, as field position: the fill runs from
-   the goal line out, the ball sits where it stops, and the ticks are the
-   yard lines it crossed. */
-.slot__meter::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    90deg,
-    transparent 0 calc(10% - 1px),
-    var(--chalk) calc(10% - 1px) 10%
-  );
+/* The week on the clock stands in the floodlight. */
+.pitch__yard--now {
+  background: radial-gradient(ellipse 120% 70% at 50% 0%, rgb(255 255 255 / 26%), transparent 75%);
 }
 
-/* --- week rail as yard markers -------------------------------------------- */
+/* --- chalk ----------------------------------------------------------------- */
 
-.week-pips::before {
-  background: var(--chalk);
+/* Panels are chalked onto the turf: a dashed chalk rectangle, a little of the
+   turf's own dark showing through. */
+.call__box,
+.pitch__meta {
+  border: var(--dash);
+  background: rgb(10 58 32 / 35%);
 }
 
-/* --- the end zone --------------------------------------------------------- */
-
-/* The week on the clock is in the end zone: the accent wash and the hazard
-   stripes mark it out from the weeks you are only passing through. */
-.week-slide:has(.chip--clock) .panel__head {
-  background:
-    linear-gradient(90deg, var(--endzone), transparent 60%), var(--stripes),
-    linear-gradient(180deg, var(--surface-3), var(--surface));
+/* The coach's plan is pencilled in: a dashed chalk underline in the flag's
+   colour, wherever a suggestion is named. */
+.call__slot--empty .call__team,
+.drive__row--coach .drive__team,
+.bench__team--planned .bench__name {
+  text-decoration: underline dashed color-mix(in srgb, var(--flag) 70%, transparent);
+  text-underline-offset: 0.16em;
+  text-decoration-thickness: 1.5px;
 }
 
-/* --- the goal line -------------------------------------------------------- */
+/* --- the drawer as a chalkboard ------------------------------------------- */
 
-/* The last week is the goal line: taller, in the accent, the way one is drawn. */
-.week-pip:last-child {
-  width: 3px;
-  height: 20px;
-  background: var(--accent);
-  opacity: 0.6;
+.drawer {
+  background: var(--board);
+  border-top: 3px solid var(--chalk);
 }
 
-/* --- phone ---------------------------------------------------------------- */
+/* --- phone ------------------------------------------------------------------ */
 
-@media (max-width: 660px) {
-  .panel__head::before {
-    font-size: 96px;
-    top: -10px;
-    right: 4px;
-  }
-
-  .masthead::after {
-    height: 7px;
-    margin-top: var(--sp-2);
+@media (max-width: 899px) {
+  .pitch__field::before,
+  .pitch__field::after {
+    border-top-width: 2px;
   }
 }

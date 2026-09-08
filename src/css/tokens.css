@@ -1,113 +1,110 @@
 /* ===========================================================================
-   Design tokens, "under the lights".
+   Design tokens, "the field in hand".
 
-   One permanent night-game theme, built like a broadcast package rather than a
-   dashboard: top-lit surfaces on a near-black ground, one saturated accent per
-   league that everything live is drawn in, a fixed confidence scale, and an
-   angular shape language (cut corners, skewed slabs, corner brackets) that says
-   sports graphics rather than settings screen.
-
-   College carries the turf palette below; the NFL overrides it with primetime
-   blue and a losers pool turns the accent amber, both in leagues.css. Every
-   colour in the app resolves through one of these names.
+   The board is a football field held sideways in one hand: turf under
+   floodlights, chalk for everything written on it, one penalty-flag yellow for
+   the one thing you can do, and painted end zones that carry each league's
+   colour. Every colour in the app resolves through one of these names; the
+   league palettes in leagues.css repaint only the end zones and the accent.
    ========================================================================== */
 
 :root {
   color-scheme: dark;
 
-  /* ground and surfaces: turf under floodlights ----------------------------
-     The ground is the stadium at night. Surfaces step up in three lifts so a
-     card, a row and a hover can each sit one step above what holds them. */
-  --ground: #04080a;
-  --ground-2: #0a1510;
-  --surface: #0c1712;
-  --surface-2: #101d17;
-  --surface-3: #15261e;
-  --line: #21332a;
-  --line-soft: #182720;
-  --line-strong: #2e4638;
+  /* turf ------------------------------------------------------------------
+     The field, mown in stripes. --turf-lit is the floodlit patch the week on
+     the clock stands in; --board is the chalkboard the drawer is drawn on. */
+  --turf: #0f4d2c;
+  --turf-2: #0d4527;
+  --turf-3: #115a33;
+  --turf-lit: #156a3c;
+  --board: #0a2f1c;
+  --board-2: #0c3822;
+  --ground: #08301b;
 
-  /* ink */
-  --ink: #eef4ef;
-  --ink-2: #a7b8ac;
-  --ink-3: #6b8072;
+  /* chalk -----------------------------------------------------------------
+     White chalk at four strengths. Lines are the same chalk, thinned. */
+  --chalk: #f3f7f1;
+  --chalk-2: rgb(243 247 241 / 78%);
+  --chalk-3: rgb(243 247 241 / 58%);
+  --chalk-4: rgb(243 247 241 / 38%);
+  --line: rgb(243 247 241 / 30%);
+  --line-soft: rgb(243 247 241 / 16%);
+  --line-strong: rgb(243 247 241 / 55%);
 
-  /* college accent: turf green, with a hotter lime partner for gradients */
-  --accent: #4be487;
-  --accent-2: #a6ff6a;
-  --accent-soft: #0e2a1a;
-  --accent-ink: #9cf3bd;
-  --on-accent: #03170b;
+  /* the flag ---------------------------------------------------------------
+     Penalty-flag yellow: the one action on the board, the ball, and the
+     coach's chalk. Nothing else is this colour. */
+  --flag: #ffe066;
+  --flag-2: #fff0a8;
+  --flag-soft: rgb(255 224 102 / 14%);
+  --on-flag: #0a3a20;
+  /* Ink on the flag for a moment, saying which way the season number went. */
+  --on-flag-rise: #1f6b3a;
+  --on-flag-fall: #b3261e;
 
-  /* confidence scale --------------------------------------------------------
+  /* paint ------------------------------------------------------------------
+     The end zones and the league's mark. College paints them the turf's own
+     dark green; leagues.css repaints the NFL navy and a losers pool burnt
+     orange. --paint-ink is chalk on that paint. */
+  --paint: #0a3a20;
+  --paint-2: #0c4325;
+  --paint-ink: #f3f7f1;
+  --paint-glow: rgb(243 247 241 / 10%);
+
+  /* coloured chalk: the confidence scale --------------------------------
      Fixed across leagues on purpose: a status colour that moved with the
-     league would be a status colour nobody could trust. */
-  --safe: #4fe38f;
-  --safe-bg: #0f2a1c;
-  --solid: #4fd3c4;
-  --solid-bg: #0e2825;
-  --thin: #f0a23a;
-  --thin-bg: #2e1d0b;
-  --close: #ff7f5a;
-  --close-bg: #341a12;
-  --danger: #ff5f5f;
-  --danger-bg: #331414;
+     league would be a status colour nobody could trust. Pastel, because it is
+     chalk on green, not ink on black. */
+  --safe: #a8ffc9;
+  --safe-bg: rgb(168 255 201 / 14%);
+  --solid: #9de9e0;
+  --solid-bg: rgb(157 233 224 / 14%);
+  --thin: #ffd27f;
+  --thin-bg: rgb(255 210 127 / 14%);
+  --close: #ffb39b;
+  --close-bg: rgb(255 179 155 / 14%);
+  --danger: #ff9b9b;
+  --danger-bg: rgb(255 155 155 / 16%);
 
-  --lock: #4be487;
-  --lock-bg: #0e2a1a;
+  /* a lock is chalk: solid, final */
+  --lock: #f3f7f1;
+  --lock-bg: rgb(243 247 241 / 12%);
 
-  /* The buy back sits outside both the confidence scale and the league accent,
-     so it can never be mistaken for a status or an action. */
-  --mulligan: #b89dff;
-  --mulligan-bg: #1e1735;
+  /* The buy back sits outside both the confidence scale and the flag, so it
+     can never be mistaken for a status or an action. */
+  --mulligan: #c9b6ff;
+  --mulligan-bg: rgb(201 182 255 / 14%);
 
-  /* The kinds of pool, as the home page tells them apart: the season's colour,
-     and amber for any pool that wants its picks to lose. These are the only
-     colours that do not follow the open league, because the home page is where
-     every league sits side by side. */
-  --kind-nfl: #63a5ff;
-  --kind-cfb: #4be487;
-  --kind-lose: #ffb02e;
+  /* The kinds of pool, as the home page tells them apart: each season's
+     paint, and burnt orange for any pool that wants its picks to lose. */
+  --kind-nfl: #7fa6ff;
+  --kind-cfb: #a8ffc9;
+  --kind-lose: #ffb05c;
 
   /* light -------------------------------------------------------------------
-     Glows are the accent at part strength; the sheen is the floodlight catching
-     the top edge of a surface; the stripes are the hazard tape of an end zone. */
-  --glow: color-mix(in srgb, var(--accent) 45%, transparent);
-  --glow-soft: color-mix(in srgb, var(--accent) 22%, transparent);
-  --sheen: linear-gradient(180deg, rgb(255 255 255 / 5%), transparent 38%);
-  --stripes: repeating-linear-gradient(135deg, rgb(255 255 255 / 3.5%) 0 6px, transparent 6px 14px);
-  --shadow: 0 1px 0 rgb(255 255 255 / 4%) inset, 0 14px 34px -18px rgb(0 0 0 / 85%);
-  --shadow-lift: 0 1px 0 rgb(255 255 255 / 6%) inset, 0 22px 44px -18px rgb(0 0 0 / 90%);
+     Floodlight from above, the end zone's hazard stripes, the shadow a panel
+     casts on the turf. */
+  --floodlight: radial-gradient(
+    ellipse 90% 40% at 50% -6%,
+    rgb(255 255 255 / 14%),
+    transparent 70%
+  );
+  --mow: repeating-linear-gradient(180deg, rgb(0 0 0 / 5%) 0 48px, transparent 48px 96px);
+  --stripes: repeating-linear-gradient(135deg, rgb(243 247 241 / 9%) 0 5px, transparent 5px 12px);
+  --shadow: 0 14px 34px -18px rgb(0 0 0 / 70%);
+  --shadow-lift: 0 24px 60px -20px rgb(0 0 0 / 85%);
 
   /* shape -------------------------------------------------------------------
-     Cut corners, top right and bottom left: the one diagonal every tag and
-     control shares, so the whole board leans the same way. clip-path clips a
-     box-shadow with it, so anything that needs a glow draws its fill on a
-     clipped pseudo-element and puts the glow on the element (see components). */
-  --cut: 8px;
-  --cut-sm: 5px;
-  --clip-cut: polygon(
-    0 0,
-    calc(100% - var(--cut)) 0,
-    100% var(--cut),
-    100% 100%,
-    var(--cut) 100%,
-    0 calc(100% - var(--cut))
-  );
-  --clip-cut-sm: polygon(
-    0 0,
-    calc(100% - var(--cut-sm)) 0,
-    100% var(--cut-sm),
-    100% 100%,
-    var(--cut-sm) 100%,
-    0 calc(100% - var(--cut-sm))
-  );
-  --radius: 8px;
+     Chalk lines are drawn, not extruded: small radii, dashed where something
+     is pencilled in, solid where it is painted. */
+  --radius: 6px;
   --radius-sm: 4px;
-  --radius-lg: 16px;
+  --radius-lg: 14px;
+  --dash: 1.5px dashed var(--line-strong);
 
   /* type */
-  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-display: "Big Shoulders Display", "Arial Narrow", "Barlow Condensed", sans-serif;
   --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
 

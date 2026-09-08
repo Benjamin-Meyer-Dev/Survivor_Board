@@ -35,10 +35,11 @@ import { codeFromHash, leagueHash, normaliseCode } from "./core/code.js";
 import { renderLeagueBar } from "./ui/league-bar.js";
 import { renderSettings } from "./ui/settings.js";
 import { renderHome, closeHomePanels } from "./ui/home.js";
-import { renderStrip } from "./ui/strip.js";
-import { renderWeekDeck } from "./ui/week-panel.js";
-import { renderLadder } from "./ui/ladder.js";
-import { renderBurnBoard } from "./ui/burn-board.js";
+import { renderPitch, markViewing } from "./ui/pitch.js";
+import { renderCall } from "./ui/call.js";
+import { renderSideline } from "./ui/sideline.js";
+import { renderDrive } from "./ui/drive.js";
+import { renderBench } from "./ui/bench.js";
 import { renderNotices } from "./ui/notices.js";
 import { renderTabs, initialTab } from "./ui/tabs.js";
 import { requireName } from "./ui/name.js";
@@ -53,11 +54,14 @@ const el = {
   startup: document.getElementById("startup"),
   startupStatus: document.getElementById("startup-status"),
   notices: document.getElementById("notices"),
-  strip: document.getElementById("strip"),
-  deck: document.getElementById("week-deck"),
-  ladder: document.querySelector("#ladder tbody"),
-  burn: document.getElementById("burn"),
-  burnLegend: document.getElementById("burn-legend"),
+  /** The readout: the field and drive line, then the week's call and its seam. */
+  pitch: document.getElementById("pitch"),
+  call: document.getElementById("call"),
+  /** The drawer's three panels. */
+  sideline: document.getElementById("sideline"),
+  drive: document.getElementById("drive"),
+  bench: document.getElementById("bench"),
+  benchLegend: document.getElementById("bench-legend"),
   tabs: document.getElementById("tabs"),
   league: document.getElementById("league"),
   settings: document.getElementById("settings"),
@@ -96,7 +100,10 @@ const app = {
   pool: null,
   entry: { picks: {}, swaps: {} },
   store: null,
+  /** The week being looked at: the call, the sideline and the drive follow it. */
   viewWeek: 1,
+  /** Which of that week's slots the sideline is filling. */
+  activeSlot: 0,
   activeTab: initialTab(),
   saveTimer: null,
   effect: null,
@@ -123,13 +130,16 @@ function playEffect() {
   app.effect = null;
   if (!effect) return null;
 
-  const slide = el.deck.querySelectorAll(".week-slide")[effect.week - 1];
-  if (!slide) return null;
-
+  // The call shows the week being looked at, which is the week that was tapped.
   const slots =
     effect.slot === null
-      ? [...slide.querySelectorAll(".slot")]
-      : [slide.querySelectorAll(".slot")[effect.slot]].filter(Boolean);
+      ? [...el.call.querySelectorAll(`.call__slot[data-week="${effect.week}"]`)]
+      : [
+          el.call.querySelector(
+            `.call__slot[data-week="${effect.week}"][data-slot="${effect.slot}"]`,
+          ),
+        ].filter(Boolean);
+  if (slots.length === 0) return null;
 
   for (const slot of slots) {
     slot.classList.add(effect.className);
@@ -335,34 +345,58 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
     onDeleteLeague: deleteCurrentLeague,
   });
   renderNotices(el.notices, { store: app.store, board, message: app.message });
-  renderStrip(el.strip, board);
+  renderPitch(el.pitch, board, app.viewWeek, { onWeekChange: lookAt });
+  renderSelection(board);
   renderTabs(el.tabs, app.activeTab, selectTab);
-  renderWeekDeck(el.deck, board, app.viewWeek, {
-    // Once the run is over the board is a review, and a review is read-only:
-    // nothing more can be picked or locked, whatever the store allows.
-    canWrite: app.store.canWrite && !board.eliminated,
-    // Swiping must not re-render - that would yank the track out from under
-    // the gesture. Just record where we are.
-    onWeekChange: (week) => {
-      app.viewWeek = week;
-    },
-    onAction: handleAction,
-  });
-  // Picking a row on the Full Path tab is a request to work on that week,
-  // so jump to the week view rather than leaving the user to switch tabs.
-  renderLadder(el.ladder, board, (week) => {
-    app.viewWeek = week;
-    app.activeTab = "week";
-    render();
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  });
-  renderBurnBoard(el.burn, el.burnLegend, board, app.teams);
+  renderBench(el.bench, el.benchLegend, board, app.teams);
   // The action's own feedback first, so the settle knows which slot to leave
   // to it.
   const effect = playEffect();
   playDataUpdates(previousMotion, effect);
 
   if (board.recommendationPending) scheduleRecommendation(settle);
+}
+
+/**
+ * The parts of the board that follow the week being looked at and the slot in
+ * hand: the call under the field, the sideline in the drawer, and the drive's
+ * bracket. Cheap enough to run on every step of a scrub along the field.
+ */
+function renderSelection(board) {
+  // Once the run is over the board is a review, and a review is read-only:
+  // nothing more can be picked or locked, whatever the store allows.
+  const canWrite = app.store.canWrite && !board.eliminated;
+  renderCall(el.call, board, app.viewWeek, app.activeSlot, {
+    canWrite,
+    onAction: handleAction,
+    onSlot: (slot) => {
+      if (slot === app.activeSlot) return;
+      app.activeSlot = slot;
+      if (lastBoard) renderSelection(lastBoard);
+    },
+  });
+  renderSideline(el.sideline, board, app.viewWeek, app.activeSlot, {
+    canWrite,
+    onAction: handleAction,
+  });
+  renderDrive(el.drive, board, app.viewWeek, lookAt);
+}
+
+/**
+ * Look at a week, from a tap on the field or a row of the drive. Only the
+ * parts that follow the week are redrawn: the field moves its own bracket
+ * (pitch.js) rather than being rebuilt under a finger that is still on it,
+ * and the board itself is not rebuilt, so a scrub costs a few milliseconds a
+ * step and never runs the optimiser.
+ */
+function lookAt(week) {
+  if (week === app.viewWeek) return;
+  app.viewWeek = week;
+  app.activeSlot = 0;
+  if (lastBoard) renderSelection(lastBoard);
+  // A change from the drive has to reach the field too; from the field this
+  // is a no-op, since the pitch has already moved the bracket.
+  markViewing(el.pitch, week);
 }
 
 /**
@@ -650,9 +684,10 @@ function applyRules(rules) {
     next.rules = stored;
   }
   app.entry = next;
-  // A week can lose the slot it was being viewed through, and an empty deck
-  // page is not a place to be left standing.
+  // A week can lose the slot the sideline was filling, and a week the season
+  // no longer has is not a place to be left looking at.
   app.viewWeek = Math.min(app.viewWeek, app.plan.weeks.length);
+  app.activeSlot = 0;
 
   clearTimeout(app.recommendTimer);
   app.recommendTimer = null;
@@ -823,6 +858,7 @@ async function openLeague(league, wanted = null) {
   app.availability = availability;
   app.pool = pool;
   app.viewWeek = Math.min(Math.max(odds.currentWeek ?? 1, 1), plan.weeks.length);
+  app.activeSlot = 0;
 
   document.title = titleFor(app.league, kind);
 

@@ -110,6 +110,13 @@ function homeMarkup({ name, leagues, shared, loading, message }) {
     <section class="home">
       <header class="home__head">
         <div>
+          <h1 class="home__brand">
+            <svg viewBox="0 0 34 21" aria-hidden="true">
+              <ellipse cx="17" cy="10.5" rx="15.6" ry="9.2" fill="none" stroke="currentColor" stroke-width="2.1" />
+              <path d="M11.6 10.5h10.8M14 7.6v5.8M17 7.1v6.8M20 7.6v5.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+            </svg>
+            Survivor <span>Board</span>
+          </h1>
           <p class="u-eyebrow home__eyebrow">Your leagues</p>
           <h2 class="home__title">${escapeHtml(name || "Survivor Board")}</h2>
         </div>

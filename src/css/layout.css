@@ -1,191 +1,173 @@
 /* ==========================================================================
-   Page shell: wrapper, masthead, league bar, section rhythm.
-   Components own their internals; this file owns the space between them.
+   Page shell: the two screens and the split the board is built on.
+
+   The board is a split screen held in one hand. The readout - the field, the
+   drive line and the week's call - sits fixed at the top; the drawer fills
+   whatever is left and scrolls on its own, so the controls stay in the thumb
+   zone and nothing important ever sits under the keyboard. The home page is
+   an ordinary scrolling page. Components own their internals; this file owns
+   the space between them.
    ========================================================================== */
 
 .shell {
-  /* The page gutter: the spacing token, or the notch if that is wider. On a
-     phone the tab card pulls itself out by --gutter-base (see the phone block
-     in components.css), so it reaches the screen edge on every upright phone
-     and still stops short of a notch in landscape. */
-  --gutter-base: var(--sp-6);
-  --gutter: max(var(--gutter-base), env(safe-area-inset-left));
-  max-width: 1180px;
+  /* The page gutter: the spacing token, or the notch if that is wider. */
+  --gutter: max(var(--sp-4), env(safe-area-inset-left));
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+/* On the board the shell is the viewport and nothing under it scrolls; the
+   drawer does. The home page keeps the document's own scroll. */
+.shell:has(#board:not([hidden])) {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* home ---------------------------------------------------------------------- */
+
+#home {
+  padding: calc(var(--sp-4) + env(safe-area-inset-top)) var(--gutter)
+    calc(var(--sp-6) + env(safe-area-inset-bottom));
+  max-width: 1100px;
+  width: 100%;
   margin: 0 auto;
-  /* No top padding: the masthead carries it, so the clearance holds while the
-     masthead is pinned (see below). */
-  padding: 0 var(--gutter) calc(var(--sp-6) + env(safe-area-inset-bottom));
 }
 
-/* masthead --------------------------------------------------------------- */
-
-/* Pinned to the top of the viewport, so the wordmark stays put while the board
-   scrolls under it. It bleeds over the gutters, because on a phone the tab card
-   runs edge to edge and would otherwise show beside it as it passed underneath.
-   Glass rather than solid: the field shows through it, dimmed. */
-.masthead {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-inline: calc(-1 * var(--gutter));
-  padding: calc(18px + env(safe-area-inset-top)) var(--gutter) 0;
-  margin-bottom: var(--sp-5);
-  background: color-mix(in srgb, var(--ground) 78%, transparent);
-  -webkit-backdrop-filter: blur(16px) saturate(1.3);
-  backdrop-filter: blur(16px) saturate(1.3);
-}
-
-.masthead__brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.masthead__title {
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-style: italic;
-  font-size: 38px;
-  line-height: 0.9;
-  letter-spacing: -0.01em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-/* league bar ------------------------------------------------------------- */
-
-/* The open league, under the masthead: the way back to every league, its name
-   and which of its pools the board is showing, and the gear for its settings.
-   Two rows on a phone - the way back and the gear, then the league - and one
-   row once there is room. Hidden on the home page, where there is no board for
-   it to be about; said with a rule because the display here would otherwise
-   beat the attribute. */
-.league-bar {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-areas:
-    "back gear"
-    "league league";
-  align-items: center;
-  gap: 14px 10px;
-  margin-bottom: var(--sp-5);
-}
-
-.league-bar[hidden] {
+#home[hidden] {
   display: none;
 }
 
-/* The bar's pieces are rendered into a holder that must not become a grid
-   item of its own. */
-.league-bar__holder {
-  display: contents;
-}
+/* board --------------------------------------------------------------------- */
 
-.league-bar__back {
-  grid-area: back;
-  justify-self: start;
-}
-
-.league-bar__league {
-  grid-area: league;
-}
-
-.league-bar__gear {
-  grid-area: gear;
-  justify-self: end;
-}
-
-@media (min-width: 661px) {
-  .league-bar {
-    grid-template-columns: auto 1fr auto;
-    grid-template-areas: "back league gear";
-  }
-}
-
-/* sections --------------------------------------------------------------- */
-
-.section {
-  margin-bottom: var(--sp-6);
-}
-
-/* Nothing follows the last block, so its trailing margin is dead space. */
-.shell > *:last-child,
-.section:last-child {
-  margin-bottom: 0;
-}
-
-.section__head {
+.board {
+  flex: 1;
   display: flex;
-  align-items: baseline;
-  gap: 12px;
-  margin-bottom: var(--sp-3);
+  flex-direction: column;
+  min-height: 0;
+  /* A phone shorter than the readout still gets at the drawer: the board
+     scrolls as a whole rather than pinching the drawer to nothing. */
+  overflow-y: auto;
 }
 
-.section__head h2 {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 20px;
-  text-transform: uppercase;
+.board[hidden] {
+  display: none;
 }
 
-.section__head p {
-  margin: 0;
-  font-size: 12.5px;
-  color: var(--ink-3);
+/* The topline: the way back, the league and its pool, the gear. One row. */
+.topline {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: calc(10px + env(safe-area-inset-top)) var(--gutter) 0;
 }
 
-/* phone ------------------------------------------------------------------ */
+.topline__league {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
 
-@media (max-width: 660px) {
-  /* A narrower gutter gives the masthead and the strip a little more room;
-     the tab card below gives the whole gutter back to the slots. */
+.topline__gear {
+  flex: none;
+}
+
+.notices {
+  flex: none;
+}
+
+/* Banners keep the gutter; the readout and the drawer set their own. */
+.notices > * {
+  margin: 10px var(--gutter) 0;
+}
+
+/* The readout: the field across the top, the drive line, the call. */
+.readout {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px var(--gutter) 0;
+}
+
+/* The drawer fills the rest and scrolls inside itself. */
+.drawer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+  margin-top: 12px;
+}
+
+.drawer__panels {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.drawer__panel {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 var(--gutter) calc(var(--sp-4) + env(safe-area-inset-bottom));
+}
+
+.drawer__panel[hidden] {
+  display: none;
+}
+
+/* wide ----------------------------------------------------------------------- */
+
+/* The desktop follows the phone: the same field across the top, the call and
+   its actions in one row under it, and the drawer's three panels open side by
+   side rather than behind tabs. */
+@media (min-width: 900px) {
   .shell {
-    --gutter-base: var(--sp-4);
+    --gutter: var(--sp-6);
   }
 
-  .masthead {
-    padding-top: calc(var(--sp-4) + env(safe-area-inset-top));
-    margin-bottom: var(--sp-4);
-    gap: 9px;
+  .topline,
+  .readout,
+  .notices > * {
+    max-width: 1240px;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
   }
 
-  .masthead__title {
-    font-size: 26px;
+  .drawer {
+    margin-top: 14px;
   }
 
-  .section__head h2 {
-    font-size: 22px;
+  .drawer__tabs {
+    display: none;
   }
 
-  .section__head p {
-    font-size: 14px;
+  .drawer__panels {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 3fr);
+    gap: 14px;
+    max-width: 1240px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 var(--gutter) calc(var(--sp-5) + env(safe-area-inset-bottom));
+    min-height: 0;
   }
 
-  .section__head {
+  /* Every panel shows at once, whatever the tab machinery left hidden. */
+  .drawer__panel,
+  .drawer__panel[hidden] {
+    display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-  }
-}
-
-@media (max-width: 380px) {
-  .masthead {
-    gap: 7px;
-  }
-
-  .masthead__title {
-    font-size: 23px;
-  }
-
-  /* Thumb-sized on a phone. */
-  .league-bar__back,
-  .league-bar__select {
-    min-height: 44px;
+    padding: 0;
+    height: auto;
+    min-height: 0;
   }
 }
