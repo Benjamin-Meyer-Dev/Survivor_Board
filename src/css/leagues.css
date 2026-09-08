@@ -1,9 +1,13 @@
 /* ===========================================================================
    League palettes.
 
-   Both leagues use the permanent dark stadium theme. NCAA carries a green
-   field palette from tokens.css; NFL replaces it with a cool primetime blue.
-   Confidence colors do not change between leagues.
+   Every league uses the permanent dark stadium theme. The palette follows two
+   attributes on the root element: the season it plays (data-league, from
+   src/js/sports.js) and what its picks have to do (data-objective). College
+   carries the green field palette from tokens.css, the NFL a cool primetime
+   blue, and any league picking losers takes a warm amber over its season's own
+   surfaces - two leagues on one schedule wanting opposite results should not
+   look the same. Confidence colors do not change between leagues.
    ========================================================================== */
 
 /* --- NFL: primetime blue ------------------------------------------------ */
@@ -41,62 +45,50 @@
   --endzone: rgb(147 180 240 / 10%);
 }
 
+/* --- picking losers: spoiler amber -------------------------------------- */
+
+/* A league whose picks have to lose, on whichever season it plays. The
+   surfaces are the season's own, because it is the same games under the same
+   lights; the accent turns warm, because what this league wants is the upset -
+   and because two leagues on one schedule wanting opposite results must not
+   look identical on the same phone. */
+:root[data-objective="lose"] {
+  /* Accents only. The ground, the surfaces and the ink stay the season's, so a
+     college losers league is still played on green and an NFL one still under
+     the blue-black dome - what changes is every mark the board makes on top of
+     them, which is the half a glance actually lands on. */
+  --accent: #e9a24e;
+  --accent-soft: #2c1e12;
+  --accent-ink: #f3bd7a;
+  --on-accent: #1b1105;
+
+  --lock: #e9a24e;
+  --lock-bg: #2c1e12;
+
+  /* Cool against the amber, as the magenta is against the blue. */
+  --mulligan: #8fd0d8;
+  --mulligan-bg: #13262a;
+
+  /* field.css: the turf keeps its own light, the markings take the accent. */
+  --mow: rgb(233 162 78 / 2.6%);
+  --endzone: rgb(233 162 78 / 10%);
+}
+
 /* --- league switch ------------------------------------------------------ */
 
-/* Each half keeps its identity even while inactive. */
-:root {
-  --switch-nfl: #93b4f0;
-  --switch-nfl-ink: #0a1122;
-  --switch-cfb: #65cf8b;
-  --switch-cfb-ink: #07150d;
-}
-
-.league__btn[data-league="nfl"] {
-  color: var(--switch-nfl);
-}
-
-.league__btn[data-league="cfb"] {
-  color: var(--switch-cfb);
-}
-
-:root[data-league="nfl"] .league__marker {
-  background: var(--switch-nfl);
-}
-
-:root[data-league="cfb"] .league__marker {
-  background: var(--switch-cfb);
-}
-
-.league__btn[data-league="nfl"][aria-pressed="true"] {
-  color: var(--switch-nfl-ink);
-}
-
-.league__btn[data-league="cfb"][aria-pressed="true"] {
-  color: var(--switch-cfb-ink);
-}
-
-.league__btn[data-league="nfl"]:focus-visible {
-  outline-color: var(--switch-nfl);
-}
-
-.league__btn[data-league="cfb"]:focus-visible {
-  outline-color: var(--switch-cfb);
-}
-
-/* Every board token changes with the league, and the board is faded out while
-   that happens. The masthead stays visible, so its colours cross-fade. */
-.league__marker {
-  transition:
-    transform 0.26s var(--ease-snap, ease-out),
-    background-color 0.26s ease;
-}
-
+/* The pill takes the open pool's accent, which every palette above sets, so
+   the switch needs no per-league rule of its own any more. Only the crossfade
+   is left: every board token changes with the league and the board is faded
+   out while it happens, but the masthead stays visible, so its colours have to
+   travel rather than jump. */
 body,
 .league,
-.league__btn,
+.league__select,
+.league__chevron,
 .masthead::after {
   transition:
     background-color 0.3s ease,
     border-color 0.3s ease,
+    stroke 0.3s ease,
     color 0.3s ease;
 }

@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 import { pullEfficiency } from "./lib/stats.mjs";
-import { LEAGUE_IDS, LEAGUES } from "../src/js/leagues.js";
+import { SPORTS, SPORT_IDS } from "../src/js/sports.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -70,22 +70,23 @@ const invokedByPath =
 
 if (invokedDirectly || invokedByPath) {
   const named = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
-  const leagues = named.length ? named : LEAGUE_IDS;
+  const leagues = named.length ? named : SPORT_IDS;
   let failed = false;
   for (const league of leagues) {
-    if (!LEAGUES[league]) {
+    if (!SPORTS[league]) {
       console.error(`Unknown league "${league}".`);
       failed = true;
       continue;
     }
+
     try {
       const result = await pullStatsForLeague(league);
       console.log(
-        `${LEAGUES[league].label}: ${result.reason}${result.written ? " - wrote stats.json" : " - nothing written"}`,
+        `${SPORTS[league].label}: ${result.reason}${result.written ? " - wrote stats.json" : " - nothing written"}`,
       );
     } catch (error) {
       failed = true;
-      console.error(`${LEAGUES[league].label} stats pull failed: ${error.message}`);
+      console.error(`${SPORTS[league].label} stats pull failed: ${error.message}`);
     }
   }
   if (failed) process.exit(1);

@@ -33,7 +33,7 @@ import {
   logit,
   expit,
 } from "../src/js/core/probability.js";
-import { LEAGUE_IDS } from "../src/js/leagues.js";
+import { SPORT_IDS } from "../src/js/sports.js";
 
 const close = (a, b, tolerance, message) =>
   assert.ok(Math.abs(a - b) <= tolerance, `${message}: ${a} vs ${b}`);
@@ -375,7 +375,7 @@ function syntheticGames(count, sigmaOf, { moneylineNoise = null } = {}) {
 
 // Each league's history file, when present, is a real archive: thousands of
 // games, spreads that predict margins, and a model that beats the old curve.
-for (const league of LEAGUE_IDS) {
+for (const league of SPORT_IDS) {
   let history = null;
   try {
     history = JSON.parse(

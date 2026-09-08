@@ -2,10 +2,18 @@
 /**
  * Author a league's plan.json from its schedule and ratings.
  *
- * The college plan was written by hand and then improved on; the NFL plan has
- * no hand-authored ancestor, so it is seeded straight from the optimiser. Run
- * once to create the file, and again only for a deliberate re-plan: the refresh
- * workflow never touches plan.json.
+ * The college plan was written by hand and then improved on; the two NFL plans
+ * have no hand-authored ancestor, so they are seeded straight from the
+ * optimiser. Run once to create the file, and again only for a deliberate
+ * re-plan: the refresh workflow never touches plan.json.
+ *
+ * A pool's objective decides what the path looks for. The losers pool is
+ * priced at the chance each team loses (see core/objective.js), so the same
+ * optimiser that hunts favourites for one pool hunts underdogs for the other
+ * without knowing that is what it is doing.
+ *
+ * The plan is the season's own file, beside the schedule and ratings it is
+ * seeded from, under data/<sport>/.
  *
  * Usage: node scripts/seed-plan.mjs nfl
  */
@@ -14,20 +22,23 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-import { LEAGUES } from "../src/js/leagues.js";
+import { SPORTS } from "../src/js/sports.js";
 import { recommendPath } from "../src/js/core/recommend.js";
 import { winProbFromSpread, projectSpread, resolveModel } from "../src/js/core/probability.js";
+import { objectiveOf, advanceProb, bySpread } from "../src/js/core/objective.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const league = process.argv[2];
-const config = LEAGUES[league];
+const config = SPORTS[league];
 if (!config) {
-  console.error(`Unknown league "${league}". Known: ${Object.keys(LEAGUES).join(", ")}`);
+  console.error(`Unknown league "${league}". Known: ${Object.keys(SPORTS).join(", ")}`);
   process.exit(1);
 }
 
 const read = async (name) => JSON.parse(await readFile(join(ROOT, "data", league, name), "utf8"));
+
+const objective = objectiveOf(config.rules);
 
 const [schedule, ratings, teams, calibration] = await Promise.all([
   read("schedule.json"),
@@ -75,12 +86,14 @@ function optionsFor(week) {
         spread,
         source: "projected",
         weeksAhead: week,
-        winProb: winProbFromSpread(spread, model, { weeksAhead: week }),
+        // The chance the pick carries the week, which is the chance the team
+        // loses in a losers pool. The optimiser reads nothing else.
+        winProb: advanceProb(winProbFromSpread(spread, model, { weeksAhead: week }), objective),
       });
     }
   }
 
-  return out.sort((a, b) => a.spread - b.spread);
+  return out.sort(bySpread(objective));
 }
 
 const weekNumbers = Object.keys(schedule.weeks)
@@ -96,6 +109,7 @@ const result = recommendPath({
   buyBackWeeks: config.rules.buyBackWeeks,
   buyBacks: config.rules.buyBacks,
   model,
+  objective,
 });
 
 const plan = {
@@ -159,9 +173,12 @@ function dateFor(week, { firstKickoff }) {
 
 function rationale(option, week, config) {
   const where = option.site === "Home" ? "at home" : option.site === "Neutral" ? "neutral" : "away";
-  const line = `${option.spread.toFixed(1)} ${where} against ${option.opponent}`;
+  const sign = option.spread > 0 ? "+" : "";
+  const line = `${sign}${option.spread.toFixed(1)} ${where} against ${option.opponent}`;
+  const read =
+    objectiveOf(config.rules) === "lose" ? `${line}, and the pick is that they lose it` : `${line}`;
   if (config.rules.buyBackWeeks.includes(week)) {
-    return `${line}. Week ${week} is covered by the buy back, so the path can afford this one.`;
+    return `${read}. Week ${week} is covered by the buy back, so the path can afford this one.`;
   }
-  return `${line}.`;
+  return `${read}.`;
 }

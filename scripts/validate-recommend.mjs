@@ -18,7 +18,7 @@ import { assignPath, maximumAssignment, FORBIDDEN } from "../src/js/core/assignm
 import { survival } from "../src/js/core/survival.js";
 import { buildBoard } from "../src/js/core/plan.js";
 import { CONFIG } from "../src/js/config.js";
-import { LEAGUE_IDS } from "../src/js/leagues.js";
+import { SPORT_IDS } from "../src/js/sports.js";
 
 const close = (a, b, tolerance, message) =>
   assert.ok(Math.abs(a - b) <= tolerance, `${message}: ${a} vs ${b}`);
@@ -287,10 +287,11 @@ function bruteForce(weeks, { picksPerWeek, buyBackWeeks, buyBacks }) {
 }
 
 // ---------------------------------------------------------------------------
-// Both real boards.
+// Every real board, including the losers pool, which reaches the optimiser as
+// probabilities already turned the right way round (core/objective.js).
 // ---------------------------------------------------------------------------
 
-for (const league of LEAGUE_IDS) {
+for (const league of SPORT_IDS) {
   const read = async (name) =>
     JSON.parse(await readFile(new URL(`../data/${league}/${name}`, import.meta.url), "utf8"));
   const optional = (name) => read(name).catch(() => null);
@@ -408,5 +409,5 @@ for (const league of LEAGUE_IDS) {
 console.log(
   "Recommend OK: the optimum on an enumerable league with and without a buy back, one side of a " +
     "game only, locks honoured, continuation weights exact, the assignment solver against brute " +
-    "force, and on both boards a deterministic frontier whose call is the path shown.",
+    "force, and on every board a deterministic frontier whose call is the path shown.",
 );

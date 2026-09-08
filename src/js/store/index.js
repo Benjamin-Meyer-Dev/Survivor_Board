@@ -14,17 +14,18 @@ import { createSupabaseStore } from "./supabase.js";
 import { createLocalStore } from "./local.js";
 
 /**
- * @param {string} league Which pool's entry to open. Each league has its own
- *   document, row and storage key, so switching never mixes the two boards.
+ * @param {string} code Which league's shared state to open. Every league has
+ *   its own document, row and storage key, keyed by its code, so opening one
+ *   never mixes it with another.
  */
-export async function createStore(league) {
+export async function createStore(code) {
   for (const create of [createArtifactStore, createSupabaseStore]) {
     try {
-      const store = await create(league);
+      const store = await create(code);
       if (store) return store;
     } catch {
       /* try the next one */
     }
   }
-  return createLocalStore(league);
+  return createLocalStore(code);
 }

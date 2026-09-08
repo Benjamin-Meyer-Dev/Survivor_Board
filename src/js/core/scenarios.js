@@ -19,6 +19,7 @@
  */
 
 import { horizonVariance, winProbFromSpread } from "./probability.js";
+import { advanceProb } from "./objective.js";
 
 /**
  * How many weeks ahead a future realises the lines for. One: the week after
@@ -90,10 +91,20 @@ export function gaussianFrom(random) {
  * @param {object} args.model From resolveModel().
  * @param {() => number} args.random A seeded uniform generator.
  * @param {number} [args.foresight] Weeks ahead whose lines the future realises.
+ * @param {"win"|"lose"} [args.objective] What a pick has to do. A drawn spread
+ *   is re-priced into the team's chance of winning, so a losers pool takes the
+ *   other side of it - the same turn core/plan.js does when the option is
+ *   first priced (see core/objective.js).
  * @returns {Array<{week:number, options:Array<object>}>} The same shape, with
  *   `winProb` replaced by the scenario's and `spread` by the drawn spread.
  */
-export function perturbWeeks({ weeks, model, random, foresight = FORESIGHT_WEEKS }) {
+export function perturbWeeks({
+  weeks,
+  model,
+  random,
+  foresight = FORESIGHT_WEEKS,
+  objective = "win",
+}) {
   const gaussian = gaussianFrom(random);
   const teamDraw = new Map();
   const drawFor = (team) => {
@@ -128,7 +139,10 @@ export function perturbWeeks({ weeks, model, random, foresight = FORESIGHT_WEEKS
       return {
         ...option,
         spread,
-        winProb: winProbFromSpread(spread, model, { total: option.total ?? null }),
+        winProb: advanceProb(
+          winProbFromSpread(spread, model, { total: option.total ?? null }),
+          objective,
+        ),
       };
     });
     return { ...week, options };
@@ -140,11 +154,18 @@ export function perturbWeeks({ weeks, model, random, foresight = FORESIGHT_WEEKS
  * pick is judged against the same set of them (common random numbers keep
  * the comparison between candidates far steadier than the futures themselves).
  */
-export function scenarioSet({ weeks, model, count, seed = 20260904, foresight = FORESIGHT_WEEKS }) {
+export function scenarioSet({
+  weeks,
+  model,
+  count,
+  seed = 20260904,
+  foresight = FORESIGHT_WEEKS,
+  objective = "win",
+}) {
   const scenarios = [];
   for (let index = 0; index < count; index += 1) {
     const random = seededRandom(seed + index * 7919);
-    scenarios.push(perturbWeeks({ weeks, model, random, foresight }));
+    scenarios.push(perturbWeeks({ weeks, model, random, foresight, objective }));
   }
   return scenarios;
 }

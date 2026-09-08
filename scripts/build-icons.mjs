@@ -5,8 +5,8 @@
  *
  * The scene is the app's own. The tile is the ground colour the board sits on
  * (manifest theme_color), lit from above in the accent blue the startup and
- * passcode screens use; below the ball a chalked field recedes to a horizon,
- * marked the way the passcode stadium is; and the dashed route of the startup
+ * start screens use; below the ball a chalked field recedes to a horizon,
+ * marked the way the start screen's stadium is; and the dashed route of the startup
  * throw trails in behind the ball from the lower left. The ball is the startup
  * scene's path from index.html, unchanged in shape, drawn here as leather with
  * a sheen, stripes and laces, with the field's blue catching its underside.

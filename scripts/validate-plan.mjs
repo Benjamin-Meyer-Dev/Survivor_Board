@@ -17,18 +17,19 @@ import { dirname, join } from "node:path";
 
 import { CONFIG } from "../src/js/config.js";
 import { buildBoard } from "../src/js/core/plan.js";
-import { LEAGUE_IDS, LEAGUES } from "../src/js/leagues.js";
+import { SPORTS, SPORT_IDS } from "../src/js/sports.js";
+import { objectiveOf } from "../src/js/core/objective.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 let failed = false;
 
-for (const league of LEAGUE_IDS) {
+for (const league of SPORT_IDS) {
   const failures = await validate(league);
 
   if (failures.length) {
     failed = true;
-    console.error(`\n${LEAGUES[league].label} plan validation failed:\n`);
+    console.error(`\n${SPORTS[league].label} plan validation failed:\n`);
     for (const failure of failures) console.error(`  - ${failure}`);
   }
 }
@@ -36,6 +37,7 @@ for (const league of LEAGUE_IDS) {
 if (failed) process.exit(1);
 
 async function validate(league) {
+  // A season's plan, beside the schedule and ratings it is checked against.
   const read = async (name) => JSON.parse(await readFile(join(ROOT, "data", league, name), "utf8"));
 
   const [plan, teams, odds, schedule, ratings] = await Promise.all([
@@ -50,6 +52,7 @@ async function validate(league) {
     Object.values(teams.conferences).flatMap((roster) => Object.keys(roster)),
   );
   const scale = teams.ratingSource ?? "power";
+  const objective = objectiveOf(plan.rules);
   const failures = [];
 
   if (plan.weeks.length !== plan.rules.weeks) {
@@ -88,8 +91,15 @@ async function validate(league) {
       }
       spent.set(pick.team, week.week);
 
-      if (pick.spread >= 0) {
-        failures.push(`week ${week.week}: "${pick.team}" is not favoured (${pick.spread})`);
+      // A winners plan may only name favourites, a losers plan only
+      // underdogs. Either way a pick'em is not a pick: it is the one spread
+      // that says nothing about which way the game goes.
+      if (objective === "lose" ? pick.spread <= 0 : pick.spread >= 0) {
+        failures.push(
+          objective === "lose"
+            ? `week ${week.week}: "${pick.team}" is not an underdog (${pick.spread})`
+            : `week ${week.week}: "${pick.team}" is not favoured (${pick.spread})`,
+        );
       }
     }
 
@@ -182,7 +192,7 @@ async function validate(league) {
 
   if (failures.length === 0) {
     console.log(
-      `${LEAGUES[league].label} plan OK: ${plan.weeks.length} weeks, ` +
+      `${SPORTS[league].label} plan OK: ${plan.weeks.length} weeks, ` +
         `${spent.size} distinct teams, no repeats.`,
     );
   }

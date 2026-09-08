@@ -60,8 +60,8 @@
       <p class="startup__status" id="startup-status">Drawing up the game plan…</p>
     </div>
 
-    <!-- Passcode screen, once per device. app.js fills it and clears it. -->
-    <div class="gate" id="gate" hidden></div>
+    <!-- Start screen: the name, once per device. app.js fills it and clears it. -->
+    <div class="gate" id="start" hidden></div>
 
     <main class="shell">
       <header class="masthead">
@@ -85,70 +85,84 @@
           </svg>
           <h1 class="masthead__title">Survivor Board</h1>
         </div>
-        <div id="league"></div>
+        <!-- The pool picker and the rules that pool runs on, together at
+             the right of the masthead: what board this is, and what its board
+             does. Wrapped so they travel as one when the masthead wraps. -->
+        <div class="masthead__tools">
+          <div id="league"></div>
+          <div id="settings"></div>
+        </div>
       </header>
 
       <div id="notices"></div>
 
-      <div class="strip" id="strip"></div>
+      <!-- The home page: this device's leagues, and where they are made,
+           joined and shared. app.js shows one of these two at a time, so the
+           board keeps its markup - and the week it was scrolled to - while the
+           home page is up. -->
+      <div id="home" hidden></div>
 
-      <div class="tabs" role="tablist" aria-label="Board views" id="tabs"></div>
+      <div id="board">
+        <div class="strip" id="strip"></div>
 
-      <!-- The three panels share one box so a tab change can cross-fade over
+        <div class="tabs" role="tablist" aria-label="Board views" id="tabs"></div>
+
+        <!-- The three panels share one box so a tab change can cross-fade over
            an animated height instead of the page jumping. -->
-      <div class="views" id="views">
-        <section
-          class="view"
-          id="view-week"
-          role="tabpanel"
-          aria-labelledby="tab-week"
-          tabindex="0"
-        >
-          <div id="week-deck"></div>
-        </section>
+        <div class="views" id="views">
+          <section
+            class="view"
+            id="view-week"
+            role="tabpanel"
+            aria-labelledby="tab-week"
+            tabindex="0"
+          >
+            <div id="week-deck"></div>
+          </section>
 
-        <section
-          class="view"
-          id="view-path"
-          role="tabpanel"
-          aria-labelledby="tab-path"
-          tabindex="0"
-          hidden
-        >
-          <div class="table-scroll">
-            <table class="ladder" id="ladder">
-              <thead>
-                <tr>
-                  <th scope="col" class="ladder__sticky ladder__sticky--week">Wk</th>
-                  <th scope="col" class="is-wide-only">Date</th>
-                  <th scope="col" class="ladder__sticky ladder__sticky--pick">Pick</th>
-                  <th scope="col" class="is-wide-only">Opponent</th>
-                  <th scope="col" class="is-wide-only">Site</th>
-                  <th scope="col">Spread</th>
-                  <th scope="col" class="is-wide-only">Line</th>
-                  <th scope="col">Win</th>
-                  <th scope="col" class="is-wide-only" data-week-probability>Week</th>
-                  <th scope="col" title="Chance of surviving through this week">Season</th>
-                  <th scope="col">Status</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </section>
+          <section
+            class="view"
+            id="view-path"
+            role="tabpanel"
+            aria-labelledby="tab-path"
+            tabindex="0"
+            hidden
+          >
+            <div class="table-scroll">
+              <table class="ladder" id="ladder">
+                <thead>
+                  <tr>
+                    <th scope="col" class="ladder__sticky ladder__sticky--week">Wk</th>
+                    <th scope="col" class="is-wide-only">Date</th>
+                    <th scope="col" class="ladder__sticky ladder__sticky--pick">Pick</th>
+                    <th scope="col" class="is-wide-only">Opponent</th>
+                    <th scope="col" class="is-wide-only">Site</th>
+                    <th scope="col">Spread</th>
+                    <th scope="col" class="is-wide-only">Line</th>
+                    <th scope="col">Win</th>
+                    <th scope="col" class="is-wide-only" data-week-probability>Week</th>
+                    <th scope="col" title="Chance of surviving through this week">Season</th>
+                    <th scope="col">Status</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
 
-        <section
-          class="view"
-          id="view-burn"
-          role="tabpanel"
-          aria-labelledby="tab-burn"
-          tabindex="0"
-          hidden
-        >
-          <div class="burn" id="burn"></div>
-          <!-- Key to the marks above, filled by burn-board.js. -->
-          <footer class="legend" id="burn-legend"></footer>
-        </section>
+          <section
+            class="view"
+            id="view-burn"
+            role="tabpanel"
+            aria-labelledby="tab-burn"
+            tabindex="0"
+            hidden
+          >
+            <div class="burn" id="burn"></div>
+            <!-- Key to the marks above, filled by burn-board.js. -->
+            <footer class="legend" id="burn-legend"></footer>
+          </section>
+        </div>
       </div>
     </main>
 

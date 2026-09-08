@@ -18,20 +18,21 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 import { backtest } from "./lib/backtest.mjs";
-import { LEAGUE_IDS, LEAGUES } from "../src/js/leagues.js";
+import { SPORTS, SPORT_IDS } from "../src/js/sports.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const named = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
-const leagues = named.length ? named : LEAGUE_IDS;
+const leagues = named.length ? named : SPORT_IDS;
 
 let failed = false;
 for (const league of leagues) {
-  if (!LEAGUES[league]) {
+  if (!SPORTS[league]) {
     console.error(`Unknown league "${league}".`);
     failed = true;
     continue;
   }
+
   try {
     await report(league);
   } catch (error) {
@@ -65,7 +66,7 @@ async function report(league) {
 
   const result = backtest({ snapshots, odds, schedule, ratings, stats, calibration });
 
-  console.log(`\n=== ${LEAGUES[league].label} === (${result.snapshots} snapshot(s))`);
+  console.log(`\n=== ${SPORTS[league].label} === (${result.snapshots} snapshot(s))`);
 
   console.log(`\nWin probabilities on ${result.lines.n} decided line(s):`);
   if (result.lines.n === 0) {

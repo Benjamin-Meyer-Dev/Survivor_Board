@@ -21,7 +21,7 @@ import { fitForm, holdoutError, marketError, observationsFrom } from "./lib/rate
 import { buildBoard, lineKey } from "../src/js/core/plan.js";
 import { projectSpread } from "../src/js/core/probability.js";
 import { CONFIG } from "../src/js/config.js";
-import { LEAGUE_IDS } from "../src/js/leagues.js";
+import { SPORT_IDS } from "../src/js/sports.js";
 
 // ---------------------------------------------------------------------------
 // A synthetic league with known answers.
@@ -274,7 +274,7 @@ assert.ok(
 // Both real leagues.
 // ---------------------------------------------------------------------------
 
-for (const league of LEAGUE_IDS) {
+for (const league of SPORT_IDS) {
   const read = async (name) =>
     JSON.parse(await readFile(new URL(`../data/${league}/${name}`, import.meta.url), "utf8"));
   const [plan, odds, teams, schedule, ratings] = await Promise.all(

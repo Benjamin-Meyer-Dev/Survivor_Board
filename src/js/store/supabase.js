@@ -1,9 +1,11 @@
 /**
  * Shared store backed by Supabase.
  *
- * One row in `entries` holds the whole pool entry as JSON. Realtime pushes
- * the row to every open device on change, which is what makes two phones
- * stay in sync. See supabase/schema.sql for the table and its RLS policy.
+ * One row in `leagues` holds a league's whole shared state as JSON - its
+ * picks, its locks, its rules and its members - keyed by the league's code.
+ * Realtime pushes the row to every open device on change, which is what makes
+ * everyone in a league see the same board. See supabase/schema.sql for the
+ * table and its policies, and for what a code does and does not protect.
  *
  * The client library is loaded from the CDN on demand so the app has no
  * build step and no npm dependency at runtime.
@@ -30,8 +32,7 @@
 
 import { CONFIG, scopeFor } from "../config.js";
 import { emptyEntry } from "../core/plan.js";
-
-const CDN = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
+import { supabaseClient } from "./client.js";
 
 /** How often to read the row directly, as a backstop for realtime. */
 const POLL_MS = 1500;
@@ -60,33 +61,26 @@ function sameVersion(a, b) {
 }
 
 /**
- * @param {string} league Which pool's row to open.
+ * @param {string} code Which league's row to open.
  * @param {{client?: object}} [options] A ready client, for tests that cannot
  *   load the CDN. Production leaves this out and loads the library.
  */
-export async function createSupabaseStore(league, { client: given } = {}) {
-  const { url, publishableKey, table } = CONFIG.supabase;
-  if (!given && (!url || !publishableKey)) return null;
+export async function createSupabaseStore(code, { client: given } = {}) {
+  const { table } = CONFIG.supabase;
 
-  // One row per league, so the two pools never overwrite each other.
-  const entryId = scopeFor(league).entryId;
+  // One row per league, keyed by its code, so no two leagues can land on each
+  // other's board however many a device is in.
+  const entryId = scopeFor(code).entryId;
 
-  let client = given;
-  if (!client) {
-    let createClient;
-    try {
-      ({ createClient } = await import(/* @vite-ignore */ CDN));
-    } catch {
-      return null;
-    }
-    client = createClient(url, publishableKey, {
-      auth: { persistSession: false },
-    });
-  }
+  // The same client the directory used to find this league, so the app holds
+  // one library and one socket however many leagues it opens.
+  const client = given ?? (await supabaseClient());
+  if (!client) return null;
 
   const listeners = new Set();
-  const expectedDigest = CONFIG.passcode.digest;
-  let canWrite = !expectedDigest;
+  // Holding the code IS the credential (see supabase/schema.sql), and this
+  // store is only reachable through one, so a device that got here can write.
+  const canWrite = true;
 
   /** The version of the row the board is showing. */
   let lastVersion = null;
@@ -114,22 +108,13 @@ export async function createSupabaseStore(league, { client: given } = {}) {
   return {
     kind: "supabase",
     shared: true,
-
-    get canWrite() {
-      return canWrite;
-    },
-
-    /** Unlock writes with the verified passcode digest; see core/passcode.js. */
-    unlock(digest) {
-      canWrite = !expectedDigest || digest === expectedDigest;
-      return canWrite;
-    },
+    canWrite,
 
     async init() {
       const { data, error } = await client
         .from(table)
         .select("entry, updated_at")
-        .eq("id", entryId)
+        .eq("code", entryId)
         .maybeSingle();
 
       if (error || !data) return emptyEntry();
@@ -141,10 +126,10 @@ export async function createSupabaseStore(league, { client: given } = {}) {
       listeners.add(listener);
 
       const channel = client
-        .channel(`entries:${entryId}`)
+        .channel(`leagues:${entryId}`)
         .on(
           "postgres_changes",
-          { event: "*", schema: "public", table, filter: `id=eq.${entryId}` },
+          { event: "*", schema: "public", table, filter: `code=eq.${entryId}` },
           (payload) => {
             publish(listener, payload.new);
           },
@@ -164,7 +149,7 @@ export async function createSupabaseStore(league, { client: given } = {}) {
           const { data, error } = await client
             .from(table)
             .select("entry, updated_at")
-            .eq("id", entryId)
+            .eq("code", entryId)
             .maybeSingle();
           if (!error && data) publish(listener, data, seenBefore);
         } finally {
@@ -181,7 +166,6 @@ export async function createSupabaseStore(league, { client: given } = {}) {
     },
 
     async save(entry) {
-      if (!canWrite) return;
       const previousVersion = lastVersion;
       const version = new Date().toISOString();
 
@@ -194,9 +178,13 @@ export async function createSupabaseStore(league, { client: given } = {}) {
 
       saving += 1;
       try {
+        // An update rather than an upsert: the row is created when the
+        // league is (see store/directory.js), and a save that could insert one
+        // would quietly make a league out of a mistyped code.
         const { error } = await client
           .from(table)
-          .upsert({ id: entryId, entry, updated_at: version });
+          .update({ entry, updated_at: version })
+          .eq("code", entryId);
         if (error) {
           lastVersion = previousVersion;
           throw error;

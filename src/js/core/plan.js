@@ -27,25 +27,41 @@ import {
   DEFAULT_TIERS,
 } from "./probability.js";
 import { recommendForBoard } from "./recommend.js";
+import { advanceProb, advanceResult, bySpread } from "./objective.js";
+import { mergeRules, sameRules } from "./rules.js";
 import { nextRefreshAt } from "./refresh.js";
 import { survival } from "./survival.js";
 import { availabilityAdjustment, availabilityNote } from "./availability.js";
 import { equityOverlay } from "./equity.js";
 
 /**
- * Pool rules, read from data/<league>/plan.json.
+ * The rules a board runs on: what data/<league>/plan.json ships, with the
+ * pool's shared overrides from the settings sheet laid over it.
  *
- * The college pool takes two picks a week and forgives nothing. The NFL pool
- * takes one and grants a single buy back covering weeks 1 and 2. Everything
- * downstream reads these rather than assuming a league.
+ * The college pool takes two picks a week and forgives nothing. The NFL
+ * winners pool takes one and grants a single buy back covering weeks 1 and 2.
+ * The NFL losers pool takes one, forgives nothing, and needs its team to lose.
+ * Any of that can be changed from the board, for everyone, and core/rules.js
+ * is what keeps the result coherent whatever arrives. Everything downstream
+ * reads these rather than assuming a league.
+ *
+ * @param {object} plan data/<league>/plan.json
+ * @param {object|null} [overrides] entry.rules, the pool's saved overrides.
+ *   Omit for the plan's own rules - which is what the scripts want, and what
+ *   the board compares against to know whether a pool has its own.
  */
-export function rulesOf(plan) {
+export function rulesOf(plan, overrides = null) {
   const rules = plan.rules ?? {};
   return {
-    picksPerWeek: rules.picksPerWeek ?? 2,
-    buyBackWeeks: rules.buyBackWeeks ?? [],
-    buyBacks: rules.buyBacks ?? 0,
-    // Win probabilities, not spreads: see confidenceTier.
+    ...mergeRules(
+      rules,
+      overrides,
+      (plan.weeks ?? []).map((week) => week.week),
+    ),
+    // Probabilities that the pick carries the week, not spreads: see
+    // confidenceTier. In a losers pool that is the chance the team loses.
+    // Not the pool's to change from the board: a tier is what the model calls
+    // a number, not a rule of the competition.
     tiers: plan.tiers ?? DEFAULT_TIERS,
   };
 }
@@ -105,7 +121,18 @@ export function lineKey(week, team) {
  *            result:"W"|"L"|null, resultSource:"you"|"final"|null}}} plus, when
  *   a team is held: opponent, site, conference, spread, source, winProb, tier.
  */
-function resolvePick({ weekPlan, odds, entry, teams, options, week, slot, tiers, model }) {
+function resolvePick({
+  weekPlan,
+  odds,
+  entry,
+  teams,
+  options,
+  week,
+  slot,
+  tiers,
+  model,
+  objective,
+}) {
   const key = slotKey(week, slot);
   const saved = entry.picks?.[key] ?? {};
   // `locked` is the persisted name for a committed pick. A result implies one:
@@ -150,15 +177,21 @@ function resolvePick({ weekPlan, odds, entry, teams, options, week, slot, tiers,
   const listed = base.winProb !== undefined;
   const line = odds.lines?.[lineKey(week, base.team)];
   const spread = listed ? base.spread : (line?.spread ?? base.spread);
+  // A listed option has been through the objective already (see weekOptions).
+  // Only the legacy path prices from scratch, and what it prices is the team's
+  // chance of winning its game, which is the pick's chance of carrying the
+  // week in one pool and its opposite in the other.
   const winProb = listed
     ? base.winProb
-    : (line?.winProb ?? winProbFromSpread(spread, model, { weeksAhead: 0 }));
+    : advanceProb(line?.winProb ?? winProbFromSpread(spread, model, { weeksAhead: 0 }), objective);
   const source = listed ? base.source : line ? "market" : (base.source ?? "projected");
   // Results are the refresh job's recorded finals, so a locked pick keeps up on
   // its own. A result saved in the entry, from when they were tapped in, is
   // still honoured and still wins. An unlocked pick never receives one: the
   // feed cannot commit a choice for you.
-  const fetched = locked ? (odds.results?.[lineKey(week, base.team)] ?? null) : null;
+  const fetched = locked
+    ? advanceResult(odds.results?.[lineKey(week, base.team)], objective)
+    : null;
 
   return {
     week,
@@ -218,6 +251,7 @@ function weekOptions({
   currentWeek = week,
   model = resolveModel(null),
   availability = null,
+  objective = "win",
 }) {
   const games = schedule.weeks?.[String(week)] ?? [];
   const eligible = allTeams(teams);
@@ -292,7 +326,11 @@ function weekOptions({
         site,
         spread,
         source,
-        winProb,
+        // The chance this pick carries the week: the team's own chance of
+        // winning in a winners pool, one minus it in a losers pool. The spread
+        // above is left as the market states it, which is what makes a +9.5
+        // read as the good pick it is there (see core/objective.js).
+        winProb: advanceProb(winProb, objective),
         conference: eligible[team].conference,
         // How far out the game is, for the futures the coach plays (see
         // core/scenarios.js). Zero for the week the market has priced.
@@ -311,13 +349,17 @@ function weekOptions({
           : null,
         // "W", "L", or null while the game is still to come. Unlike a pick's
         // result this needs no lock: it is a fact about the fixture, not about
-        // anyone's entry, which is why it shows on every row in the list.
-        result: odds.results?.[lineKey(week, team)] ?? null,
+        // anyone's entry, which is why it shows on every row in the list. It
+        // reads as what the outcome did to a pick of this team, so in a losers
+        // pool the team that lost its game is the row that says "Won".
+        result: advanceResult(odds.results?.[lineKey(week, team)], objective),
       });
     }
   }
 
-  return options.sort((a, b) => a.spread - b.spread);
+  // Best pick for the objective first: the biggest favourite in a winners
+  // pool, the biggest underdog in a losers one.
+  return options.sort(bySpread(objective));
 }
 
 /**
@@ -415,7 +457,10 @@ export function buildBoard({
   refreshSchedule,
   allowSearch = true,
 }) {
-  const rules = rulesOf(plan);
+  // The pool's own rules, and the plan's for comparison: the settings sheet
+  // needs both, to show what a reset would go back to.
+  const ruleDefaults = rulesOf(plan);
+  const rules = rulesOf(plan, entry?.rules);
   const slots = Array.from({ length: rules.picksPerWeek }, (_, index) => index);
   const model = resolveModel(calibration);
   const currentWeek = clampWeek(odds.currentWeek ?? 1, plan.weeks.length);
@@ -433,6 +478,7 @@ export function buildBoard({
       currentWeek,
       model,
       availability,
+      objective: rules.objective,
     });
     const picks = slots.map((slot) =>
       resolvePick({
@@ -445,6 +491,7 @@ export function buildBoard({
         slot,
         tiers: rules.tiers,
         model,
+        objective: rules.objective,
       }),
     );
 
@@ -503,6 +550,9 @@ export function buildBoard({
       // never rearranges it under the thumb that made it.
       const sunk = (option) =>
         !option.isCurrent && (spentElsewhere(option.team) || Boolean(option.result));
+      // Favourites first, or underdogs first in a losers pool: the same order
+      // the week's own list came in (see weekOptions).
+      const byObjective = bySpread(rules.objective);
       pick.options = week.options
         .map((option) => {
           const takenBySibling = siblings.has(option.team);
@@ -534,7 +584,7 @@ export function buildBoard({
           const aSunk = sunk(a);
           const bSunk = sunk(b);
           if (aSunk !== bSunk) return aSunk ? 1 : -1;
-          return a.spread - b.spread;
+          return byObjective(a, b);
         });
     }
   }
@@ -591,6 +641,13 @@ export function buildBoard({
         }
       : null,
     conflicts,
+    // What the plan ships, and whether this pool is running something else.
+    // A slot the rules no longer hold keeps whatever was saved in it: the
+    // entry is keyed by week and slot, so dropping a pick a week is a change
+    // of what the board shows rather than of what it holds, and putting it
+    // back brings the picks back with it.
+    ruleDefaults,
+    rulesCustom: !sameRules(rules, ruleDefaults),
     updatedAt: odds.updatedAt,
     nextRefreshAt: nextRefresh,
   };
@@ -901,6 +958,16 @@ function signatureBase(board, plan, odds, form, inputs) {
     plan.league ?? "cfb",
     board.currentWeek,
     board.buyBack?.left ?? 0,
+    // The rules the pool is running, because they are no longer a property of
+    // the file: the settings sheet can change what a pick has to do, how many
+    // a week takes and what can be forgiven, and every one of those is a
+    // different search. Without them here, flipping a pool to picking losers
+    // was answered out of the cache with the plan it had for picking winners -
+    // the same teams, at one minus their probabilities.
+    board.rules.objective,
+    board.rules.picksPerWeek,
+    board.rules.buyBacks,
+    board.rules.buyBackWeeks.join("+"),
     odds.updatedAt,
     Object.keys(odds.lines ?? {}).length,
     // The fit prices every week the market has not posted, so a new one is a

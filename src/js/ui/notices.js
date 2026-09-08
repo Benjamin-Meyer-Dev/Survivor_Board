@@ -1,30 +1,35 @@
 /**
  * One-line banners: a message from app.js, storage mode, and any rule break
  * on the board.
+ *
+ * Shown on both screens, so `board` and `store` are optional: on the home
+ * page there is no league open and a message from app.js is all there is to
+ * say.
  */
 
 import { escapeHtml } from "../core/format.js";
 
-export function renderNotices(root, { store, board, message }) {
+export function renderNotices(root, { store = null, board = null, message = "" }) {
   const notices = [];
   // Said once, above every view: the run is over and the board is in review.
-  const banner = board.eliminated ? reviewBanner(board) : "";
+  const banner = board?.eliminated ? reviewBanner(board) : "";
 
   if (message) notices.push(message);
 
-  if (!store.shared) {
+  if (store && !store.shared) {
     notices.push(
       "Shared saving is off, so picks and locks stay on this device only. The coach's suggestions, the odds and the results are still current.",
     );
   }
 
-  // Unreachable once the passcode gate has passed, since the same digest opens
-  // the store. Kept so a mismatch says something rather than greying out buttons.
-  if (!store.canWrite) {
-    notices.push("You are viewing in read-only mode. This device's passcode does not match.");
+  // A store that will not take a write. Not reachable in the normal case - a
+  // device holding a league's code may write to it - so this is here to say
+  // something rather than to grey out every button and explain nothing.
+  if (store && !store.canWrite) {
+    notices.push("You are viewing in read-only mode: this device cannot save to this league.");
   }
 
-  for (const conflict of board.conflicts) {
+  for (const conflict of board?.conflicts ?? []) {
     notices.push(
       `Rule break: ${conflict.team} is now picked in both week ${conflict.weeks[0]} and week ${conflict.weeks[1]}. Swap one of them.`,
     );

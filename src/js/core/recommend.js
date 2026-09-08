@@ -84,6 +84,9 @@ const logp = (p) => Math.log(Math.max(p, 1e-9));
  * @param {object|null} [args.seed] A path to compete as a finalist.
  * @param {object} [args.model] The probability model, for the futures.
  * @param {number} [args.scenarios] How many futures to play; 0 skips the frontier.
+ * @param {"win"|"lose"} [args.objective] What a pick has to do. Every winProb
+ *   handed in is already the chance the pick carries its week, so this is only
+ *   for the futures, which price spreads of their own (core/scenarios.js).
  * @param {boolean} [args.quick] The exact assignment alone, no beam and no
  *   frontier: a millisecond's answer for a preview, where the full search's
  *   hundred would be felt on every tap. The beam still runs if the assignment
@@ -101,6 +104,7 @@ export function recommendPath({
   model = DEFAULT_MODEL,
   scenarios = SCENARIO_COUNT,
   quick = false,
+  objective = "win",
 }) {
   const forgiving = new Set(buyBacks > 0 ? buyBackWeeks : []);
 
@@ -163,6 +167,7 @@ export function recommendPath({
           finalists,
           model,
           scenarios,
+          objective,
         })
       : null;
 
@@ -425,6 +430,7 @@ function judgeFrontier({
   finalists,
   model,
   scenarios,
+  objective = "win",
 }) {
   const [first, ...rest] = weeks;
   if (!first) return null;
@@ -478,7 +484,9 @@ function judgeFrontier({
       weeksAhead: option.weeksAhead ?? index + 1,
     })),
   }));
-  const futures = scenarioSet({ weeks: ahead, model, count: scenarios });
+  // The futures re-price a drawn spread, so they need to know which side of it
+  // this pool is on (see core/scenarios.js).
+  const futures = scenarioSet({ weeks: ahead, model, count: scenarios, objective });
 
   const judged = candidates.map((teams) => {
     const opening = [...fixed, ...teams];
@@ -772,5 +780,9 @@ export function recommendForBoard(board, seed = null, { holdPicks = false, quick
     model: board.model ?? DEFAULT_MODEL,
     scenarios: quick ? 0 : (board.scenarioCount ?? SCENARIO_COUNT),
     quick,
+    // Every probability on the board is already the chance the pick carries
+    // the week, so the search needs this for one thing only: the futures it
+    // draws re-price their own spreads.
+    objective: board.rules?.objective ?? "win",
   });
 }

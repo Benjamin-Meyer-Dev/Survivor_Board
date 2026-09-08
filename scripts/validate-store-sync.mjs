@@ -12,7 +12,6 @@
 
 import assert from "node:assert/strict";
 import { createSupabaseStore } from "../src/js/store/supabase.js";
-import { CONFIG } from "../src/js/config.js";
 
 const LOCKED = { picks: { "1-0": { locked: true } }, swaps: {} };
 const OPEN = { picks: {}, swaps: {} };
@@ -51,13 +50,21 @@ function fakeClient() {
             },
           };
         },
-        upsert(values) {
-          return later("upsert", () => {
-            state.row = { entry: values.entry, updated_at: values.updated_at };
-            // Realtime fires on commit; the test decides when it is heard.
-            client.echoes.push({ new: { ...state.row, updated_at: pg(state.row.updated_at) } });
-            return { error: null };
-          });
+        // The store writes with update().eq(): a league's row is created when
+        // the league is, so a save that could insert one would make a league
+        // out of a mistyped code.
+        update(values) {
+          return {
+            eq: () =>
+              later("upsert", () => {
+                state.row = { entry: values.entry, updated_at: values.updated_at };
+                // Realtime fires on commit; the test decides when it is heard.
+                client.echoes.push({
+                  new: { ...state.row, updated_at: pg(state.row.updated_at) },
+                });
+                return { error: null };
+              }),
+          };
         },
       };
     },
@@ -103,8 +110,10 @@ const shown = (heard) => heard.map((entry) => (entry.picks["1-0"]?.locked ? "loc
 
 async function scenario(name, expected, run) {
   const client = fakeClient();
-  const store = await createSupabaseStore("nfl", { client });
-  store.unlock(CONFIG.passcode.digest);
+  // A league code, which is the only way to this store now: holding one is
+  // what says a device may write (see supabase/schema.sql), so there is no
+  // unlock step any more.
+  const store = await createSupabaseStore("BXQK7HRTM4WD", { client });
   const init = store.init();
   client.answer("read");
   await init;
@@ -198,7 +207,7 @@ await scenario("failed save then poll", ["open"], async ({ client, store }) => {
   const original = client.from;
   client.from = () => ({
     ...original(),
-    upsert: () => Promise.resolve({ error: new Error("offline") }),
+    update: () => ({ eq: () => Promise.resolve({ error: new Error("offline") }) }),
   });
   await assert.rejects(store.save(OPEN));
   client.from = original;

@@ -1,15 +1,16 @@
 # Deploy
 
 About 40 minutes end to end, most of it clicking through GitHub and Supabase.
-When you are done: the board live on GitHub Pages behind a passcode, both phones
-sharing one entry per league, odds refreshing every morning, and the board on
-both home screens.
+When you are done: the board live on GitHub Pages, leagues you can invite people to, both phones
+sharing a board with everyone you send a code to, odds refreshing every
+morning, and the board on every home screen.
 
-**Know this first.** GitHub Pages on a free account needs a **public** repo. The
-passcode screen keeps a passer-by from opening the board, but it is checked in
-the browser and the plan files, which are your picks, are plain files in a
-public repo. Anyone determined can read them. If the picks need to stay truly
-between the two of you, see "Keeping it private" at the end.
+**Know this first.** GitHub Pages on a free account needs a **public** repo, so
+the page is open to anyone who has the address. A league's picks live in the
+database rather than the repo, and a league is only findable by its code - but
+the publishable key that reads the database ships in the page, so "findable
+only by code" is a practical obstacle rather than a wall. If the picks need to
+stay properly private, see "Keeping it private" at the end.
 
 The steps build on each other, so do them in order.
 
@@ -57,26 +58,41 @@ not switched on yet. Step 2 fixes that.
 **Check:** the board loads, in per-device mode. It says changes stay on this
 device; that is expected until step 3.
 
-## 3. Shared state and the passcode
+## 3. Shared state and league codes
 
 ### Set up the database
+
+The table holds one row per league, keyed by the code the app generates. There
+is nothing to seed: leagues are made from the home page, and the first one you
+create writes the first row.
 
 1. supabase.com → **New project**. Name it, set a strong database password
    (save it; you will not need it again), pick the region nearest you. It takes
    about two minutes to provision.
 2. **SQL Editor** → **New query** → paste the whole of `supabase/schema.sql` →
-   **Run**. It creates the `entries` table, seeds one row per league (`cfb` and
-   `nfl`), grants the public key's role access to the table, turns on row-level
-   security with policies limited to those two rows, and adds the table to
-   realtime. The editor reports "Success. No rows returned".
-3. **Table Editor** → `entries`: two rows, `cfb` and `nfl`.
+   **Run**. It creates the `leagues` table, constrains a row to a real code
+   and a season the repo has data for, grants the public key's role access,
+   turns on row-level security, and adds the table to realtime. The editor
+   reports "Success. No rows returned".
+3. Open the board, create a league, and check **Table Editor** → `leagues`:
+   one row, with the code the home page is showing you.
 
-**Already ran an earlier version of the file?** Then the table exists with rows
-called `shared` and `shared-nfl`. Run the current file exactly the same way.
-It is written to be re-run: it keeps the table, drops the old policies by name
-and recreates them for the new ids, seeds `cfb` and `nfl`, and deletes the two
-old rows at the end. Nothing was ever saved to them, so nothing is lost. The
-Table Editor check above is how you confirm it took.
+   Read the note at the top of `supabase/schema.sql` before you send a code to
+   anyone. In short: a code is the credential, the policies let the page's
+   publishable key read and write any row, and making that airtight means
+   Supabase Auth and a memberships table instead.
+
+**Coming from the three built-in pools?** The old `entries` table is not read
+any more. Re-run `supabase/schema.sql`, which creates `leagues` beside it, then
+create a league per pool you were running and re-enter what those pools held.
+The last lines of the file are the query that shows you what was in them and
+the drop that clears them out; nothing does it for you, because those rows are
+the only copy of those picks.
+
+**Already ran an earlier version of the file?** Run the current one exactly the
+same way. It is written to be re-run: it creates what is missing, drops the old
+policies by name and replaces them, and leaves the rows alone. The Table Editor
+check above is how you confirm it took.
 
 ### Wire the board to it
 
@@ -102,40 +118,37 @@ supabase: {
 },
 ```
 
-### Set the passcode
+### Make a league and invite people
 
-The passcode is never written into the repo. Choose one and set it from the
-terminal:
+Commit and push. Pages redeploys, and the board can now share leagues.
 
-```bash
-npm run passcode
-```
+The first launch on any device asks for a name. That name goes on the picks
+that device makes and is stored on the phone that typed it; there is nothing to
+sign up for and no password anywhere.
 
-It prompts for the passcode, then writes a digest of it, plus a random salt,
-into the `passcode` block of `src/js/config.js`. That digest is what gets
-committed and what the board checks a typed answer against; it cannot be
-turned back into the passcode. Pick something long. The digest is public, so a
-short or guessable passcode can be worked out from it. A sentence, or a few
-unrelated words, is strong and still easy to type once per phone.
+Then, on the home page:
 
-Commit and push. Pages redeploys, and both phones now share one entry per
-league.
+1. **Create** a league - give it a name, pick the season, and it appears with a
+   twelve-character code (`BXQK-7HRT-M4WD`).
+2. **Copy link** puts `https://<your board>/#/join/BXQK7HRTM4WD` on the
+   clipboard. Send that, or read the code out: **Join** takes it typed, with or
+   without the dashes, and the five characters that get misread - I, L, O, 0 and
+   1 - are not in the alphabet, so a code cannot be copied down as a different
+   one.
+3. Whoever opens the link lands in the league, appears in its members, and is
+   working the same board as you.
 
-From then on, the first time the board is opened on any device it shows a
-passcode screen. A right answer is remembered on that device and it goes
-straight in after that. The same answer unlocks writes to the shared entry, so
-there is nothing else to type. Run `npm run passcode` again to change it, and
-every device asks again on its next open.
+**Check:** open the board on two devices, join the same league on both, lock a
+pick on one and watch it land on the other.
 
-The key is public by design, and safe to ship: it can only do what the RLS
-policies allow, which is read and write two rows. The passcode is a gate, not a
-lock: the check runs in the browser, so someone determined can read the
-JavaScript and step around it. It stops the casual visitor, which is the
-realistic threat, and because only the digest ships, nobody gets to read the
-passcode itself off GitHub or out of the page.
-
-**Check:** open the board on two devices. Each asks for the passcode once. Lock
-a pick on one and watch it land on the other.
+**What a code is, and is not.** Anyone holding a league's code can read that
+board and write to it - that is the point of sending one. The publishable key
+that ships in the page is what talks to the database, and the policies let it
+read and write rows, so someone who takes that key out of the page could reach
+leagues they were never sent. Nobody can be locked out and nothing can be lost
+from outside the app, but a league is not private in the way an account would
+make it. The note at the top of `supabase/schema.sql` says this again where the
+policies are, and sketches the Auth-and-memberships version if you want it.
 
 ## 4. Automatic odds
 
@@ -154,7 +167,7 @@ The bot runs once a day at 9:00am Toronto time. The workflow schedules both UTC
 hours that Toronto can use and skips the alternate, so the local time stays at
 9:00am across daylight-saving changes. A run costs 4 credits per league (3 for
 the lines - spreads, moneylines and totals are a credit each - and 1 for
-scores), the free plan is 500 credits a month, and two leagues once a day is
+scores), the free plan is 500 credits a month, and two pulls once a day is
 about 250 of them. Every six hours, the original cadence, would be about 960
 and run out in two weeks. Set `ODDS_MARKETS=spreads,h2h` on the workflow to
 drop totals and save a credit per league; the model prices without them.
@@ -182,6 +195,19 @@ layer is off and fits on lines and margins alone.
    `npm run refresh`. Do not put the key in `src/` or commit it anywhere; like
    the odds key, it lives only in the secret and your shell.
 
+### Pool rules from the board
+
+The gear beside the league picker holds that league's name, its code, and its
+rules - win or lose, picks a week, buy backs and the weeks they cover. Saving
+rules writes them into the league's shared row, so they land on every device in
+it. Nothing in `data/` changes: the season's plan file stays the default and
+**Back to the plan** returns to it.
+
+Two consequences worth knowing. A league running its own rules shows a lit gear,
+because a week with one slot looks the same whether the pool takes one pick or
+takes two with a rule changed. And the daily job reads `plan.json` rather than
+the shared entry, so its "pick flagged" issue is judged by the file's rules.
+
 ### The two files you keep by hand
 
 `data/<league>/availability.json` and `data/<league>/pool.json` are optional
@@ -198,10 +224,34 @@ Once a day is enough for a survivor pool. Lines move most in the 24 hours before
 kickoff, and the 9am pull is the morning number on game day for both leagues.
 Results land through the same run, within three days of a game.
 
+That 9am is aimed at rather than guaranteed. GitHub queues scheduled runs on
+shared capacity, and this repo has seen them released three to five hours after
+their slot, so the workflow schedules the day's pull from many slots - some
+before 9am, on the theory that a delayed early slot lands near 9am, most in and
+after the 9am hour - and the first run that starts does the work. Two rules in
+the **Check the Toronto refresh window** step make that safe: nothing pulls
+before 9am local whatever fires, and nothing pulls twice on the same local
+calendar day. So the extra slots cost fifteen seconds each and no API credits.
+
+A pull at 9am on the dot is not something GitHub cron can promise. If you need
+one, trigger it from a clock you own: any scheduler that can make an HTTP call
+(Windows Task Scheduler, cron on a machine that is always up, a free cron
+service) firing this, with a fine-grained token that has actions:write on the
+repo, starts the run within seconds.
+
+```bash
+curl -X POST -H "Authorization: Bearer <token>" \
+  -H "Accept: application/vnd.github+json" \
+  https://api.github.com/repos/<owner>/Survivor_Board/actions/workflows/refresh-odds.yml/dispatches \
+  -d '{"ref":"main"}'
+```
+
+A dispatch skips the window check by design, so it pulls whenever you send it.
+
 If you ever want it more often, do the sum first: 8 credits per run for two
 leagues against 500 a month, or pay $30 a month for the 20K plan and forget
-about it. To change the hour or timezone, edit the cron and local-time guard in
-`.github/workflows/refresh-odds.yml` together with `refresh` in
+about it. To change the hour or timezone, edit the crons and the local-time
+guard in `.github/workflows/refresh-odds.yml` together with `refresh` in
 `src/js/config.js`, so the countdown on the board matches.
 
 The **Run workflow** button in the Actions tab is the only manual refresh, and it
@@ -215,15 +265,15 @@ ODDS_API_KEY=... npm run refresh
 
 ## 5. Put it on both phones
 
-The board is installable. The passcode is remembered per device, so each phone
-types it once.
+The board is installable. The name is remembered per device, so each phone
+gives one once, and the leagues it joins are remembered with it.
 
-**iPhone.** Open the URL in Safari and enter the passcode. Once the board loads,
+**iPhone.** Open the URL in Safari and give your name. Once the board loads,
 tap **Share** → **Add to Home Screen** → **Add**. Open it from the home screen.
-It may ask for the passcode once more, because iOS gives the installed app its
+It may ask for your name once more, because iOS gives the installed app its
 own storage; after that it goes straight in.
 
-**Android.** Open the URL in Chrome and enter the passcode, then **⋮** →
+**Android.** Open the URL in Chrome and give your name, then **⋮** →
 **Add to Home screen** → **Install**. Chrome lists that entry only for a site it
 considers installable, which it decides after reading
 `manifest.webmanifest` and registering `sw.js`, so let the board finish loading
@@ -254,7 +304,8 @@ remembers which you used last.
 
 Pages cannot put a real login in front of a site, and a private repo (GitHub
 Pro, $4/mo) only hides the code: the Pages URL stays open to anyone who has it.
-The passcode screen is checked in the browser, so it is a courtesy, not a wall.
+League codes are unguessable, but the key that reads them is in the page, so
+they are a courtesy rather than a wall.
 
 The way to gate a Pages site properly is a domain you own, on Cloudflare. Add
 the domain to Cloudflare, CNAME it to `<you>.github.io`, set it as the custom
@@ -280,9 +331,13 @@ npm run lint && npm run format:check && npm test
 
 ## Things that will bite you
 
-- **Forgetting the passcode.** It is not written down anywhere in the repo, only
-  its digest is, and the digest cannot be turned back into it. Set a new one
-  with `npm run passcode`; every device asks again on its next open.
+- **Losing a league's code.** It is not written down anywhere in the repo: the
+  app generated it, the device that made the league remembers it, and the
+  `leagues` table has it. Any phone still in the league can show it, from the
+  home page or the gear; failing that, the Table Editor lists every row.
+- **Clearing a browser's site data** takes that device's name and its list of
+  leagues with it. The leagues themselves are untouched - paste a code back in
+  and everything is where it was.
 - **The first Pages deploy is red.** The deploy workflow fails until Settings →
   Pages has its source set to GitHub Actions. Set it, run the workflow by hand
   once, and every push after that deploys on its own.
@@ -295,7 +350,7 @@ npm run lint && npm run format:check && npm test
   board still opens, but empty, because a failed read falls back to a blank
   entry. Re-run `supabase/schema.sql` in the SQL Editor; the `grant` statements
   in it fix this, and it is safe to run over an existing table. Then reload
-  both phones. To confirm from a terminal, this should return both rows rather
+  both phones. To confirm from a terminal, this should return every row rather
   than a `42501` error:
 
   ```bash
@@ -309,8 +364,12 @@ npm run lint && npm run format:check && npm test
 - **Scheduled workflows pause after 60 days of repo inactivity.** The bot's own
   commits count as activity, so a live season keeps it alive. Out of season it
   will stop; re-enable from the Actions tab.
-- **Cron drift.** GitHub queues scheduled runs on shared capacity. A daily job
-  can fire 5-20 minutes late. Fine here, not fine for a deadline.
+- **Cron drift.** GitHub queues scheduled runs on shared capacity, and the
+  delay is not minutes: through the opening weekend of 2026 every slot on this
+  repo was released three to five hours late. The workflow now spreads the
+  day's pull across many slots and lets the first one that starts do the work,
+  which is as punctual as cron gets here. For a real deadline, dispatch it from
+  a scheduler you own - see step 4.
 - **Team-name matching.** The Odds API spells some schools differently
   ("Miami (FL)", "Texas A&amp;M Aggies"). `scripts/lib/odds-api.mjs` normalises
   aggressively, but check the workflow log after the first run for

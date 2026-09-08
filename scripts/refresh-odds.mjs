@@ -51,7 +51,8 @@ import { fitForm, holdoutError, marketError, resolveRatingParams } from "./lib/r
 import { pullStatsForLeague } from "./pull-stats.mjs";
 import { marketWinProb, resolveModel } from "../src/js/core/probability.js";
 import { lineKey, buildBoard } from "../src/js/core/plan.js";
-import { LEAGUE_IDS, LEAGUES } from "../src/js/leagues.js";
+import { objectiveOf, dangerSign } from "../src/js/core/objective.js";
+import { SPORTS, SPORT_IDS } from "../src/js/sports.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const pathFor = (league, name) => join(ROOT, "data", league, name);
@@ -69,29 +70,33 @@ async function main() {
 
   // Only the league named, when one is named. Lets a workflow run just the
   // NFL in January without spending quota on a college season that is over.
+  //
+  // The pools with games of their own, not every pool: the NFL losers board
+  // is priced off the winners board's odds.json, and pulling the same 32
+  // fixtures a second time would double the bill for nothing.
   const only = process.env.LEAGUE;
-  const leagues = only ? [only] : LEAGUE_IDS;
+  const leagues = only ? [only] : SPORT_IDS;
 
   const allFlags = [];
   const weeksSeen = new Set();
   let failures = 0;
 
   for (const league of leagues) {
-    if (!LEAGUES[league]) {
+    if (!SPORTS[league]) {
       console.error(`Unknown league "${league}".`);
       failures += 1;
       continue;
     }
 
     try {
-      console.log(`\n=== ${LEAGUES[league].label} ===`);
+      console.log(`\n=== ${SPORTS[league].label} ===`);
       const { flags, week } = await refreshLeague(league, apiKey);
       allFlags.push(...flags);
       if (week !== null) weeksSeen.add(week);
     } catch (error) {
       // One league's outage must not cost the other its refresh.
       failures += 1;
-      console.error(`${LEAGUES[league].label} refresh failed: ${error.message}`);
+      console.error(`${SPORTS[league].label} refresh failed: ${error.message}`);
     }
   }
 
@@ -271,7 +276,7 @@ async function refreshLeague(league, apiKey) {
     week,
     flags: flags.map((flag) => ({
       ...flag,
-      message: `[${LEAGUES[league].label}] ${flag.message}`,
+      message: `[${SPORTS[league].label}] ${flag.message}`,
     })),
   };
 }
@@ -603,7 +608,8 @@ async function priceWeek({
   const weekPlan = plan.weeks.find((entry) => entry.week === week);
   const isEligible = (team) => Object.values(teams.conferences).some((roster) => team in roster);
   const threshold = plan.dangerThreshold ?? -10;
-  const moveFlag = LEAGUES[league]?.lineMoveFlag ?? 3;
+  const objective = objectiveOf(plan.rules);
+  const moveFlag = SPORTS[league]?.lineMoveFlag ?? 3;
 
   console.log(`Refreshing week ${week} (${weekPlan.label}, ${plan.season}).`);
   const events = await fetchEvents(apiKey, sport);
@@ -690,7 +696,9 @@ async function priceWeek({
         `${movement !== 0 ? `, opened ${opened > 0 ? "+" : ""}${opened}` : ""})`,
     );
 
-    if (target.isPick && spread > threshold) {
+    // Away from what this pool wants: for a winners pick the spread rising
+    // towards a coin flip, for a losers pick it falling towards one.
+    if (target.isPick && dangerSign(objective) * (spread - threshold) > 0) {
       flags.push({
         week,
         team: target.team,

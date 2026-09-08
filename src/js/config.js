@@ -4,55 +4,51 @@
  * The Supabase key here is the PUBLIC publishable key (the legacy anon key
  * works too), which is safe to ship in a static bundle as long as row-level
  * security is enabled. See supabase/schema.sql. Leave `url` empty to run
- * without a backend - the app falls back to per-device localStorage and says
- * so in the UI.
+ * without a backend - the app falls back to per-device localStorage, leagues
+ * stay on the phone that made them, and the UI says so.
  */
 
 export const CONFIG = Object.freeze({
-  /** Where the data files live, relative to index.html. One folder per league. */
+  /** Where the data files live, relative to index.html. One folder per sport. */
   dataPath: "./data",
 
   /**
    * Shared-state backend. Both values come from the Supabase dashboard under
    * Settings -> API Keys: the Project URL and the Publishable key.
+   *
+   * One row per league, keyed by the league's code. There are no accounts: the
+   * code is the credential, and anyone holding one can read and write that
+   * league. What that does and does not protect is written up in
+   * supabase/schema.sql, which is also where the policies live.
    */
   supabase: {
     url: "https://jxeeyksvhutlghmhizjg.supabase.co",
     publishableKey: "sb_publishable_EbjNYo4wYu2eRK89vgvF8w_aSEHXU2a",
-    table: "entries",
+    table: "leagues",
   },
 
   /**
-   * The pool passcode, as a digest.
+   * localStorage keys.
    *
-   * Asked for once per device, the first time the board is opened there, and
-   * remembered after that. The same answer unlocks writes to the shared entry
-   * when Supabase is configured.
-   *
-   * The passcode itself is not in this file or anywhere else in the repo. What
-   * ships is a PBKDF2-SHA256 digest of it (see core/passcode.js), which the
-   * board compares a typed answer against. Set or change it with
-   *
-   *   npm run passcode
-   *
-   * which writes both values below. Both are public, so this is still a gate
-   * against a passer-by rather than a lock against anyone determined; the
-   * digest just means the passcode has to be guessed rather than read. Leave
-   * `digest` empty for no gate.
+   *   name      what this person is called, asked for once on first run
+   *   who       this device's id, saved against every lock and pick
+   *   leagues   the codes this device has joined, with a cached name and sport
+   *             so the home page can be drawn before the network answers
+   *   entry     one per league, the offline copy of that league's board
    */
-  passcode: {
-    digest: "d309ec76e4600eb40e5f9e2c9da729c3be9f6cc3ea9f270fd1a084f571d621ae",
-    salt: "0a48f93d5f3ac21314adaa3bf7bd1b83",
-  },
-
-  /** localStorage key used by the offline store. */
-  localStorageKey: "survivor-board/entry/v1",
+  storage: Object.freeze({
+    name: "survivor-board/name",
+    who: "survivor-board/who",
+    leagues: "survivor-board/leagues/v1",
+    entryPrefix: "survivor-board/entry/v2",
+  }),
 
   /**
    * When the odds bot runs. Must match the timezone-aware schedule in
    * .github/workflows/refresh-odds.yml; the board only uses it to show when the
-   * next pull is due. Once a day keeps two leagues inside the free Odds API
-   * quota: 4 credits per league per run against 500 a month.
+   * next pull is due. Once a day keeps both pulls inside the free Odds API
+   * quota: 4 credits per sport per run against 500 a month. Leagues cost
+   * nothing to add - however many there are, they read the same two pulls.
    */
   refresh: {
     hour: 9,
@@ -62,20 +58,13 @@ export const CONFIG = Object.freeze({
 });
 
 /**
- * Where one league's entry is stored, in each of the three backends.
- *
- * In Supabase the row id is simply the league id, matching the folder under
- * data/ and the seed in supabase/schema.sql. The two per-device backends keep
- * their older shape: the college pool predates the NFL one and its state is
- * already saved under the unsuffixed names, so it keeps them, and anything
- * else is namespaced, which is what stops one league's selections from landing on
- * the other's board.
+ * Where one league's shared state lives, in each of the backends. Keyed by the
+ * league's code, so two leagues never land on each other's board.
  */
-export function scopeFor(league) {
-  const suffix = league === "cfb" ? "" : `/${league}`;
+export function scopeFor(code) {
   return {
-    doc: league === "cfb" ? "entry/shared" : `entry/${league}`,
-    entryId: league,
-    storageKey: `${CONFIG.localStorageKey}${suffix}`,
+    doc: `league/${code}`,
+    entryId: code,
+    storageKey: `${CONFIG.storage.entryPrefix}/${code}`,
   };
 }

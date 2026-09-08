@@ -21,7 +21,7 @@ import { dirname, join } from "node:path";
 import { calibrate } from "./lib/calibrate.mjs";
 import { expandHistory } from "./lib/history.mjs";
 import { marketError } from "./lib/rate.mjs";
-import { LEAGUE_IDS, LEAGUES } from "../src/js/leagues.js";
+import { SPORTS, SPORT_IDS } from "../src/js/sports.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -29,15 +29,16 @@ const args = process.argv.slice(2);
 const write = args.includes("--write");
 const tune = !args.includes("--no-tune");
 const named = args.filter((arg) => !arg.startsWith("--"));
-const leagues = named.length ? named : LEAGUE_IDS;
+const leagues = named.length ? named : SPORT_IDS;
 
 let failed = false;
 for (const league of leagues) {
-  if (!LEAGUES[league]) {
+  if (!SPORTS[league]) {
     console.error(`Unknown league "${league}".`);
     failed = true;
     continue;
   }
+
   try {
     await run(league);
   } catch (error) {
@@ -53,7 +54,7 @@ async function run(league) {
   const games = expandHistory(history);
   const homeFieldPoints = ratings.homeFieldPoints ?? 2.5;
 
-  console.log(`\n=== ${LEAGUES[league].label} ===`);
+  console.log(`\n=== ${SPORTS[league].label} ===`);
   const started = Date.now();
   // How far the ratings the league shipped with missed the first week the
   // market priced. That is what the anchor is scaled to: the history's own

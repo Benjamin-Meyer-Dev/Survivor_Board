@@ -558,7 +558,7 @@ function renderSlot(pick, board, canWrite) {
         ${matchupLine(pick, pick, canWrite)}
       </div>
 
-      ${numbers(pick)}
+      ${numbers(pick, board)}
 
       ${renderTeamList(pick, board, canWrite)}
     </div>`;
@@ -613,7 +613,7 @@ function renderEmptySlot(pick, board, canWrite) {
     <div class="slot slot--empty" data-motion-key="slot-${pick.week}-${pick.slot}">
       <div class="slot__head">${head}</div>
 
-      ${numbers(suggestion)}
+      ${numbers(suggestion, board)}
 
       ${renderTeamList(pick, board, canWrite)}
     </div>`;
@@ -811,15 +811,22 @@ function line(option) {
 }
 
 /**
- * Spread, win probability and where the line came from, for a pick or a
- * suggestion. With nothing to price, the row still stands, blank, so the slot
- * keeps its height while the coach is working or has nothing to suggest.
+ * Spread, the chance the pick carries the week, and where the line came from,
+ * for a pick or a suggestion. With nothing to price, the row still stands,
+ * blank, so the slot keeps its height while the coach is working or has
+ * nothing to suggest.
+ *
+ * The middle number is the pick's own probability whichever pool this is, and
+ * only its name changes: in a losers pool it is the chance the team loses (see
+ * core/objective.js), so calling it a win probability there would read as the
+ * opposite of what it is.
  */
-function numbers(line) {
+function numbers(line, board) {
+  const probKey = board?.rules?.objective === "lose" ? "Loss prob" : "Win prob";
   return `
       <div class="slot__numbers">
         ${metric("Spread", line ? formatSpread(line.spread) : "—", false, line?.tier)}
-        ${metric("Win prob", line ? formatPercent(line.winProb) : "—", false, line?.tier)}
+        ${metric(probKey, line ? formatPercent(line.winProb) : "—", false, line?.tier)}
         ${metric("Line", line ? (line.source === "market" ? "Market" : "Projected") : "—", true)}
       </div>`;
 }

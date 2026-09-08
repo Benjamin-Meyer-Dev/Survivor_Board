@@ -21,23 +21,24 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 import { fitForm, marketError, resolveRatingParams } from "./lib/rate.mjs";
-import { LEAGUE_IDS, LEAGUES } from "../src/js/leagues.js";
+import { SPORTS, SPORT_IDS } from "../src/js/sports.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const args = process.argv.slice(2);
 const dry = args.includes("--dry");
 const named = args.filter((arg) => !arg.startsWith("--"));
-const leagues = named.length ? named : LEAGUE_IDS;
+const leagues = named.length ? named : SPORT_IDS;
 
 let failed = false;
 
 for (const league of leagues) {
-  if (!LEAGUES[league]) {
+  if (!SPORTS[league]) {
     console.error(`Unknown league "${league}".`);
     failed = true;
     continue;
   }
+
   try {
     await rate(league);
   } catch (error) {
@@ -71,7 +72,7 @@ async function rate(league) {
     params,
   });
 
-  console.log(`\n=== ${LEAGUES[league].label} ===`);
+  console.log(`\n=== ${SPORTS[league].label} ===`);
   console.log(
     `Weights: ${calibration?.rating ? "calibration.json" : "defaults"} ` +
       `(market ${params.marketWeight}, margin ${params.resultWeight}, efficiency ` +

@@ -26,7 +26,7 @@ import {
   expit,
   confidenceTier,
 } from "../src/js/core/probability.js";
-import { LEAGUE_IDS } from "../src/js/leagues.js";
+import { SPORT_IDS } from "../src/js/sports.js";
 
 const close = (a, b, tolerance, message) =>
   assert.ok(Math.abs(a - b) <= tolerance, `${message}: ${a} vs ${b}`);
@@ -180,7 +180,7 @@ assert.equal(resolveModel(null), DEFAULT_MODEL);
 assert.equal(resolveModel({ margin: { sigma: "x" } }).sigma, DEFAULT_MODEL.sigma);
 
 // Each league that ships a calibration.json ships a usable one.
-for (const league of LEAGUE_IDS) {
+for (const league of SPORT_IDS) {
   let calibration = null;
   try {
     calibration = JSON.parse(

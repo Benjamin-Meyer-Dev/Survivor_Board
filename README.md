@@ -1,27 +1,40 @@
 # Survivor Board
 
-A shared tracker for two survivor pools, college and NFL, switched from the
-masthead.
+A tracker for as many survivor pools as you are in. Make a league, send its
+code to the people you are playing with, and everyone works the same board.
 
-The NFL board opens by default; the switch remembers whichever you used last,
-and each league carries its own palette so a glance tells you where you are.
+First launch asks what to call you - that name goes on the picks you make.
+After that the home page lists your leagues: **Create** one for each pool you
+are in, or **Join** with a twelve-character code someone sent you. Every league
+has one shared board, so the people in it see the same picks and locks in real
+time, and market lines and final scores refresh once a day, so wins and losses
+mark themselves.
 
-Two people, two devices, one entry per league. Market lines and final scores
-refresh once a day, so wins and losses mark themselves; picks and locks sync
-between phones in real time.
+A league is a season plus its rules:
 
-|              | College              | NFL                         |
-| ------------ | -------------------- | --------------------------- |
-| Weeks        | 1-13                 | 1-18                        |
-| Picks a week | 2                    | 1                           |
-| Eligible     | SEC, Big Ten, Big 12 | all 32                      |
-| Opponent     | must be FBS          | any                         |
-| Buy backs    | none                 | one, covering weeks 1 and 2 |
+|          | College season       | NFL season |
+| -------- | -------------------- | ---------- |
+| Weeks    | 1-13                 | 1-18       |
+| Eligible | SEC, Big Ten, Big 12 | all 32     |
+| Opponent | must be FBS          | any        |
 
-Both pools are straight-up wins with no team used twice. A buy back forgives
-one loss; it does not give the team back, so a week 1 loss costs both the team
-and the cushion. That is why the NFL path takes its biggest risk in week 2 and
-plays it safe from week 3 on.
+and the rules its members set, from the gear beside its name - whether picks
+have to **win or lose**, how many **picks a week**, how many **buy backs** and
+the weeks they cover. Those are the league's, not the device's: saving them
+re-plans the season on every phone in it. No team can be used twice either way,
+and a buy back forgives a loss without giving the team back, so a week 1 loss
+costs both the team and the cushion.
+
+Nothing about a league is built into the app. The repo carries the two seasons -
+the schedules, the lines, the ratings and the calibrated model - and every
+league is a row keyed by its code. However many you make, they read the same
+two daily pulls and cost nothing extra.
+
+**A code is the credential.** There are no accounts: anyone holding a league's
+code can read that board and write to it, which is the point of sending one.
+What that does not protect against is the publishable Supabase key that ships
+in the page - see the note at the top of [supabase/schema.sql](supabase/schema.sql),
+which is also where the upgrade to real accounts is written down.
 
 ## Quick start
 
@@ -42,8 +55,8 @@ manifest.webmanifest          makes it installable to a home screen
 sw.js                         service worker: install support, instant launch, offline board
 icons/                        home-screen icons, 192 · 512 · maskable · iOS, plus the SVG source
 
-data/cfb/  data/nfl/          one folder per league, the same files
-  plan.json                   the season path and the pool's rules
+data/cfb/  data/nfl/          one folder per season, the same files
+  plan.json                   the season calendar, its model settings and a seeded path
   teams.json                  eligible teams + power ratings
   schedule.json               every game, by week
   ratings.json                the rating each team is priced off
@@ -65,9 +78,12 @@ src/css/
 
 src/js/
   app.js                      wiring and the render loop
-  config.js                   Supabase keys, passcode digest, paths
-  leagues.js                  everything that differs between the two pools
+  config.js                   Supabase keys, storage keys, paths
+  sports.js                   the two seasons: what a league is made of that nobody chooses
   core/                       pure logic, also imported by the Node scripts
+    objective.js              win or lose: the one place two leagues on one season differ
+    rules.js                  a league's rules, over its season's defaults, clamped
+    code.js                   league codes: made, read loosely, and shared as a link
     plan.js                   merges plan + odds + entry into the derived board
     probability.js            the calibrated margin model: spread → win probability, de-vig, horizon
     survival.js               season survival, buy backs included
@@ -77,19 +93,21 @@ src/js/
     availability.js           player availability as a points adjustment
     equity.js                 pool leverage from pick popularity
     format.js                 display formatting and HTML escaping
-    passcode.js               derives the passcode digest, shared with the set script
   store/                      persistence (Supabase, localStorage fallback)
+    directory.js              the leagues: made, joined, listed, renamed, left
   ui/                         rendering only, no state, no fetch
+    home.js                   your leagues, and where they are made and shared
+    name.js                   the start screen: what to call you
+    settings.js               a league's own sheet - its name, its code, its rules
 
 scripts/
-  refresh-odds.mjs            the daily odds job, both leagues
+  refresh-odds.mjs            the daily odds job, every pool with games of its own
   rate-form.mjs               refit the ratings from the pulls on disk
   pull-stats.mjs              pull the efficiency statistics (nflverse; CFBD with a key)
   import-history.mjs          import past seasons from nflverse and cfbfastR-data
   calibrate.mjs               fit the probability model and tune the rating fit on history
   backtest.mjs                score this season's board against what has happened
   seed-plan.mjs               author a league's plan.json from the optimiser
-  set-passcode.mjs            set the pool passcode; only its digest lands in config.js
   build-icons.mjs             redraws icons/ from the startup football through headless Chrome
   validate-*.mjs              the checks `npm test` runs
   lib/                        odds API client, season calendar, rating fit, calibration, backtest
@@ -105,7 +123,6 @@ docs/                         architecture, code standards, deploy
 | --------------------- | ---------------------------------------------------------------------- |
 | `npm run serve`       | Local server on :4173                                                  |
 | `npm test`            | Validates every `plan.json` against its rules, and the config          |
-| `npm run passcode`    | Sets the pool passcode; the repo only ever holds its digest            |
 | `npm run icons`       | Redraws the home-screen icons from the startup football (needs Chrome) |
 | `npm run refresh`     | Pulls live odds (needs `ODDS_API_KEY`)                                 |
 | `npm run seed -- nfl` | Re-authors a league's plan from the optimiser                          |

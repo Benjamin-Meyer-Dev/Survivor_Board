@@ -32,19 +32,76 @@ A static site with no build step, one scheduled job, and one tiny database.
                 one row per league
 ```
 
-## Two leagues, one board
+## Three pools, one board
 
-`data/cfb/` and `data/nfl/` hold the same files. Which one is loaded is a
+`data/cfb/` and `data/nfl/` hold the same files. Which pool is loaded is a
 single piece of state in `app.js`; everything else falls out of the plan the
-league ships:
+pool ships:
 
-| Rule                    | Read from                 |
-| ----------------------- | ------------------------- |
-| picks per week          | `plan.rules.picksPerWeek` |
-| weeks in the season     | `plan.weeks`              |
-| eligible teams          | `teams.conferences`       |
-| what counts as a "Lock" | `plan.tiers`              |
-| buy backs, and where    | `plan.rules.buyBack*`     |
+| Rule                    | Read from                 | Editable from the board |
+| ----------------------- | ------------------------- | ----------------------- |
+| picks per week          | `plan.rules.picksPerWeek` | yes                     |
+| weeks in the season     | `plan.weeks`              | no - the schedule says  |
+| eligible teams          | `teams.conferences`       | no                      |
+| what counts as a "Lock" | `plan.tiers`              | no - model, not rule    |
+| buy backs, and where    | `plan.rules.buyBack*`     | yes                     |
+| win or lose             | `plan.rules.objective`    | yes                     |
+
+### Rules, and changing them
+
+What the plan ships is the default. The settings sheet behind the masthead gear
+(`ui/settings.js`) writes overrides into the shared entry under `rules`, and
+`core/rules.js` merges the two into the set the board runs on. Three properties
+hold it together:
+
+- **Shared, not per-device.** Rules belong to the pool, so they live in the
+  same document the picks do and arrive on the other phone through the same
+  realtime push. A pool with nothing saved has no `rules` key at all, which is
+  what "follows the plan" looks like on disk - and what "Back to the plan"
+  restores by deleting it.
+- **Clamped, never trusted.** An override comes from a document another device
+  wrote, an older version of the app may have written, or a person may have
+  edited by hand in the Supabase table. `mergeRules` refuses anything unusable
+  and falls back to the plan's own value - field by field, never to a constant -
+  so no value in that document can produce a board that does not work. Buy
+  backs cannot outnumber the weeks they cover, which is the one pair of fields
+  that can contradict each other.
+- **Part of the search's identity.** The recommendation is memoised on a
+  signature (`signatureBase`), and the rules are in it. They have to be: flipping
+  a pool to picking losers is a different search, and before the rules could
+  change at runtime the signature did not need to say so.
+
+A rule the board no longer holds does not destroy what was saved under it. The
+entry is keyed by week and slot, so dropping a pick a week hides the extra
+slots - their picks stop spending teams and stop counting - and raising it
+again brings them back exactly as they were. What the sheet does not offer is
+anything the model cannot honour: reusing a team is not a toggle, because the
+optimiser's whole search, the Hungarian assignment included, is built on a team
+being spent once.
+
+One thing the daily job cannot see: it reads `plan.json`, not the shared entry,
+so its line-movement flag is computed from the file's objective rather than a
+pool's override.
+
+A league owns none of that. It is a row in the `leagues` table - a code, a
+name, the season it plays, and its whole shared board as JSON - and the season
+is what points it at a folder. However many leagues exist, they read the same
+two daily pulls, so a pool costs a row and nothing else. `src/js/sports.js` is
+what is left of the old pool registry: the two seasons, and what a new league
+on each of them starts with.
+
+The objective is applied in exactly one place, `core/objective.js`, and it is
+applied where the raw numbers enter the model rather than where they are read.
+`weekOptions` prices a team's chance of winning its game and then hands
+downstream `winProb` meaning "the chance this pick carries the week" - one
+minus it in a losers pool - and `advanceResult` does the same to a recorded
+final, so the team that lost is the pick that won. The spread is never flipped:
+it is the market's statement about the game, and `+9.5` is what makes that
+team the good pick there. Every module below - the tiers, the beam search, the
+survival maths, the ladder, the burn board, the pool overlay - therefore works
+unchanged and never asks which pool it is in. The one exception is
+`core/scenarios.js`, which draws its own spreads and so has to be told which
+side of them to price.
 
 Colour is the one thing that does not come off the board: `app.js` stamps
 `data-league` on the root element and `src/css/leagues.css` redefines the
@@ -53,8 +110,9 @@ confidence scale is deliberately left alone, because a status colour that moves
 with the league is a status colour you cannot trust.
 
 No module under `src/js/ui/` knows which league is open, and `core/` takes the
-rules as arguments rather than reading a global. Adding a third pool is a
-folder and an entry in `src/js/leagues.js`.
+rules as arguments rather than reading a global. Adding a pool is a folder and
+an entry in `src/js/leagues.js` - or, when it plays a schedule already here,
+an entry and a `plan.json` alone.
 
 Switching is a full reload of the board, not a filter over one: the old store
 subscription is torn down, the new league's data and entry are loaded, and a
@@ -497,7 +555,9 @@ correction in `odds.json`, can bring the board out of review.
 
 ## What the refresh job does with it
 
-One run refreshes both leagues, in sequence, against separate sport keys and
+One run refreshes every pool with games of its own - `DATA_LEAGUE_IDS`, which
+is every pool that is not reading another's folder - in sequence, against
+separate sport keys and
 separate data folders. A failure in one is logged and the other still runs; the
 job only exits non-zero when every league failed. Set `LEAGUE=nfl` to refresh
 just one, which is how you avoid spending API quota on a college season that is
@@ -564,8 +624,11 @@ orderings against a fake client.
   odds commit still lands the moment it is published and a weak signal falls
   back to the last copy rather than hanging. Offline shows the last board this
   device loaded rather than a guaranteed-complete app.
-- **No auth.** A shared passcode gates the board once per device and unlocks
-  writes. Only its PBKDF2 digest ships in the page (`core/passcode.js`), so the
-  passcode cannot be read out of the repo, but the check still runs in the
-  browser, so it keeps out passers-by, not anyone determined. Turn on Supabase
-  Auth if the pool gets serious.
+- **No auth.** A league's code is the credential: twelve characters from a
+  31-letter alphabet, generated with `crypto.getRandomValues`, and holding one
+  is what lets a device read and write that league. Nothing is verified and
+  nobody signs in - a name is a label this device typed, not an identity. The
+  publishable key ships in the page, so the policies cannot check a code and
+  the obstacle is that codes are unguessable, which keeps out passers-by rather
+  than anyone determined. Supabase Auth plus a memberships table is the version
+  that holds; the trade is written up at the top of `supabase/schema.sql`.

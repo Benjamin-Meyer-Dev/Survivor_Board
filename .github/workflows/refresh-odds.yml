@@ -1,18 +1,47 @@
 name: Refresh odds
 
-# Once a day at 9am Toronto time. GitHub cron is UTC-only, so both possible UTC
-# hours are scheduled and the first step drops the one that lands before the
-# local 9am. That preserves the clock time across daylight-saving changes.
-# The local time and timezone must match CONFIG.refresh in src/js/config.js.
+# Once a day, as close to 9am Toronto time as GitHub will allow.
+#
+# GitHub's cron is best effort, not a clock: a scheduled run is queued on
+# shared capacity and released when there is room for it. On this repo that has
+# meant three to five hours late, every day, which turned a 9am slot into a
+# lunchtime pull and cost a Sunday slate its evening results. A single slot
+# cannot be made punctual, so the day's 9am is asked for from many directions
+# and the first run that actually starts does the day's work. Every slot behind
+# it falls out at the window check below, before an API credit is spent, so the
+# quota is the same 8 credits a day it was on a single slot.
+#
+# The check is what makes that safe: no run pulls before 9am local, however
+# early it fires, and no run pulls at all once the day's pull has happened. So
+# the slots can be as generous as they like in both directions.
+#
+# GitHub cron is UTC-only, so the slots cover both UTC hours 9am Toronto can
+# fall in and the local-time check drops the one that is still 8am. That
+# preserves the clock time across daylight-saving changes. The local time and
+# timezone must match CONFIG.refresh in src/js/config.js.
 #
 # Off the top of the hour on purpose: GitHub queues every cron in the world at
-# :00 and sheds load from it, and a dropped slot here is a day with no results.
+# :00 and sheds load from it, and a dropped slot is one fewer chance at 9am.
 on:
   schedule:
-    - cron: "17 13 * * *"
-    - cron: "17 14 * * *"
-  # Run it by hand from the Actions tab to test. schedule and workflow_dispatch
-  # are independent triggers, so a manual run never moves the next daily one.
+    # The early birds, 5:07 to 8:07am local: too early to pull, and asked for
+    # precisely because they are. A queue that releases them three to five
+    # hours late releases them at about 9am, which is the whole point - the
+    # delay is what these are aimed at. On time they cost fifteen seconds and
+    # the window check turns them away.
+    - cron: "7 9-12 * * *"
+    # The 9am hour itself and the two after it, every fifteen minutes, for a
+    # queue that is running on time or nearly so: 9:07 to 11:52am local on
+    # daylight time, an hour earlier on standard time, where the check drops
+    # the ones that land before 9.
+    - cron: "7,22,37,52 13-15 * * *"
+    # Hourly through the afternoon and evening, so a day the queue delays past
+    # all of the above still gets its pull rather than being skipped.
+    - cron: "7 16-23 * * *"
+  # Run it by hand from the Actions tab to test. A dispatch is honoured within
+  # seconds, which is the one way to get a pull at a time of your choosing.
+  # schedule and workflow_dispatch are independent triggers, so a manual run
+  # never moves the next daily one.
   workflow_dispatch:
 
 permissions:
@@ -22,10 +51,9 @@ permissions:
   # workflow, so the deploy has to be requested rather than fallen into.
   actions: write
 
-# Never two at once. The second slot of the day, and any duplicate behind it,
-# falls out at the freshness check inside scripts/refresh-odds.mjs rather than
-# re-pulling the same lines: MIN_REFRESH_GAP_MS below is what makes that check
-# the once-a-day guard, so the time gate does not have to be exact.
+# Never two at once. The slots behind the day's pull queue here and then fall
+# out at the window check, which is what keeps twenty-odd slots costing one
+# pull: the check reads the timestamp the pull just committed.
 concurrency:
   group: refresh-odds
   cancel-in-progress: false
@@ -34,6 +62,11 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     steps:
+      # Ahead of the window check, because what that check reads is the last
+      # pull's timestamp under data/. A checkout is a second or two and spends
+      # no quota, which is what the slots that fall out have to be cheap in.
+      - uses: actions/checkout@v7
+
       - name: Check the Toronto refresh window
         id: refresh-time
         env:
@@ -43,22 +76,37 @@ jobs:
             echo "due=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # From 9am local onward, not the 9am hour exactly. GitHub's cron runs
-          # late under load - sometimes by hours - and a run that lands at 11 is
-          # still the day's run, so pinning it to one hour turned a delay into a
-          # day with no lines and no results. Anything earlier is the alternate
-          # UTC slot on the other side of daylight saving and is genuinely not
-          # due; anything later is deduplicated by the freshness check in
-          # scripts/refresh-odds.mjs, which costs no API quota.
-          if [ "$(date +%-H)" -ge 9 ]; then
-            echo "due=true" >> "$GITHUB_OUTPUT"
-          else
+
+          # From 9am local onward, and never before: an earlier slot is the
+          # other side of daylight saving and is genuinely not due yet.
+          if [ "$(date +%-H)" -lt 9 ]; then
             echo "due=false" >> "$GITHUB_OUTPUT"
             echo "$(date +%H:%M) local is before the 9am refresh: alternate UTC slot."
+            exit 0
           fi
 
-      - uses: actions/checkout@v7
-        if: steps.refresh-time.outputs.due == 'true'
+          # One pull a day, decided by the local calendar day rather than by a
+          # rolling gap since the last run. A gap gets this wrong in exactly
+          # the case that matters: a run that landed late yesterday sits less
+          # than a day before this morning's slot, so a twenty-hour gap skipped
+          # the day outright - it is what lost Saturday 5 September - and every
+          # late run dragged the next one later still. A date cannot drift.
+          today=$(date +%F)
+          last=""
+          for file in data/*/odds.json; do
+            stamp=$(jq -r '.updatedAt // empty' "$file")
+            [ -n "$stamp" ] || continue
+            day=$(date -d "$stamp" +%F)
+            if [ -z "$last" ] || [ "$day" \> "$last" ]; then last=$day; fi
+          done
+
+          if [ "$last" = "$today" ]; then
+            echo "due=false" >> "$GITHUB_OUTPUT"
+            echo "Today's pull has already happened. Nothing to do."
+          else
+            echo "due=true" >> "$GITHUB_OUTPUT"
+            echo "$(date +%H:%M) local, last pull ${last:-never}. Pulling."
+          fi
 
       - uses: actions/setup-node@v7
         if: steps.refresh-time.outputs.due == 'true'
@@ -74,11 +122,13 @@ jobs:
           # college efficiency layer (data/cfb/stats.json); without it the fit
           # runs on lines and margins alone and the log says so.
           CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
-          # Twenty hours, so the day's two scheduled slots collapse into one
-          # pull while a genuine next-day run always goes through. Manual runs
-          # keep the script's own short default, which is what makes testing
-          # from the Actions tab possible.
-          MIN_REFRESH_GAP_MS: ${{ github.event_name == 'schedule' && 72000000 || '' }}
+          # A duplicate guard now, not the daily gate: the window check above
+          # is what makes this once a day, and it reads the same timestamp this
+          # does. Twenty minutes collapses two slots GitHub happens to release
+          # together, and is far too short to block the day's own pull the way
+          # twenty hours here could. Manual runs keep the script's own short
+          # default, which is what makes testing from the Actions tab possible.
+          MIN_REFRESH_GAP_MS: ${{ github.event_name == 'schedule' && 1200000 || '' }}
         run: node scripts/refresh-odds.mjs
 
       - name: Commit if the numbers moved

@@ -167,69 +167,700 @@
 
 /* league switch (ui/league-switch.js) ------------------------------------ */
 
-/* A segmented control with a marker that slides between the cells, so the
-   change of league reads as a move rather than two independent buttons
-   swapping colour. */
+/* The pool picker: a pill holding a native select, so what the board shows is
+   the pool's own name and what opens is the platform's picker. Three pools no
+   longer fit across a phone as a segmented control, and two of them are the
+   same league played opposite ways - a code short enough to fit could not say
+   which. */
 .league {
   position: relative;
   display: inline-flex;
-  padding: 3px;
+  align-items: center;
   border: 1px solid var(--line);
   border-radius: 99px;
   background: var(--surface-2);
   flex: none;
 }
 
-.league__marker {
-  position: absolute;
-  top: 3px;
-  bottom: 3px;
-  left: 3px;
-  width: calc((100% - 6px) / var(--n));
+/* Room on the right for the chevron, which is drawn over the select rather
+   than beside it: a select sized by its longest option would leave the pill
+   wider than the name it is showing. */
+.league__select {
+  appearance: none;
+  min-height: 38px;
+  /* The masthead wraps rather than squeezes (see .masthead), so the pill can
+     have the room its longest name needs and take its own line when the title
+     leaves none. The cap is only there so a future name cannot run away. */
+  max-width: min(100%, 260px);
+  padding: 0 34px 0 15px;
+  border: 0;
   border-radius: 99px;
-  background: var(--accent);
-  transform: translateX(calc(100% * var(--i)));
-  transition: transform 0.26s var(--ease-snap, ease-out);
+  background: none;
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: color 180ms ease;
 }
 
-/* Equal cells, so the sliding marker lands exactly on one however long its
-   label is. */
-.league__btn {
-  position: relative;
-  z-index: 1;
-  flex: 1 1 0;
-  min-width: 80px;
-  min-height: 38px;
-  padding: 0 15px;
+/* The open picker is the platform's, and on a desktop it inherits nothing
+   from the pill: the rows have to carry their own ground or they land as dark
+   text on a dark menu. */
+.league__select option {
+  background: var(--surface);
+  color: var(--ink);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.league__select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.league__chevron {
+  position: absolute;
+  right: 12px;
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* The select owns every pointer event in the pill, chevron included. */
+  pointer-events: none;
+  transition: stroke 180ms ease;
+}
+
+/* pool rules sheet (ui/settings.js) -------------------------------------- */
+
+/* The gear, beside the pool picker. Quiet until it is the thing you want:
+   the pool's name is what the masthead is for, and this is the way in to the
+   rules under it. */
+.settings__open {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--surface-2);
+  color: var(--ink-3);
+  cursor: pointer;
+  transition:
+    color 180ms ease,
+    border-color 180ms ease;
+}
+
+.settings__open svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.settings__open:hover {
+  color: var(--ink-2);
+}
+
+/* A pool running rules of its own says so here, because everything else on
+   the board looks the same either way: a week showing one slot is either a
+   one-pick pool or a two-pick pool with a rule changed, and only the gear can
+   tell you which. */
+.settings__open--custom {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+}
+
+.settings__open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The sheet. Centred on a desktop, sitting on the bottom edge on a phone,
+   where a thumb is and where every other sheet on the device opens. */
+.settings {
+  width: min(460px, calc(100vw - 2 * var(--sp-4)));
+  max-height: min(84vh, 720px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.settings::backdrop {
+  background: rgb(0 0 0 / 62%);
+}
+
+.settings__form {
+  display: flex;
+  flex-direction: column;
+  max-height: inherit;
+}
+
+.settings__head {
+  padding: var(--sp-5) var(--sp-5) var(--sp-4);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.settings__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.settings__pool {
+  margin-top: 6px;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* Scrolls, because four rule groups and eighteen week chips do not fit a
+   phone in landscape, and the actions must stay reachable. */
+.settings__label {
+  display: block;
+  margin: var(--sp-3) 0 6px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.settings__rename,
+.settings__share {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+}
+
+.settings__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* The code, in the face it is read in, and selectable: someone will copy it by
+   hand however many copy buttons are beside it. */
+.settings__code {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  letter-spacing: 0.06em;
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+
+.settings__body {
+  display: grid;
+  gap: var(--sp-5);
+  padding: var(--sp-5);
+  overflow-y: auto;
+}
+
+.settings__group {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.settings__legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.settings__hint {
+  margin-top: 7px;
+  color: var(--ink-3);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+/* A row of choices, sharing the pill the pool picker wears so the two read as
+   the same kind of control. */
+.settings__choices {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--surface-2);
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.settings__choice {
+  flex: 1 0 auto;
+  min-width: 54px;
+  min-height: 34px;
+  padding: 0 14px;
   border: 0;
   border-radius: 99px;
   background: none;
   color: var(--ink-3);
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: color 180ms ease;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
 }
 
-.league__btn[aria-pressed="true"] {
+.settings__choice[aria-pressed="true"] {
+  background: var(--accent);
   color: var(--on-accent);
 }
 
-.league__btn:focus-visible {
+/* The weeks, as a grid of numbers rather than a row: eighteen of them wrap to
+   three tidy lines instead of scrolling sideways under a thumb. */
+.settings__weeks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
+  gap: 6px;
+}
+
+.settings__week {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
+}
+
+.settings__week[aria-pressed="true"] {
+  background: var(--mulligan-bg);
+  border-color: var(--mulligan);
+  color: var(--mulligan);
+}
+
+/* Disabled rules read as unavailable, not as off: a read-only device shows
+   the pool's rules exactly as they are and simply cannot move them. */
+.settings__body [data-rule]:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.settings__choice:focus-visible,
+.settings__week:focus-visible,
+.settings__btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .league__marker {
-    transition: none;
-  }
+.settings__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: var(--sp-4) var(--sp-5) calc(var(--sp-5) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line-soft);
+  background: var(--surface);
 }
 
-/* passcode gate (ui/gate.js) --------------------------------------------- */
+.settings__actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.settings__btn {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
+}
+
+.settings__btn--quiet:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--ink-3);
+}
+
+/* The one button that changes the pool for everyone, in the pool's accent. */
+.settings__btn--go {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.settings__btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* home page (ui/home.js) -------------------------------------------------- */
+
+/* The list and the two forms, stacked on a phone and side by side once there
+   is room. Cards first: the leagues you are in are the reason to be here, and
+   making another is the thing you do once. */
+.home {
+  display: grid;
+  gap: var(--sp-5);
+}
+
+.home__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.home__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.home__eyebrow {
+  color: var(--ink-3);
+}
+
+/* Quiet, because changing your name is a thing you do once and by accident
+   otherwise. */
+.home__name {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--ink-3);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.home__name:hover {
+  color: var(--ink-2);
+}
+
+.home__message {
+  margin: 0;
+}
+
+.home__list {
+  display: grid;
+  gap: var(--sp-4);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+}
+
+.home__empty {
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: var(--sp-5);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.home__card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+/* A code that did not answer. Dimmed rather than hidden: it is still this
+   device's league until someone says otherwise. */
+.home__card--missing {
+  opacity: 0.72;
+  border-style: dashed;
+}
+
+.home__card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.home__card-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 19px;
+  line-height: 1.15;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.home__card-rules,
+.home__card-warn {
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.home__card-warn {
+  color: var(--close);
+}
+
+/* The code, as the thing to read out or screenshot: monospace, spaced, and
+   selectable, because copying it by hand is a real way to share it. */
+.home__code {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.home__code-label {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.home__code-value {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+
+.home__card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.home__forms {
+  display: grid;
+  gap: var(--sp-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+}
+
+.home__form {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.home__form-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.home__label {
+  color: var(--ink-2);
+  font-size: 12.5px;
+}
+
+.home__input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+}
+
+/* Codes are read back character by character, so they are set in the mono
+   face and spaced out. 16px keeps iOS from zooming the page on focus. */
+.home__input--code {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.home__input::placeholder {
+  color: var(--ink-3);
+}
+
+.home__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.home__choices-group {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.home__choices {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* The radio itself is the control; the label is what is tapped, so it carries
+   the whole target and the state. */
+.home__choice {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--surface);
+  color: var(--ink-3);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.home__choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.home__choice:has(input:checked) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.home__choice:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.home__hint {
+  color: var(--ink-3);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.home__btn {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
+}
+
+.home__btn:hover {
+  color: var(--ink);
+  border-color: var(--ink-3);
+}
+
+.home__btn--go {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.home__btn--go:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+.home__btn--quiet {
+  color: var(--ink-3);
+}
+
+.home__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* start screen (ui/name.js) ---------------------------------------------- */
 
 /* startup screen --------------------------------------------------------- */
 
@@ -630,28 +1261,6 @@
   position: relative;
 }
 
-.gate__visibility {
-  position: absolute;
-  top: 50%;
-  right: 3px;
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-sm);
-  color: var(--ink-3);
-  background: transparent;
-  cursor: pointer;
-  transform: translateY(-50%);
-}
-
-.gate__visibility:hover {
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-
 .gate__eye {
   width: 21px;
   height: 21px;
@@ -663,14 +1272,6 @@
 }
 
 .gate__eye--hide,
-.gate__visibility[aria-pressed="true"] .gate__eye--show {
-  display: none;
-}
-
-.gate__visibility[aria-pressed="true"] .gate__eye--hide {
-  display: block;
-}
-
 .gate__input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
@@ -700,6 +1301,16 @@
 .gate__btn:disabled {
   opacity: 0.6;
   cursor: progress;
+}
+
+/* Why the field is there. The passcode screen needed no explanation - anyone
+   who had the passcode knew what it was for - but a name is going on other
+   people's screens, and that is worth a line. */
+.gate__hint {
+  margin-top: 10px;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  line-height: 1.5;
 }
 
 .gate__error {
@@ -1632,16 +2243,18 @@
    of the row, so a long school name no longer loses its tail to the badge.
    Filled in the accent, since it is the whole of how the coach steers a pick
    and the tier colours on the numbers are close cousins of a bare accent
-   letter. Sized to clear those numbers: the row is 40px tall and their glyphs
-   start about 15.5px down, so an 11px mark 2px in has a little air below. */
+   letter. Inset far enough to sit inside the list rather than in its rounded
+   corner, which the first row shares: a 4px inset clears that curve. And
+   sized to clear the numbers under it - the row is 40px tall and their glyphs
+   start about 15.5px down, so a 10px mark 4px in has a little air below. */
 .swap__coach {
   position: absolute;
-  top: 2px;
-  right: 2px;
+  top: 4px;
+  right: 4px;
   display: inline-grid;
   place-items: center;
-  width: 11px;
-  height: 11px;
+  width: 10px;
+  height: 10px;
   border-radius: 3px;
   background: var(--accent);
   color: var(--on-accent);
@@ -1668,7 +2281,8 @@
   flex: none;
   display: flex;
   align-items: baseline;
-  gap: 9px;
+  /* No gap here: the air around the hairline belongs to the probability box,
+     which shares it evenly on both sides of the mark (see .swap__prob). */
   margin-left: auto;
   font-family: var(--font-mono);
   font-size: 12px;
@@ -1684,25 +2298,30 @@
 /* A hairline between the two numbers, so the spread and the percentage read
    as two figures rather than one run of digits. It wears the row's own colour,
    faded, so it holds up on the tinted current and locked rows where a fixed
-   rule colour would sink into the ground. The bar and its clearance sit inside
-   the probability's box, so the floor width below is widened by the same
-   amount and the right-aligned column stays where it was. */
+   rule colour would sink into the ground.
+
+   The mark and the air on either side of it live inside this box, which keeps
+   the floor width that holds the column. The percentage packs right, and the
+   free space left over - the box is sized for four characters and most rows
+   spend three - goes to the mark's two auto margins, which split it evenly.
+   So the mark sits centred between the spread and the percentage whatever the
+   digits, and the right-aligned column stays where it was. */
 .swap__prob {
-  --rule-gap: 9px;
-  position: relative;
-  min-width: calc(4ch + var(--rule-gap));
-  padding-left: var(--rule-gap);
-  text-align: right;
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  min-width: calc(4ch + 18px);
 }
 
+/* align-self keeps the mark out of the baseline group, so the box takes its
+   baseline from the digits and they still sit on the spread's line. */
 .swap__prob::before {
   content: "";
-  position: absolute;
-  left: 0;
-  top: 50%;
+  flex: none;
+  align-self: center;
+  margin-inline: auto;
   width: 1px;
   height: 0.8em;
-  transform: translateY(-50%);
   background: currentcolor;
   opacity: 0.35;
 }
@@ -2152,10 +2771,9 @@
     letter-spacing: 0.05em;
   }
 
-  .league__btn {
-    min-width: 68px;
+  .league__select {
     min-height: 44px;
-    padding: 0 11px;
+    padding: 0 32px 0 12px;
     font-size: 14px;
   }
 
@@ -2163,11 +2781,6 @@
   .gate__label,
   .gate__error {
     font-size: 14px;
-  }
-
-  .gate__visibility {
-    width: 44px;
-    height: 44px;
   }
 
   .gate__btn {
@@ -2366,13 +2979,14 @@
     padding: 11px 8px;
   }
 
-  /* The rows are 50px here, so the mark can grow and still clear the numbers. */
+  /* The rows are 50px here, so the mark can grow and still clear the numbers,
+     while keeping the inset that holds it clear of the list corner. */
   .swap__coach {
-    top: 3px;
-    right: 3px;
-    width: 14px;
-    height: 14px;
-    font-size: 10px;
+    top: 4px;
+    right: 4px;
+    width: 13px;
+    height: 13px;
+    font-size: 9.5px;
   }
 
   .swap__lock {
@@ -2386,12 +3000,12 @@
   }
 
   .swap__line {
-    gap: 8px;
     font-size: 13.5px;
   }
 
+  /* One pixel tighter each side than the desktop box, to match the row. */
   .swap__prob {
-    --rule-gap: 8px;
+    min-width: calc(4ch + 16px);
   }
 
   .swap__option--disabled .swap__line {

@@ -18,6 +18,8 @@ import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join, relative } from "node:path";
 
+import { SPORT_IDS } from "../src/js/sports.js";
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (...parts) => readFile(join(ROOT, ...parts), "utf8");
 
@@ -34,8 +36,11 @@ const CSS = [
 ];
 const JS = [
   "config.js",
-  "leagues.js",
+  "sports.js",
   "core/probability.js",
+  "core/objective.js",
+  "core/rules.js",
+  "core/code.js",
   "core/format.js",
   "core/survival.js",
   "core/assignment.js",
@@ -44,20 +49,24 @@ const JS = [
   "core/equity.js",
   "core/recommend.js",
   "core/refresh.js",
-  "core/passcode.js",
+
   "core/plan.js",
+  "store/client.js",
   "store/artifact.js",
   "store/supabase.js",
   "store/local.js",
   "store/index.js",
+  "store/directory.js",
   "ui/league-switch.js",
+  "ui/settings.js",
+  "ui/home.js",
+  "ui/name.js",
   "ui/tabs.js",
   "ui/strip.js",
   "ui/week-panel.js",
   "ui/ladder.js",
   "ui/burn-board.js",
   "ui/notices.js",
-  "ui/gate.js",
   "app.js",
 ];
 const DATA = ["plan.json", "teams.json", "odds.json", "schedule.json", "ratings.json"];
@@ -65,8 +74,23 @@ const DATA = ["plan.json", "teams.json", "odds.json", "schedule.json", "ratings.
 /** Inlined when they are there. The board works without them; see openLeague. */
 const OPTIONAL_DATA = ["form.json", "calibration.json", "availability.json", "pool.json"];
 
-/** Every league gets its own inlined block, keyed the way app.js looks it up. */
-const LEAGUE_IDS = ["cfb", "nfl"];
+/**
+ * Every folder a pool reads gets its own inlined block, keyed the way app.js
+ * looks it up: one block per sport, holding that season's schedule, lines,
+ * ratings and model. Leagues are rows in a database and are not built in, so
+ * an artifact opens on whatever the device it runs on has joined.
+ */
+function blocksToInline() {
+  const wanted = new Map();
+  for (const league of SPORT_IDS) {
+    for (const file of [...DATA, ...OPTIONAL_DATA]) {
+      const folder = league;
+      if (!wanted.has(folder)) wanted.set(folder, new Set());
+      wanted.get(folder).add(file);
+    }
+  }
+  return wanted;
+}
 
 /**
  * Flatten an ES module into the shared scope: drop its import statements and
@@ -144,14 +168,14 @@ assertNoCollisions(modules);
 
 const data = Object.fromEntries(
   await Promise.all(
-    LEAGUE_IDS.map(async (league) => [
-      league,
+    [...blocksToInline()].map(async ([folder, files]) => [
+      folder,
       Object.fromEntries(
         (
           await Promise.all(
-            [...DATA, ...OPTIONAL_DATA].map(async (file) => {
+            [...files].map(async (file) => {
               try {
-                return [file, JSON.parse(await read("data", league, file))];
+                return [file, JSON.parse(await read("data", folder, file))];
               } catch (error) {
                 // A required file missing is a broken build; an optional one is
                 // a league the refresh job has not fitted yet.
@@ -189,6 +213,6 @@ await writeFile(join(ROOT, "dist", "artifact.html"), out, "utf8");
 
 console.log(
   `dist/artifact.html  ${(out.length / 1024).toFixed(1)} KB  ` +
-    `(${CSS.length} css, ${JS.length} js, ${LEAGUE_IDS.length} leagues x ` +
+    `(${CSS.length} css, ${JS.length} js, ${SPORT_IDS.length} pools x ` +
     `${Object.keys(Object.values(data)[0] ?? {}).length} data)`,
 );

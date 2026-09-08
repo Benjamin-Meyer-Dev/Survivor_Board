@@ -1,28 +1,50 @@
 /**
  * Entry point. Loads data, wires the store, and owns the render loop.
  *
- * Data flow is one-directional:
+ * Two screens. The home page lists the leagues this device is in and is where
+ * they are made, joined and shared; a board is one league, opened by code.
+ * Which one is showing is `app.view`, and the hash carries it so a league can
+ * be linked to (#/l/CODE) and joined from a message (#/join/CODE).
+ *
+ * Data flow is one-directional either way:
  *   JSON + store -> buildBoard() -> ui modules
  *   ui action    -> mutate entry -> store.save() -> re-render
  */
 
 import { CONFIG } from "./config.js";
-import { LEAGUES } from "./leagues.js";
+import { SPORTS, resolveSport } from "./sports.js";
 import { buildBoard, slotKey, sameEntry } from "./core/plan.js";
 import { createStore } from "./store/index.js";
+import {
+  createLeague,
+  joinLeague,
+  leaveLeague,
+  leagueByCode,
+  myLeagues,
+  myName,
+  myId,
+  refreshMyLeagues,
+  renameLeague,
+  setMyName,
+  sharingAvailable,
+} from "./store/directory.js";
+import { codeFromHash, normaliseCode } from "./core/code.js";
 import { renderLeagueSwitch } from "./ui/league-switch.js";
+import { renderSettings } from "./ui/settings.js";
+import { renderHome } from "./ui/home.js";
 import { renderStrip } from "./ui/strip.js";
 import { renderWeekDeck } from "./ui/week-panel.js";
 import { renderLadder } from "./ui/ladder.js";
 import { renderBurnBoard } from "./ui/burn-board.js";
 import { renderNotices } from "./ui/notices.js";
 import { renderTabs, initialTab } from "./ui/tabs.js";
-import { requireGate } from "./ui/gate.js";
+import { requireName } from "./ui/name.js";
 import { formatDuration } from "./core/refresh.js";
-import { derivePasscodeDigest } from "./core/passcode.js";
 
 const el = {
-  gate: document.getElementById("gate"),
+  start: document.getElementById("start"),
+  home: document.getElementById("home"),
+  board: document.getElementById("board"),
   startup: document.getElementById("startup"),
   startupStatus: document.getElementById("startup-status"),
   notices: document.getElementById("notices"),
@@ -33,16 +55,23 @@ const el = {
   burnLegend: document.getElementById("burn-legend"),
   tabs: document.getElementById("tabs"),
   league: document.getElementById("league"),
+  settings: document.getElementById("settings"),
   shell: document.querySelector(".shell"),
 };
 
-/** The digest of the pool passcode, once this device has answered it correctly. */
-const PASSCODE_KEY = "survivor-board/passcode";
-
 const app = {
-  // Every new page load starts on NFL. A league switch lasts only until the
-  // page is loaded again, regardless of the device's previous visits.
-  league: "nfl",
+  /** "home" or "board". The home page is where a launch with no link lands. */
+  view: "home",
+  /** The open league: {code, name, sport}. Null on the home page. */
+  league: null,
+  /** This device's leagues, as the home page knows them. */
+  leagues: [],
+  /** Whether the shared copy of that list is still on its way. */
+  leaguesLoading: true,
+  /** This person's name, which rides along on every lock. */
+  name: "",
+  /** A line for the home page: a code that did not open, a create that failed. */
+  homeMessage: "",
   plan: null,
   teams: null,
   odds: null,
@@ -58,8 +87,6 @@ const app = {
   pool: null,
   entry: { picks: {}, swaps: {} },
   store: null,
-  /** The verified passcode digest, which is also what opens the store's write lock. */
-  passcodeDigest: null,
   viewWeek: 1,
   activeTab: initialTab(),
   saveTimer: null,
@@ -119,13 +146,19 @@ function afterAnimations(node, done) {
 }
 
 /**
- * Repaint for the league. Every colour in the app hangs off this attribute
- * (see src/css/leagues.css), so the switch is one write rather than a class on
- * each component. The browser chrome is told too, or the status bar keeps the
- * other pool's colour.
+ * Repaint for the sport, and for what its picks have to do. Every colour in
+ * the app hangs off these two attributes (see src/css/leagues.css), so a
+ * change of league is two writes rather than a class on each component. The
+ * browser chrome is told too, or the status bar keeps the last league's
+ * colour.
+ *
+ * A league picking losers takes its sport's surfaces under a warm accent: two
+ * leagues on the same schedule wanting opposite results should not look
+ * identical.
  */
-function applyTheme(league) {
-  document.documentElement.dataset.league = league;
+function applyTheme(sport, objective = "win") {
+  document.documentElement.dataset.league = resolveSport(sport);
+  document.documentElement.dataset.objective = objective === "lose" ? "lose" : "win";
 
   const meta = document.querySelector('meta[name="theme-color"]');
   if (!meta) return;
@@ -151,25 +184,28 @@ function playSwitch() {
 }
 
 /**
- * Local identity, saved as `by` on every lock and result. The board no longer
- * shows it, but it stays in the shared row so the entry still records who did
- * what and when.
+ * Local identity, saved as `by` on every lock and result: the device's id and
+ * the name this person gave on first run. The board does not show it, but a
+ * league with several people in it records who did what and when.
  */
-const ME = resolveIdentity();
+const ME = myId();
 
 /**
  * Read a data file. The artifact build has no sibling files to fetch, so the
  * bundler inlines the three JSON blobs on `globalThis.SURVIVOR_DATA` and this
  * short-circuits. On Pages it fetches normally.
  */
-async function loadJson(name, league = app.league) {
-  const preloaded = globalThis.SURVIVOR_DATA?.[league]?.[name];
+async function loadJson(name, sport = app.league?.sport) {
+  // Per sport, not per league: every league on the NFL schedule is priced off
+  // the one data/nfl pull, however many of them there are.
+  const folder = resolveSport(sport);
+  const preloaded = globalThis.SURVIVOR_DATA?.[folder]?.[name];
   if (preloaded) return structuredClone(preloaded);
 
-  const response = await fetch(`${CONFIG.dataPath}/${league}/${name}?v=${Date.now()}`, {
+  const response = await fetch(`${CONFIG.dataPath}/${folder}/${name}?v=${Date.now()}`, {
     cache: "no-store",
   });
-  if (!response.ok) throw new Error(`Could not load ${league}/${name} (${response.status})`);
+  if (!response.ok) throw new Error(`Could not load ${folder}/${name} (${response.status})`);
   return response.json();
 }
 
@@ -266,11 +302,26 @@ function playDataUpdates(previous, effect = null) {
  *   follow-up render fills it in once `settle` milliseconds have passed.
  */
 function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
+  if (app.view === "home") {
+    renderHomeView();
+    return;
+  }
+
   const previousMotion = captureMotionState();
   const board = buildBoard({ ...boardInputs(), allowSearch: search });
 
   lastBoard = board;
-  renderLeagueSwitch(el.league, app.league, switchLeague);
+  renderLeagueSwitch(el.league, { league: app.league, leagues: app.leagues }, openFromSwitch);
+  renderSettings(el.settings, board, {
+    // The rules are the league's, so changing them is a write like any other.
+    // Unlike the deck, an eliminated run does not close them: the rules are
+    // how a season is set up, and a review is exactly when someone fixes the
+    // ones that were wrong.
+    canWrite: app.store.canWrite,
+    onSave: applyRules,
+    league: app.league,
+    onRename: applyRename,
+  });
   renderNotices(el.notices, { store: app.store, board, message: app.message });
   renderStrip(el.strip, board);
   renderTabs(el.tabs, app.activeTab, selectTab);
@@ -300,6 +351,144 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
   playDataUpdates(previousMotion, effect);
 
   if (board.recommendationPending) scheduleRecommendation(settle);
+}
+
+/**
+ * The home page, and the two screens' visibility with it.
+ *
+ * The board keeps its markup while the home page is up - a league that was
+ * open is the one a Back lands on, and rebuilding its deck would throw away
+ * the week it was scrolled to.
+ */
+function renderHomeView() {
+  el.board.hidden = true;
+  el.home.hidden = false;
+  document.title = "Survivor Board";
+
+  renderLeagueSwitch(el.league, { league: null, leagues: app.leagues }, openFromSwitch);
+  renderSettings(el.settings, null, { canWrite: false, onSave: () => {} });
+  renderNotices(el.notices, { store: app.store, board: null, message: app.message });
+
+  renderHome(
+    el.home,
+    {
+      name: app.name,
+      leagues: app.leagues,
+      shared: sharingAvailable(),
+      loading: app.leaguesLoading,
+      message: app.homeMessage ?? "",
+    },
+    {
+      onOpen: (code) => {
+        app.homeMessage = "";
+        openBoard(code);
+      },
+      onCreate: async ({ name, sport }) => {
+        app.homeMessage = "";
+        try {
+          const league = await createLeague({ name, sport });
+          await reloadLeagues();
+          openBoard(league.code);
+        } catch (error) {
+          app.homeMessage = error.message;
+          renderHomeView();
+        }
+      },
+      onJoin: async (code) => {
+        app.homeMessage = "";
+        try {
+          const league = await joinLeague(code);
+          await reloadLeagues();
+          openBoard(league.code);
+        } catch (error) {
+          app.homeMessage = error.message;
+          renderHomeView();
+        }
+      },
+      onJoinError: (message) => {
+        app.homeMessage = message;
+        renderHomeView();
+      },
+      onLeave: async (code) => {
+        await leaveLeague(code);
+        if (app.league?.code === code) app.league = null;
+        await reloadLeagues();
+        renderHomeView();
+      },
+      onRenameMe: async () => {
+        document.body.classList.add("is-gated");
+        const name = await requireName(el.start, {
+          name: app.name,
+          heading: "Who's picking?",
+          action: "Save",
+        });
+        document.body.classList.remove("is-gated");
+        setMyName(name);
+        app.name = name;
+        renderHomeView();
+      },
+    },
+  );
+}
+
+/** The home page's list, from this device first and the shared rows after. */
+async function reloadLeagues() {
+  app.leagues = myLeagues();
+  app.leaguesLoading = true;
+  try {
+    app.leagues = await refreshMyLeagues();
+  } catch {
+    /* the cached list is still worth showing */
+  } finally {
+    app.leaguesLoading = false;
+  }
+  return app.leagues;
+}
+
+/**
+ * Show the home page. The hash goes with it, so Back and a reload both land
+ * where the person is rather than back inside a league.
+ */
+function goHome() {
+  app.view = "home";
+  if (window.location.hash)
+    window.history.pushState(null, "", window.location.pathname + window.location.search);
+  renderHomeView();
+}
+
+/**
+ * Open a league's board by code, from the home page, the switch or a link.
+ *
+ * Failures put the person back on the home page with the reason, because a
+ * half-open board - a code that no longer exists, a season whose data will not
+ * load - is not a place anyone can do anything from.
+ */
+async function openBoard(code) {
+  const clean = normaliseCode(code);
+  if (app.switching) return;
+  app.switching = true;
+  el.shell?.classList.add("is-swapping");
+
+  try {
+    const league = await leagueByCode(clean);
+    if (!league) throw new Error("That league could not be found.");
+    // Before openLeague, because it ends in the first render of the new board
+    // and a render reads this to decide which screen it is painting.
+    app.view = "board";
+    el.home.hidden = true;
+    el.board.hidden = false;
+    await openLeague(league);
+    window.history.replaceState(null, "", `#/l/${league.code}`);
+    playSwitch();
+  } catch (error) {
+    app.view = "home";
+    app.league = null;
+    app.homeMessage = `Could not open that league: ${error.message}`;
+    renderHomeView();
+  } finally {
+    el.shell?.classList.remove("is-swapping");
+    app.switching = false;
+  }
 }
 
 /**
@@ -423,6 +612,64 @@ function handleAction({ action, week, slot, team }) {
   scheduleSave();
 }
 
+/**
+ * New rules for the pool, from the settings sheet.
+ *
+ * They live in the shared entry beside the picks (see core/rules.js), so this
+ * is the same write a lock is and lands on the other device the same way.
+ * Null puts the pool back on its plan's rules by storing none.
+ *
+ * A rule change moves everything the coach was planning around - the number of
+ * slots, what a pick has to do, what can be forgiven - so the search is owed
+ * again. Paint first and let it run once the new board is on screen, exactly
+ * as a lock does.
+ */
+function applyRules(rules) {
+  if (!app.store.canWrite) return;
+
+  // Dropped rather than emptied: no key is what "follows the plan" looks
+  // like on disk, where an empty object would read as a rule set of its own.
+  const next = { ...app.entry };
+  delete next.rules;
+  if (rules) next.rules = rules;
+  app.entry = next;
+  // A week can lose the slot it was being viewed through, and an empty deck
+  // page is not a place to be left standing.
+  app.viewWeek = Math.min(app.viewWeek, app.plan.weeks.length);
+
+  // A league that now picks losers wears the warm palette, and one that has
+  // gone back to picking winners takes its sport's own again.
+  applyTheme(app.league?.sport, app.entry.rules?.objective);
+
+  clearTimeout(app.recommendTimer);
+  app.recommendTimer = null;
+  render({ search: false, settle: REPLAN_DELAY_MS });
+  scheduleSave();
+}
+
+/**
+ * A new name for the league, for everyone in it.
+ *
+ * The name is the league's own column rather than part of its entry, so this
+ * is a directory write rather than a board one: nothing about the season
+ * changes, so there is no re-plan and no save to coalesce.
+ */
+async function applyRename(name) {
+  if (!app.store.canWrite || !app.league) return;
+  try {
+    const saved = await renameLeague(app.league.code, name);
+    app.league = { ...app.league, name: saved };
+    app.leagues = app.leagues.map((league) =>
+      league.code === app.league.code ? { ...league, name: saved } : league,
+    );
+    document.title = `${saved} · Survivor Board`;
+    app.message = "";
+  } catch (error) {
+    app.message = error.message;
+  }
+  render({ search: false });
+}
+
 /** Coalesce rapid taps into one write. */
 function scheduleSave() {
   clearTimeout(app.saveTimer);
@@ -441,26 +688,18 @@ function scheduleSave() {
   }, 250);
 }
 
-function resolveIdentity() {
-  const stored = localStorage.getItem("survivor-board/who");
-  if (stored) return stored;
-  const name = `Viewer ${Math.random().toString(36).slice(2, 4).toUpperCase()}`;
-  try {
-    localStorage.setItem("survivor-board/who", name);
-  } catch {
-    /* ignore */
-  }
-  return name;
-}
-
 /**
- * Load a league and take over the page.
+ * Load a league and take over the board.
  *
- * Every league owns its data folder and its own stored entry, so a switch is a
- * full reload of the board rather than a filter over one: old subscriptions
- * are torn down first, and nothing from the previous league survives.
+ * A league is a code (its own shared entry) plus a sport (the schedule, lines
+ * and ratings every league on it shares). Opening one is a full reload rather
+ * than a filter over the last: old subscriptions are torn down first, and
+ * nothing from the previous league survives.
+ *
+ * @param {{code:string, name:string, sport:string}} league
  */
 async function openLeague(league) {
+  const sport = resolveSport(league.sport);
   app.unsubscribe?.();
   app.unsubscribe = null;
   clearTimeout(app.recommendTimer);
@@ -469,25 +708,25 @@ async function openLeague(league) {
 
   const [plan, teams, odds, schedule, ratings, form, calibration, availability, pool] =
     await Promise.all([
-      loadJson("plan.json", league),
-      loadJson("teams.json", league),
-      loadJson("odds.json", league),
-      loadJson("schedule.json", league),
-      loadJson("ratings.json", league),
+      loadJson("plan.json", sport),
+      loadJson("teams.json", sport),
+      loadJson("odds.json", sport),
+      loadJson("schedule.json", sport),
+      loadJson("ratings.json", sport),
       // The refresh job's fit to this season's pulls, and one of the data files
       // the board can open without. It does not exist until the first run that
       // has something to fit, so a league whose season has not started is not
       // an error: the board prices the weeks ahead off ratings.json instead.
-      loadJson("form.json", league).catch(() => null),
+      loadJson("form.json", sport).catch(() => null),
       // Three more the board can open without: the league's calibrated model
       // (defaults otherwise), player availability (nothing reported otherwise)
       // and the pool's numbers (survival mode otherwise).
-      loadJson("calibration.json", league).catch(() => null),
-      loadJson("availability.json", league).catch(() => null),
-      loadJson("pool.json", league).catch(() => null),
+      loadJson("calibration.json", sport).catch(() => null),
+      loadJson("availability.json", sport).catch(() => null),
+      loadJson("pool.json", sport).catch(() => null),
     ]);
 
-  app.league = league;
+  app.league = { ...league, sport };
   app.plan = plan;
   app.teams = teams;
   app.odds = odds;
@@ -499,18 +738,16 @@ async function openLeague(league) {
   app.pool = pool;
   app.viewWeek = Math.min(Math.max(odds.currentWeek ?? 1, 1), plan.weeks.length);
 
-  document.title = `${LEAGUES[league].title} · ${LEAGUES[league].label}`;
-  applyTheme(league);
+  document.title = `${league.name} · Survivor Board`;
 
-  app.store = await createStore(league);
-  // The gate already checked the passcode on this device, so the store's write
-  // lock opens with the same digest. With no passcode configured there is no
-  // lock to open.
-  if (!app.store.canWrite) app.store.unlock?.(app.passcodeDigest);
+  app.store = await createStore(league.code);
   app.entry = await app.store.init();
+  // The palette follows the sport and what this league's picks have to do, so
+  // it is applied once the rules are in hand rather than before them.
+  applyTheme(sport, app.entry.rules?.objective ?? SPORTS[sport].defaultRules.objective);
   app.unsubscribe = app.store.subscribe((entry) => {
     // A late push from the store we just replaced must not land on this board.
-    if (app.league !== league) return;
+    if (app.league?.code !== league.code) return;
     // The store confirming our own save, or a poll that found nothing new, is
     // not a change. Rendering it would rebuild the deck under the feedback
     // still playing for the tap that caused it, and play it a second time.
@@ -532,7 +769,8 @@ async function openLeague(league) {
 }
 
 /**
- * Handler for the masthead switch.
+ * Handler for the masthead switch: another of this device's leagues, or the
+ * home page.
  *
  * Rebuilding a board is not instant: the recommendation is a beam search over
  * the whole remaining season, and it runs synchronously. So the tap is answered
@@ -542,11 +780,16 @@ async function openLeague(league) {
  * and then never painted, because the search blocks the main thread before the
  * browser gets a chance.
  */
-async function switchLeague(league) {
-  if (app.switching || league === app.league) return;
-  app.switching = true;
+async function openFromSwitch(target) {
+  if (app.switching) return;
+  if (target === "home") {
+    goHome();
+    return;
+  }
+  if (target === app.league?.code) return;
 
-  renderLeagueSwitch(el.league, league, switchLeague);
+  app.switching = true;
+  renderLeagueSwitch(el.league, { league: { code: target }, leagues: app.leagues }, openFromSwitch);
   el.shell?.classList.add("is-swapping");
   await twoFrames();
   // The colour tokens switch inside openLeague. Let the old board finish its
@@ -555,12 +798,15 @@ async function switchLeague(league) {
   await new Promise((resolve) => setTimeout(resolve, 150));
 
   try {
+    const league = await leagueByCode(target);
+    if (!league) throw new Error("that league could not be found");
     await openLeague(league);
+    window.history.replaceState(null, "", `#/l/${league.code}`);
   } catch (error) {
     // Put the board back the way it was, including its colours.
-    renderLeagueSwitch(el.league, app.league, switchLeague);
-    applyTheme(app.league);
-    app.message = `Could not load ${LEAGUES[league]?.label ?? league}: ${error.message}`;
+    renderLeagueSwitch(el.league, { league: app.league, leagues: app.leagues }, openFromSwitch);
+    applyTheme(app.league?.sport, app.entry.rules?.objective);
+    app.message = `Could not open that league: ${error.message}`;
     render();
   } finally {
     el.shell?.classList.remove("is-swapping");
@@ -581,50 +827,29 @@ function twoFrames() {
   });
 }
 
-function readStored(key) {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function writeStored(key, value) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    /* storage blocked - the choice just will not persist */
-  }
-}
-
 /**
- * The passcode screen, once per device.
+ * The name, once per device.
  *
- * A device that has answered correctly before is let straight through. The
- * check lives here rather than in the store because it gates the whole board,
- * not just writes; see the note on `passcode` in config.js for what it is and
- * is not protecting.
+ * This is the whole of the identity the app has: it goes on the picks and
+ * locks so a league with several people in it can say whose they are, and it
+ * is stored on the phone that typed it. A device that has given one is let
+ * straight through.
  *
- * Only the digest is ever compared or stored: the typed answer is run through
- * the same derivation `npm run passcode` used and matched against config.
- * Changing the passcode changes the digest, so every device asks again.
+ * It is asked for before anything loads because the first thing after it may
+ * be joining a league from a link, and a member with no name is a row in a
+ * list that says nothing.
  */
-async function requirePasscode() {
-  const expected = CONFIG.passcode.digest;
-  if (!expected) return;
-
-  if (readStored(PASSCODE_KEY) === expected) {
-    app.passcodeDigest = expected;
+async function requireIdentity() {
+  const saved = myName();
+  if (saved) {
+    app.name = saved;
     return;
   }
 
   document.body.classList.add("is-gated");
-  await requireGate(el.gate, async (value) => {
-    const digest = await derivePasscodeDigest(value, CONFIG.passcode.salt);
-    return digest === expected;
-  });
-  app.passcodeDigest = expected;
-  writeStored(PASSCODE_KEY, expected);
+  const name = await requireName(el.start);
+  setMyName(name);
+  app.name = name;
   document.body.classList.remove("is-gated");
 }
 
@@ -663,18 +888,70 @@ function registerServiceWorker() {
   });
 }
 
-async function main() {
-  // Every visit begins in the NFL palette. The gate keeps that same fixed blue
-  // identity before the NFL board opens.
-  applyTheme(app.league);
-  if (CONFIG.passcode.digest && readStored(PASSCODE_KEY) !== CONFIG.passcode.digest) {
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#080b12");
+/**
+ * What the address bar is asking for.
+ *
+ * #/join/CODE is the link that gets sent around: it joins first, so the person
+ * who opened it is in the members before the board draws. #/l/CODE is what an
+ * open league leaves behind, so a reload comes back to it.
+ */
+async function openFromHash() {
+  const asked = codeFromHash(window.location.hash);
+  if (!asked) return false;
+
+  if (asked.action === "join") {
+    try {
+      const league = await joinLeague(asked.code);
+      await reloadLeagues();
+      await openBoard(league.code);
+      return true;
+    } catch (error) {
+      app.homeMessage = `That invite did not open: ${error.message}`;
+      return false;
+    }
   }
-  await requirePasscode();
-  await Promise.all([openLeague(app.league).then(settleBeforeReveal), startupMinimum()]);
+
+  const known = app.leagues.some((league) => league.code === asked.code);
+  if (!known && !sharingAvailable()) return false;
+  await openBoard(asked.code);
+  return app.view === "board";
+}
+
+async function main() {
+  // Every visit begins in the first sport's palette, which is what the start
+  // screen and the home page wear before any league is open.
+  applyTheme(null);
+  await requireIdentity();
+
+  await reloadLeagues();
+  const opened = await openFromHash();
+
+  // The first render defers the season search so the board can paint; behind
+  // the startup layer there is nothing to protect, so it runs there instead.
+  if (opened) settleBeforeReveal();
+
+  if (!opened) {
+    // No link, or a link that did not open: the home page, and a board is one
+    // tap from it. A single league is not opened automatically - a person with
+    // one league still wants to see its code and share it.
+    app.view = "home";
+    renderHomeView();
+  }
+
+  await startupMinimum();
   await finishStartup();
   startClock();
   registerServiceWorker();
+
+  // Back and forward, and a link tapped while the app is already open.
+  window.addEventListener("hashchange", () => {
+    const asked = codeFromHash(window.location.hash);
+    if (!asked) {
+      if (app.view !== "home") goHome();
+      return;
+    }
+    if (asked.code !== app.league?.code) openFromHash();
+  });
 }
 
 /**
@@ -699,7 +976,7 @@ main().catch((error) => {
   document.body.classList.remove("is-gated");
   document.body.classList.remove("is-starting");
   if (el.startup) el.startup.hidden = true;
-  if (el.gate) el.gate.hidden = true;
+  if (el.start) el.start.hidden = true;
   el.notices.innerHTML = `<div class="notice notice--warn">Could not load the board: ${error.message}</div>`;
   console.error(error);
 });

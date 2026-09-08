@@ -499,8 +499,117 @@ assert.notEqual(
 );
 assert.ok(weighingSide.picks[1].suggestion, "and the other slot still gets a suggestion");
 
+// ---------------------------------------------------------------------------
+// A league that picks losers: the same board, wanting the opposite result.
+//
+// The rule comes from the league (see core/rules.js), the season's files are
+// the same ones the winners board is built from, and nothing below
+// src/js/core/objective.js knows the difference. So what is checked here is
+// that the turn happens exactly once - the probabilities are mirrored, the
+// list is ordered the other way, and a recorded final reads as what it did to
+// the entry rather than as what the team did.
+// ---------------------------------------------------------------------------
+
+/** One pick a week, no forgiveness, and the pick has to lose. */
+const LOSERS_RULES = { objective: "lose", picksPerWeek: 1, buyBacks: 0, buyBackWeeks: [] };
+
+const buildLosers = (entry, sourceOdds = odds) =>
+  buildBoard({
+    plan,
+    // The same season files: same fixtures, same lines, same finals.
+    odds: sourceOdds,
+    teams,
+    schedule,
+    ratings,
+    entry: { ...entry, rules: LOSERS_RULES },
+    refreshSchedule: CONFIG.refresh,
+  });
+
+const losers = buildLosers(nothing());
+assert.equal(losers.rules.objective, "lose", "the objective reaches the board");
+assert.equal(losers.rules.picksPerWeek, 1, "one pick a week");
+assert.equal(losers.rules.buyBacks, 0, "and no forgiveness");
+assert.equal(losers.buyBack, null, "a pool with no buy back shows no buy back cell");
+
+const losersWeek = losers.weeks.find((week) => week.week === losers.currentWeek);
+const winnersWeek = empty.weeks.find((week) => week.week === empty.currentWeek);
+const winnersProb = new Map(winnersWeek.options.map((option) => [option.team, option.winProb]));
+
+// Every option is the other side of the same number, and the spread it is
+// quoted at is untouched: the market's statement about the game does not
+// change because of which pool is reading it.
+const winnersSpread = new Map(winnersWeek.options.map((option) => [option.team, option.spread]));
+for (const option of losersWeek.options) {
+  assert.ok(
+    Math.abs(option.winProb - (1 - winnersProb.get(option.team))) < 1e-12,
+    `${option.team}: a losers option is one minus the winners option`,
+  );
+  assert.equal(option.spread, winnersSpread.get(option.team), `${option.team}: same spread`);
+}
+
+// Best pick first in both, which is opposite ends of the same list.
+assert.ok(
+  losersWeek.options[0].spread > 0 && winnersWeek.options[0].spread < 0,
+  "the list opens on the biggest underdog here and the biggest favourite there",
+);
+for (let index = 1; index < losersWeek.options.length; index += 1) {
+  assert.ok(
+    losersWeek.options[index - 1].spread >= losersWeek.options[index].spread,
+    "a losers list runs from the biggest underdog down",
+  );
+}
+
+// The coach takes the pool at its word: it never calls a favourite here, and
+// the season it plans is a season of underdogs.
+const losersCall = losersWeek.picks[0].suggestion;
+assert.ok(losersCall, "the coach suggests a team for the open slot");
+assert.ok(losersCall.spread > 0, `the coach's call (${losersCall.team}) is an underdog`);
+for (const week of losers.weeks) {
+  for (const call of week.pathRecommendation) {
+    assert.ok(call.spread > 0, `week ${week.week}: ${call.team} is an underdog on the path`);
+  }
+}
+
+// A recorded final, read by both pools. The feed says whether the team won its
+// game; the entry that needed it to lose survives on exactly the other answer,
+// and the elimination follows the entry rather than the game.
+const target = losersWeek.options[0];
+const settledOdds = (result) => ({
+  ...odds,
+  updatedAt: `${odds.updatedAt}-losers-${result}`,
+  results: { ...odds.results, [lineKey(losersWeek.week, target.team)]: result },
+});
+const lockOn = {
+  picks: { [slotKey(losersWeek.week, 0)]: { locked: true } },
+  swaps: { [slotKey(losersWeek.week, 0)]: target.team },
+};
+
+const teamLost = buildLosers(lockOn, settledOdds("L"));
+const lostPick = teamLost.weeks.find((week) => week.week === losersWeek.week).picks[0];
+assert.equal(lostPick.status.result, "W", "the team losing is this pool's win");
+assert.equal(lostPick.status.resultSource, "final", "and it came from the feed");
+assert.equal(teamLost.eliminated, false, "so the run continues");
+assert.equal(teamLost.record.won, 1, "and it counts as a win on the record");
+assert.equal(teamLost.record.lost, 0);
+
+const teamWon = buildLosers(lockOn, settledOdds("W"));
+const wonPick = teamWon.weeks.find((week) => week.week === losersWeek.week).picks[0];
+assert.equal(wonPick.status.result, "L", "the team winning is this pool's loss");
+assert.equal(teamWon.eliminated, true, "with no buy back, that ends the run");
+assert.equal(teamWon.eliminatedWeek, losersWeek.week);
+
+// The same two finals on the winners board say the opposite, which is the
+// whole of the difference between the pools.
+const winnersOnLoss = build(lockOn, settledOdds("L"));
+assert.equal(
+  winnersOnLoss.weeks.find((week) => week.week === losersWeek.week).picks[0].status.result,
+  "L",
+  "the same final is a loss for a pool that needed the team to win",
+);
+
 console.log(
   "Board state OK: slots are user-picked, coach plans stay advisory, locks own burns and results, " +
     "a played game leaves its week's menu and any unlocked pick on it, a week short of games " +
-    "holds one pick, the other slot's lock shows in the list, a pending pick previews the season its lock would give, a fatal loss puts the board in review.",
+    "holds one pick, the other slot's lock shows in the list, a pending pick previews the season its lock would give, " +
+    "a fatal loss puts the board in review, and the losers pool mirrors every number and every final.",
 );

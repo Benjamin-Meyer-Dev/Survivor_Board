@@ -39,6 +39,16 @@
   margin-bottom: var(--sp-5);
 }
 
+/* The pool picker and its rules gear, as one item at the right of the
+   masthead: they wrap together rather than the gear stranding itself on a
+   line of its own. */
+.masthead__tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
 .masthead__title {
   font-family: var(--font-display);
   font-weight: 700;
