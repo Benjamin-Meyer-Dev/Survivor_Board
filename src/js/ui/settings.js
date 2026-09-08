@@ -30,7 +30,7 @@
 import { MAX_PICKS_PER_WEEK, MAX_BUY_BACKS, sameRules, onlyEditable } from "../core/rules.js";
 import { formatCode, joinLink } from "../core/code.js";
 import { escapeHtml } from "../core/format.js";
-import { sportLabel } from "../sports.js";
+import { POOL_KINDS } from "../sports.js";
 
 /** Latest handlers and board, so the listeners bound on the first render stay current. */
 let onSaveRules = () => {};
@@ -53,21 +53,21 @@ const GEAR_ICON = `
  * @param {boolean} handlers.canWrite
  * @param {(rules:object|null) => void} handlers.onSave The rules to store, or
  *   null to go back to the ones the season ships.
- * @param {{code:string, name:string, sports?:string[]}} [handlers.league] The
+ * @param {{code:string, name:string, kinds?:string[]}} [handlers.league] The
  *   open league, for its code and its name.
- * @param {string|null} [handlers.sport] Which of the league's seasons the board
- *   is showing; the rules in the sheet are that pool's.
+ * @param {string|null} [handlers.kind] Which of the league's pools the board
+ *   is showing, as a kind id; the rules in the sheet are that pool's.
  * @param {(name:string) => void} [handlers.onRename]
  */
 export function renderSettings(
   root,
   board,
-  { canWrite, onSave, league = null, sport = null, onRename },
+  { canWrite, onSave, league = null, kind = null, onRename },
 ) {
   if (!root) return;
   onSaveRules = onSave;
   onRenameLeague = onRename ?? (() => {});
-  current = { board, canWrite, league, sport };
+  current = { board, canWrite, league, kind };
 
   if (!root.firstElementChild) buildSheet(root);
 
@@ -86,12 +86,12 @@ export function renderSettings(
   button.title = board.rulesCustom ? "Pool rules (changed from the plan)" : "Pool rules";
 
   // The name and the code are the league's; the rules in the sheet are one
-  // season's. A league of several says which, so nobody changes the college
-  // pool's picks a week thinking they were on the NFL's. On every render rather
-  // than in paint: the sheet is built once, and a switch to the league's other
-  // season would otherwise leave the old season in the title until it opened.
-  root.querySelector(".settings__title").textContent =
-    (league?.sports?.length ?? 1) > 1 ? `League · ${sportLabel(sport)}` : "League";
+  // pool's, and the title says which - and so whether its picks win or lose,
+  // now that the sheet no longer asks. On every render rather than in paint:
+  // the sheet is built once, and a switch to the league's other pool would
+  // otherwise leave the old pool in the title until it opened.
+  const pool = POOL_KINDS[kind];
+  root.querySelector(".settings__title").textContent = pool ? `League · ${pool.label}` : "League";
 
   // Mid-edit: the draft is the truth on screen, and a board arriving from
   // another device must not pull the fields out from under the person typing.
@@ -201,8 +201,6 @@ function buildSheet(root) {
       draft.buyBackWeeks = [...weeks].sort((a, b) => a - b);
       // The count can never exceed the weeks it has to spend itself on.
       draft.buyBacks = Math.min(draft.buyBacks, draft.buyBackWeeks.length);
-    } else if (rule === "objective") {
-      draft.objective = value;
     } else {
       draft[rule] = Number(value);
     }
@@ -255,16 +253,9 @@ function paint(root, keep = null) {
        ${board.rulesCustom ? "This pool is running its own, not the plan's." : ""}`
     : `Read-only on this device, so the rules can be read here and not changed.`;
 
+  // No control for what a pick has to do: that is the kind of pool this is,
+  // fixed when the league was made and named in the title above.
   root.querySelector(".settings__body").innerHTML = `
-    ${group({
-      legend: "The pick has to",
-      hint: "A losers pool is priced at the chance each team loses, so its lists open on the biggest underdog.",
-      controls: segmented("objective", rules.objective, [
-        { value: "win", label: "Win" },
-        { value: "lose", label: "Lose" },
-      ]),
-    })}
-
     ${group({
       legend: "Picks a week",
       hint: shortfallHint(rules.picksPerWeek, weeks.length, board.totalTeams),

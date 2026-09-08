@@ -5,9 +5,11 @@
  * leagues this device is in, making another, joining someone else's, and
  * handing out the code that lets them join yours.
  *
- * A league can play more than one season - an NFL pool and a college pool for
- * the same people - so making one is a matter of ticking the seasons it plays,
- * and its card opens each of its boards in turn. One code covers them all.
+ * A league can run more than one pool - an NFL winners pool, an NFL losers
+ * pool and a college pool for the same people - so making one is a matter of
+ * ticking the pools it runs, and its card opens each of its boards in turn. One
+ * code covers them all. Which pools, and whether each is played for winners or
+ * for losers, is fixed here and cannot be changed afterwards.
  *
  * A league's code is shown on its card rather than hidden behind a share
  * sheet, because the code is the whole of how anyone else gets in: it has to
@@ -22,7 +24,7 @@
  * under its field, rather than as a notice at the top of the page.
  */
 
-import { SPORTS, SPORT_IDS, normaliseSports } from "../sports.js";
+import { POOL_KINDS, KIND_IDS, normaliseKinds } from "../sports.js";
 import { formatCode, joinLink, normaliseCode, isCode } from "../core/code.js";
 import { escapeHtml } from "../core/format.js";
 
@@ -31,11 +33,11 @@ import { escapeHtml } from "../core/format.js";
  * @param {object} state
  * @param {string} state.name This person's name.
  * @param {Array<object>} state.leagues From store/directory.js refreshMyLeagues,
- *   each with its `sports` and its `rules` by season.
+ *   each with its `kinds` and its `rules` by kind.
  * @param {boolean} state.shared Whether leagues can be shared from this build.
  * @param {boolean} state.loading Whether the shared copy is still on its way.
  * @param {string} state.message A line to show above the list, or "".
- * @param {object} handlers onOpen(code, sport), onCreate({name, sports}),
+ * @param {object} handlers onOpen(code, kind), onCreate({name, kinds}),
  *   onJoin(code), onLeave(code), onRenameMe(). onCreate and onJoin may reject;
  *   the message is shown in their form.
  */
@@ -85,22 +87,26 @@ function homeMarkup({ name, leagues, shared, loading, message }) {
                  placeholder="The Office Pool" autocomplete="off" />
           <p class="home__form-error" role="alert" hidden></p>
           <fieldset class="home__choices-group">
-            <legend class="home__label">Which seasons?</legend>
-            <div class="home__choices">
-              ${SPORT_IDS.map(
+            <legend class="home__label">Which pools does it run?</legend>
+            <div class="home__options">
+              ${KIND_IDS.map(
                 (id) => `
-                <label class="home__choice">
-                  <input type="checkbox" name="sports" value="${id}" />
-                  <span>${escapeHtml(SPORTS[id].label)}</span>
-                </label>`,
+              <label class="home__option">
+                <input type="checkbox" name="kinds" value="${id}" />
+                <span class="home__check" aria-hidden="true"></span>
+                <span class="home__option-text">
+                  <span class="home__option-name">${escapeHtml(POOL_KINDS[id].label)}</span>
+                  <span class="home__option-hint">${escapeHtml(POOL_KINDS[id].hint)}</span>
+                </span>
+              </label>`,
               ).join("")}
             </div>
           </fieldset>
           <p class="home__hint">
-            Tick every season this league plays: one code brings people into all of them,
-            with a board for each. One pick a week or two, buy backs, and whether picks
-            have to win or lose are set per season inside the league, from the gear
-            beside its name.
+            Tick every pool this league runs: one code brings people into all of them,
+            with a board for each. Whether a pick has to win or lose is fixed here; picks
+            a week and buy backs are set per pool inside the league, from the gear beside
+            its name.
           </p>
           <button type="submit" class="home__btn home__btn--go" disabled>Create league</button>
         </form>
@@ -124,17 +130,17 @@ function homeMarkup({ name, leagues, shared, loading, message }) {
 }
 
 function card(league) {
-  const sports = seasonsOf(league);
-  const several = sports.length > 1;
+  const kinds = kindsOf(league);
+  const several = kinds.length > 1;
 
-  // One line per season the league plays, named when there is more than one,
-  // and the head count once for the league: its members are the same people
+  // One line per pool the league runs, named when there is more than one, and
+  // the head count once for the league: its members are the same people
   // whichever board they are on.
-  const lines = sports
-    .map((sport) => {
-      const line = rulesLine(league.rules?.[sport]);
+  const lines = kinds
+    .map((kind) => {
+      const line = rulesLine(league.rules?.[kind]);
       if (!line) return null;
-      return several ? `${SPORTS[sport].label}: ${line}` : line;
+      return several ? `${POOL_KINDS[kind].label}: ${line}` : line;
     })
     .filter(Boolean);
   if (league.members > 1) {
@@ -149,10 +155,10 @@ function card(league) {
       <div class="home__card-head">
         <h3 class="home__card-name">${escapeHtml(league.name)}</h3>
         <span class="home__card-chips">
-          ${sports
+          ${kinds
             .map(
-              (sport) =>
-                `<span class="chip chip--${league.rules?.[sport]?.objective === "lose" ? "danger" : "picked"}">${escapeHtml(SPORTS[sport].short)}</span>`,
+              (kind) =>
+                `<span class="chip chip--${POOL_KINDS[kind].objective === "lose" ? "danger" : "picked"}">${escapeHtml(POOL_KINDS[kind].short)}</span>`,
             )
             .join("")}
         </span>
@@ -175,11 +181,11 @@ function card(league) {
       }
 
       <div class="home__card-actions">
-        ${sports
+        ${kinds
           .map(
-            (sport) => `
+            (kind) => `
         <button type="button" class="home__btn home__btn--go" data-act="open"
-                data-sport="${sport}">${several ? `Open ${escapeHtml(SPORTS[sport].label)}` : "Open"}</button>`,
+                data-kind="${kind}">${several ? `Open ${escapeHtml(POOL_KINDS[kind].label)}` : "Open"}</button>`,
           )
           .join("")}
         <button type="button" class="home__btn" data-act="copy">Copy link</button>
@@ -189,20 +195,21 @@ function card(league) {
 }
 
 /**
- * The seasons a league plays, for its card. The directory hands every league
- * over with `sports`; one with none the repo still carries is drawn as a league
- * of the first season rather than as a card with no board to open.
+ * The pools a league runs, for its card. The directory hands every league over
+ * with `kinds`; one with none the repo still carries is drawn as a league of
+ * the first kind rather than as a card with no board to open.
  */
-function seasonsOf(league) {
-  const sports = normaliseSports(league.sports ?? [league.sport]);
-  return sports.length ? sports : [SPORT_IDS[0]];
+function kindsOf(league) {
+  const kinds = normaliseKinds(league.kinds);
+  return kinds.length ? kinds : [KIND_IDS[0]];
 }
 
 /**
- * What one of a league's pools is, in one line: what a pick has to do, how
- * many a week, and what it forgives. Read off the rules that are actually
- * stored, so a pool running something other than its season's usual says so
- * here rather than only once you are inside it.
+ * What one of a league's pools runs on, in one line: how many picks a week and
+ * what it forgives. What a pick has to do is in the pool's name, so it is not
+ * repeated here. Read off the rules that are actually stored, so a pool running
+ * something other than its season's usual says so here rather than only once
+ * you are inside it.
  *
  * Null until the rules are known - the cached list a home page is drawn from
  * before the network answers may not carry them yet, and a line that guesses
@@ -211,10 +218,7 @@ function seasonsOf(league) {
 function rulesLine(rules) {
   if (!rules) return null;
   const picks = rules.picksPerWeek ?? 1;
-  const parts = [
-    `${picks} pick${picks === 1 ? "" : "s"} a week`,
-    rules.objective === "lose" ? "picks must lose" : "picks must win",
-  ];
+  const parts = [`${picks} pick${picks === 1 ? "" : "s"} a week`];
   const buyBacks = rules.buyBacks ?? 0;
   const weeks = (rules.buyBackWeeks ?? []).length;
   parts.push(
@@ -234,12 +238,12 @@ function wire(root, handlers) {
     create.addEventListener("change", () => syncCreate(create));
     create.addEventListener("submit", (event) => {
       event.preventDefault();
-      const sports = chosenSports(create);
-      if (sports.length === 0) {
-        showProblem(create, "Tick at least one season for the league to play.");
+      const kinds = chosenKinds(create);
+      if (kinds.length === 0) {
+        showProblem(create, "Tick at least one pool for the league to run.");
         return;
       }
-      attempt(create, () => handlers.onCreate({ name: create.elements.name.value, sports }));
+      attempt(create, () => handlers.onCreate({ name: create.elements.name.value, kinds }));
     });
   }
 
@@ -257,7 +261,7 @@ function wire(root, handlers) {
   for (const node of root.querySelectorAll(".home__card")) {
     const code = node.dataset.league;
     for (const open of node.querySelectorAll('[data-act="open"]')) {
-      open.addEventListener("click", () => handlers.onOpen(code, open.dataset.sport));
+      open.addEventListener("click", () => handlers.onOpen(code, open.dataset.kind));
     }
     node
       .querySelector('[data-act="leave"]')
@@ -281,18 +285,18 @@ function wire(root, handlers) {
   }
 }
 
-/** The seasons ticked in the create form, in the order they are offered. */
-function chosenSports(form) {
-  return [...form.querySelectorAll('input[name="sports"]:checked')].map((input) => input.value);
+/** The pools ticked in the create form, in the order they are offered. */
+function chosenKinds(form) {
+  return [...form.querySelectorAll('input[name="kinds"]:checked')].map((input) => input.value);
 }
 
 /**
- * Create is held until a season is ticked. A league of no seasons would have
- * no board to open, so the button says what is missing by being unavailable
+ * Create is held until a pool is ticked. A league of no pools would have no
+ * board to open, so the button says what is missing by being unavailable
  * rather than by failing after the tap.
  */
 function syncCreate(form) {
-  form.querySelector('button[type="submit"]').disabled = chosenSports(form).length === 0;
+  form.querySelector('button[type="submit"]').disabled = chosenKinds(form).length === 0;
 }
 
 /**

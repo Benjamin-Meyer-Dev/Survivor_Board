@@ -14,7 +14,16 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 import { CONFIG, scopeFor } from "../src/js/config.js";
-import { SPORTS, SPORT_IDS, resolveSport, normaliseSports, sportsLabel } from "../src/js/sports.js";
+import {
+  SPORTS,
+  SPORT_IDS,
+  POOL_KINDS,
+  KIND_IDS,
+  resolveSport,
+  kindId,
+  normaliseKinds,
+  kindsLabel,
+} from "../src/js/sports.js";
 import { nextRefreshAt } from "../src/js/core/refresh.js";
 import { mergeRules } from "../src/js/core/rules.js";
 import {
@@ -33,24 +42,24 @@ assert.equal(CONFIG.supabase.table, "leagues", "one row per pool, in the leagues
 
 // Every stored key is namespaced, so nothing this app writes can collide with
 // anything else on the origin. No two leagues can share an entry, and nor can
-// the two seasons of one league.
+// two pools of one league - not even the same season played both ways.
 for (const [name, key] of Object.entries(CONFIG.storage)) {
   assert.ok(key.startsWith("survivor-board/"), `storage.${name} must be namespaced`);
 }
-const first = scopeFor("BXQK7HRTM4WD", "nfl");
-const second = scopeFor("M4WDBXQK7HRT", "nfl");
-const sibling = scopeFor("BXQK7HRTM4WD", "cfb");
+const first = scopeFor("BXQK7HRTM4WD", "nfl-win");
+const second = scopeFor("M4WDBXQK7HRT", "nfl-win");
+const sibling = scopeFor("BXQK7HRTM4WD", "nfl-lose");
 assert.notEqual(first.storageKey, second.storageKey, "two leagues must not share a storage key");
-assert.notEqual(first.storageKey, sibling.storageKey, "nor two seasons of one league");
+assert.notEqual(first.storageKey, sibling.storageKey, "nor two pools of one league");
 assert.notEqual(first.doc, sibling.doc, "nor an artifact document");
 assert.notEqual(first.entryId, second.entryId);
-assert.equal(first.entryId, sibling.entryId, "one league's seasons share its code");
-assert.notEqual(first.sport, sibling.sport, "and differ by season");
+assert.equal(first.entryId, sibling.entryId, "one league's pools share its code");
+assert.notEqual(first.kind, sibling.kind, "and differ by kind");
 assert.ok(first.storageKey.startsWith(CONFIG.storage.entryPrefix));
 assert.equal(
   first.legacyStorageKey,
   `${CONFIG.storage.entryPrefix}/BXQK7HRTM4WD`,
-  "a board saved before leagues had seasons is still where it was",
+  "a board saved before leagues had pools is still where it was",
 );
 
 // The passcode is gone, and nothing should quietly bring it back: a digest in
@@ -75,21 +84,21 @@ assert.equal(isCode("BXQK-7HRT"), false, "a partial code is not a code");
 assert.deepEqual(codeFromHash(`#/join/${formatCode(code)}`), {
   action: "join",
   code,
-  sport: null,
+  kind: null,
 });
-assert.deepEqual(codeFromHash(`#/l/${code}`), { action: "open", code, sport: null });
+assert.deepEqual(codeFromHash(`#/l/${code}`), { action: "open", code, kind: null });
 assert.deepEqual(
-  codeFromHash(`#/l/${code}/NFL`),
-  { action: "open", code, sport: "nfl" },
-  "a league link may say which of its seasons to open",
+  codeFromHash(`#/l/${code}/NFL-LOSE`),
+  { action: "open", code, kind: "nfl-lose" },
+  "a league link may say which of its pools to open",
 );
 assert.deepEqual(
-  codeFromHash(`#/join/${code}/nfl`),
-  { action: "join", code, sport: null },
+  codeFromHash(`#/join/${code}/nfl-win`),
+  { action: "join", code, kind: null },
   "a join link brings the whole league, whatever trails it",
 );
-assert.equal(codeFromHash(leagueHash(code, "cfb")).sport, "cfb", "and the board writes one");
-assert.equal(leagueHash(formatCode(code)), `#/l/${code}`, "with no season when none is known");
+assert.equal(codeFromHash(leagueHash(code, "cfb-win")).kind, "cfb-win", "and the board writes one");
+assert.equal(leagueHash(formatCode(code)), `#/l/${code}`, "with no pool when none is known");
 assert.equal(codeFromHash("#/l/nope"), null, "a hash that names no code opens nothing");
 assert.equal(codeFromHash(""), null);
 
@@ -103,15 +112,42 @@ assert.equal(codes.size, 200, "codes must be random");
 assert.ok(SPORT_IDS.length > 0, "there must be a sport to play");
 assert.equal(resolveSport("nonsense"), SPORT_IDS[0], "an unknown sport falls back to the first");
 
-// A league's seasons come back known, once each, in the registry's order,
+// Every season can be played for winners or for losers, and each of those is a
+// kind of pool a league can run: its own id, its own name, its season's rules
+// played its way.
+assert.deepEqual(KIND_IDS, ["nfl-win", "nfl-lose", "cfb-win", "cfb-lose"]);
+for (const id of KIND_IDS) {
+  const kind = POOL_KINDS[id];
+  assert.equal(kind.id, id);
+  assert.ok(kind.sport in SPORTS, `${id}: plays a season the repo carries`);
+  assert.ok(["win", "lose"].includes(kind.objective), `${id}: is played one way or the other`);
+  assert.equal(kind.rules.objective, kind.objective, `${id}: its rules say which way`);
+  assert.equal(
+    mergeRules(kind.rules, null).picksPerWeek,
+    mergeRules(SPORTS[kind.sport].defaultRules, null).picksPerWeek,
+    `${id}: and are otherwise its season's`,
+  );
+  assert.ok(kind.label && kind.short && kind.hint, `${id}: has a name, a chip and a hint`);
+}
+assert.equal(POOL_KINDS["nfl-lose"].label, "NFL losers");
+assert.equal(POOL_KINDS["cfb-win"].short, "NCAA", "a winners chip is the season's own");
+assert.equal(POOL_KINDS["cfb-lose"].short, "NCAA losers", "a losers chip says so");
+assert.equal(kindId("nfl", "lose"), "nfl-lose");
+assert.equal(kindId("nfl", undefined), "nfl-win", "unsaid is winners");
+assert.equal(kindId("xfl", "lose"), `${SPORT_IDS[0]}-lose`, "an unknown season falls back");
+
+// A league's kinds come back known, once each, in the registry's order,
 // however they were ticked or cached - and nothing at all is nothing, which is
 // the directory's cue to refuse the league.
-assert.deepEqual(normaliseSports(["cfb", "nfl", "cfb", "xfl"]), ["nfl", "cfb"]);
-assert.deepEqual(normaliseSports("nfl"), ["nfl"], "one season, given bare");
-assert.deepEqual(normaliseSports(undefined), [], "nothing given is nothing");
-assert.deepEqual(normaliseSports([null, 7, "xfl"]), [], "and so is nothing usable");
-assert.equal(sportsLabel(["cfb", "nfl"]), "NFL & College", "named in the same order");
-assert.equal(sportsLabel("cfb"), "College");
+assert.deepEqual(normaliseKinds(["cfb-win", "nfl-lose", "cfb-win", "xfl-win"]), [
+  "nfl-lose",
+  "cfb-win",
+]);
+assert.deepEqual(normaliseKinds("nfl-win"), ["nfl-win"], "one kind, given bare");
+assert.deepEqual(normaliseKinds(undefined), [], "nothing given is nothing");
+assert.deepEqual(normaliseKinds([null, 7, "nfl"]), [], "and so is nothing usable");
+assert.equal(kindsLabel(["cfb-lose", "nfl-win"]), "NFL winners & College losers", "named in order");
+assert.equal(kindsLabel("cfb-win"), "College winners");
 
 for (const id of SPORT_IDS) {
   const sport = SPORTS[id];
@@ -148,6 +184,7 @@ assert.equal(
 );
 
 console.log(
-  `config ok: ${SPORT_IDS.length} seasons, pools keyed by code and season, storage namespaced, ` +
-    `codes random and read loosely, links carry the season, 9am refresh holds across daylight saving`,
+  `config ok: ${SPORT_IDS.length} seasons, ${KIND_IDS.length} kinds of pool keyed by code, season ` +
+    `and objective, storage namespaced, codes random and read loosely, links carry the pool, ` +
+    `9am refresh holds across daylight saving`,
 );

@@ -15,19 +15,19 @@ import { createLocalStore } from "./local.js";
 
 /**
  * @param {string} code Which league's shared state to open.
- * @param {string} sport Which of that league's seasons. Every pool has its own
- *   document, row and storage key, keyed by the league's code and the season,
- *   so opening one never mixes it with another league's board or with the same
- *   league's other season.
+ * @param {string} kind Which of that league's pools, as a kind id (see
+ *   src/js/sports.js). Every pool has its own document, row and storage key,
+ *   keyed by the league's code and the kind, so opening one never mixes it
+ *   with another league's board or with the same league's other pools.
  */
-export async function createStore(code, sport) {
+export async function createStore(code, kind) {
   for (const create of [createArtifactStore, createSupabaseStore]) {
     try {
-      const store = await create(code, sport);
+      const store = await create(code, kind);
       if (store) return store;
     } catch {
       /* try the next one */
     }
   }
-  return createLocalStore(code, sport);
+  return createLocalStore(code, kind);
 }

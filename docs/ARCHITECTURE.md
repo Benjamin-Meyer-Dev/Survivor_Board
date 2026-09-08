@@ -45,7 +45,7 @@ pool ships:
 | eligible teams          | `teams.conferences`       | no                      |
 | what counts as a "Lock" | `plan.tiers`              | no - model, not rule    |
 | buy backs, and where    | `plan.rules.buyBack*`     | yes                     |
-| win or lose             | `plan.rules.objective`    | yes                     |
+| win or lose             | the pool's kind           | no - fixed at creation  |
 
 ### Rules, and changing them
 
@@ -67,9 +67,14 @@ hold it together:
   backs cannot outnumber the weeks they cover, which is the one pair of fields
   that can contradict each other.
 - **Part of the search's identity.** The recommendation is memoised on a
-  signature (`signatureBase`), and the rules are in it. They have to be: flipping
-  a pool to picking losers is a different search, and before the rules could
-  change at runtime the signature did not need to say so.
+  signature (`signatureBase`), and the rules are in it. They have to be: a pool
+  picking losers is a different search from one picking winners, and before the
+  rules could change at runtime the signature did not need to say so.
+- **All but the objective.** Whether a pool's picks win or lose is the kind of
+  pool it is (`POOL_KINDS` in `sports.js`), chosen when the league is made and
+  stored on its row. `app.js` writes it into the plan's rules before the board
+  is built, so it reaches the model as the default the merge falls back to, the
+  settings sheet does not offer it, and a save drops it from what it stores.
 
 A rule the board no longer holds does not destroy what was saved under it. The
 entry is keyed by week and slot, so dropping a pick a week hides the extra
@@ -84,13 +89,15 @@ so its line-movement flag is computed from the file's objective rather than a
 pool's override.
 
 A league owns none of that. It is one or more rows in the `leagues` table, one
-per season it plays, keyed by the league's code and the season - each row a
-name, a season, and that pool's whole shared board as JSON - and the season is
-what points a row at a folder. A league made for the NFL and college at once is
-two rows under one code, two boards, and one link to send. However many leagues
-exist, they read the same two daily pulls, so a pool costs a row and nothing
-else. `src/js/sports.js` is what is left of the old pool registry: the two
-seasons, and what a new league on each of them starts with.
+per pool it runs, keyed by the league's code, the season and what the picks
+have to do - each row a name, a kind of pool, and that pool's whole shared
+board as JSON - and the season is what points a row at a folder. A league made
+for NFL winners, NFL losers and college at once is three rows under one code,
+three boards, and one link to send; which pools it runs is fixed when it is
+made. However many leagues exist, they read the same two daily pulls, so a pool
+costs a row and nothing else. `src/js/sports.js` is what is left of the old
+pool registry: the two seasons, the four kinds of pool they make, and what a
+new pool of each kind starts with.
 
 The objective is applied in exactly one place, `core/objective.js`, and it is
 applied where the raw numbers enter the model rather than where they are read.
@@ -120,12 +127,13 @@ Switching is a full reload of the board, not a filter over one: the old store
 subscription is torn down, the new board's data and entry are loaded, and a
 late push from the store being replaced is dropped rather than landing on the
 new board. Each pool keeps its own entry (its own artifact document, its own
-Supabase row, its own storage key, all keyed by `scopeFor(code, sport)`), so
+Supabase row, its own storage key, all keyed by `scopeFor(code, kind)`), so
 locks in one pool can never appear in another - not in another league's, and
-not in the same league's other season. The masthead picker lists one row per
-board, "League · NFL" and "League · College" for a league of two seasons, and
-the hash records both (`#/l/CODE/SPORT`) so a reload comes back to the same
-one.
+not in the same league's other pools. The masthead picker lists one row per
+board, "League · NFL winners" and "League · College losers" for a league of two
+pools, and the hash records both (`#/l/CODE/KIND`) so a reload comes back to
+the same one. On the home page the picker and the gear are hidden: there is no
+board for them to be about.
 
 ## Why the data is split so many ways
 

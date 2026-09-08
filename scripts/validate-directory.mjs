@@ -10,7 +10,8 @@
  *
  * What matters most is the rules that keep leagues apart: a league's code is
  * the only way to it, one league's board can never land on another's, and a
- * league that plays two seasons has two boards that never land on each other.
+ * league that runs several pools - even the same season played for winners and
+ * for losers - has boards that never land on each other.
  */
 
 import assert from "node:assert/strict";
@@ -40,13 +41,13 @@ globalThis.localStorage = storage;
 /**
  * The slice of supabase-js the directory calls: insert (one row or several),
  * select narrowed by eq and in, update narrowed by eq, each awaited directly
- * or through maybeSingle. Rows are keyed by code and season, as the table is.
- * Every call is synchronous here; the ordering the store depends on is
- * validate-store-sync's job, not this one.
+ * or through maybeSingle. Rows are keyed by code, season and objective, as the
+ * table is. Every call is synchronous here; the ordering the store depends on
+ * is validate-store-sync's job, not this one.
  */
 function fakeTable() {
   const rows = new Map();
-  const keyOf = (row) => `${row.code}/${row.sport}`;
+  const keyOf = (row) => `${row.code}/${row.sport}/${row.objective}`;
 
   /** A query: filters chain, and the request goes out when the chain is read. */
   const query = (apply) => {
@@ -73,7 +74,11 @@ function fakeTable() {
 
   return {
     rows,
-    row: (code, sport) => rows.get(`${code}/${sport}`),
+    /** One pool's row, by the league's code and the kind it is. */
+    row: (code, kind) => {
+      const [sport, objective] = kind.split("-");
+      return rows.get(`${code}/${sport}/${objective}`);
+    },
     from(name) {
       assert.equal(name, "leagues", "the directory reads one table");
       return {
@@ -107,7 +112,7 @@ const { setSupabaseClient } = await import("../src/js/store/client.js");
 const directory = await import("../src/js/store/directory.js");
 const { isCode, normaliseCode, formatCode } = await import("../src/js/core/code.js");
 const { CONFIG, scopeFor } = await import("../src/js/config.js");
-const { SPORTS } = await import("../src/js/sports.js");
+const { SPORTS, POOL_KINDS } = await import("../src/js/sports.js");
 const { mergeRules } = await import("../src/js/core/rules.js");
 
 const reset = (client) => {
@@ -128,14 +133,15 @@ const id = directory.myId();
 assert.equal(directory.myId(), id, "a device's id is stable");
 assert.ok(id.startsWith("d-"), "and is a device id, not a person");
 
-const made = await directory.createLeague({ name: "  The Office Pool  ", sports: ["nfl"] });
+const made = await directory.createLeague({ name: "  The Office Pool  ", kinds: ["nfl-win"] });
 assert.ok(isCode(made.code), "a new league gets a whole code");
 assert.equal(made.name, "The Office Pool", "its name is trimmed");
-assert.deepEqual(made.sports, ["nfl"]);
+assert.deepEqual(made.kinds, ["nfl-win"]);
 assert.equal(made.shared, true, "and it was written to the table");
 
-const row = table.row(made.code, "nfl");
+const row = table.row(made.code, "nfl-win");
 assert.equal(row.sport, "nfl");
+assert.equal(row.objective, "win", "what the picks have to do is a column of its own");
 assert.deepEqual(
   row.entry.rules,
   { ...SPORTS.nfl.defaultRules, buyBackWeeks: [1, 2] },
@@ -144,82 +150,113 @@ assert.deepEqual(
 assert.deepEqual(names(row), ["Ben"], "and its maker is in it");
 assert.deepEqual(row.entry.picks, {}, "with an empty board");
 
-// No season, no league: there would be nothing to open.
+// No pool, no league: there would be nothing to open.
 await assert.rejects(
-  () => directory.createLeague({ name: "Nothing", sports: [] }),
-  /at least one season/,
+  () => directory.createLeague({ name: "Nothing", kinds: [] }),
+  /at least one pool/,
 );
 await assert.rejects(
-  () => directory.createLeague({ name: "Nothing", sports: ["xfl"] }),
-  /at least one season/,
-  "a season the repo does not carry counts for nothing",
+  () => directory.createLeague({ name: "Nothing", kinds: ["xfl-win", "nfl"] }),
+  /at least one pool/,
+  "a kind the repo does not carry counts for nothing",
 );
 assert.equal(table.rows.size, 1, "and nothing was written");
 
-// A league of two seasons is two rows under one code, each on its own season's
-// rules, and one entry on this device.
-const both = await directory.createLeague({ name: "Both Ways", sports: ["cfb", "nfl", "cfb"] });
+// A league of three pools is three rows under one code - the same season
+// played both ways among them - each on its own kind's rules.
+const trio = await directory.createLeague({
+  name: "Both Ways",
+  kinds: ["cfb-win", "nfl-lose", "nfl-win", "nfl-lose"],
+});
 assert.deepEqual(
-  both.sports,
-  ["nfl", "cfb"],
-  "seasons come back once each, in the registry's order",
+  trio.kinds,
+  ["nfl-win", "nfl-lose", "cfb-win"],
+  "kinds come back once each, in the registry's order",
 );
-assert.equal(table.row(both.code, "nfl").name, "Both Ways");
-assert.equal(table.row(both.code, "cfb").name, "Both Ways", "both rows carry the league's name");
+for (const kind of trio.kinds) {
+  assert.equal(table.row(trio.code, kind).name, "Both Ways", `${kind}: carries the league's name`);
+  assert.deepEqual(names(table.row(trio.code, kind)), ["Ben"], `${kind}: its maker is on it`);
+}
+assert.equal(table.row(trio.code, "nfl-lose").objective, "lose");
+assert.equal(
+  table.row(trio.code, "nfl-lose").entry.rules.objective,
+  "lose",
+  "a losers pool's rules say so from the start",
+);
+assert.equal(table.row(trio.code, "nfl-win").entry.rules.objective, "win");
 assert.deepEqual(
-  table.row(both.code, "cfb").entry.rules,
+  table.row(trio.code, "cfb-win").entry.rules,
   mergeRules(SPORTS.cfb.defaultRules),
   "the college board starts on college rules",
 );
 assert.notDeepEqual(
-  table.row(both.code, "nfl").entry.rules,
-  table.row(both.code, "cfb").entry.rules,
+  table.row(trio.code, "nfl-win").entry.rules,
+  table.row(trio.code, "cfb-win").entry.rules,
   "which are not the NFL's",
 );
-assert.deepEqual(names(table.row(both.code, "nfl")), ["Ben"]);
-assert.deepEqual(names(table.row(both.code, "cfb")), ["Ben"], "its maker is on every board");
+
+// The objective is the kind's, whatever an override tries to say.
+const stubborn = await directory.createLeague({
+  name: "Stubborn",
+  kinds: ["nfl-win"],
+  rules: { "nfl-win": { objective: "lose", picksPerWeek: 2 } },
+});
+assert.equal(table.row(stubborn.code, "nfl-win").entry.rules.objective, "win");
+assert.equal(table.row(stubborn.code, "nfl-win").entry.rules.picksPerWeek, 2, "the rest lands");
+assert.equal(stubborn.rules["nfl-win"].objective, "win");
 
 // A league with no name given still has one: a nameless card is unusable.
-const unnamed = await directory.createLeague({ name: "   ", sports: ["cfb"] });
-assert.equal(unnamed.name, "College survivor", "an unnamed league is named after its season");
-const unnamedBoth = await directory.createLeague({ name: "", sports: ["nfl", "cfb"] });
-assert.equal(unnamedBoth.name, "NFL & College survivor", "or after all of them");
+const unnamed = await directory.createLeague({ name: "   ", kinds: ["cfb-win"] });
+assert.equal(unnamed.name, "College winners pool", "an unnamed league is named after its pool");
+const unnamedTwo = await directory.createLeague({ name: "", kinds: ["nfl-lose", "nfl-win"] });
+assert.equal(unnamedTwo.name, "NFL winners & NFL losers pool", "or after all of them");
 
 // This device's list, in the order the leagues were added.
 assert.deepEqual(
   directory.myLeagues().map((league) => league.code),
-  [made.code, both.code, unnamed.code, unnamedBoth.code],
+  [made.code, trio.code, stubborn.code, unnamed.code, unnamedTwo.code],
   "the list keeps the order they were added in",
 );
-assert.deepEqual(directory.myLeagues()[1].sports, ["nfl", "cfb"], "and knows a league's seasons");
+assert.deepEqual(
+  directory.myLeagues()[1].kinds,
+  ["nfl-win", "nfl-lose", "cfb-win"],
+  "and knows a league's pools",
+);
 assert.deepEqual(
   Object.keys(directory.myLeagues()[1].rules).sort(),
-  ["cfb", "nfl"],
-  "with each season's rules filed under it",
+  ["cfb-win", "nfl-lose", "nfl-win"],
+  "with each pool's rules filed under it",
 );
+assert.equal(directory.myLeagues()[1].rules["nfl-lose"].objective, "lose");
 
-// Two leagues, two boards; one league of two seasons, two boards as well. This
-// is the isolation the whole model rests on.
-assert.notEqual(scopeFor(made.code, "nfl").storageKey, scopeFor(unnamed.code, "cfb").storageKey);
-assert.notEqual(scopeFor(made.code, "nfl").entryId, scopeFor(unnamed.code, "cfb").entryId);
+// Two leagues, two boards; one league of three pools, three boards. This is
+// the isolation the whole model rests on.
 assert.notEqual(
-  scopeFor(both.code, "nfl").storageKey,
-  scopeFor(both.code, "cfb").storageKey,
-  "a league's two seasons never share a board",
+  scopeFor(made.code, "nfl-win").storageKey,
+  scopeFor(trio.code, "nfl-win").storageKey,
 );
-assert.notEqual(scopeFor(both.code, "nfl").doc, scopeFor(both.code, "cfb").doc);
+assert.notEqual(scopeFor(made.code, "nfl-win").entryId, scopeFor(trio.code, "nfl-win").entryId);
+assert.notEqual(
+  scopeFor(trio.code, "nfl-win").storageKey,
+  scopeFor(trio.code, "nfl-lose").storageKey,
+  "a season played both ways is two boards",
+);
+assert.notEqual(scopeFor(trio.code, "nfl-win").doc, scopeFor(trio.code, "cfb-win").doc);
 
 // The hydrated list carries what the table says, not what was cached.
-table.rows.set(`${made.code}/nfl`, { ...table.row(made.code, "nfl"), name: "Renamed Elsewhere" });
+table.rows.set(`${made.code}/nfl/win`, {
+  ...table.row(made.code, "nfl-win"),
+  name: "Renamed Elsewhere",
+});
 const listed = await directory.refreshMyLeagues();
 assert.equal(listed[0].name, "Renamed Elsewhere", "a name changed by someone else arrives");
 assert.equal(listed[0].members, 1);
 assert.deepEqual(
-  listed[0].rules.nfl,
-  table.row(made.code, "nfl").entry.rules,
+  listed[0].rules["nfl-win"],
+  table.row(made.code, "nfl-win").entry.rules,
   "and so do the rules",
 );
-assert.deepEqual(listed[1].sports, ["nfl", "cfb"], "a two-season league lists both seasons");
+assert.deepEqual(listed[1].kinds, ["nfl-win", "nfl-lose", "cfb-win"], "every pool is listed");
 assert.equal(
   listed.every((league) => !league.missing),
   true,
@@ -228,24 +265,25 @@ assert.equal(
 
 // A code whose league is gone is marked rather than dropped: a league that
 // failed to load and one that was deleted look the same from here.
-const vanished = table.row(unnamed.code, "cfb");
-table.rows.delete(`${unnamed.code}/cfb`);
+const vanished = table.row(unnamed.code, "cfb-win");
+table.rows.delete(`${unnamed.code}/cfb/win`);
 const withGap = await directory.refreshMyLeagues();
-assert.equal(withGap[2].missing, true, "a code that does not answer is marked missing");
-assert.equal(withGap[2].name, "College survivor", "and keeps the name it was cached with");
-table.rows.set(`${unnamed.code}/cfb`, vanished);
+assert.equal(withGap[3].missing, true, "a code that does not answer is marked missing");
+assert.equal(withGap[3].name, "College winners pool", "and keeps the name it was cached with");
+table.rows.set(`${unnamed.code}/cfb/win`, vanished);
 
-// Renaming, for everyone, on every season.
-const renamed = await directory.renameLeague(both.code, "  Sunday Sweat  ");
+// Renaming, for everyone, on every pool.
+const renamed = await directory.renameLeague(trio.code, "  Sunday Sweat  ");
 assert.equal(renamed, "Sunday Sweat");
-assert.equal(table.row(both.code, "nfl").name, "Sunday Sweat", "the rows are what changed");
-assert.equal(table.row(both.code, "cfb").name, "Sunday Sweat", "every one of them");
-await assert.rejects(() => directory.renameLeague(both.code, "   "), /needs a name/);
+for (const kind of trio.kinds) {
+  assert.equal(table.row(trio.code, kind).name, "Sunday Sweat", `${kind}: the row is what changed`);
+}
+await assert.rejects(() => directory.renameLeague(trio.code, "   "), /needs a name/);
 
 /* --- joining -------------------------------------------------------------- */
 
 // Another device: same table, its own storage and its own name.
-const hostCode = both.code;
+const hostCode = trio.code;
 reset(table);
 directory.setMyName("Sam");
 
@@ -255,43 +293,48 @@ await assert.rejects(() => directory.joinLeague("BXQK7HRTM4WD"), /No league has 
 const joined = await directory.joinLeague(formatCode(hostCode));
 assert.equal(joined.code, hostCode, "a code typed with its dashes still joins");
 assert.equal(joined.name, "Sunday Sweat", "and brings the league's own name back");
-assert.deepEqual(joined.sports, ["nfl", "cfb"], "one code joins every season the league plays");
+assert.deepEqual(
+  joined.kinds,
+  ["nfl-win", "nfl-lose", "cfb-win"],
+  "one code joins every pool the league runs",
+);
 assert.deepEqual(
   directory.myLeagues().map((league) => league.code),
   [hostCode],
   "the joined league is on this device's list",
 );
-for (const sport of ["nfl", "cfb"]) {
+for (const kind of joined.kinds) {
   assert.deepEqual(
-    names(table.row(hostCode, sport)),
+    names(table.row(hostCode, kind)),
     ["Ben", "Sam"],
-    `${sport}: this person is in the members beside the one who made it`,
+    `${kind}: this person is in the members beside the one who made it`,
   );
-  assert.deepEqual(table.row(hostCode, sport).entry.picks, {}, "joining does not touch the board");
+  assert.deepEqual(table.row(hostCode, kind).entry.picks, {}, "joining does not touch the board");
 }
 
 // Joining twice is not two members.
 await directory.joinLeague(hostCode);
-assert.equal(table.row(hostCode, "nfl").entry.members.length, 2, "joining again adds nobody");
+assert.equal(table.row(hostCode, "nfl-win").entry.members.length, 2, "joining again adds nobody");
 
 // A name changed after joining reaches the members list, on every board.
 directory.setMyName("Samantha");
 await directory.joinLeague(hostCode);
-assert.deepEqual(names(table.row(hostCode, "nfl")), ["Ben", "Samantha"]);
-assert.deepEqual(
-  names(table.row(hostCode, "cfb")),
-  ["Ben", "Samantha"],
-  "a member's name is updated rather than duplicated",
-);
+for (const kind of joined.kinds) {
+  assert.deepEqual(
+    names(table.row(hostCode, kind)),
+    ["Ben", "Samantha"],
+    `${kind}: a member's name is updated rather than duplicated`,
+  );
+}
 
 // Leaving takes this device off the list and out of the members on every
 // board, and leaves the league itself alone: shared boards mean leaving must
 // not delete them.
 await directory.leaveLeague(hostCode);
 assert.deepEqual(directory.myLeagues(), [], "leaving clears this device's list");
-assert.ok(table.rows.has(`${hostCode}/nfl`) && table.rows.has(`${hostCode}/cfb`));
-for (const sport of ["nfl", "cfb"]) {
-  assert.deepEqual(names(table.row(hostCode, sport)), ["Ben"], `${sport}: the rest stay`);
+for (const kind of joined.kinds) {
+  assert.ok(table.row(hostCode, kind), `${kind}: the league is still there`);
+  assert.deepEqual(names(table.row(hostCode, kind)), ["Ben"], `${kind}: the rest stay`);
 }
 assert.equal(
   storage.keys().some((key) => key.startsWith(`${CONFIG.storage.entryPrefix}/${hostCode}`)),
@@ -302,11 +345,25 @@ assert.equal(
 // leagueByCode is what a link opens with, and it reads the table.
 const found = await directory.leagueByCode(formatCode(hostCode));
 assert.equal(found.code, hostCode);
-assert.deepEqual(found.sports, ["nfl", "cfb"], "with every season, so any of them can open");
+assert.deepEqual(found.kinds, ["nfl-win", "nfl-lose", "cfb-win"], "with every pool");
 assert.equal(await directory.leagueByCode("BXQK7HRTM4WD"), null, "an unknown code opens nothing");
 
-/* --- a list from before a league could hold more than one season ---------- */
+/* --- what came before ----------------------------------------------------- */
 
+// A row from a table that has not been migrated carries the objective in its
+// rules and no column: it reads as the pool it always was.
+table.rows.set("QWERTYASDFGH/nfl/undefined", {
+  code: "QWERTYASDFGH",
+  name: "Old Losers",
+  sport: "nfl",
+  entry: { picks: {}, swaps: {}, rules: { objective: "lose", picksPerWeek: 1 }, members: [] },
+});
+const oldRow = await directory.leagueByCode("QWERTYASDFGH");
+assert.deepEqual(oldRow.kinds, ["nfl-lose"], "an old losers row is an NFL losers pool");
+assert.equal(oldRow.rules["nfl-lose"].objective, "lose");
+
+// A cached list from before a league could hold more than one pool: one
+// `sport` and one flat set of rules, whose objective says which kind it was.
 reset(table);
 storage.setItem(
   CONFIG.storage.leagues,
@@ -315,26 +372,26 @@ storage.setItem(
       code: made.code,
       name: "Old Shape",
       sport: "nfl",
-      rules: SPORTS.nfl.defaultRules,
+      rules: { ...SPORTS.nfl.defaultRules, objective: "lose" },
       joinedAt: "then",
     },
+    { code: "QWERTYASDFGH", name: "Older Shape", sport: "nfl", joinedAt: "then" },
   ]),
 );
-const [old] = directory.myLeagues();
-assert.deepEqual(
-  old.sports,
-  ["nfl"],
-  "a cached league with one sport reads as a league of that season",
-);
-assert.deepEqual(old.rules, { nfl: SPORTS.nfl.defaultRules }, "with its rules filed under it");
+const [old, older] = directory.myLeagues();
+assert.deepEqual(old.kinds, ["nfl-lose"], "a cached league reads as the kind its rules say");
+assert.deepEqual(old.rules, { "nfl-lose": { ...SPORTS.nfl.defaultRules, objective: "lose" } });
 assert.equal(old.sport, undefined, "and the old key is gone");
 assert.equal(old.joinedAt, "then", "without losing when it was joined");
+assert.deepEqual(older.kinds, ["nfl-win"], "one with no rules cached is a winners pool");
+assert.deepEqual(older.rules, {});
 const [refreshedOld] = await directory.refreshMyLeagues();
 assert.equal(refreshedOld.name, "Renamed Elsewhere", "and it still refreshes from the table");
+assert.deepEqual(refreshedOld.kinds, ["nfl-win"], "which corrects the kind to what the table says");
 assert.deepEqual(
-  JSON.parse(storage.getItem(CONFIG.storage.leagues))[0].sports,
-  ["nfl"],
-  "which rewrites the list in the new shape",
+  JSON.parse(storage.getItem(CONFIG.storage.leagues))[0].kinds,
+  ["nfl-win"],
+  "and rewrites the list in the new shape",
 );
 
 /* --- with no table at all ------------------------------------------------- */
@@ -342,10 +399,10 @@ assert.deepEqual(
 reset(null);
 directory.setMyName("Alone");
 
-const local = await directory.createLeague({ name: "Just Me", sports: ["nfl", "cfb"] });
+const local = await directory.createLeague({ name: "Just Me", kinds: ["nfl-win", "cfb-lose"] });
 assert.equal(local.shared, false, "with no backend a league is made anyway");
 assert.ok(isCode(local.code), "and still gets a code");
-assert.deepEqual(local.sports, ["nfl", "cfb"], "with every season asked for");
+assert.deepEqual(local.kinds, ["nfl-win", "cfb-lose"], "with every pool asked for");
 assert.deepEqual(
   directory.myLeagues().map((league) => league.name),
   ["Just Me"],
@@ -364,11 +421,12 @@ assert.equal(offline[0].missing, false, "and does not call it missing");
 
 assert.equal(normaliseCode(" bxqk-7hrt m4wd "), "BXQK7HRTM4WD");
 assert.equal(formatCode("BXQK7HRTM4WD"), "BXQK-7HRT-M4WD");
+assert.ok(POOL_KINDS["nfl-win"], "the registry the directory keys on is there");
 
 console.log(
-  "Directory OK: a league is made with a code, a row per season and each season's own rules, " +
-    "a code joins every season of it and adds one member however often it is used, leaving " +
-    "keeps the league and its other members, two leagues never share a board and nor do a " +
-    "league's seasons, an old list reads as leagues of one season, and a build with no " +
-    "backend still makes leagues that work.",
+  "Directory OK: a league is made with a code, a row per pool and each pool's own rules with " +
+    "the objective fixed, a code joins every pool of it and adds one member however often it " +
+    "is used, leaving keeps the league and its other members, two leagues never share a board " +
+    "and nor do a league's pools, old rows and old lists read as the pools they were, and a " +
+    "build with no backend still makes leagues that work.",
 );

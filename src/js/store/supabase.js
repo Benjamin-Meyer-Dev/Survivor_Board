@@ -2,12 +2,12 @@
  * Shared store backed by Supabase.
  *
  * One row in `leagues` holds one pool's whole shared state as JSON - its
- * picks, its locks, its rules and its members - keyed by the league's code and
- * the season the pool plays, so a league of two seasons is two rows and two of
- * these stores. Realtime pushes the row to every open device on change, which
- * is what makes everyone in a league see the same board. See
- * supabase/schema.sql for the table and its policies, and for what a code does
- * and does not protect.
+ * picks, its locks, its rules and its members - keyed by the league's code,
+ * the season the pool plays and what its picks have to do, so a league of two
+ * pools is two rows and two of these stores. Realtime pushes the row to every
+ * open device on change, which is what makes everyone in a league see the same
+ * board. See supabase/schema.sql for the table and its policies, and for what
+ * a code does and does not protect.
  *
  * The client library is loaded from the CDN on demand so the app has no
  * build step and no npm dependency at runtime.
@@ -34,6 +34,7 @@
 
 import { CONFIG, scopeFor } from "../config.js";
 import { emptyEntry } from "../core/plan.js";
+import { POOL_KINDS } from "../sports.js";
 import { supabaseClient } from "./client.js";
 
 /** How often to read the row directly, as a backstop for realtime. */
@@ -64,17 +65,19 @@ function sameVersion(a, b) {
 
 /**
  * @param {string} code Which league's row to open.
- * @param {string} sport Which of the league's seasons: one row per pool.
+ * @param {string} kind Which of the league's pools, as a kind id (see
+ *   src/js/sports.js): one row per pool.
  * @param {{client?: object}} [options] A ready client, for tests that cannot
  *   load the CDN. Production leaves this out and loads the library.
  */
-export async function createSupabaseStore(code, sport, { client: given } = {}) {
+export async function createSupabaseStore(code, kind, { client: given } = {}) {
   const { table } = CONFIG.supabase;
 
-  // One row per pool, keyed by the league's code and the season, so no two
-  // leagues - and no two seasons of one league - can land on each other's
-  // board however many a device is in.
-  const { entryId } = scopeFor(code, sport);
+  // One row per pool, keyed by the league's code, the season and what the
+  // picks have to do, so no two leagues - and no two pools of one league - can
+  // land on each other's board however many a device is in.
+  const { entryId } = scopeFor(code, kind);
+  const { sport, objective } = POOL_KINDS[kind] ?? {};
 
   // The same client the directory used to find this league, so the app holds
   // one library and one socket however many leagues it opens.
@@ -103,9 +106,10 @@ export async function createSupabaseStore(code, sport, { client: given } = {}) {
   function publish(listener, row, seenBefore = lastVersion) {
     const entry = row?.entry;
     if (!entry || saving > 0) return;
-    // Realtime takes one filter, the code, so the league's other seasons come
+    // Realtime takes one filter, the code, so the league's other pools come
     // through the same channel; they are somebody else's board.
     if (row.sport && row.sport !== sport) return;
+    if (row.objective && row.objective !== objective) return;
     if (seenBefore !== lastVersion) return;
     if (isOwn(row.updated_at) || sameVersion(row.updated_at, lastVersion)) return;
     lastVersion = row.updated_at ?? lastVersion;
@@ -123,6 +127,7 @@ export async function createSupabaseStore(code, sport, { client: given } = {}) {
         .select("entry, updated_at")
         .eq("code", entryId)
         .eq("sport", sport)
+        .eq("objective", objective)
         .maybeSingle();
 
       if (error || !data) return emptyEntry();
@@ -134,7 +139,7 @@ export async function createSupabaseStore(code, sport, { client: given } = {}) {
       listeners.add(listener);
 
       const channel = client
-        .channel(`leagues:${entryId}:${sport}`)
+        .channel(`leagues:${entryId}:${kind}`)
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table, filter: `code=eq.${entryId}` },
@@ -159,6 +164,7 @@ export async function createSupabaseStore(code, sport, { client: given } = {}) {
             .select("entry, updated_at")
             .eq("code", entryId)
             .eq("sport", sport)
+            .eq("objective", objective)
             .maybeSingle();
           if (!error && data) publish(listener, data, seenBefore);
         } finally {
@@ -194,7 +200,8 @@ export async function createSupabaseStore(code, sport, { client: given } = {}) {
           .from(table)
           .update({ entry, updated_at: version })
           .eq("code", entryId)
-          .eq("sport", sport);
+          .eq("sport", sport)
+          .eq("objective", objective);
         if (error) {
           lastVersion = previousVersion;
           throw error;

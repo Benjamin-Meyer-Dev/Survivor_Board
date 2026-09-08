@@ -4,7 +4,7 @@
  * Two screens. The home page lists the leagues this device is in and is where
  * they are made, joined and shared; a board is one league, opened by code.
  * Which one is showing is `app.view`, and the hash carries it so a league can
- * be linked to (#/l/CODE, or #/l/CODE/SPORT for one of a league's seasons) and
+ * be linked to (#/l/CODE, or #/l/CODE/KIND for one of a league's pools) and
  * joined from a message (#/join/CODE).
  *
  * Data flow is one-directional either way:
@@ -13,7 +13,7 @@
  */
 
 import { CONFIG } from "./config.js";
-import { SPORTS, resolveSport, normaliseSports, sportLabel } from "./sports.js";
+import { POOL_KINDS, KIND_IDS, resolveSport, normaliseKinds } from "./sports.js";
 import { buildBoard, slotKey, sameEntry } from "./core/plan.js";
 import { createStore } from "./store/index.js";
 import {
@@ -57,16 +57,18 @@ const el = {
   tabs: document.getElementById("tabs"),
   league: document.getElementById("league"),
   settings: document.getElementById("settings"),
+  /** The picker and the gear together: a board's controls, hidden on the home page. */
+  tools: document.querySelector(".masthead__tools"),
   shell: document.querySelector(".shell"),
 };
 
 const app = {
   /** "home" or "board". The home page is where a launch with no link lands. */
   view: "home",
-  /** The open league: {code, name, sports}. Null on the home page. */
+  /** The open league: {code, name, kinds}. Null on the home page. */
   league: null,
-  /** Which of the open league's seasons the board is showing. */
-  sport: null,
+  /** Which of the open league's pools the board is showing: a kind id (see sports.js). */
+  kind: null,
   /** This device's leagues, as the home page knows them. */
   leagues: [],
   /** Whether the shared copy of that list is still on its way. */
@@ -198,7 +200,7 @@ const ME = myId();
  * bundler inlines the three JSON blobs on `globalThis.SURVIVOR_DATA` and this
  * short-circuits. On Pages it fetches normally.
  */
-async function loadJson(name, sport = app.sport) {
+async function loadJson(name, sport = POOL_KINDS[app.kind]?.sport) {
   // Per sport, not per league: every league on the NFL schedule is priced off
   // the one data/nfl pull, however many of them there are.
   const folder = resolveSport(sport);
@@ -316,7 +318,7 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
   lastBoard = board;
   renderLeagueSwitch(
     el.league,
-    { league: app.league, sport: app.sport, leagues: app.leagues },
+    { league: app.league, kind: app.kind, leagues: app.leagues },
     openFromSwitch,
   );
   renderSettings(el.settings, board, {
@@ -327,7 +329,7 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
     canWrite: app.store.canWrite,
     onSave: applyRules,
     league: app.league,
-    sport: app.sport,
+    kind: app.kind,
     onRename: applyRename,
   });
   renderNotices(el.notices, { store: app.store, board, message: app.message });
@@ -371,6 +373,10 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
 function renderHomeView() {
   el.board.hidden = true;
   el.home.hidden = false;
+  // The picker and the gear are a board's controls. On the home page the
+  // picker would offer only "Home" and the gear would open a sheet about
+  // nothing, so neither is shown.
+  if (el.tools) el.tools.hidden = true;
   document.title = "Survivor Board";
 
   renderLeagueSwitch(el.league, { league: null, leagues: app.leagues }, openFromSwitch);
@@ -387,17 +393,17 @@ function renderHomeView() {
       message: app.homeMessage ?? "",
     },
     {
-      onOpen: (code, sport) => {
+      onOpen: (code, kind) => {
         app.homeMessage = "";
-        openBoard(code, sport);
+        openBoard(code, kind);
       },
       // Neither of these catches: a failure throws back to the form, which
       // shows the reason under its own field. The message at the top of the
       // page is for what goes wrong away from the forms - an invite link that
       // did not open, a board that would not load.
-      onCreate: async ({ name, sports }) => {
+      onCreate: async ({ name, kinds }) => {
         app.homeMessage = "";
-        const league = await createLeague({ name, sports });
+        const league = await createLeague({ name, kinds });
         await reloadLeagues();
         openBoard(league.code);
       },
@@ -455,14 +461,14 @@ function goHome() {
 }
 
 /**
- * Open a league's board by code - and, for a league of several seasons, which
+ * Open a league's board by code - and, for a league of several pools, which
  * one - from the home page, the switch or a link.
  *
  * Failures put the person back on the home page with the reason, because a
  * half-open board - a code that no longer exists, a season whose data will not
  * load - is not a place anyone can do anything from.
  */
-async function openBoard(code, sport = null) {
+async function openBoard(code, kind = null) {
   const clean = normaliseCode(code);
   if (app.switching) return;
   app.switching = true;
@@ -476,8 +482,9 @@ async function openBoard(code, sport = null) {
     app.view = "board";
     el.home.hidden = true;
     el.board.hidden = false;
-    await openLeague(league, sport);
-    window.history.replaceState(null, "", leagueHash(league.code, app.sport));
+    if (el.tools) el.tools.hidden = false;
+    await openLeague(league, kind);
+    window.history.replaceState(null, "", leagueHash(league.code, app.kind));
     playSwitch();
   } catch (error) {
     app.view = "home";
@@ -630,15 +637,18 @@ function applyRules(rules) {
   // like on disk, where an empty object would read as a rule set of its own.
   const next = { ...app.entry };
   delete next.rules;
-  if (rules) next.rules = rules;
+  if (rules) {
+    // What a pick has to do is the pool's, fixed when the league was made, and
+    // not a rule anyone stores: the sheet no longer offers it, and a value
+    // carried here would only be the pool's own read back.
+    const stored = { ...rules };
+    delete stored.objective;
+    next.rules = stored;
+  }
   app.entry = next;
   // A week can lose the slot it was being viewed through, and an empty deck
   // page is not a place to be left standing.
   app.viewWeek = Math.min(app.viewWeek, app.plan.weeks.length);
-
-  // A league that now picks losers wears the warm palette, and one that has
-  // gone back to picking winners takes its sport's own again.
-  applyTheme(app.sport, app.entry.rules?.objective);
 
   clearTimeout(app.recommendTimer);
   app.recommendTimer = null;
@@ -661,7 +671,7 @@ async function applyRename(name) {
     app.leagues = app.leagues.map((league) =>
       league.code === app.league.code ? { ...league, name: saved } : league,
     );
-    document.title = titleFor(app.league, app.sport);
+    document.title = titleFor(app.league, app.kind);
     app.message = "";
   } catch (error) {
     app.message = error.message;
@@ -687,30 +697,37 @@ function scheduleSave() {
   }, 250);
 }
 
-/** The tab's title: the league, and which of its seasons when it has several. */
-function titleFor(league, sport) {
-  const season = league.sports.length > 1 ? ` · ${sportLabel(sport)}` : "";
-  return `${league.name}${season} · Survivor Board`;
+/** The tab's title: the league, and which of its pools when it has several. */
+function titleFor(league, kind) {
+  const pool = league.kinds.length > 1 ? ` · ${POOL_KINDS[kind].label}` : "";
+  return `${league.name}${pool} · Survivor Board`;
+}
+
+/** Repaint for a pool: its season's palette, turned warm when its picks have to lose. */
+function themeFor(kind) {
+  const pool = POOL_KINDS[kind];
+  applyTheme(pool?.sport ?? null, pool?.objective);
 }
 
 /**
  * Load one of a league's boards and take over the screen.
  *
- * A league is a code (its name and its members) plus one or more seasons, each
- * with a shared board of its own, priced off the schedule, lines and ratings
- * every league on that season shares. `wanted` says which board to open; a
- * season the league does not play - a stale link, an old cached list - falls
- * back to its first. Opening is a full reload rather than a filter over the
- * last: old subscriptions are torn down first, and nothing from the previous
- * board survives.
+ * A league is a code (its name and its members) plus one or more pools, each a
+ * season played for winners or for losers, each with a shared board of its own
+ * priced off the schedule, lines and ratings every league on that season
+ * shares. `wanted` says which board to open; a pool the league does not run -
+ * a stale link, an old cached list - falls back to its first. Opening is a
+ * full reload rather than a filter over the last: old subscriptions are torn
+ * down first, and nothing from the previous board survives.
  *
- * @param {{code:string, name:string, sports:string[]}} league
- * @param {string|null} [wanted]
+ * @param {{code:string, name:string, kinds:string[]}} league
+ * @param {string|null} [wanted] A kind id.
  */
 async function openLeague(league, wanted = null) {
-  const seasons = normaliseSports(league.sports);
-  if (seasons.length === 0) seasons.push(resolveSport(null));
-  const sport = seasons.includes(wanted) ? wanted : seasons[0];
+  const kinds = normaliseKinds(league.kinds);
+  if (kinds.length === 0) kinds.push(KIND_IDS[0]);
+  const kind = kinds.includes(wanted) ? wanted : kinds[0];
+  const { sport, objective } = POOL_KINDS[kind];
   app.unsubscribe?.();
   app.unsubscribe = null;
   clearTimeout(app.recommendTimer);
@@ -737,8 +754,13 @@ async function openLeague(league, wanted = null) {
       loadJson("pool.json", sport).catch(() => null),
     ]);
 
-  app.league = { ...league, sports: seasons };
-  app.sport = sport;
+  // The board's defaults are the season's plan played the way this pool was
+  // made to be played: the objective is the pool's, fixed with the league, and
+  // reaches the model here rather than as a rule anyone can change.
+  plan.rules = { ...plan.rules, objective };
+
+  app.league = { ...league, kinds };
+  app.kind = kind;
   app.plan = plan;
   app.teams = teams;
   app.odds = odds;
@@ -750,17 +772,15 @@ async function openLeague(league, wanted = null) {
   app.pool = pool;
   app.viewWeek = Math.min(Math.max(odds.currentWeek ?? 1, 1), plan.weeks.length);
 
-  document.title = titleFor(app.league, sport);
+  document.title = titleFor(app.league, kind);
 
-  app.store = await createStore(league.code, sport);
+  app.store = await createStore(league.code, kind);
   app.entry = await app.store.init();
-  // The palette follows the sport and what this league's picks have to do, so
-  // it is applied once the rules are in hand rather than before them.
-  applyTheme(sport, app.entry.rules?.objective ?? SPORTS[sport].defaultRules.objective);
+  themeFor(kind);
   app.unsubscribe = app.store.subscribe((entry) => {
     // A late push from the store we just replaced - another league, or this
-    // league's other season - must not land on this board.
-    if (app.league?.code !== league.code || app.sport !== sport) return;
+    // league's other pool - must not land on this board.
+    if (app.league?.code !== league.code || app.kind !== kind) return;
     // The store confirming our own save, or a poll that found nothing new, is
     // not a change. Rendering it would rebuild the deck under the feedback
     // still playing for the tap that caused it, and play it a second time.
@@ -783,7 +803,7 @@ async function openLeague(league, wanted = null) {
 
 /**
  * Handler for the masthead switch: another board - a league and one of its
- * seasons, as "CODE/SPORT" - or the home page.
+ * pools, as "CODE/KIND" - or the home page.
  *
  * Rebuilding a board is not instant: the recommendation is a beam search over
  * the whole remaining season, and it runs synchronously. So the tap is answered
@@ -799,11 +819,11 @@ async function openFromSwitch(target) {
     goHome();
     return;
   }
-  const [code, sport = null] = target.split("/");
-  if (code === app.league?.code && (sport ?? app.sport) === app.sport) return;
+  const [code, kind = null] = target.split("/");
+  if (code === app.league?.code && (kind ?? app.kind) === app.kind) return;
 
   app.switching = true;
-  renderLeagueSwitch(el.league, { league: { code }, sport, leagues: app.leagues }, openFromSwitch);
+  renderLeagueSwitch(el.league, { league: { code }, kind, leagues: app.leagues }, openFromSwitch);
   el.shell?.classList.add("is-swapping");
   await twoFrames();
   // The colour tokens switch inside openLeague. Let the old board finish its
@@ -814,16 +834,16 @@ async function openFromSwitch(target) {
   try {
     const league = await leagueByCode(code);
     if (!league) throw new Error("that league could not be found");
-    await openLeague(league, sport);
-    window.history.replaceState(null, "", leagueHash(league.code, app.sport));
+    await openLeague(league, kind);
+    window.history.replaceState(null, "", leagueHash(league.code, app.kind));
   } catch (error) {
     // Put the board back the way it was, including its colours.
     renderLeagueSwitch(
       el.league,
-      { league: app.league, sport: app.sport, leagues: app.leagues },
+      { league: app.league, kind: app.kind, leagues: app.leagues },
       openFromSwitch,
     );
-    applyTheme(app.sport, app.entry.rules?.objective);
+    themeFor(app.kind);
     app.message = `Could not open that league: ${error.message}`;
     render();
   } finally {
@@ -910,9 +930,9 @@ function registerServiceWorker() {
  * What the address bar is asking for.
  *
  * #/join/CODE is the link that gets sent around: it joins first, so the person
- * who opened it is in the members before the board draws. #/l/CODE/SPORT is
+ * who opened it is in the members before the board draws. #/l/CODE/KIND is
  * what an open board leaves behind, so a reload comes back to it; without the
- * season it opens the league's first.
+ * pool it opens the league's first.
  */
 async function openFromHash() {
   const asked = codeFromHash(window.location.hash);
@@ -932,7 +952,7 @@ async function openFromHash() {
 
   const known = app.leagues.some((league) => league.code === asked.code);
   if (!known && !sharingAvailable()) return false;
-  await openBoard(asked.code, asked.sport);
+  await openBoard(asked.code, asked.kind);
   return app.view === "board";
 }
 
@@ -969,7 +989,7 @@ async function main() {
       if (app.view !== "home") goHome();
       return;
     }
-    const showing = asked.code === app.league?.code && (!asked.sport || asked.sport === app.sport);
+    const showing = asked.code === app.league?.code && (!asked.kind || asked.kind === app.kind);
     if (!showing) openFromHash();
   });
 }

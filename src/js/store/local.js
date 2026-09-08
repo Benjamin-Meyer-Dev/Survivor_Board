@@ -8,14 +8,14 @@
 import { scopeFor } from "../config.js";
 import { emptyEntry } from "../core/plan.js";
 
-export function createLocalStore(code, sport) {
+export function createLocalStore(code, kind) {
   const listeners = new Set();
-  const { storageKey: key, legacyStorageKey } = scopeFor(code, sport);
+  const { storageKey: key, legacyStorageKey } = scopeFor(code, kind);
 
   function read() {
     try {
       // The keyed copy, or the one a league saved before it could hold more
-      // than one season: that board belongs to the one season it had.
+      // than one pool: that board belongs to the one pool it had.
       const raw = localStorage.getItem(key) ?? localStorage.getItem(legacyStorageKey);
       return raw ? { ...emptyEntry(), ...JSON.parse(raw) } : emptyEntry();
     } catch {

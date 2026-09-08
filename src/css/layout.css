@@ -49,6 +49,12 @@
   flex: none;
 }
 
+/* Off on the home page, where there is no board for them to be about. Said
+   here because the display above would otherwise beat the attribute. */
+.masthead__tools[hidden] {
+  display: none;
+}
+
 .masthead__title {
   font-family: var(--font-display);
   font-weight: 700;

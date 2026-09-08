@@ -5,13 +5,15 @@ code to the people you are playing with, and everyone works the same board.
 
 First launch asks what to call you - that name goes on the picks you make.
 After that the home page lists your leagues: **Create** one for the people you
-play with, ticking every season it plays, or **Join** with a twelve-character
-code someone sent you. A league has one shared board per season - an NFL pool
-and a college pool for the same people are one league and one code - so the
-people in it see the same picks and locks in real time, and market lines and
-final scores refresh once a day, so wins and losses mark themselves.
+play with, ticking every pool it runs - NFL winners, NFL losers, College
+winners, College losers, any of them - or **Join** with a twelve-character code
+someone sent you. A league has one shared board per pool, so the people in it
+see the same picks and locks in real time, and market lines and final scores
+refresh once a day, so wins and losses mark themselves.
 
-A league is one or more seasons, each with its own rules:
+A league is one or more pools. Each is a season, played for winners or for
+losers - which is decided when the league is made and cannot change - with its
+own rules on top:
 
 |          | College season       | NFL season |
 | -------- | -------------------- | ---------- |
@@ -19,17 +21,18 @@ A league is one or more seasons, each with its own rules:
 | Eligible | SEC, Big Ten, Big 12 | all 32     |
 | Opponent | must be FBS          | any        |
 
-and the rules its members set, from the gear beside its name - whether picks
-have to **win or lose**, how many **picks a week**, how many **buy backs** and
-the weeks they cover. Those are the league's, not the device's: saving them
-re-plans the season on every phone in it. No team can be used twice either way,
+and the rules its members set, from the gear beside its name - how many
+**picks a week**, how many **buy backs** and the weeks they cover. Those are
+the pool's, not the device's: saving them re-plans the season on every phone in
+it. No team can be used twice either way,
 and a buy back forgives a loss without giving the team back, so a week 1 loss
 costs both the team and the cushion.
 
 Nothing about a league is built into the app. The repo carries the two seasons -
 the schedules, the lines, the ratings and the calibrated model - and every
-pool is a row keyed by its league's code and its season. However many you make,
-they read the same two daily pulls and cost nothing extra.
+pool is a row keyed by its league's code, its season and whether its picks win
+or lose. However many you make, they read the same two daily pulls and cost
+nothing extra.
 
 **A code is the credential.** There are no accounts: anyone holding a league's
 code can read that board and write to it, which is the point of sending one.

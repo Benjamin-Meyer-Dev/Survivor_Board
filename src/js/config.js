@@ -32,10 +32,10 @@ export const CONFIG = Object.freeze({
    *
    *   name      what this person is called, asked for once on first run
    *   who       this device's id, saved against every lock and pick
-   *   leagues   the codes this device has joined, with a cached name, seasons
-   *             and rules so the home page can be drawn before the network
-   *             answers
-   *   entry     one per pool - a league's code and one of its seasons - the
+   *   leagues   the codes this device has joined, with a cached name, the kinds
+   *             of pool each runs and their rules, so the home page can be
+   *             drawn before the network answers
+   *   entry     one per pool - a league's code and one of its kinds - the
    *             offline copy of that pool's board
    */
   storage: Object.freeze({
@@ -61,19 +61,20 @@ export const CONFIG = Object.freeze({
 
 /**
  * Where one pool's shared state lives, in each of the backends. Keyed by the
- * league's code and the season, so two leagues never land on each other's
- * board, and nor do the two seasons of one league.
+ * league's code and the kind of pool (a season, played for winners or for
+ * losers - see src/js/sports.js), so two leagues never land on each other's
+ * board, and nor do two pools of one league.
  *
  * `legacyStorageKey` is where a league kept its board before a league could
- * hold more than one season. The per-device store reads it when the keyed copy
+ * hold more than one pool. The per-device store reads it when the keyed copy
  * is not there, so nothing saved offline is lost to the change.
  */
-export function scopeFor(code, sport) {
+export function scopeFor(code, kind) {
   return {
-    doc: `league/${code}/${sport}`,
+    doc: `league/${code}/${kind}`,
     entryId: code,
-    sport,
-    storageKey: `${CONFIG.storage.entryPrefix}/${code}/${sport}`,
+    kind,
+    storageKey: `${CONFIG.storage.entryPrefix}/${code}/${kind}`,
     legacyStorageKey: `${CONFIG.storage.entryPrefix}/${code}`,
   };
 }

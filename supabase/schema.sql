@@ -1,12 +1,14 @@
 -- Survivor Board shared state.
 --
--- One row per pool, keyed by a league's code and the season the pool plays. A
--- league is every row that shares a code: one code, one name, one set of
--- members, and a board for each season it was made with, so an NFL pool and a
--- college pool can go to the same people as one link. Each row holds its
--- pool's whole shared board as JSON: the picks, the locks, the rules it runs
--- on and who is in it. Realtime pushes a row to every open device on change,
--- which is what makes everyone in a league see the same board.
+-- One row per pool, keyed by a league's code, the season the pool plays and
+-- what its picks have to do (win or lose). A league is every row that shares a
+-- code: one code, one name, one set of members, and a board for each pool it
+-- was made with, so an NFL winners pool, an NFL losers pool and a college pool
+-- can go to the same people as one link. Which pools a league runs is fixed
+-- when it is made. Each row holds its pool's whole shared board as JSON: the
+-- picks, the locks, the rules it runs on and who is in it. Realtime pushes a
+-- row to every open device on change, which is what makes everyone in a league
+-- see the same board.
 --
 -- Run this once in the Supabase SQL editor. It is safe to run again: every
 -- statement checks before it acts.
@@ -40,14 +42,34 @@ create table if not exists public.leagues (
   code        text not null,
   name        text not null,
   sport       text not null,
+  objective   text not null default 'win',
   entry       jsonb not null default '{"picks":{},"swaps":{}}'::jsonb,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
-  primary key (code, sport)
+  primary key (code, sport, objective)
 );
 
+-- Tables from before the objective was a column carried it inside the board's
+-- rules. Lift it out once, so a losers league made back then stays one, and so
+-- an NFL winners pool and an NFL losers pool can sit under one code. Guarded:
+-- a re-run finds the column and leaves it alone.
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'leagues' and column_name = 'objective'
+  ) then
+    alter table public.leagues add column objective text not null default 'win';
+    update public.leagues set objective = 'lose' where entry->'rules'->>'objective' = 'lose';
+  end if;
+end $$;
+
+alter table public.leagues drop constraint if exists leagues_objective_known;
+alter table public.leagues
+  add constraint leagues_objective_known check (objective in ('win', 'lose'));
+
 -- Tables made before a league could hold more than one pool keyed the row on
--- the code alone. Re-key them on (code, sport) so a second season can sit
+-- the code alone. Re-key them on (code, sport, objective) so more pools can sit
 -- under a league; every existing row keeps working, since it is still the only
 -- one with its code. Guarded so a re-run finds the key already right and does
 -- nothing.
@@ -62,9 +84,9 @@ begin
     join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.attnum
    where c.conrelid = 'public.leagues'::regclass and c.contype = 'p';
 
-  if key_columns is distinct from 'code,sport' then
+  if key_columns is distinct from 'code,sport,objective' then
     execute 'alter table public.leagues drop constraint if exists leagues_pkey';
-    execute 'alter table public.leagues add primary key (code, sport)';
+    execute 'alter table public.leagues add primary key (code, sport, objective)';
   end if;
 end $$;
 
