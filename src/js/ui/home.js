@@ -13,10 +13,12 @@
  *
  * A league's code is shown on its card rather than hidden behind a share
  * sheet, because the code is the whole of how anyone else gets in: it has to
- * be readable off a screenshot and repeatable down a phone line, and Copy link
- * is the convenience rather than the mechanism. Copy link and Leave sit in the
- * card's corner as icons, apart from the Open buttons: they are about the
- * league, not about going into it, and Leave asks once more before it acts.
+ * be readable off a screenshot and repeatable down a phone line, and the copy
+ * icon puts that same code on the clipboard. Copy and Leave sit in the card's
+ * corner as icons, apart from Open: they are about the league, not about going
+ * into it, and Leave asks once more before it acts. Open goes to the league's
+ * first pool - NFL winners, when it runs one - and the bar on the board is
+ * where its other pools are.
  *
  * Rebuilt on every render, unlike the masthead controls: nothing here animates
  * from a previous position, and the list changes shape as leagues arrive.
@@ -27,15 +29,15 @@
  */
 
 import { POOL_KINDS, KIND_IDS, normaliseKinds } from "../sports.js";
-import { formatCode, joinLink, normaliseCode, isCode } from "../core/code.js";
+import { formatCode, normaliseCode, isCode } from "../core/code.js";
 import { escapeHtml } from "../core/format.js";
 
-/* Stroke icons for the card's corner: a link, a door with an arrow out, and
-   the tick and cross the link swaps to while it reports. */
+/* Stroke icons for the card's corner: two sheets for copy, a door with an
+   arrow out for leave, and the tick and cross copy swaps to while it reports. */
 const ICONS = {
-  link: `<svg viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+  copy: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="9" y="9" width="12" height="12" rx="2" />
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
   </svg>`,
   leave: `<svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -54,9 +56,9 @@ const ICONS = {
  * @param {boolean} state.shared Whether leagues can be shared from this build.
  * @param {boolean} state.loading Whether the shared copy is still on its way.
  * @param {string} state.message A line to show above the list, or "".
- * @param {object} handlers onOpen(code, kind), onCreate({name, kinds}),
- *   onJoin(code), onLeave(code), onRenameMe(). onCreate and onJoin may reject;
- *   the message is shown in their form.
+ * @param {object} handlers onOpen(code), onCreate({name, kinds}), onJoin(code),
+ *   onLeave(code), onRenameMe(). onCreate and onJoin may reject; the message is
+ *   shown in their form.
  */
 export function renderHome(root, state, handlers) {
   if (!root) return;
@@ -169,7 +171,7 @@ function card(league) {
         <h3 class="home__card-name">${escapeHtml(league.name)}</h3>
         <div class="home__card-tools">
           <button type="button" class="home__icon" data-act="copy"
-                  aria-label="Copy the link to join" title="Copy link">${ICONS.link}</button>
+                  aria-label="Copy the code" title="Copy code">${ICONS.copy}</button>
           <button type="button" class="home__icon" data-act="leave"
                   aria-label="Leave this league" title="Leave">${ICONS.leave}</button>
         </div>
@@ -201,13 +203,7 @@ function card(league) {
       }
 
       <div class="home__card-actions">
-        ${kinds
-          .map(
-            (kind) => `
-        <button type="button" class="home__btn home__btn--go" data-act="open"
-                data-kind="${kind}">${several ? `Open ${escapeHtml(POOL_KINDS[kind].label)}` : "Open"}</button>`,
-          )
-          .join("")}
+        <button type="button" class="home__btn home__btn--go" data-act="open">Open</button>
       </div>
 
       <div class="home__confirm" hidden>
@@ -289,9 +285,9 @@ function wire(root, handlers) {
 
   for (const node of root.querySelectorAll(".home__card")) {
     const code = node.dataset.league;
-    for (const open of node.querySelectorAll('[data-act="open"]')) {
-      open.addEventListener("click", () => handlers.onOpen(code, open.dataset.kind));
-    }
+    // No pool named: the board opens on the league's first, and its bar has
+    // the rest.
+    node.querySelector('[data-act="open"]').addEventListener("click", () => handlers.onOpen(code));
     wireLeave(node, () => handlers.onLeave(code));
     wireCopy(node.querySelector('[data-act="copy"]'), code);
   }
@@ -324,25 +320,25 @@ function wireLeave(node, onLeave) {
 }
 
 /**
- * Copy the join link, and say so with the icon: a tick for a moment, or a cross
- * when the browser refused - an insecure origin, or a permission declined. The
- * code is on the card either way, which is the part that matters.
+ * Copy the code, as it is shown, and say so with the icon: a tick for a moment,
+ * or a cross when the browser refused - an insecure origin, or a permission
+ * declined. The code is on the card either way, which is the part that matters.
  */
 function wireCopy(button, code) {
   button.addEventListener("click", async () => {
     let state = "done";
     try {
-      await navigator.clipboard.writeText(joinLink(code));
+      await navigator.clipboard.writeText(formatCode(code));
     } catch {
       state = "failed";
     }
     button.innerHTML = ICONS[state];
     button.classList.add(`home__icon--${state}`);
-    button.title = state === "done" ? "Link copied" : "Copy failed";
+    button.title = state === "done" ? "Code copied" : "Copy failed";
     setTimeout(() => {
-      button.innerHTML = ICONS.link;
+      button.innerHTML = ICONS.copy;
       button.classList.remove(`home__icon--${state}`);
-      button.title = "Copy link";
+      button.title = "Copy code";
     }, 1800);
   });
 }
