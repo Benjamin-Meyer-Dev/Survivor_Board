@@ -74,17 +74,18 @@
   --endzone: rgb(233 162 78 / 10%);
 }
 
-/* --- league switch ------------------------------------------------------ */
+/* --- league bar --------------------------------------------------------- */
 
-/* The pill takes the open pool's accent, which every palette above sets, so
-   the switch needs no per-league rule of its own any more. Only the crossfade
-   is left: every board token changes with the league and the board is faded
-   out while it happens, but the masthead stays visible, so its colours have to
+/* The pool pill takes the open pool's accent, which every palette above sets,
+   so the bar needs no per-league rule of its own. Only the crossfade is left:
+   every board token changes with the pool and the board is faded out while it
+   happens, but the masthead and the bar stay visible, so their colours have to
    travel rather than jump. */
 body,
-.league,
-.league__select,
-.league__chevron,
+.league-bar__back,
+.league-bar__pool,
+.league-bar__select,
+.league-bar__chevron,
 .masthead::after {
   transition:
     background-color 0.3s ease,

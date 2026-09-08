@@ -101,6 +101,12 @@ function fakeTable() {
             return { error: null };
           });
         },
+        delete() {
+          return query((found) => {
+            for (const row of found) rows.delete(keyOf(row));
+            return { error: null };
+          });
+        },
       };
     },
   };
@@ -348,6 +354,56 @@ assert.equal(found.code, hostCode);
 assert.deepEqual(found.kinds, ["nfl-win", "nfl-lose", "cfb-win"], "with every pool");
 assert.equal(await directory.leagueByCode("BXQK7HRTM4WD"), null, "an unknown code opens nothing");
 
+/* --- taking pools and leagues down --------------------------------------- */
+
+// Back as the maker, with the league on this device's list again.
+reset(table);
+directory.setMyName("Ben");
+await directory.joinLeague(hostCode);
+storage.setItem(scopeFor(hostCode, "nfl-lose").storageKey, "{}");
+storage.setItem(scopeFor(hostCode, "nfl-win").storageKey, "{}");
+
+await assert.rejects(() => directory.removePool(hostCode, "xfl-win"), /not one of/);
+await assert.rejects(
+  () => directory.removePool(hostCode, "cfb-lose"),
+  /not in this league/,
+  "a kind the league does not run cannot be removed from it",
+);
+
+// One pool goes: its row, its place on this device's list, and its board copy.
+await directory.removePool(hostCode, "nfl-lose");
+assert.equal(table.row(hostCode, "nfl-lose"), undefined, "the pool's row is gone");
+assert.ok(table.row(hostCode, "nfl-win") && table.row(hostCode, "cfb-win"), "the others stay");
+assert.deepEqual(directory.myLeagues()[0].kinds, ["nfl-win", "cfb-win"], "the list follows");
+assert.deepEqual(
+  Object.keys(directory.myLeagues()[0].rules).sort(),
+  ["cfb-win", "nfl-win"],
+  "and so do the rules",
+);
+assert.equal(storage.getItem(scopeFor(hostCode, "nfl-lose").storageKey), null, "its copy is gone");
+assert.equal(storage.getItem(scopeFor(hostCode, "nfl-win").storageKey), "{}", "the rest are kept");
+await assert.rejects(() => directory.removePool(hostCode, "nfl-lose"), /not in this league/);
+
+// The last pool stays: a league with no board is nothing to open.
+await directory.removePool(hostCode, "cfb-win");
+await assert.rejects(() => directory.removePool(hostCode, "nfl-win"), /last pool/);
+assert.ok(table.row(hostCode, "nfl-win"), "and the row is still there");
+
+// The whole league goes, and only that league.
+await directory.deleteLeague(hostCode);
+assert.equal(
+  [...table.rows.values()].some((row) => row.code === hostCode),
+  false,
+  "every row of the league is gone",
+);
+assert.ok(table.row(made.code, "nfl-win"), "other leagues are untouched");
+assert.deepEqual(directory.myLeagues(), [], "it is off this device's list");
+assert.equal(
+  storage.keys().some((key) => key.startsWith(`${CONFIG.storage.entryPrefix}/${hostCode}`)),
+  false,
+  "and every copy of its boards is gone",
+);
+
 /* --- what came before ----------------------------------------------------- */
 
 // A row from a table that has not been migrated carries the objective in its
@@ -417,6 +473,13 @@ const offline = await directory.refreshMyLeagues();
 assert.equal(offline.length, 1, "the list still lists it");
 assert.equal(offline[0].missing, false, "and does not call it missing");
 
+// Pools and leagues can be taken down here too, off the list alone.
+await directory.removePool(local.code, "cfb-lose");
+assert.deepEqual(directory.myLeagues()[0].kinds, ["nfl-win"], "a pool comes off the list");
+await assert.rejects(() => directory.removePool(local.code, "nfl-win"), /last pool/);
+await directory.deleteLeague(local.code);
+assert.deepEqual(directory.myLeagues(), [], "and a league comes off it whole");
+
 /* --- codes are read as people type them ---------------------------------- */
 
 assert.equal(normaliseCode(" bxqk-7hrt m4wd "), "BXQK7HRTM4WD");
@@ -427,6 +490,7 @@ console.log(
   "Directory OK: a league is made with a code, a row per pool and each pool's own rules with " +
     "the objective fixed, a code joins every pool of it and adds one member however often it " +
     "is used, leaving keeps the league and its other members, two leagues never share a board " +
-    "and nor do a league's pools, old rows and old lists read as the pools they were, and a " +
-    "build with no backend still makes leagues that work.",
+    "and nor do a league's pools, a pool can be removed but never the last one, a league can " +
+    "be deleted whole, old rows and old lists read as the pools they were, and a build with " +
+    "no backend still makes leagues that work.",
 );

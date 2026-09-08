@@ -19,10 +19,10 @@
 
 /* masthead --------------------------------------------------------------- */
 
-/* Pinned to the top of the viewport, so the title and the league switch stay
-   at hand while the board scrolls under them. It sits on the page ground and
-   bleeds over the gutters, because on a phone the tab card runs edge to edge
-   and would otherwise show beside it as it passed underneath. */
+/* Pinned to the top of the viewport, so the title stays put while the board
+   scrolls under it. It sits on the page ground and bleeds over the gutters,
+   because on a phone the tab card runs edge to edge and would otherwise show
+   beside it as it passed underneath. */
 .masthead {
   position: sticky;
   top: 0;
@@ -39,20 +39,54 @@
   margin-bottom: var(--sp-5);
 }
 
-/* The pool picker and its rules gear, as one item at the right of the
-   masthead: they wrap together rather than the gear stranding itself on a
-   line of its own. */
-.masthead__tools {
-  display: flex;
+/* league bar ------------------------------------------------------------- */
+
+/* The open league, under the masthead: the way back to every league, its name
+   and which of its pools the board is showing, and the gear for its settings.
+   Two rows on a phone - the way back and the gear, then the league - and one
+   row once there is room. Hidden on the home page, where there is no board for
+   it to be about; said with a rule because the display here would otherwise
+   beat the attribute. */
+.league-bar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "back gear"
+    "league league";
   align-items: center;
-  gap: 8px;
-  flex: none;
+  gap: 12px 10px;
+  margin-bottom: var(--sp-5);
 }
 
-/* Off on the home page, where there is no board for them to be about. Said
-   here because the display above would otherwise beat the attribute. */
-.masthead__tools[hidden] {
+.league-bar[hidden] {
   display: none;
+}
+
+/* The bar's pieces are rendered into a holder that must not become a grid
+   item of its own. */
+.league-bar__holder {
+  display: contents;
+}
+
+.league-bar__back {
+  grid-area: back;
+  justify-self: start;
+}
+
+.league-bar__league {
+  grid-area: league;
+}
+
+.league-bar__gear {
+  grid-area: gear;
+  justify-self: end;
+}
+
+@media (min-width: 661px) {
+  .league-bar {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "back league gear";
+  }
 }
 
 .masthead__title {
@@ -150,10 +184,9 @@
     height: 13px;
   }
 
-  .league__btn {
-    min-width: 68px;
+  /* Thumb-sized on a phone. */
+  .league-bar__back,
+  .league-bar__select {
     min-height: 44px;
-    padding: 0 11px;
-    font-size: 14px;
   }
 }

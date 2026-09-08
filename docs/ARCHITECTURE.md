@@ -129,11 +129,14 @@ late push from the store being replaced is dropped rather than landing on the
 new board. Each pool keeps its own entry (its own artifact document, its own
 Supabase row, its own storage key, all keyed by `scopeFor(code, kind)`), so
 locks in one pool can never appear in another - not in another league's, and
-not in the same league's other pools. The masthead picker lists one row per
-board, "League · NFL winners" and "League · College losers" for a league of two
-pools, and the hash records both (`#/l/CODE/KIND`) so a reload comes back to
-the same one. On the home page the picker and the gear are hidden: there is no
-board for them to be about.
+not in the same league's other pools. The league bar under the masthead
+(`ui/league-bar.js`) names the open league and holds a picker of its pools -
+"NFL winners", "NFL losers" - and nothing else; another league is a trip back
+through the home page. The hash records league and pool (`#/l/CODE/KIND`) so a
+reload comes back to the same board. On the home page the whole bar, gear
+included, is hidden: there is no board for it to be about. The gear's sheet can
+also remove a pool from the league or delete the league outright, each behind
+a second tap, since either is for everyone in it.
 
 ## Why the data is split so many ways
 

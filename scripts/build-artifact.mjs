@@ -57,7 +57,7 @@ const JS = [
   "store/local.js",
   "store/index.js",
   "store/directory.js",
-  "ui/league-switch.js",
+  "ui/league-bar.js",
   "ui/settings.js",
   "ui/home.js",
   "ui/name.js",

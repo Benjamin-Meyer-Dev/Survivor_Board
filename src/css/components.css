@@ -165,14 +165,75 @@
   color: var(--ink-3);
 }
 
-/* league switch (ui/league-switch.js) ------------------------------------ */
+/* league bar (ui/league-bar.js) ------------------------------------------ */
 
-/* The pool picker: a pill holding a native select, so what the board shows is
-   the pool's own name and what opens is the platform's picker. Three pools no
-   longer fit across a phone as a segmented control, and two of them are the
-   same league played opposite ways - a code short enough to fit could not say
-   which. */
-.league {
+/* The way back to every league: a quiet pill, because leaving the board is
+   the rarer act and the pool picker beside it is the one that matters here. */
+.league-bar__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 14px 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    color 180ms ease,
+    border-color 180ms ease;
+}
+
+.league-bar__back svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.league-bar__back:hover {
+  color: var(--ink);
+  border-color: var(--ink-3);
+}
+
+.league-bar__back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The league and the pool showing: the name, then the pool as a pill holding a
+   native select, so what the board shows is the pool's own name and what opens
+   is the platform's picker. The picker holds this league's pools and nothing
+   else; another league is a trip through the home page. */
+.league-bar__league {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.league-bar__name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 19px;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.league-bar__pool {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -185,12 +246,9 @@
 /* Room on the right for the chevron, which is drawn over the select rather
    than beside it: a select sized by its longest option would leave the pill
    wider than the name it is showing. */
-.league__select {
+.league-bar__select {
   appearance: none;
   min-height: 38px;
-  /* The masthead wraps rather than squeezes (see .masthead), so the pill can
-     have the room its longest name needs and take its own line when the title
-     leaves none. The cap is only there so a future name cannot run away. */
   max-width: min(100%, 260px);
   padding: 0 34px 0 15px;
   border: 0;
@@ -210,19 +268,19 @@
 /* The open picker is the platform's, and on a desktop it inherits nothing
    from the pill: the rows have to carry their own ground or they land as dark
    text on a dark menu. */
-.league__select option {
+.league-bar__select option {
   background: var(--surface);
   color: var(--ink);
   text-transform: none;
   letter-spacing: normal;
 }
 
-.league__select:focus-visible {
+.league-bar__select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-.league__chevron {
+.league-bar__chevron {
   position: absolute;
   right: 12px;
   width: 12px;
@@ -237,11 +295,24 @@
   transition: stroke 180ms ease;
 }
 
+/* A league of one pool has nothing to pick: the pill just names it, without
+   the chevron that promises a choice, and the select underneath is shut. */
+.league-bar__pool--one .league-bar__select {
+  padding-right: 15px;
+  color: var(--accent);
+  opacity: 1;
+  cursor: default;
+}
+
+.league-bar__pool--one .league-bar__chevron {
+  display: none;
+}
+
 /* pool rules sheet (ui/settings.js) -------------------------------------- */
 
-/* The gear, beside the pool picker. Quiet until it is the thing you want:
-   the pool's name is what the masthead is for, and this is the way in to the
-   rules under it. */
+/* The gear, at the end of the league bar. Quiet until it is the thing you
+   want: the league's name is what the bar is for, and this is the way in to
+   the rules under it, and to taking a pool or the league down. */
 .settings__open {
   display: inline-grid;
   place-items: center;
@@ -258,13 +329,12 @@
     border-color 180ms ease;
 }
 
+/* A filled cog, so it reads as settings and not as a sun. */
 .settings__open svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentcolor;
-  stroke-width: 1.6;
-  stroke-linecap: round;
+  width: 19px;
+  height: 19px;
+  fill: currentcolor;
+  stroke: none;
 }
 
 .settings__open:hover {
@@ -542,6 +612,41 @@
   background: var(--accent);
   border-color: var(--accent);
   color: var(--on-accent);
+}
+
+/* Taking things down. Red, and never the default look of anything else in the
+   sheet, so a thumb aiming for Save cannot land on it by shape alone. */
+.settings__btn--danger {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.settings__btn--danger:hover:not(:disabled) {
+  background: var(--danger);
+  color: var(--ink);
+}
+
+/* The foot of the body, set apart: removing a pool or deleting the league is
+   for everyone in it, so each asks once more before it acts - in place, not in
+   a browser dialog that would look like nothing else on the board. */
+.settings__danger {
+  display: grid;
+  gap: 8px;
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line-soft);
+}
+
+.settings__danger-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settings__danger-ask {
+  color: var(--ink-2);
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 
 .settings__btn:disabled {
@@ -2858,10 +2963,13 @@
     letter-spacing: 0.05em;
   }
 
-  .league__select {
-    min-height: 44px;
+  .league-bar__select {
     padding: 0 32px 0 12px;
     font-size: 14px;
+  }
+
+  .league-bar__pool--one .league-bar__select {
+    padding-right: 12px;
   }
 
   .startup__status,

@@ -90,7 +90,7 @@ Everything is switched off by the `prefers-reduced-motion` block in
 - A control whose position animates (the tab underline, the league marker) must
   be built once and updated in place. These render functions run on every board
   update, and an element rebuilt from markup has no previous position to move
-  from, so it teleports. `renderTabs` and `renderLeagueSwitch` both take this
+  from, so it teleports. `renderTabs` and `renderLeagueBar` both take this
   shape: `build*` on the first call, attribute updates after.
 - One-shot feedback is applied AFTER the render that produced the markup.
   `innerHTML` replaces the node, so a class set beforehand is thrown away.

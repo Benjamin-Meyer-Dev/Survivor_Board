@@ -129,7 +129,7 @@ alter table public.leagues enable row level security;
 -- Without this the publishable key's role cannot reach the table at all and
 -- every read and write is refused before the policies are even consulted.
 grant usage on schema public to anon, authenticated;
-grant select, insert, update on public.leagues to anon, authenticated;
+grant select, insert, update, delete on public.leagues to anon, authenticated;
 
 -- Policy names from earlier versions of this file, so a re-run replaces them.
 drop policy if exists "read shared entry" on public.leagues;
@@ -151,10 +151,14 @@ create policy "create leagues" on public.leagues for insert with check (true);
 drop policy if exists "write leagues" on public.leagues;
 create policy "write leagues" on public.leagues for update using (true) with check (true);
 
--- Deliberately no delete policy. With one shared board per league, deleting a
--- row takes everyone's season with it, and that is not something a phone
--- should be able to do. Leaving a league is a local act (see
--- src/js/store/directory.js); clearing one out is a job for this editor.
+-- Delete, for the settings sheet's "Remove this pool" and "Delete league". A
+-- row going takes everyone's season on it, so the app asks twice before it
+-- sends one; but the trust is the same the code already carries - whoever can
+-- rewrite every pick on a board can take the board down - and a league whose
+-- season is over, or was made by mistake, should not need this editor to go.
+-- Leaving a league is still a local act (see src/js/store/directory.js).
+drop policy if exists "delete leagues" on public.leagues;
+create policy "delete leagues" on public.leagues for delete using (true);
 
 -- The old table, from when the three pools were built into the app and their
 -- ids were the row keys. Nothing reads it any more. Drop it when you have
@@ -162,3 +166,9 @@ create policy "write leagues" on public.leagues for update using (true) with che
 --
 --   select id, entry from public.entries;
 --   drop table public.entries;
+
+-- The API layer caches the table's shape and can go on serving the old one
+-- after the changes above, refusing a column it has not heard of ("Could not
+-- find the 'objective' column of 'leagues' in the schema cache"). Ask it to
+-- look again, so the app works the moment this file has run.
+notify pgrst, 'reload schema';

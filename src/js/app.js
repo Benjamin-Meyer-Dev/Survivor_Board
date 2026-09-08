@@ -18,6 +18,7 @@ import { buildBoard, slotKey, sameEntry } from "./core/plan.js";
 import { createStore } from "./store/index.js";
 import {
   createLeague,
+  deleteLeague,
   joinLeague,
   leaveLeague,
   leagueByCode,
@@ -25,12 +26,13 @@ import {
   myName,
   myId,
   refreshMyLeagues,
+  removePool,
   renameLeague,
   setMyName,
   sharingAvailable,
 } from "./store/directory.js";
 import { codeFromHash, leagueHash, normaliseCode } from "./core/code.js";
-import { renderLeagueSwitch } from "./ui/league-switch.js";
+import { renderLeagueBar } from "./ui/league-bar.js";
 import { renderSettings } from "./ui/settings.js";
 import { renderHome } from "./ui/home.js";
 import { renderStrip } from "./ui/strip.js";
@@ -57,8 +59,8 @@ const el = {
   tabs: document.getElementById("tabs"),
   league: document.getElementById("league"),
   settings: document.getElementById("settings"),
-  /** The picker and the gear together: a board's controls, hidden on the home page. */
-  tools: document.querySelector(".masthead__tools"),
+  /** The league bar: the way back, the name, the pool picker and the gear. A board's, so hidden on the home page. */
+  leagueBar: document.getElementById("league-bar"),
   shell: document.querySelector(".shell"),
 };
 
@@ -316,11 +318,7 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
   const board = buildBoard({ ...boardInputs(), allowSearch: search });
 
   lastBoard = board;
-  renderLeagueSwitch(
-    el.league,
-    { league: app.league, kind: app.kind, leagues: app.leagues },
-    openFromSwitch,
-  );
+  renderLeagueBar(el.league, { league: app.league, kind: app.kind }, BAR_HANDLERS);
   renderSettings(el.settings, board, {
     // The rules are the league's, so changing them is a write like any other.
     // Unlike the deck, an eliminated run does not close them: the rules are
@@ -331,6 +329,8 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
     league: app.league,
     kind: app.kind,
     onRename: applyRename,
+    onRemovePool: removeCurrentPool,
+    onDeleteLeague: deleteCurrentLeague,
   });
   renderNotices(el.notices, { store: app.store, board, message: app.message });
   renderStrip(el.strip, board);
@@ -373,13 +373,11 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
 function renderHomeView() {
   el.board.hidden = true;
   el.home.hidden = false;
-  // The picker and the gear are a board's controls. On the home page the
-  // picker would offer only "Home" and the gear would open a sheet about
-  // nothing, so neither is shown.
-  if (el.tools) el.tools.hidden = true;
+  // The league bar is a board's: on the home page there is no league for it to
+  // name, so it is hidden whole - the way back, the picker and the gear.
+  if (el.leagueBar) el.leagueBar.hidden = true;
   document.title = "Survivor Board";
 
-  renderLeagueSwitch(el.league, { league: null, leagues: app.leagues }, openFromSwitch);
   renderSettings(el.settings, null, { canWrite: false, onSave: () => {} });
   renderNotices(el.notices, { store: app.store, board: null, message: app.message });
 
@@ -482,7 +480,7 @@ async function openBoard(code, kind = null) {
     app.view = "board";
     el.home.hidden = true;
     el.board.hidden = false;
-    if (el.tools) el.tools.hidden = false;
+    if (el.leagueBar) el.leagueBar.hidden = false;
     await openLeague(league, kind);
     window.history.replaceState(null, "", leagueHash(league.code, app.kind));
     playSwitch();
@@ -679,6 +677,54 @@ async function applyRename(name) {
   render({ search: false });
 }
 
+/**
+ * Take the open league down, for everyone in it, from the settings sheet. The
+ * sheet has already asked twice. A failure stays on the board with the reason;
+ * success lands on the home page, which is the only place left to be.
+ */
+async function deleteCurrentLeague() {
+  const league = app.league;
+  if (!league || !app.store?.canWrite) return;
+  try {
+    await deleteLeague(league.code);
+  } catch (error) {
+    app.message = error.message;
+    render({ search: false });
+    return;
+  }
+  app.unsubscribe?.();
+  app.unsubscribe = null;
+  app.league = null;
+  app.kind = null;
+  app.homeMessage = `${league.name} has been deleted.`;
+  await reloadLeagues();
+  goHome();
+}
+
+/**
+ * Take one pool out of the open league, for everyone in it. The board moves to
+ * the league's first remaining pool. The directory refuses to remove the last
+ * one, and the sheet does not offer it.
+ */
+async function removeCurrentPool(kind) {
+  const league = app.league;
+  if (!league || !app.store?.canWrite) return;
+  try {
+    await removePool(league.code, kind);
+    const fresh = (await leagueByCode(league.code)) ?? {
+      ...league,
+      kinds: league.kinds.filter((id) => id !== kind),
+    };
+    await reloadLeagues();
+    app.message = "";
+    await openLeague(fresh, null);
+    window.history.replaceState(null, "", leagueHash(fresh.code, app.kind));
+  } catch (error) {
+    app.message = error.message;
+    render({ search: false });
+  }
+}
+
 /** Coalesce rapid taps into one write. */
 function scheduleSave() {
   clearTimeout(app.saveTimer);
@@ -801,29 +847,25 @@ async function openLeague(league, wanted = null) {
   render({ search: false });
 }
 
+/** What the league bar can ask for: another of the league's pools, or home. */
+const BAR_HANDLERS = { onPool: (kind) => switchPool(kind), onHome: () => goHome() };
+
 /**
- * Handler for the masthead switch: another board - a league and one of its
- * pools, as "CODE/KIND" - or the home page.
+ * Handler for the league bar's picker: another of the open league's boards.
  *
  * Rebuilding a board is not instant: the recommendation is a beam search over
  * the whole remaining season, and it runs synchronously. So the tap is answered
- * before the work starts, not after it. The switch and the palette move on the
+ * before the work starts, not after it. The picker and the palette move on the
  * frame you touch them, the board fades out, and the new one fades in when it
  * is ready. Without the two frames of waiting, the fade-out would be computed
  * and then never painted, because the search blocks the main thread before the
  * browser gets a chance.
  */
-async function openFromSwitch(target) {
-  if (app.switching) return;
-  if (target === "home") {
-    goHome();
-    return;
-  }
-  const [code, kind = null] = target.split("/");
-  if (code === app.league?.code && (kind ?? app.kind) === app.kind) return;
+async function switchPool(kind) {
+  if (app.switching || !app.league || kind === app.kind) return;
 
   app.switching = true;
-  renderLeagueSwitch(el.league, { league: { code }, kind, leagues: app.leagues }, openFromSwitch);
+  renderLeagueBar(el.league, { league: app.league, kind }, BAR_HANDLERS);
   el.shell?.classList.add("is-swapping");
   await twoFrames();
   // The colour tokens switch inside openLeague. Let the old board finish its
@@ -832,19 +874,16 @@ async function openFromSwitch(target) {
   await new Promise((resolve) => setTimeout(resolve, 150));
 
   try {
-    const league = await leagueByCode(code);
-    if (!league) throw new Error("that league could not be found");
+    // Fresh from the directory, so a rename or a pool removed elsewhere is
+    // seen; the league as held stands in when the network cannot answer.
+    const league = (await leagueByCode(app.league.code)) ?? app.league;
     await openLeague(league, kind);
     window.history.replaceState(null, "", leagueHash(league.code, app.kind));
   } catch (error) {
     // Put the board back the way it was, including its colours.
-    renderLeagueSwitch(
-      el.league,
-      { league: app.league, kind: app.kind, leagues: app.leagues },
-      openFromSwitch,
-    );
+    renderLeagueBar(el.league, { league: app.league, kind: app.kind }, BAR_HANDLERS);
     themeFor(app.kind);
-    app.message = `Could not open that league: ${error.message}`;
+    app.message = `Could not open that pool: ${error.message}`;
     render();
   } finally {
     el.shell?.classList.remove("is-swapping");

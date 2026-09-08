@@ -85,14 +85,16 @@
           </svg>
           <h1 class="masthead__title">Survivor Board</h1>
         </div>
-        <!-- The pool picker and the rules that pool runs on, together at
-             the right of the masthead: what board this is, and what its board
-             does. Wrapped so they travel as one when the masthead wraps. -->
-        <div class="masthead__tools">
-          <div id="league"></div>
-          <div id="settings"></div>
-        </div>
       </header>
+
+      <!-- The open league, under the masthead: the way back to every league,
+           the league's name, which of its pools the board is showing, and the
+           gear for its settings (ui/league-bar.js and ui/settings.js). Hidden
+           on the home page, where there is no board for it to be about. -->
+      <div class="league-bar" id="league-bar" hidden>
+        <div class="league-bar__holder" id="league"></div>
+        <div class="league-bar__gear" id="settings"></div>
+      </div>
 
       <div id="notices"></div>
 

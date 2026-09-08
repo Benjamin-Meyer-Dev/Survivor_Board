@@ -242,10 +242,27 @@ function onPool(query, code, kind) {
   return query.eq("code", code).eq("sport", sport).eq("objective", objective);
 }
 
+/**
+ * A database error, in words the person at the form can act on.
+ *
+ * The API refusing a column it does not know - "could not find the 'objective'
+ * column in the schema cache", or Postgres's own "does not exist" - means
+ * supabase/schema.sql has not been run against this project since the app
+ * started asking for it. That is a thing the league's owner can fix, and the
+ * raw message does not say so.
+ */
+function explain(error) {
+  const message = error?.message ?? String(error);
+  if (/schema cache|does not exist/i.test(message)) {
+    return "the database is behind this version of the app. Run supabase/schema.sql in the Supabase SQL editor, then try again.";
+  }
+  return message;
+}
+
 /** Every pool under a code, as one league, or null when the code names none. */
 async function fetchLeague(client, code) {
   const { data, error } = await client.from(CONFIG.supabase.table).select(COLUMNS).eq("code", code);
-  if (error) throw new Error(`Could not look up that code: ${error.message}`);
+  if (error) throw new Error(`Could not look up that code: ${explain(error)}`);
   return groupPools(data)[0] ?? null;
 }
 
@@ -293,7 +310,7 @@ export async function createLeague({ name, kinds, rules = null }) {
   const client = await supabase();
   if (client) {
     const { error } = await client.from(CONFIG.supabase.table).insert(rows);
-    if (error) throw new Error(`Could not create the league: ${error.message}`);
+    if (error) throw new Error(`Could not create the league: ${explain(error)}`);
   }
 
   const league = summary(groupPools(rows)[0]);
@@ -450,7 +467,7 @@ export async function renameLeague(code, name) {
       .from(CONFIG.supabase.table)
       .update({ name: label, updated_at: new Date().toISOString() })
       .eq("code", clean);
-    if (error) throw new Error(`Could not rename the league: ${error.message}`);
+    if (error) throw new Error(`Could not rename the league: ${explain(error)}`);
   }
 
   remember({ code: clean, name: label });
@@ -489,11 +506,69 @@ export async function leaveLeague(code) {
   }
 
   forget(clean);
-  // This device's offline copies of the league's boards: one per kind of pool
-  // it could have run, and the one a league kept before it could hold more
-  // than one.
-  const keys = KIND_IDS.map((kind) => scopeFor(clean, kind).storageKey);
-  keys.push(scopeFor(clean, KIND_IDS[0]).legacyStorageKey);
+  forgetBoards(clean, KIND_IDS, { everything: true });
+}
+
+/**
+ * Delete a league, for everyone in it: every pool's row, and this device's
+ * copies. The settings sheet asks twice before it gets here. Anyone holding
+ * the code can do this, which is the same trust the code already carries - see
+ * supabase/schema.sql.
+ */
+export async function deleteLeague(code) {
+  const clean = normaliseCode(code);
+  const client = await supabase();
+  if (client) {
+    const { error } = await client.from(CONFIG.supabase.table).delete().eq("code", clean);
+    if (error) throw new Error(`Could not delete the league: ${explain(error)}`);
+  }
+  forget(clean);
+  forgetBoards(clean, KIND_IDS, { everything: true });
+}
+
+/**
+ * Take one pool out of a league, for everyone in it: its row, its picks, and
+ * this device's copy of its board. Never the last one - a league with no pool
+ * is nothing to open, and taking a league down is deleteLeague's job.
+ */
+export async function removePool(code, kind) {
+  const clean = normaliseCode(code);
+  if (!(kind in POOL_KINDS)) throw new Error("That is not one of the league's pools.");
+
+  const client = await supabase();
+  const cached = myLeagues().find((league) => league.code === clean);
+  const kinds = client ? ((await fetchLeague(client, clean))?.kinds ?? []) : (cached?.kinds ?? []);
+  if (!kinds.includes(kind)) throw new Error("That pool is not in this league.");
+  if (kinds.length <= 1)
+    throw new Error("A league keeps its last pool. Delete the league instead.");
+
+  if (client) {
+    const { error } = await onPool(client.from(CONFIG.supabase.table).delete(), clean, kind);
+    if (error) throw new Error(`Could not remove the pool: ${explain(error)}`);
+  }
+
+  if (cached) {
+    const rules = { ...cached.rules };
+    delete rules[kind];
+    writeMyLeagues(
+      myLeagues().map((league) =>
+        league.code === clean
+          ? { ...league, kinds: league.kinds.filter((id) => id !== kind), rules }
+          : league,
+      ),
+    );
+  }
+  forgetBoards(clean, [kind]);
+}
+
+/**
+ * This device's offline copies of a league's boards, gone: the given kinds,
+ * and - when the whole league is going - the one key a league kept before it
+ * could hold more than one pool.
+ */
+function forgetBoards(code, kinds, { everything = false } = {}) {
+  const keys = kinds.map((kind) => scopeFor(code, kind).storageKey);
+  if (everything) keys.push(scopeFor(code, KIND_IDS[0]).legacyStorageKey);
   for (const key of keys) {
     try {
       localStorage.removeItem(key);

@@ -38,11 +38,13 @@ let onRenameLeague = () => {};
 let current = null;
 /** The rules being edited. Null while the sheet is shut. */
 let draft = null;
+/** Which take-down - "remove" or "delete" - is waiting on its second tap. */
+let danger = null;
 
+/* A cog with teeth, filled, so it reads as settings and not as a sun. */
 const GEAR_ICON = `
-  <svg viewBox="0 0 20 20" aria-hidden="true">
-    <circle cx="10" cy="10" r="2.6" />
-    <path d="M10 2.4v2.2M10 15.4v2.2M3.6 10H1.4M18.6 10h-2.2M5.4 5.4 3.9 3.9M16.1 16.1l-1.5-1.5M14.6 5.4l1.5-1.5M3.9 16.1l1.5-1.5" />
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
   </svg>`;
 
 /**
@@ -58,16 +60,27 @@ const GEAR_ICON = `
  * @param {string|null} [handlers.kind] Which of the league's pools the board
  *   is showing, as a kind id; the rules in the sheet are that pool's.
  * @param {(name:string) => void} [handlers.onRename]
+ * @param {(kind:string) => void} [handlers.onRemovePool] Take one pool out of
+ *   the league, for everyone in it. Asked for twice here before it is called.
+ * @param {(code:string) => void} [handlers.onDeleteLeague] Take the league
+ *   down, for everyone in it. Likewise asked for twice.
  */
 export function renderSettings(
   root,
   board,
-  { canWrite, onSave, league = null, kind = null, onRename },
+  { canWrite, onSave, league = null, kind = null, onRename, onRemovePool, onDeleteLeague },
 ) {
   if (!root) return;
   onSaveRules = onSave;
   onRenameLeague = onRename ?? (() => {});
-  current = { board, canWrite, league, kind };
+  current = {
+    board,
+    canWrite,
+    league,
+    kind,
+    onRemovePool: onRemovePool ?? (() => {}),
+    onDeleteLeague: onDeleteLeague ?? (() => {}),
+  };
 
   if (!root.firstElementChild) buildSheet(root);
 
@@ -159,6 +172,7 @@ function buildSheet(root) {
 
   root.querySelector(".settings__open").addEventListener("click", () => {
     draft = onlyEditable(current.board.rules);
+    danger = null;
     paint(root);
     dialog.showModal();
   });
@@ -189,6 +203,11 @@ function buildSheet(root) {
   // One listener for every control in the sheet: they are rebuilt on each
   // paint, so binding per control would leak a listener per keystroke.
   body.addEventListener("click", (event) => {
+    const take = event.target.closest("[data-danger]");
+    if (take) {
+      takeDown(root, dialog, take.dataset.danger);
+      return;
+    }
     const control = event.target.closest("[data-rule]");
     if (!control || !draft) return;
     const { rule, value } = control.dataset;
@@ -218,7 +237,105 @@ function buildSheet(root) {
   // Esc, the backdrop and Cancel all end up here.
   dialog.addEventListener("close", () => {
     draft = null;
+    danger = null;
   });
+}
+
+/**
+ * Removing a pool and deleting the league, each in two taps: the first turns
+ * the button into a question, the second acts and shuts the sheet. Either is
+ * for everyone in the league, which is why a question is asked at all - and
+ * asked in place, in the sheet's own words, rather than in a browser dialog
+ * that would look like nothing else on the board.
+ */
+function takeDown(root, dialog, step) {
+  const { league, kind } = current;
+  switch (step) {
+    case "remove":
+    case "delete":
+      danger = step;
+      paint(root);
+      break;
+    case "cancel":
+      danger = null;
+      paint(root);
+      break;
+    case "confirm-remove":
+      danger = null;
+      draft = null;
+      dialog.close();
+      current.onRemovePool(kind);
+      break;
+    case "confirm-delete":
+      danger = null;
+      draft = null;
+      dialog.close();
+      current.onDeleteLeague(league?.code);
+      break;
+    default:
+      break;
+  }
+}
+
+/**
+ * The foot of the body: taking a pool out of the league, and taking the league
+ * down. The last pool cannot go on its own - a league with no board is nothing
+ * to open - so that button waits for the league to be deleted instead.
+ */
+function takeDownMarkup() {
+  const { league, kind } = current;
+  const pool = POOL_KINDS[kind];
+  const name = league?.name ?? "this league";
+  const last = (league?.kinds?.length ?? 1) <= 1;
+
+  if (danger === "remove" && pool) {
+    return `
+    <div class="settings__danger">
+      <p class="settings__danger-ask">
+        Remove ${escapeHtml(pool.label)} from ${escapeHtml(name)} for everyone in it? Its
+        board, and every pick on it, goes with it.
+      </p>
+      <div class="settings__danger-row">
+        <button type="button" class="settings__btn settings__btn--danger"
+                data-danger="confirm-remove">Yes, remove ${escapeHtml(pool.label)}</button>
+        <button type="button" class="settings__btn settings__btn--quiet"
+                data-danger="cancel">Keep it</button>
+      </div>
+    </div>`;
+  }
+
+  if (danger === "delete") {
+    return `
+    <div class="settings__danger">
+      <p class="settings__danger-ask">
+        Delete ${escapeHtml(name)} for everyone in it? Every pool and every pick goes
+        with it, and its code stops working.
+      </p>
+      <div class="settings__danger-row">
+        <button type="button" class="settings__btn settings__btn--danger"
+                data-danger="confirm-delete">Yes, delete the league</button>
+        <button type="button" class="settings__btn settings__btn--quiet"
+                data-danger="cancel">Keep it</button>
+      </div>
+    </div>`;
+  }
+
+  return `
+    <div class="settings__danger">
+      <div class="settings__danger-row">
+        <button type="button" class="settings__btn settings__btn--quiet" data-danger="remove"
+                ${last || !pool ? "disabled" : ""}>Remove ${escapeHtml(pool?.label ?? "this pool")}</button>
+        <button type="button" class="settings__btn settings__btn--danger"
+                data-danger="delete">Delete league</button>
+      </div>
+      <p class="settings__hint">
+        ${
+          last
+            ? "A league keeps its last pool: deleting the league is what takes it down."
+            : "Either one is for everyone in the league, and asks once more before it acts."
+        }
+      </p>
+    </div>`;
 }
 
 /**
@@ -297,10 +414,17 @@ function paint(root, keep = null) {
           label: index === 0 ? "None" : String(index),
         })),
       ),
-    })}`;
+    })}
+
+    ${takeDownMarkup()}`;
 
   for (const control of root.querySelectorAll(".settings__body [data-rule]")) {
     control.disabled = !canWrite;
+  }
+  // Read-only devices can read what the league runs and change none of it,
+  // and that includes taking any of it down.
+  for (const button of root.querySelectorAll(".settings__body [data-danger]")) {
+    if (!canWrite) button.disabled = true;
   }
   root.querySelector(".settings__save").disabled = !canWrite;
   root.querySelector(".settings__reset").disabled = !canWrite;
