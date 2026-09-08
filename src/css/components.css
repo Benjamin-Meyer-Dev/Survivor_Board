@@ -353,6 +353,17 @@
 
 /* The open picker is the platform's, and on a desktop it inherits nothing
    from the pill: the rows have to carry their own ground. */
+/* No ring on the select itself: Chrome draws one on a click as well as a
+   keystroke, and a rectangle inside a pill reads as a glitch. The pill
+   brightens instead while the picker has focus, which keyboard users see. */
+.league-bar__select:focus-visible {
+  outline: none;
+}
+
+.league-bar__pool:has(.league-bar__select:focus-visible) {
+  border-color: var(--chalk);
+}
+
 .league-bar__select option {
   background: var(--board);
   color: var(--chalk);

@@ -972,6 +972,29 @@ async function requireIdentity() {
   document.body.classList.remove("is-gated");
 }
 
+/**
+ * What the startup screen says while the board loads: one of these, drawn at
+ * random each launch, so the wait reads as the pre-game rather than a spinner.
+ * The page ships the first one as its default for the moment before this runs.
+ */
+const STARTUP_LINES = Object.freeze([
+  "Chalking up the field…",
+  "Painting the end zones…",
+  "Setting the chains…",
+  "Warming up the kicker…",
+  "Taping the ankles…",
+  "Walking out for the coin toss…",
+  "Checking the wind at midfield…",
+  "Drawing up the game plan…",
+  "Reading the coverage…",
+  "Inflating the footballs…",
+]);
+
+function callTheStartupLine() {
+  if (!el.startupStatus) return;
+  el.startupStatus.textContent = STARTUP_LINES[Math.floor(Math.random() * STARTUP_LINES.length)];
+}
+
 /** Keep quick cached loads on screen long enough for the startup play to read. */
 function startupMinimum() {
   const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 900;
@@ -1038,6 +1061,7 @@ async function openFromHash() {
 }
 
 async function main() {
+  callTheStartupLine();
   // Every visit begins in the first sport's palette, which is what the start
   // screen and the home page wear before any league is open.
   applyTheme(null);
