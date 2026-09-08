@@ -34,7 +34,7 @@ import {
 import { codeFromHash, leagueHash, normaliseCode } from "./core/code.js";
 import { renderLeagueBar } from "./ui/league-bar.js";
 import { renderSettings } from "./ui/settings.js";
-import { renderHome } from "./ui/home.js";
+import { renderHome, closeHomePanels } from "./ui/home.js";
 import { renderStrip } from "./ui/strip.js";
 import { renderWeekDeck } from "./ui/week-panel.js";
 import { renderLadder } from "./ui/ladder.js";
@@ -455,6 +455,9 @@ function goHome() {
   app.view = "home";
   if (window.location.hash)
     window.history.pushState(null, "", window.location.pathname + window.location.search);
+  // Back from a board, the page starts folded: a form left open on the way
+  // out is not what anyone came back for.
+  closeHomePanels();
   renderHomeView();
 }
 

@@ -20,6 +20,13 @@
  * first pool - NFL winners, when it runs one - and the bar on the board is
  * where its other pools are.
  *
+ * Making and joining live behind two buttons rather than as two forms always
+ * on show: the cards are what the page is for, and a person with three leagues
+ * does not want a blank form under them every time. Tapping a button opens its
+ * form beneath, and the other button closes it. Which one is open survives the
+ * re-renders the list causes as leagues arrive, so a form does not fold up
+ * while someone is typing into it.
+ *
  * Rebuilt on every render, unlike the masthead controls: nothing here animates
  * from a previous position, and the list changes shape as leagues arrive.
  *
@@ -31,6 +38,30 @@
 import { POOL_KINDS, KIND_IDS, normaliseKinds } from "../sports.js";
 import { formatCode, normaliseCode, isCode } from "../core/code.js";
 import { escapeHtml } from "../core/format.js";
+
+/** Which form is open - "create", "join" - or null for neither. */
+let openPanel = null;
+
+/** Fold both forms away, for the next time the home page is shown. */
+export function closeHomePanels() {
+  openPanel = null;
+}
+
+const MENU = [
+  {
+    id: "create",
+    label: "New league",
+    icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>`,
+  },
+  {
+    id: "join",
+    label: "Join with a code",
+    icon: `<svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+      <path d="m10 17 5-5-5-5M15 12H3" />
+    </svg>`,
+  },
+];
 
 /* Stroke icons for the card's corner: two sheets for copy, a door with an
    arrow out for leave, and the tick and cross copy swaps to while it reports. */
@@ -93,14 +124,25 @@ function homeMarkup({ name, leagues, shared, loading, message }) {
           leagues.length
             ? leagues.map(card).join("")
             : `<p class="home__empty">
-                 ${loading ? "Looking for your leagues…" : "No leagues yet. Make one below, or join one with a code someone sent you."}
+                 ${loading ? "Looking for your leagues…" : "No leagues yet. Make one, or join one with a code someone sent you."}
                </p>`
         }
       </div>
 
+      <div class="home__menu">
+        ${MENU.map(
+          (item) => `
+        <button type="button" class="home__menu-btn${openPanel === item.id ? " home__menu-btn--open" : ""}"
+                data-panel="${item.id}" aria-expanded="${openPanel === item.id}"
+                aria-controls="home-${item.id}">
+          ${item.icon}
+          ${escapeHtml(item.label)}
+        </button>`,
+        ).join("")}
+      </div>
+
       <div class="home__forms">
-        <form class="home__form" data-act="create">
-          <h3 class="home__form-title">New league</h3>
+        <form class="home__form" id="home-create" data-act="create" ${openPanel === "create" ? "" : "hidden"}>
           <label class="home__label" for="home-name">What is it called?</label>
           <input class="home__input" id="home-name" name="name" type="text" maxlength="60"
                  placeholder="The Office Pool" autocomplete="off" />
@@ -126,8 +168,7 @@ function homeMarkup({ name, leagues, shared, loading, message }) {
           <button type="submit" class="home__btn home__btn--go" disabled>Create league</button>
         </form>
 
-        <form class="home__form" data-act="join">
-          <h3 class="home__form-title">Join a league</h3>
+        <form class="home__form" id="home-join" data-act="join" ${openPanel === "join" ? "" : "hidden"}>
           <label class="home__label" for="home-code">Paste the code you were sent</label>
           <input class="home__input home__input--code" id="home-code" name="code" type="text"
                  placeholder="BXQK-7HRT-M4WD" autocomplete="off" autocapitalize="characters"
@@ -257,6 +298,10 @@ function rulesLine(rules) {
 function wire(root, handlers) {
   root.querySelector('[data-act="rename-me"]')?.addEventListener("click", handlers.onRenameMe);
 
+  for (const button of root.querySelectorAll("[data-panel]")) {
+    button.addEventListener("click", () => togglePanel(root, button.dataset.panel));
+  }
+
   const create = root.querySelector('form[data-act="create"]');
   if (create) {
     syncCreate(create);
@@ -291,6 +336,26 @@ function wire(root, handlers) {
     wireLeave(node, () => handlers.onLeave(code));
     wireCopy(node.querySelector('[data-act="copy"]'), code);
   }
+}
+
+/**
+ * Open one form and fold the other, or fold the open one when its own button is
+ * tapped again. In place, without a render: the forms are already in the page,
+ * and a render would throw away anything typed into the one staying open.
+ * Focus goes to the form's first field, so a tap on "Join with a code" is
+ * already a tap into the code.
+ */
+function togglePanel(root, id) {
+  openPanel = openPanel === id ? null : id;
+  for (const button of root.querySelectorAll("[data-panel]")) {
+    const open = button.dataset.panel === openPanel;
+    button.classList.toggle("home__menu-btn--open", open);
+    button.setAttribute("aria-expanded", String(open));
+  }
+  for (const form of root.querySelectorAll(".home__form")) {
+    form.hidden = form.dataset.act !== openPanel;
+  }
+  if (openPanel) root.querySelector(`#home-${openPanel} input`)?.focus();
 }
 
 /**
@@ -370,6 +435,9 @@ async function attempt(form, action) {
   showProblem(form, "");
   try {
     await action();
+    // Done, and the board is opening: the form need not be waiting, open,
+    // when the home page is next shown.
+    openPanel = null;
   } catch (error) {
     showProblem(form, error?.message || "That did not go through. Try again.");
   }
