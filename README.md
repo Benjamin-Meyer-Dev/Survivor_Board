@@ -4,13 +4,14 @@ A tracker for as many survivor pools as you are in. Make a league, send its
 code to the people you are playing with, and everyone works the same board.
 
 First launch asks what to call you - that name goes on the picks you make.
-After that the home page lists your leagues: **Create** one for each pool you
-are in, or **Join** with a twelve-character code someone sent you. Every league
-has one shared board, so the people in it see the same picks and locks in real
-time, and market lines and final scores refresh once a day, so wins and losses
-mark themselves.
+After that the home page lists your leagues: **Create** one for the people you
+play with, ticking every season it plays, or **Join** with a twelve-character
+code someone sent you. A league has one shared board per season - an NFL pool
+and a college pool for the same people are one league and one code - so the
+people in it see the same picks and locks in real time, and market lines and
+final scores refresh once a day, so wins and losses mark themselves.
 
-A league is a season plus its rules:
+A league is one or more seasons, each with its own rules:
 
 |          | College season       | NFL season |
 | -------- | -------------------- | ---------- |
@@ -27,8 +28,8 @@ costs both the team and the cushion.
 
 Nothing about a league is built into the app. The repo carries the two seasons -
 the schedules, the lines, the ratings and the calibrated model - and every
-league is a row keyed by its code. However many you make, they read the same
-two daily pulls and cost nothing extra.
+pool is a row keyed by its league's code and its season. However many you make,
+they read the same two daily pulls and cost nothing extra.
 
 **A code is the credential.** There are no accounts: anyone holding a league's
 code can read that board and write to it, which is the point of sending one.

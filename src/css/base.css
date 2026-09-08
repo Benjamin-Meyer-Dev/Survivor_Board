@@ -35,6 +35,14 @@ button {
   font: inherit;
 }
 
+/* Tapping a control must not flash the platform's own highlight over it - a
+   blue box the size of the button on Android, a grey one on iOS. Every control
+   here has its own hover and press state, and keyboard focus keeps the ring
+   below. Inherited, so the one declaration covers everything. */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

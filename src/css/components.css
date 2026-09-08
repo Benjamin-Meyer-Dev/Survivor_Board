@@ -607,11 +607,14 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
 }
 
+/* A paragraph, so the browser gives it margins unless told otherwise; the
+   grid's gap is all the room this box should have around it. */
 .home__empty {
+  margin: 0;
   color: var(--ink-3);
   font-size: 13px;
   line-height: 1.5;
-  padding: var(--sp-5);
+  padding: var(--sp-4);
   border: 1px dashed var(--line);
   border-radius: var(--radius);
   background: var(--surface-2);
@@ -642,6 +645,15 @@
   gap: 8px;
 }
 
+/* One chip per season the league plays. */
+.home__card-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .home__card-name {
   font-family: var(--font-display);
   font-weight: 700;
@@ -651,8 +663,11 @@
   overflow-wrap: anywhere;
 }
 
+/* Paragraphs, so their browser margins are dropped: the card's gap is the
+   spacing, and a league of two seasons has two of these in a row. */
 .home__card-rules,
 .home__card-warn {
+  margin: 0;
   color: var(--ink-3);
   font-size: 12px;
   line-height: 1.45;
@@ -771,8 +786,8 @@
   margin-top: 6px;
 }
 
-/* The radio itself is the control; the label is what is tapped, so it carries
-   the whole target and the state. */
+/* The checkbox itself is the control; the label is what is tapped, so it
+   carries the whole target and the state. */
 .home__choice {
   flex: 1 1 0;
   display: flex;
@@ -804,6 +819,13 @@
   color: var(--on-accent);
 }
 
+/* A tick in the filled state, because these are checkboxes: a filled pill on
+   its own reads as the one choice made, and here every season ticked is a
+   board the league gets. */
+.home__choice:has(input:checked) span::before {
+  content: "✓ ";
+}
+
 .home__choice:has(input:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -813,6 +835,20 @@
   color: var(--ink-3);
   font-size: 11.5px;
   line-height: 1.45;
+}
+
+/* Why a join or a create did not go through, under the field it is about.
+   Never at the top of the page: whoever tapped the button is at the bottom of
+   it, and an answer that lands out of sight reads as no answer at all. */
+.home__form-error {
+  margin: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--thin);
+  border-radius: var(--radius-sm);
+  background: var(--thin-bg);
+  color: var(--thin);
+  font-size: 12.5px;
+  line-height: 1.4;
 }
 
 .home__btn {
@@ -834,9 +870,16 @@
     color 180ms ease;
 }
 
-.home__btn:hover {
+.home__btn:hover:not(:disabled) {
   color: var(--ink);
   border-color: var(--ink-3);
+}
+
+/* Create, until a season is ticked. Dimmed rather than hidden: the button is
+   still where it will be, it just is not available yet. */
+.home__btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .home__btn--go {
@@ -845,7 +888,7 @@
   color: var(--on-accent);
 }
 
-.home__btn--go:hover {
+.home__btn--go:hover:not(:disabled) {
   background: var(--accent);
   color: var(--on-accent);
   border-color: var(--accent);
@@ -1455,7 +1498,6 @@
   background: var(--line);
   cursor: pointer;
   touch-action: pan-y pinch-zoom;
-  -webkit-tap-highlight-color: transparent;
   transition:
     background 0.18s ease,
     transform 0.18s ease;
@@ -2053,7 +2095,6 @@
   color: var(--ink-2);
   cursor: pointer;
   touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
 }
 
 .lock-toggle svg {

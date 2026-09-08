@@ -9,8 +9,9 @@
  * app. Pools are leagues now - created from the home page, stored by code, and
  * carrying their own rules (see store/directory.js and core/rules.js) - so what
  * is left here is the half of a league that comes out of the repo rather than
- * out of a person. A league picks one of these to play, and everything below
- * reads the sport for its games and the league for its rules.
+ * out of a person. A league picks one or more of these to play - a board for
+ * each, under one code - and everything below reads the sport for its games
+ * and the league for its rules.
  *
  * `theme` names a palette in src/css/leagues.css, stamped on the root element
  * as data-league so the whole app changes colour with the sport. A league
@@ -79,4 +80,26 @@ export function resolveSport(id) {
 /** A sport's display name, for a league card or a script's log. */
 export function sportLabel(id) {
   return SPORTS[resolveSport(id)].label;
+}
+
+/**
+ * The seasons a league plays, as a clean list: known ids only, each once, in
+ * the registry's order. Empty when nothing usable was given, and the caller
+ * decides what that means - an error for a league being made, a fallback for
+ * a cached row from before a league could hold more than one season.
+ *
+ * @param {string|string[]|undefined} ids
+ * @returns {string[]}
+ */
+export function normaliseSports(ids) {
+  const given = Array.isArray(ids) ? ids : [ids];
+  const wanted = new Set(given.filter((id) => typeof id === "string" && id in SPORTS));
+  return SPORT_IDS.filter((id) => wanted.has(id));
+}
+
+/** The seasons a league plays, named: "NFL", or "NFL & College". */
+export function sportsLabel(ids) {
+  return normaliseSports(ids)
+    .map((id) => SPORTS[id].label)
+    .join(" & ");
 }

@@ -98,16 +98,28 @@ export function joinLink(code, href = globalThis.location?.href ?? "") {
 }
 
 /**
+ * The hash an open board leaves in the address bar, so a reload comes back to
+ * it: the league, and which of its seasons was showing.
+ */
+export function leagueHash(code, sport = null) {
+  const clean = normaliseCode(code);
+  return sport ? `#/l/${clean}/${sport}` : `#/l/${clean}`;
+}
+
+/**
  * The code a URL is asking for, or null. Accepts both the join link and the
- * plain league link, so a shared address of either kind works.
+ * plain league link, so a shared address of either kind works. A league link
+ * may name the season to open (#/l/CODE/nfl); one that does not is left to the
+ * app, which opens the league's first.
  *
  * @param {string} hash location.hash
- * @returns {{action:"join"|"open", code:string}|null}
+ * @returns {{action:"join"|"open", code:string, sport:string|null}|null}
  */
 export function codeFromHash(hash) {
-  const match = /^#\/(join|l)\/([^/?#]+)/.exec(String(hash ?? ""));
+  const match = /^#\/(join|l)\/([^/?#]+)(?:\/([^/?#]+))?/.exec(String(hash ?? ""));
   if (!match) return null;
   const code = normaliseCode(match[2]);
   if (!isCode(code)) return null;
-  return { action: match[1] === "join" ? "join" : "open", code };
+  const action = match[1] === "join" ? "join" : "open";
+  return { action, code, sport: action === "open" && match[3] ? match[3].toLowerCase() : null };
 }

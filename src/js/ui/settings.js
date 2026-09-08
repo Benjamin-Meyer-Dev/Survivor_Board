@@ -30,6 +30,7 @@
 import { MAX_PICKS_PER_WEEK, MAX_BUY_BACKS, sameRules, onlyEditable } from "../core/rules.js";
 import { formatCode, joinLink } from "../core/code.js";
 import { escapeHtml } from "../core/format.js";
+import { sportLabel } from "../sports.js";
 
 /** Latest handlers and board, so the listeners bound on the first render stay current. */
 let onSaveRules = () => {};
@@ -52,15 +53,21 @@ const GEAR_ICON = `
  * @param {boolean} handlers.canWrite
  * @param {(rules:object|null) => void} handlers.onSave The rules to store, or
  *   null to go back to the ones the season ships.
- * @param {{code:string, name:string}} [handlers.league] The open league, for
- *   its code and its name.
+ * @param {{code:string, name:string, sports?:string[]}} [handlers.league] The
+ *   open league, for its code and its name.
+ * @param {string|null} [handlers.sport] Which of the league's seasons the board
+ *   is showing; the rules in the sheet are that pool's.
  * @param {(name:string) => void} [handlers.onRename]
  */
-export function renderSettings(root, board, { canWrite, onSave, league = null, onRename }) {
+export function renderSettings(
+  root,
+  board,
+  { canWrite, onSave, league = null, sport = null, onRename },
+) {
   if (!root) return;
   onSaveRules = onSave;
   onRenameLeague = onRename ?? (() => {});
-  current = { board, canWrite, league };
+  current = { board, canWrite, league, sport };
 
   if (!root.firstElementChild) buildSheet(root);
 
@@ -77,6 +84,14 @@ export function renderSettings(root, board, { canWrite, onSave, league = null, o
 
   button.classList.toggle("settings__open--custom", Boolean(board.rulesCustom));
   button.title = board.rulesCustom ? "Pool rules (changed from the plan)" : "Pool rules";
+
+  // The name and the code are the league's; the rules in the sheet are one
+  // season's. A league of several says which, so nobody changes the college
+  // pool's picks a week thinking they were on the NFL's. On every render rather
+  // than in paint: the sheet is built once, and a switch to the league's other
+  // season would otherwise leave the old season in the title until it opened.
+  root.querySelector(".settings__title").textContent =
+    (league?.sports?.length ?? 1) > 1 ? `League · ${sportLabel(sport)}` : "League";
 
   // Mid-edit: the draft is the truth on screen, and a board arriving from
   // another device must not pull the fields out from under the person typing.

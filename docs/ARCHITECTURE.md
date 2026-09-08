@@ -83,12 +83,14 @@ One thing the daily job cannot see: it reads `plan.json`, not the shared entry,
 so its line-movement flag is computed from the file's objective rather than a
 pool's override.
 
-A league owns none of that. It is a row in the `leagues` table - a code, a
-name, the season it plays, and its whole shared board as JSON - and the season
-is what points it at a folder. However many leagues exist, they read the same
-two daily pulls, so a pool costs a row and nothing else. `src/js/sports.js` is
-what is left of the old pool registry: the two seasons, and what a new league
-on each of them starts with.
+A league owns none of that. It is one or more rows in the `leagues` table, one
+per season it plays, keyed by the league's code and the season - each row a
+name, a season, and that pool's whole shared board as JSON - and the season is
+what points a row at a folder. A league made for the NFL and college at once is
+two rows under one code, two boards, and one link to send. However many leagues
+exist, they read the same two daily pulls, so a pool costs a row and nothing
+else. `src/js/sports.js` is what is left of the old pool registry: the two
+seasons, and what a new league on each of them starts with.
 
 The objective is applied in exactly one place, `core/objective.js`, and it is
 applied where the raw numbers enter the model rather than where they are read.
@@ -115,12 +117,15 @@ an entry in `src/js/leagues.js` - or, when it plays a schedule already here,
 an entry and a `plan.json` alone.
 
 Switching is a full reload of the board, not a filter over one: the old store
-subscription is torn down, the new league's data and entry are loaded, and a
+subscription is torn down, the new board's data and entry are loaded, and a
 late push from the store being replaced is dropped rather than landing on the
-new board. Each league keeps its own entry (its own artifact document, its own
-Supabase row, its own storage key), so locks in one pool can never appear in
-the other. The college pool predates the NFL one and keeps the unsuffixed
-names, which is why `scopeFor()` special-cases it.
+new board. Each pool keeps its own entry (its own artifact document, its own
+Supabase row, its own storage key, all keyed by `scopeFor(code, sport)`), so
+locks in one pool can never appear in another - not in another league's, and
+not in the same league's other season. The masthead picker lists one row per
+board, "League · NFL" and "League · College" for a league of two seasons, and
+the hash records both (`#/l/CODE/SPORT`) so a reload comes back to the same
+one.
 
 ## Why the data is split so many ways
 

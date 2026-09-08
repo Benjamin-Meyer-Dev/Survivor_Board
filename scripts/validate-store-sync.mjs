@@ -37,34 +37,39 @@ function fakeClient() {
     state,
     from() {
       return {
+        // Filters chain - the store narrows by code and then by season - and
+        // the request goes out when the chain is read.
         select() {
-          return {
-            eq() {
-              return {
-                maybeSingle: () => {
-                  // A read sees the row as it stands when the request is issued.
-                  const snapshot = { ...state.row, updated_at: pg(state.row.updated_at) };
-                  return later("read", () => ({ data: snapshot, error: null }));
-                },
-              };
+          const chain = {
+            eq: () => chain,
+            maybeSingle: () => {
+              // A read sees the row as it stands when the request is issued.
+              const snapshot = { ...state.row, updated_at: pg(state.row.updated_at) };
+              return later("read", () => ({ data: snapshot, error: null }));
             },
           };
+          return chain;
         },
-        // The store writes with update().eq(): a league's row is created when
-        // the league is, so a save that could insert one would make a league
-        // out of a mistyped code.
+        // The store writes with update().eq().eq(): a pool's row is created
+        // when the league is, so a save that could insert one would make a
+        // league out of a mistyped code.
         update(values) {
-          return {
-            eq: () =>
-              later("upsert", () => {
+          let request = null;
+          const chain = {
+            eq: () => chain,
+            then: (resolve, reject) => {
+              request ??= later("upsert", () => {
                 state.row = { entry: values.entry, updated_at: values.updated_at };
                 // Realtime fires on commit; the test decides when it is heard.
                 client.echoes.push({
                   new: { ...state.row, updated_at: pg(state.row.updated_at) },
                 });
                 return { error: null };
-              }),
+              });
+              return request.then(resolve, reject);
+            },
           };
+          return chain;
         },
       };
     },
@@ -110,10 +115,10 @@ const shown = (heard) => heard.map((entry) => (entry.picks["1-0"]?.locked ? "loc
 
 async function scenario(name, expected, run) {
   const client = fakeClient();
-  // A league code, which is the only way to this store now: holding one is
-  // what says a device may write (see supabase/schema.sql), so there is no
-  // unlock step any more.
-  const store = await createSupabaseStore("BXQK7HRTM4WD", { client });
+  // A league code and one of its seasons, which is the only way to this store
+  // now: holding the code is what says a device may write (see
+  // supabase/schema.sql), so there is no unlock step any more.
+  const store = await createSupabaseStore("BXQK7HRTM4WD", "nfl", { client });
   const init = store.init();
   client.answer("read");
   await init;

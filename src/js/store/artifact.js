@@ -9,7 +9,7 @@
 import { emptyEntry } from "../core/plan.js";
 import { scopeFor } from "../config.js";
 
-export async function createArtifactStore(code) {
+export async function createArtifactStore(code, sport) {
   if (typeof globalThis.claude?.use !== "function") return null;
 
   let db = null;
@@ -20,7 +20,7 @@ export async function createArtifactStore(code) {
   }
   if (!db) return null;
 
-  const doc = db.doc(scopeFor(code).doc);
+  const doc = db.doc(scopeFor(code, sport).doc);
 
   /** The capability has returned both shapes across contract versions. */
   const unwrap = (snapshot) => {
