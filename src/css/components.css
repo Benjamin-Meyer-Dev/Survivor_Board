@@ -750,8 +750,8 @@
   gap: 8px;
 }
 
-/* Copy link and Leave, as icons in the card's corner: about the league rather
-   than about going into it, so apart from the Open buttons below. */
+/* Leave, as an icon in the card's corner: about the league rather than about
+   going into it, so apart from the Open button below. */
 .home__card-tools {
   display: flex;
   gap: 6px;
@@ -839,12 +839,21 @@
    selectable, because copying it by hand is a real way to share it. */
 .home__code {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 6px 6px 6px 10px;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-sm);
   background: var(--surface-2);
+}
+
+/* The copy icon, at the end of the code's own row: the thing it copies is
+   right beside it. Smaller than the corner icon so the row stays a row. */
+.home__code-copy {
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  background: var(--surface);
 }
 
 .home__code-label {
@@ -872,8 +881,32 @@
   margin-top: auto;
 }
 
-/* Leaving, asked in place of the Open buttons: the question takes their row
-   so the tap that means "no" cannot open a board instead. Both carry a display,
+/* The way in, and the card's one big action: the full width, taller than any
+   other button here, with an arrow, so it is the thing a thumb finds first. */
+.home__open {
+  flex: 1 1 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 50px;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+}
+
+.home__open svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Leaving, asked in place of the Open button: the question takes its row so
+   the tap that means "no" cannot open a board instead. Both carry a display,
    so the attribute needs saying. */
 .home__card-actions[hidden],
 .home__confirm[hidden] {
@@ -900,9 +933,7 @@
 }
 
 /* Two buttons, side by side: making a league and joining one. Each opens its
-   form beneath and closes the other's, so the page shows the cards first and
-   one form at most. The open one takes the accent, the way a selected tab
-   does, so the form below reads as its continuation. */
+   sheet over the page, so the page itself shows the cards and nothing else. */
 .home__menu {
   display: flex;
   gap: 8px;
@@ -948,39 +979,62 @@
   border-color: var(--ink-3);
 }
 
-.home__menu-btn--open,
-.home__menu-btn--open:hover {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
-}
-
 .home__menu-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* One form at a time, the width of the page on a phone and capped on a desk,
-   where a lone form stretched across the whole shell reads as a mistake. */
-.home__forms {
-  display: grid;
-  gap: var(--sp-4);
+/* The two sheets, cut from the same cloth as the rules sheet (see .settings):
+   a native dialog over a dimmed page, a head with the name and a way out, and
+   the form scrolling beneath. Laid out as a column only while open, because a
+   display on a shut dialog would show it. */
+.home__sheet {
+  width: min(460px, calc(100vw - 2 * var(--sp-4)));
+  max-height: min(84vh, 720px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  overflow: hidden;
 }
 
+.home__sheet[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.home__sheet::backdrop {
+  background: rgb(0 0 0 / 62%);
+}
+
+.home__sheet-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: var(--sp-4) var(--sp-4) var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.home__sheet-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* The form is the sheet's body, and scrolls when the sheet cannot grow. */
 .home__form {
   display: grid;
   gap: 8px;
   align-content: start;
-  max-width: 640px;
-  padding: var(--sp-4);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface-2);
-}
-
-/* Folded: the display above would otherwise beat the attribute. */
-.home__form[hidden] {
-  display: none;
+  min-height: 0;
+  padding: var(--sp-5) var(--sp-5) calc(var(--sp-5) + env(safe-area-inset-bottom));
+  overflow-y: auto;
 }
 
 .home__label {

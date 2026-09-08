@@ -47,6 +47,8 @@ import { formatDuration } from "./core/refresh.js";
 const el = {
   start: document.getElementById("start"),
   home: document.getElementById("home"),
+  /** The home page's create and join sheets, kept out of the redrawn list. */
+  homeSheets: document.getElementById("home-sheets"),
   board: document.getElementById("board"),
   startup: document.getElementById("startup"),
   startupStatus: document.getElementById("startup-status"),
@@ -430,6 +432,7 @@ function renderHomeView() {
         renderHomeView();
       },
     },
+    el.homeSheets,
   );
 }
 

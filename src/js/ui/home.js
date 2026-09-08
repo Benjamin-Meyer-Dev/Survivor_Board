@@ -7,31 +7,29 @@
  *
  * A league can run more than one pool - an NFL winners pool, an NFL losers
  * pool and a college pool for the same people - so making one is a matter of
- * ticking the pools it runs, and its card opens each of its boards in turn. One
+ * ticking the pools it runs, and its card opens the first of its boards. One
  * code covers them all. Which pools, and whether each is played for winners or
  * for losers, is fixed here and cannot be changed afterwards.
  *
  * A league's code is shown on its card rather than hidden behind a share
  * sheet, because the code is the whole of how anyone else gets in: it has to
  * be readable off a screenshot and repeatable down a phone line, and the copy
- * icon puts that same code on the clipboard. Copy and Leave sit in the card's
- * corner as icons, apart from Open: they are about the league, not about going
- * into it, and Leave asks once more before it acts. Open goes to the league's
- * first pool - NFL winners, when it runs one - and the bar on the board is
- * where its other pools are.
+ * icon beside it puts that same code on the clipboard. Leave sits in the card's
+ * corner as an icon, apart from Open: it is about the league, not about going
+ * into it, and it asks once more before it acts. Open is the card's one big
+ * action; it goes to the league's first pool - NFL winners, when it runs one -
+ * and the bar on the board is where its other pools are.
  *
- * Making and joining live behind two buttons rather than as two forms always
- * on show: the cards are what the page is for, and a person with three leagues
- * does not want a blank form under them every time. Tapping a button opens its
- * form beneath, and the other button closes it. Which one is open survives the
- * re-renders the list causes as leagues arrive, so a form does not fold up
- * while someone is typing into it.
- *
- * Rebuilt on every render, unlike the masthead controls: nothing here animates
- * from a previous position, and the list changes shape as leagues arrive.
+ * Making and joining live in two sheets, opened from two buttons under the
+ * cards: the cards are what the page is for, and a person with three leagues
+ * does not want a blank form under them every time. The sheets are native
+ * dialogs, so the backdrop, the focus trap and Esc are the platform's, and they
+ * are built once into a root of their own rather than into the list: the list
+ * is redrawn as leagues arrive, and a sheet someone is typing into must not be
+ * redrawn with it.
  *
  * Rendering only: app.js owns creating, joining, leaving and opening. When a
- * create or a join throws, the reason is shown inside the form that asked,
+ * create or a join throws, the reason is shown inside the sheet that asked,
  * under its field, rather than as a notice at the top of the page.
  */
 
@@ -39,32 +37,19 @@ import { POOL_KINDS, KIND_IDS, normaliseKinds } from "../sports.js";
 import { formatCode, normaliseCode, isCode } from "../core/code.js";
 import { escapeHtml } from "../core/format.js";
 
-/** Which form is open - "create", "join" - or null for neither. */
-let openPanel = null;
+/** Latest handlers, so the sheets wired on the first render stay current. */
+let handlers = {};
+/** Where the two sheets were built, so they can be shut from outside. */
+let sheetsRoot = null;
 
-/** Fold both forms away, for the next time the home page is shown. */
+/** Shut both sheets, for the next time the home page is shown. */
 export function closeHomePanels() {
-  openPanel = null;
+  for (const dialog of sheetsRoot?.querySelectorAll("dialog[open]") ?? []) dialog.close();
 }
 
-const MENU = [
-  {
-    id: "create",
-    label: "New league",
-    icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>`,
-  },
-  {
-    id: "join",
-    label: "Join with a code",
-    icon: `<svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-      <path d="m10 17 5-5-5-5M15 12H3" />
-    </svg>`,
-  },
-];
-
-/* Stroke icons for the card's corner: two sheets for copy, a door with an
-   arrow out for leave, and the tick and cross copy swaps to while it reports. */
+/* Stroke icons: two sheets for copy, a door with an arrow out for leave, the
+   tick and cross copy swaps to while it reports, an arrow for the way in, a
+   plus and an arrow-in for the two sheets, and a cross to shut one. */
 const ICONS = {
   copy: `<svg viewBox="0 0 24 24" aria-hidden="true">
     <rect x="9" y="9" width="12" height="12" rx="2" />
@@ -76,10 +61,23 @@ const ICONS = {
   </svg>`,
   done: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20 6-11 11-5-5" /></svg>`,
   failed: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>`,
+  go: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>`,
+  plus: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>`,
+  join: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+    <path d="m10 17 5-5-5-5M15 12H3" />
+  </svg>`,
+  close: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>`,
 };
 
+/** The two sheets, as the menu offers them. */
+const SHEETS = [
+  { id: "create", label: "New league", icon: ICONS.plus },
+  { id: "join", label: "Join with a code", icon: ICONS.join },
+];
+
 /**
- * @param {HTMLElement} root
+ * @param {HTMLElement} root Where the list and the menu are drawn.
  * @param {object} state
  * @param {string} state.name This person's name.
  * @param {Array<object>} state.leagues From store/directory.js refreshMyLeagues,
@@ -87,14 +85,24 @@ const ICONS = {
  * @param {boolean} state.shared Whether leagues can be shared from this build.
  * @param {boolean} state.loading Whether the shared copy is still on its way.
  * @param {string} state.message A line to show above the list, or "".
- * @param {object} handlers onOpen(code), onCreate({name, kinds}), onJoin(code),
+ * @param {object} given onOpen(code), onCreate({name, kinds}), onJoin(code),
  *   onLeave(code), onRenameMe(). onCreate and onJoin may reject; the message is
- *   shown in their form.
+ *   shown in their sheet.
+ * @param {HTMLElement} [sheets] Where the two sheets live. Built once, on the
+ *   first render that names it, and left alone after.
  */
-export function renderHome(root, state, handlers) {
+export function renderHome(root, state, given, sheets = null) {
   if (!root) return;
+  handlers = given;
+  if (sheets) {
+    sheetsRoot = sheets;
+    if (!sheets.firstElementChild) {
+      sheets.innerHTML = sheetsMarkup();
+      wireSheets(sheets);
+    }
+  }
   root.innerHTML = homeMarkup(state);
-  wire(root, handlers);
+  wire(root);
 }
 
 function homeMarkup({ name, leagues, shared, loading, message }) {
@@ -130,59 +138,72 @@ function homeMarkup({ name, leagues, shared, loading, message }) {
       </div>
 
       <div class="home__menu">
-        ${MENU.map(
-          (item) => `
-        <button type="button" class="home__menu-btn${openPanel === item.id ? " home__menu-btn--open" : ""}"
-                data-panel="${item.id}" aria-expanded="${openPanel === item.id}"
-                aria-controls="home-${item.id}">
-          ${item.icon}
-          ${escapeHtml(item.label)}
+        ${SHEETS.map(
+          (sheet) => `
+        <button type="button" class="home__menu-btn" data-sheet="${sheet.id}"
+                aria-haspopup="dialog" aria-controls="home-${sheet.id}">
+          ${sheet.icon}
+          ${escapeHtml(sheet.label)}
         </button>`,
         ).join("")}
       </div>
-
-      <div class="home__forms">
-        <form class="home__form" id="home-create" data-act="create" ${openPanel === "create" ? "" : "hidden"}>
-          <label class="home__label" for="home-name">What is it called?</label>
-          <input class="home__input" id="home-name" name="name" type="text" maxlength="60"
-                 placeholder="The Office Pool" autocomplete="off" />
-          <p class="home__form-error" role="alert" hidden></p>
-          <fieldset class="home__choices-group">
-            <legend class="home__label">Which pools does it run?</legend>
-            <div class="home__options">
-              ${KIND_IDS.map(
-                (id) => `
-              <label class="home__option">
-                <input type="checkbox" name="kinds" value="${id}" />
-                <span class="home__option-name">${escapeHtml(POOL_KINDS[id].label)}</span>
-              </label>`,
-              ).join("")}
-            </div>
-          </fieldset>
-          <p class="home__hint">
-            Tick every pool this league runs: one code brings people into all of them,
-            with a board for each. Whether a pick has to win or lose is fixed here; picks
-            a week and buy backs are set per pool inside the league, from the gear beside
-            its name.
-          </p>
-          <button type="submit" class="home__btn home__btn--go" disabled>Create league</button>
-        </form>
-
-        <form class="home__form" id="home-join" data-act="join" ${openPanel === "join" ? "" : "hidden"}>
-          <label class="home__label" for="home-code">Paste the code you were sent</label>
-          <input class="home__input home__input--code" id="home-code" name="code" type="text"
-                 placeholder="BXQK-7HRT-M4WD" autocomplete="off" autocapitalize="characters"
-                 spellcheck="false" />
-          <p class="home__form-error" role="alert" hidden></p>
-          <p class="home__hint">
-            Twelve characters, dashes optional. Everyone in a league shares its boards:
-            you will see the same picks and locks as the rest of them, and they will see
-            yours.
-          </p>
-          <button type="submit" class="home__btn">Join</button>
-        </form>
-      </div>
     </section>`;
+}
+
+/** The two sheets: a head with the name and a way out, and the form beneath. */
+function sheetsMarkup() {
+  return `
+    <dialog class="home__sheet" id="home-create" aria-labelledby="home-create-title">
+      <div class="home__sheet-head">
+        <h3 class="home__sheet-title" id="home-create-title">New league</h3>
+        <button type="button" class="home__icon home__sheet-close" data-close
+                aria-label="Close">${ICONS.close}</button>
+      </div>
+      <form class="home__form" data-act="create">
+        <label class="home__label" for="home-name">What is it called?</label>
+        <input class="home__input" id="home-name" name="name" type="text" maxlength="60"
+               placeholder="The Office Pool" autocomplete="off" />
+        <p class="home__form-error" role="alert" hidden></p>
+        <fieldset class="home__choices-group">
+          <legend class="home__label">Which pools does it run?</legend>
+          <div class="home__options">
+            ${KIND_IDS.map(
+              (id) => `
+            <label class="home__option">
+              <input type="checkbox" name="kinds" value="${id}" />
+              <span class="home__option-name">${escapeHtml(POOL_KINDS[id].label)}</span>
+            </label>`,
+            ).join("")}
+          </div>
+        </fieldset>
+        <p class="home__hint">
+          Tick every pool this league runs: one code brings people into all of them, with
+          a board for each. Whether a pick has to win or lose is fixed here; picks a week
+          and buy backs are set per pool inside the league, from the gear beside its name.
+        </p>
+        <button type="submit" class="home__btn home__btn--go" disabled>Create league</button>
+      </form>
+    </dialog>
+
+    <dialog class="home__sheet" id="home-join" aria-labelledby="home-join-title">
+      <div class="home__sheet-head">
+        <h3 class="home__sheet-title" id="home-join-title">Join a league</h3>
+        <button type="button" class="home__icon home__sheet-close" data-close
+                aria-label="Close">${ICONS.close}</button>
+      </div>
+      <form class="home__form" data-act="join">
+        <label class="home__label" for="home-code">Paste the code you were sent</label>
+        <input class="home__input home__input--code" id="home-code" name="code" type="text"
+               placeholder="BXQK-7HRT-M4WD" autocomplete="off" autocapitalize="characters"
+               spellcheck="false" />
+        <p class="home__form-error" role="alert" hidden></p>
+        <p class="home__hint">
+          Twelve characters, dashes optional. Everyone in a league shares its boards: you
+          will see the same picks and locks as the rest of them, and they will see yours.
+        </p>
+        <button type="submit" class="home__btn home__btn--go">Join</button>
+      </form>
+    </dialog>`;
 }
 
 function card(league) {
@@ -211,8 +232,6 @@ function card(league) {
       <div class="home__card-head">
         <h3 class="home__card-name">${escapeHtml(league.name)}</h3>
         <div class="home__card-tools">
-          <button type="button" class="home__icon" data-act="copy"
-                  aria-label="Copy the code" title="Copy code">${ICONS.copy}</button>
           <button type="button" class="home__icon" data-act="leave"
                   aria-label="Leave this league" title="Leave">${ICONS.leave}</button>
         </div>
@@ -232,6 +251,8 @@ function card(league) {
       <div class="home__code">
         <span class="home__code-label">Code</span>
         <code class="home__code-value">${escapeHtml(formatCode(league.code))}</code>
+        <button type="button" class="home__icon home__code-copy" data-act="copy"
+                aria-label="Copy the code" title="Copy code">${ICONS.copy}</button>
       </div>
 
       ${
@@ -244,7 +265,9 @@ function card(league) {
       }
 
       <div class="home__card-actions">
-        <button type="button" class="home__btn home__btn--go" data-act="open">Open</button>
+        <button type="button" class="home__btn home__btn--go home__open" data-act="open">
+          Open league ${ICONS.go}
+        </button>
       </div>
 
       <div class="home__confirm" hidden>
@@ -295,38 +318,15 @@ function rulesLine(rules) {
   return parts.join(" · ");
 }
 
-function wire(root, handlers) {
-  root.querySelector('[data-act="rename-me"]')?.addEventListener("click", handlers.onRenameMe);
+/** The list and the menu: redrawn on every render. */
+function wire(root) {
+  root
+    .querySelector('[data-act="rename-me"]')
+    ?.addEventListener("click", () => handlers.onRenameMe());
 
-  for (const button of root.querySelectorAll("[data-panel]")) {
-    button.addEventListener("click", () => togglePanel(root, button.dataset.panel));
+  for (const button of root.querySelectorAll("[data-sheet]")) {
+    button.addEventListener("click", () => openSheet(button.dataset.sheet));
   }
-
-  const create = root.querySelector('form[data-act="create"]');
-  if (create) {
-    syncCreate(create);
-    create.addEventListener("change", () => syncCreate(create));
-    create.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const kinds = chosenKinds(create);
-      if (kinds.length === 0) {
-        showProblem(create, "Tick at least one pool for the league to run.");
-        return;
-      }
-      attempt(create, () => handlers.onCreate({ name: create.elements.name.value, kinds }));
-    });
-  }
-
-  root.querySelector('form[data-act="join"]')?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const typed = form.elements.code.value;
-    if (!isCode(typed)) {
-      showProblem(form, "That code is not twelve characters. Check it and try again.");
-      return;
-    }
-    attempt(form, () => handlers.onJoin(normaliseCode(typed)));
-  });
 
   for (const node of root.querySelectorAll(".home__card")) {
     const code = node.dataset.league;
@@ -339,27 +339,65 @@ function wire(root, handlers) {
 }
 
 /**
- * Open one form and fold the other, or fold the open one when its own button is
- * tapped again. In place, without a render: the forms are already in the page,
- * and a render would throw away anything typed into the one staying open.
- * Focus goes to the form's first field, so a tap on "Join with a code" is
- * already a tap into the code.
+ * The two sheets: wired once, when they are built. The handlers they call are
+ * read at the moment of the tap, so the ones the latest render brought are the
+ * ones that run.
  */
-function togglePanel(root, id) {
-  openPanel = openPanel === id ? null : id;
-  for (const button of root.querySelectorAll("[data-panel]")) {
-    const open = button.dataset.panel === openPanel;
-    button.classList.toggle("home__menu-btn--open", open);
-    button.setAttribute("aria-expanded", String(open));
+function wireSheets(sheets) {
+  for (const dialog of sheets.querySelectorAll(".home__sheet")) {
+    dialog.querySelector("[data-close]").addEventListener("click", () => dialog.close());
+    // A tap outside the sheet, which on a modal dialog lands on the dialog
+    // element itself rather than on anything inside it.
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) dialog.close();
+    });
   }
-  for (const form of root.querySelectorAll(".home__form")) {
-    form.hidden = form.dataset.act !== openPanel;
-  }
-  if (openPanel) root.querySelector(`#home-${openPanel} input`)?.focus();
+
+  const create = sheets.querySelector('form[data-act="create"]');
+  syncCreate(create);
+  create.addEventListener("change", () => {
+    syncCreate(create);
+    // The one complaint the sheet can make on its own is answered by a tick.
+    if (chosenKinds(create).length) showProblem(create, "");
+  });
+  create.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const kinds = chosenKinds(create);
+    if (kinds.length === 0) {
+      showProblem(create, "Tick at least one pool for the league to run.");
+      return;
+    }
+    attempt(create, () => handlers.onCreate({ name: create.elements.name.value, kinds }));
+  });
+
+  const join = sheets.querySelector('form[data-act="join"]');
+  join.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const typed = join.elements.code.value;
+    if (!isCode(typed)) {
+      showProblem(join, "That code is not twelve characters. Check it and try again.");
+      return;
+    }
+    attempt(join, () => handlers.onJoin(normaliseCode(typed)));
+  });
 }
 
 /**
- * Leaving, in two taps: the icon swaps the Open buttons for the question, and
+ * Open one sheet over the page. An earlier attempt's error is cleared, since
+ * the person is starting again; what they typed is kept, since they may be
+ * coming back to finish it. Focus goes to the first field, so a tap on "Join
+ * with a code" is already a tap into the code.
+ */
+function openSheet(id) {
+  const dialog = sheetsRoot?.querySelector(`#home-${id}`);
+  if (!dialog || dialog.open) return;
+  showProblem(dialog.querySelector(".home__form"), "");
+  dialog.showModal();
+  dialog.querySelector("input")?.focus();
+}
+
+/**
+ * Leaving, in two taps: the icon swaps the Open button for the question, and
  * only the answer acts. Leaving is easy to undo - the code gets you back in -
  * but a card's corner is an easy place for a thumb to land, and the swap means
  * nothing can be opened by the tap that was meant to say no.
@@ -408,7 +446,7 @@ function wireCopy(button, code) {
   });
 }
 
-/** The pools ticked in the create form, in the order they are offered. */
+/** The pools ticked in the create sheet, in the order they are offered. */
 function chosenKinds(form) {
   return [...form.querySelectorAll('input[name="kinds"]:checked')].map((input) => input.value);
 }
@@ -423,21 +461,19 @@ function syncCreate(form) {
 }
 
 /**
- * Run a form's handler and keep its answer in the form.
+ * Run a sheet's handler and keep its answer in the sheet.
  *
  * A join or a create that does not go through is reported under the field it
- * concerns, and nothing else moves: the person is at the bottom of the page
- * with a thumb on the button, and a re-render to raise a notice at the top
- * would also have wiped what they typed, which is the thing they now need to
- * check.
+ * concerns, and nothing else moves: the person has the sheet open with a thumb
+ * on the button, and what they typed stays put, which is the thing they now
+ * need to check. One that goes through shuts the sheet, since the board is
+ * opening behind it.
  */
 async function attempt(form, action) {
   showProblem(form, "");
   try {
     await action();
-    // Done, and the board is opening: the form need not be waiting, open,
-    // when the home page is next shown.
-    openPanel = null;
+    form.closest("dialog")?.close();
   } catch (error) {
     showProblem(form, error?.message || "That did not go through. Try again.");
   }
