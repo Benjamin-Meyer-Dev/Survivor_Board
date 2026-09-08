@@ -613,22 +613,26 @@ look.
 ## The screen: a field held sideways
 
 The board is one split screen, built for a phone in one hand. The top half is
-the readout and does not scroll: the pitch (`ui/pitch.js`), which draws the
-season as a football field laid sideways - kickoff on the left, the end zone
-on the right, a yard line per week, the ball on the week on the clock, a chalk
-bracket on the week being looked at, and a mark on each week for what it holds
+the readout and does not scroll. First the pitch (`ui/pitch.js`), which draws
+the season as a football field laid sideways: kickoff on the left, the end
+zone on the right, a yard line per week naming its pick, the ball on the week
+on the clock, a chalk bracket on the week being looked at, and a mark on each
+week for what it holds. Under the field runs the drive line, saying where the
+ball is, what the pool forgives, what a pick being weighed would do, and how
+far the season is from the end zone. Then the call (`ui/call.js`): the week
+being looked at, its slot or slots, and the one action at the seam. The bottom
+half is the drawer, which takes what is left and scrolls inside itself: the
+sideline (`ui/sideline.js`, every team the active slot could hold), the drive
+(`ui/drive.js`, the season week by week) and the bench (`ui/bench.js`, every
+team and where it sits on the path), behind three tabs on a phone and side by
+side from 900px.
 
-- with the drive line under it saying how far the season is from the end zone;
-  then the call (`ui/call.js`), the week being looked at, its slot or slots, and
-  the one action at the seam. The bottom half is the drawer, which takes what is
-  left and scrolls inside itself: the sideline (`ui/sideline.js`, every team the
-  active slot could hold), the drive (`ui/drive.js`, the season week by week) and
-  the bench (`ui/bench.js`, every team and where it sits on the path), behind
-  three tabs on a phone and side by side from 900px. Looking at a week - a tap on
-  the field, a row of the drive - redraws only the call, the sideline and the
-  drive's bracket, and never rebuilds the board, so a slide along the field costs
-  a few milliseconds a step. Tapping the field's yard line moves the bracket in
-  place rather than rebuilding the field under the finger.
+On a phone the field is wider than the screen and scrolls sideways under end
+zones pinned to either edge, so every week has room to name its pick; a
+desktop shows all of them at once. Looking at a week, by a tap on the field or
+a row of the drive, redraws only the call, the sideline and the drive's
+bracket, moves the field's bracket in place and scrolls that week into view,
+and never rebuilds the board.
 
 Colour is the one thing that does not come off the board: `app.js` stamps
 `data-league` and `data-objective` on the root element and `src/css/leagues.css`

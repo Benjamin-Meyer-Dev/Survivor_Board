@@ -46,24 +46,25 @@ body::after {
 
 /* --- the pitch ------------------------------------------------------------- */
 
-/* Hash marks, two rows across the playing field between the end zones. */
-.pitch__field::before,
-.pitch__field::after {
+/* Hash marks, two rows across the playing field between the end zones. On
+   the track rather than the field, so they scroll with the weeks. */
+.pitch__track::before,
+.pitch__track::after {
   content: "";
   position: absolute;
-  left: var(--zone-w);
-  right: var(--zone-w);
+  left: 0;
+  right: 0;
   z-index: 0;
   border-top: 2px dashed var(--line-soft);
   pointer-events: none;
 }
 
-.pitch__field::before {
-  top: 36%;
+.pitch__track::before {
+  top: 32%;
 }
 
-.pitch__field::after {
-  top: 64%;
+.pitch__track::after {
+  top: 60%;
 }
 
 /* The end zones, painted, with the hazard stripes a painted end zone has. */
@@ -101,14 +102,4 @@ body::after {
 
 .drawer {
   background: var(--board);
-  border-top: 3px solid var(--chalk);
-}
-
-/* --- phone ------------------------------------------------------------------ */
-
-@media (max-width: 899px) {
-  .pitch__field::before,
-  .pitch__field::after {
-    border-top-width: 2px;
-  }
 }

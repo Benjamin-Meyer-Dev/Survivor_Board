@@ -5,29 +5,23 @@
  * ball stands on the week on the clock; a chalk bracket marks the week being
  * looked at, which need not be the same one. Each week carries a mark for what
  * it holds - solid chalk for a lock, the flag for a pick, dashed flag for the
- * coach's plan, the outcome's chalk once the game is played - so the whole
- * season reads off one strip. Under it, the drive line: where the ball is,
- * what the pool forgives, and how far the season is from the end zone on
- * today's numbers.
+ * coach's plan, the outcome's chalk once the game is played - and names the
+ * pick under it, so the whole season reads off one strip. Under it, the drive
+ * line: where the ball is, what the pool forgives, what a pick being weighed
+ * would do, and how far the season is from the end zone on today's numbers.
  *
- * The field is the week navigator. Tap a yard line to look at that week; press
- * and hold, then slide, and the bracket runs under the finger. What it reads is
- * the position along the field rather than which line was hit, so a week owns
- * its whole column, not just its line.
+ * On a phone the field is wider than the screen and scrolls sideways under
+ * end zones held at either edge, so a week gets a column wide enough to read;
+ * on a desktop every week fits. The field is the week navigator: tap a yard
+ * line to look at that week, or walk them with the arrow keys.
  *
  * Rendered once per board; a week change moves the bracket in place
- * (markViewing) rather than rebuilding the strip under a finger that is still
- * on it. Handlers are injected; this module knows nothing about the store.
+ * (markViewing) and brings the week into view rather than rebuilding the
+ * strip. Handlers are injected; this module knows nothing about the store.
  */
 
 import { formatPercent, timeAgo, escapeHtml } from "../core/format.js";
 import { formatDuration } from "../core/refresh.js";
-
-/** Hold the field this long and it becomes a scrubber under the finger. */
-const HOLD_MS = 200;
-
-/** Or slide this far sideways from where the press landed, whichever is first. */
-const SLIDE_PX = 6;
 
 /** How long the season number wears the colour of its change (see motion.css). */
 const PULSE_MS = 1400;
@@ -60,17 +54,16 @@ export function renderPitch(root, board, viewWeek, handlers) {
 
   root.innerHTML = `
     <div class="pitch">
-      <div class="pitch__field" style="--weeks:${board.weeks.length}" role="group" tabindex="0"
-           aria-label="Weeks. Tap a yard line to look at a week, or hold and slide.">
+      <div class="pitch__field" role="group" tabindex="0"
+           aria-label="Weeks. Tap a yard line to look at a week.">
         <div class="pitch__zone pitch__zone--kickoff" aria-hidden="true"><span>Kickoff</span></div>
-        ${board.weeks.map((week) => yardMarkup(week, board, viewWeek)).join("")}
+        <div class="pitch__track" style="--weeks:${board.weeks.length}">
+          ${board.weeks.map((week) => yardMarkup(week, board, viewWeek)).join("")}
+        </div>
         <div class="pitch__zone pitch__zone--end" aria-hidden="true"><span>Survive</span></div>
       </div>
       <div class="pitch__drive">
-        <div class="pitch__drive-text">
-          <span class="pitch__drive-line">${escapeHtml(driveLine(board))}</span>
-          <span class="pitch__drive-note">${driveNote(board)}</span>
-        </div>
+        <div class="pitch__stats">${stats(board)}</div>
         <span class="pitch__tag${season.out ? " pitch__tag--out" : ""}" data-cell="survival"
               title="Chance of surviving the whole season on today's numbers">
           <span class="pitch__tag-value">${escapeHtml(season.value)}</span>
@@ -86,6 +79,11 @@ export function renderPitch(root, board, viewWeek, handlers) {
     handlers.onWeekChange(week);
   };
 
+  field.addEventListener("click", (event) => {
+    const yard = event.target.closest("[data-yard]");
+    if (yard) jumpTo(Number(yard.dataset.yard) - 1);
+  });
+
   // Keyboard equivalent of the tap, for anyone not on a touchscreen.
   field.addEventListener("keydown", (event) => {
     const step = { ArrowRight: 1, ArrowLeft: -1, Home: -Infinity, End: Infinity }[event.key];
@@ -95,7 +93,7 @@ export function renderPitch(root, board, viewWeek, handlers) {
     jumpTo(Number.isFinite(step) ? current + step : step < 0 ? 0 : board.weeks.length - 1);
   });
 
-  attachScrubber(field, jumpTo);
+  bringIntoView(root, viewWeek, "auto");
   markChange(root, board.league, before, season.probability);
 }
 
@@ -104,6 +102,23 @@ export function markViewing(root, week) {
   for (const yard of root.querySelectorAll("[data-yard]")) {
     yard.classList.toggle("pitch__yard--viewing", Number(yard.dataset.yard) === week);
   }
+  bringIntoView(root, week, "smooth");
+}
+
+/**
+ * Scroll the field so a week sits in the middle of it, where the field is
+ * wider than the screen. Measured against the field itself rather than the
+ * page, so the board does not move.
+ */
+function bringIntoView(root, week, behavior) {
+  const field = root.querySelector(".pitch__field");
+  const yard = root.querySelector(`[data-yard="${week}"]`);
+  if (!field || !yard || field.scrollWidth <= field.clientWidth + 1) return;
+  const fieldBox = field.getBoundingClientRect();
+  const yardBox = yard.getBoundingClientRect();
+  const within = yardBox.left - fieldBox.left + field.scrollLeft;
+  const target = within - (field.clientWidth - yardBox.width) / 2;
+  field.scrollTo({ left: Math.max(0, target), behavior });
 }
 
 function viewingIndex(root) {
@@ -114,8 +129,7 @@ function viewingIndex(root) {
 
 /**
  * One week's yard line. The mark at its top says what the week holds; the
- * label under it names the pick where the field is wide enough to show one
- * (components.css shows it from 900px).
+ * label under the ball names the pick, whoever chose it.
  */
 function yardMarkup(week, board, viewWeek) {
   const now = week.week === board.currentWeek && !board.eliminated;
@@ -135,7 +149,7 @@ function yardMarkup(week, board, viewWeek) {
       aria-label="Week ${week.week}, ${escapeHtml(week.labelFull)}${says ? `, ${escapeHtml(says)}` : ""}">
       ${mark ? `<span class="pitch__mark pitch__mark--${mark}"></span>` : ""}
       ${team ? `<span class="pitch__label">${escapeHtml(team)}</span>` : ""}
-      ${week.week % 5 === 0 ? `<span class="pitch__num">${week.week}</span>` : ""}
+      <span class="pitch__num">${week.week}</span>
       ${now ? BALL : ""}
     </button>`;
 }
@@ -161,24 +175,26 @@ function weekMark(week) {
   return { mark: null, team: "", says: "" };
 }
 
-/** Where the ball is, and what the pool forgives. Short: it shares a row. */
-function driveLine(board) {
-  if (board.eliminated) {
-    return `Eliminated wk ${board.eliminatedWeek} · final ${board.record.won}-${board.record.lost}`;
-  }
-  const where = `Wk ${board.currentWeek} of ${board.weeks.length}`;
-  if (!board.buyBack) return `${where} · no buy backs`;
-  if (board.buyBack.left === 0) return `${where} · buy back spent`;
-  const count = board.buyBack.left;
-  return `${where} · ${count} buy back${count === 1 ? "" : "s"} in hand`;
-}
-
 /**
- * The second line: what a pick being weighed would do to the season, while
- * one is; otherwise when the lines next refresh. The countdown is ticked in
- * place by app.js rather than re-rendered.
+ * The drive's readouts: where the ball is, what the pool forgives, and either
+ * what a pick being weighed would do to the season or when the lines next
+ * refresh. The countdown is ticked in place by app.js rather than re-rendered.
  */
-function driveNote(board) {
+function stats(board) {
+  const items = [];
+  if (board.eliminated) {
+    items.push(stat("Eliminated", `Wk ${board.eliminatedWeek}`));
+    items.push(stat("Final record", `${board.record.won}-${board.record.lost}`));
+  } else {
+    items.push(stat("Week", `${board.currentWeek} of ${board.weeks.length}`));
+    if (board.buyBack) {
+      const left = board.buyBack.left;
+      items.push(
+        stat("Buy backs", left === 0 ? "Spent" : `${left} in hand`, left === 0 ? "spent" : ""),
+      );
+    }
+  }
+
   if (!board.eliminated && board.previewPathProbability !== null) {
     const change =
       board.previewPathProbability > board.pathProbability
@@ -186,9 +202,27 @@ function driveNote(board) {
         : board.previewPathProbability < board.pathProbability
           ? "worse"
           : "even";
-    return `<span class="pitch__preview pitch__preview--${change}">→ ${escapeHtml(formatPercent(board.previewPathProbability))} if locked</span>`;
+    items.push(
+      stat("If locked", `→ ${formatPercent(board.previewPathProbability)}`, `preview-${change}`),
+    );
+  } else {
+    items.push(
+      stat(
+        "Lines",
+        `<span id="countdown">${escapeHtml(formatDuration(board.nextRefreshAt - Date.now()))}</span> · ${escapeHtml(timeAgo(board.updatedAt))}`,
+        "",
+        true,
+      ),
+    );
   }
-  return `Lines refresh in <span id="countdown">${escapeHtml(formatDuration(board.nextRefreshAt - Date.now()))}</span> · updated ${escapeHtml(timeAgo(board.updatedAt))}`;
+  return items.join("");
+}
+
+function stat(key, value, modifier = "", raw = false) {
+  return `<span class="pitch__stat${modifier ? ` pitch__stat--${modifier}` : ""}">
+      <span class="pitch__stat-key">${escapeHtml(key)}</span>
+      <span class="pitch__stat-value">${raw ? value : escapeHtml(value)}</span>
+    </span>`;
 }
 
 function seasonSurvival(board) {
@@ -231,111 +265,4 @@ function markChange(root, league, from, to) {
   // A negative delay starts the fresh node's keyframe part way through, where
   // the one the render just destroyed had got to.
   if (elapsed > 0) el.style.animationDelay = `-${Math.round(elapsed)}ms`;
-}
-
-/**
- * The field as one control. A tap goes to the week under it; a press held for
- * a beat - or slid sideways, whichever comes first - hands the bracket to the
- * finger, which then runs through the weeks as it moves.
- *
- * @param {HTMLElement} field
- * @param {(index:number) => void} jumpTo
- */
-function attachScrubber(field, jumpTo) {
-  /** The press under way, or null. Its centres are measured once, at the down. */
-  let press = null;
-  /** Set by a scrub, so the click its release fires does not jump again. */
-  let swallowClick = false;
-
-  const goTo = (x) => {
-    const index = nearestCentre(press.centres, x);
-    if (index === press.index) return;
-    press.index = index;
-    jumpTo(index);
-  };
-
-  const engage = (x) => {
-    if (!press || press.live) return;
-    press.live = true;
-    swallowClick = true;
-    field.classList.add("pitch__field--scrubbing");
-    // Keeps the moves coming once the finger leaves the field, which on a
-    // phone it will. A render can replace the field mid-press, and capturing
-    // on a node no longer in the page throws.
-    if (field.isConnected) field.setPointerCapture(press.id);
-    goTo(x);
-  };
-
-  const end = () => {
-    if (!press) return;
-    clearTimeout(press.hold);
-    if (press.live) {
-      field.classList.remove("pitch__field--scrubbing");
-      if (field.hasPointerCapture(press.id)) field.releasePointerCapture(press.id);
-    }
-    press = null;
-  };
-
-  field.addEventListener("pointerdown", (event) => {
-    if (event.button > 0) return;
-    end();
-    swallowClick = false;
-    press = {
-      id: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-      centres: yardCentres(field),
-      index: viewingIndex(field),
-      live: false,
-      hold: setTimeout(() => engage(event.clientX), HOLD_MS),
-    };
-  });
-
-  field.addEventListener("pointermove", (event) => {
-    if (!press || event.pointerId !== press.id) return;
-    if (press.live) {
-      event.preventDefault();
-      goTo(event.clientX);
-      return;
-    }
-    const dx = Math.abs(event.clientX - press.x);
-    const dy = Math.abs(event.clientY - press.y);
-    // Sideways is a scrub before the hold is up. Downwards is the page being
-    // scrolled, and the press was only ever on the way past.
-    if (dx > SLIDE_PX && dx > dy) engage(event.clientX);
-    else if (dy > SLIDE_PX) end();
-  });
-
-  for (const type of ["pointerup", "pointercancel"]) {
-    field.addEventListener(type, (event) => {
-      if (press && event.pointerId === press.id) end();
-    });
-  }
-
-  field.addEventListener("click", (event) => {
-    if (swallowClick) {
-      swallowClick = false;
-      return;
-    }
-    // A click with no pointer behind it - a screen reader activating a yard -
-    // has no position to read, so that yard's own week is the answer.
-    const yard = event.detail === 0 ? event.target.closest("[data-yard]") : null;
-    jumpTo(yard ? Number(yard.dataset.yard) - 1 : nearestCentre(yardCentres(field), event.clientX));
-  });
-}
-
-function yardCentres(field) {
-  return [...field.querySelectorAll("[data-yard]")].map((yard) => {
-    const box = yard.getBoundingClientRect();
-    return box.left + box.width / 2;
-  });
-}
-
-/** Past either end this settles on the end itself. */
-function nearestCentre(centres, x) {
-  let best = 0;
-  for (const [index, centre] of centres.entries()) {
-    if (Math.abs(centre - x) < Math.abs(centres[best] - x)) best = index;
-  }
-  return best;
 }

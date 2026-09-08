@@ -66,9 +66,11 @@ src/js/app.js   the only module that wires the other three together
   (`field.css` draws the underlines). A lock is always painted on: solid
   chalk. Never mix the two vocabularies, and never colour a suggestion the way
   a pick is coloured.
-- The pitch (`.pitch__field`) is a grid with one column per week, set from
-  `--weeks`. A week owns its whole column, so anything added to a yard line is
-  absolutely positioned inside it and narrower than 17px at phone width.
+- The pitch (`.pitch__field`) scrolls sideways on a phone under end zones held
+  at either edge, one column of `--yard-w` per week; from 900px every week
+  fits and the columns share the width. A week owns its whole column, so
+  anything added to a yard line is absolutely positioned inside it and
+  narrower than `--yard-w`.
 
 ## The theme
 

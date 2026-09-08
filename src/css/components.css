@@ -412,11 +412,12 @@
    on a phone. */
 .settings,
 .home__sheet {
-  width: min(480px, calc(100vw - 2 * var(--sp-4)));
-  max-height: min(86vh, 760px);
+  width: min(460px, calc(100vw - 32px));
+  /* Dynamic viewport units, so the panel shrinks with the keyboard instead
+     of hiding under it; the form inside scrolls. */
+  max-height: min(86dvh, 760px);
   padding: 0;
-  border: 0;
-  border-top: 3px solid var(--chalk);
+  border: 1.5px solid var(--line-strong);
   border-radius: var(--radius-lg);
   background: var(--board);
   color: var(--chalk);
@@ -667,40 +668,63 @@
   gap: 8px;
 }
 
+/* The field is wider than a phone and scrolls sideways; the end zones stay
+   pinned to either edge while the weeks run under them. A desktop shows every
+   week at once (see the wide block). */
 .pitch__field {
-  --zone-w: 26px;
+  --zone-w: 30px;
+  --yard-w: 46px;
   position: relative;
-  display: grid;
-  grid-template-columns: var(--zone-w) repeat(var(--weeks, 18), minmax(0, 1fr)) var(--zone-w);
-  height: 104px;
+  display: flex;
+  height: 136px;
   border: 2px solid var(--chalk);
   background: var(--turf-3);
-  overflow: hidden;
-  touch-action: pan-y pinch-zoom;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
   user-select: none;
   -webkit-user-select: none;
 }
 
 .pitch__zone {
+  position: sticky;
+  z-index: 2;
+  flex: none;
+  width: var(--zone-w);
   display: grid;
   place-items: center;
+}
+
+.pitch__zone span {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.3em;
   text-transform: uppercase;
   writing-mode: vertical-rl;
 }
 
 .pitch__zone--kickoff {
+  left: 0;
   border-right: 2px solid var(--chalk);
+}
+
+.pitch__zone--kickoff span {
   transform: rotate(180deg);
-  color: var(--paint-ink);
   opacity: 0.85;
 }
 
 .pitch__zone--end {
+  right: 0;
   border-left: 2px solid var(--chalk);
+}
+
+/* The playing field between the end zones: one column a week. */
+.pitch__track {
+  position: relative;
+  display: flex;
+  flex: none;
 }
 
 /* A yard line. The button is the whole column, so the target is the width of
@@ -709,16 +733,17 @@
   appearance: none;
   position: relative;
   z-index: 1;
+  flex: none;
+  width: var(--yard-w);
   padding: 0;
   border: 0;
   border-left: 1px solid var(--line);
   background: none;
   color: var(--chalk);
   cursor: pointer;
-  touch-action: pan-y pinch-zoom;
 }
 
-.pitch__yard:first-of-type {
+.pitch__yard:first-child {
   border-left: 0;
 }
 
@@ -731,13 +756,40 @@
 .pitch__num {
   position: absolute;
   left: 50%;
-  bottom: 3px;
+  bottom: 5px;
   transform: translateX(-50%);
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1;
   color: var(--chalk-3);
+}
+
+.pitch__yard--five .pitch__num {
+  color: var(--chalk-2);
+}
+
+/* The pick's name on the yard line, under the ball. */
+.pitch__label {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 4px);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--chalk-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pitch__yard--now .pitch__label,
+.pitch__yard--viewing .pitch__label {
+  color: var(--chalk);
 }
 
 /* The mark at the top of the week: what it holds. Solid chalk for a lock,
@@ -746,9 +798,9 @@
 .pitch__mark {
   position: absolute;
   left: 50%;
-  top: 6px;
+  top: 8px;
   width: 3px;
-  height: 12px;
+  height: 16px;
   transform: translateX(-50%);
   border-radius: 1px;
 }
@@ -784,19 +836,13 @@
   color: var(--chalk);
 }
 
-/* The pick's name on the yard line: only where the field is wide enough to
-   carry one (the wide block below shows it from 900px). */
-.pitch__label {
-  display: none;
-}
-
 /* The ball, on the week on the clock. */
 .pitch__ball {
   position: absolute;
   left: 50%;
-  top: 50%;
-  width: 13px;
-  height: 8px;
+  top: 46%;
+  width: 22px;
+  height: 14px;
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
@@ -806,66 +852,108 @@
   opacity: 0.45;
 }
 
-/* The drive line under the field: where the ball is, and how far the season
-   is from the end zone on today's numbers. Short, because it shares a row with
-   the flag and must not wrap on a phone. */
+/* The drive line under the field: the readouts of the season - where the
+   ball is, what the pool forgives, what a pick being weighed would do - and
+   the flag saying how far the end zone is on today's numbers. The flag drops
+   under the readouts when a phone cannot hold both on one row. */
 .pitch__drive {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 8px 14px;
 }
 
-.pitch__drive-text {
+.pitch__stats {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-wrap: wrap;
+  gap: 6px 18px;
   min-width: 0;
 }
 
-.pitch__drive-line {
+.pitch__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.pitch__stat-key {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 0.14em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--chalk-3);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.pitch__drive-note {
-  font-size: 10.5px;
-  color: var(--chalk-4);
+.pitch__stat-value {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 18px;
+  line-height: 1.1;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--chalk);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-/* The season number, on the flag. */
+/* The refresh countdown is a number, so it keeps the mono face. */
+.pitch__stat-value #countdown {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.pitch__stat--spent .pitch__stat-value {
+  color: var(--chalk-3);
+}
+
+/* What a pick being weighed would do to the season, in the direction's chalk. */
+.pitch__stat--preview-better .pitch__stat-value {
+  color: var(--safe);
+}
+
+.pitch__stat--preview-worse .pitch__stat-value {
+  color: var(--danger);
+}
+
+.pitch__stat--preview-even .pitch__stat-value {
+  color: var(--chalk-2);
+}
+
+/* The season number, on the flag. Centred on the flag's own axis: the two
+   faces sit on different baselines, so a baseline alignment left the number
+   low. */
 .pitch__tag {
   display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  height: 26px;
-  padding: 0 9px;
-  border-radius: 3px;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 4px;
   background: var(--flag);
   color: var(--on-flag);
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   white-space: nowrap;
   flex: none;
+  /* Alone on a row, when a phone wraps it, it keeps to the right. */
+  margin-left: auto;
 }
 
 .pitch__tag-value {
   font-family: var(--font-mono);
   font-weight: 600;
-  font-size: 14px;
+  font-size: 18px;
+  line-height: 1;
   letter-spacing: 0;
 }
 
@@ -1134,31 +1222,38 @@
    game beside it. */
 .seam {
   display: grid;
-  grid-template-columns: 54px minmax(0, 1fr);
+  grid-template-columns: 46px minmax(0, 1fr);
   gap: 8px;
 }
 
+/* The other side of the game: a square with the two arrows, quiet. */
 .seam__flip {
-  height: 54px;
+  height: 46px;
   padding: 0;
+  border-color: var(--line);
+  color: var(--chalk-2);
+}
+
+.seam__flip:hover:not(:disabled) {
+  border-color: var(--chalk);
   color: var(--chalk);
 }
 
 .seam__flip svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   fill: none;
   stroke: currentcolor;
-  stroke-width: 2.4;
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .seam__lock {
-  height: 54px;
+  height: 46px;
   padding: 0 14px;
-  font-size: 19px;
-  letter-spacing: 0.12em;
+  font-size: 16px;
+  letter-spacing: 0.1em;
   min-width: 0;
 }
 
@@ -1169,8 +1264,8 @@
 }
 
 .seam__lock svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   flex: none;
   fill: none;
   stroke: currentcolor;
@@ -1194,34 +1289,29 @@
 
 /* the drawer (ui/tabs.js) ---------------------------------------------------- */
 
-.drawer__handle {
-  width: 40px;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--chalk-4);
-  margin: 8px auto 0;
-  flex: none;
-}
-
+/* A strip of tabs along the top of the chalkboard: the open one is chalked
+   bright with the flag drawn under it. */
 .drawer__tabs {
   display: flex;
-  gap: 6px;
-  padding: 10px var(--gutter) 10px;
+  gap: 0;
+  padding: 0 var(--gutter);
+  border-bottom: 1px solid var(--line);
   flex: none;
 }
 
 .tab {
   appearance: none;
+  position: relative;
   flex: 1;
-  height: 38px;
+  height: 48px;
   padding: 0 8px;
-  border: 1.5px solid var(--line);
-  border-radius: 999px;
+  border: 0;
+  border-radius: 0;
   background: none;
-  color: var(--chalk-2);
+  color: var(--chalk-3);
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 14px;
+  font-size: 15px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   cursor: pointer;
@@ -1229,21 +1319,33 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  transition:
-    background-color 0.18s ease,
-    border-color 0.18s ease,
-    color 0.18s ease;
+  transition: color 0.18s ease;
+}
+
+/* The indicator, drawn under every tab and lit only under the open one, so it
+   is there to transition rather than appear. */
+.tab::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 3px;
+  border-radius: 2px 2px 0 0;
+  background: transparent;
+  transition: background-color 0.18s ease;
 }
 
 .tab:hover:not([aria-selected="true"]) {
-  border-color: var(--chalk);
-  color: var(--chalk);
+  color: var(--chalk-2);
 }
 
 .tab[aria-selected="true"] {
+  color: var(--chalk);
+}
+
+.tab[aria-selected="true"]::after {
   background: var(--flag);
-  border-color: var(--flag);
-  color: var(--on-flag);
 }
 
 .tab__count {
@@ -1279,7 +1381,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-top: 2px;
+  padding-top: 12px;
 }
 
 .sideline__label {
@@ -1511,7 +1613,7 @@
 .drive {
   display: flex;
   flex-direction: column;
-  padding-top: 2px;
+  padding-top: 12px;
 }
 
 .drive__head,
@@ -1672,7 +1774,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 6px;
-  padding-top: 10px;
+  padding-top: 14px;
 }
 
 .bench__team {
@@ -1938,20 +2040,29 @@
   overflow-wrap: anywhere;
 }
 
-/* Quiet, because changing your name is a thing you do once. */
+/* Changing your name: a quiet chalk pill, big enough to hit. */
 .home__name {
-  border: 0;
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
   background: none;
-  padding: 0 0 4px;
-  color: var(--chalk-3);
-  font-family: var(--font-body);
-  font-size: 12.5px;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  color: var(--chalk-2);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease;
 }
 
 .home__name:hover {
+  border-color: var(--chalk);
   color: var(--chalk);
 }
 
@@ -2040,6 +2151,30 @@
   stroke-linejoin: round;
 }
 
+/* Each icon in its own chalk, so the two are never taken for each other:
+   leaving is red, copying is teal. */
+.home__icon--leave {
+  border-color: color-mix(in srgb, var(--danger) 60%, transparent);
+  color: var(--danger);
+}
+
+.home__icon--leave:hover {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.home__icon--copy {
+  border-color: color-mix(in srgb, var(--solid) 60%, transparent);
+  color: var(--solid);
+}
+
+.home__icon--copy:hover {
+  border-color: var(--solid);
+  background: var(--solid-bg);
+  color: var(--solid);
+}
+
 /* The copy icon reporting: a tick on the flag, or a cross in red chalk. */
 .home__icon--done {
   background: var(--flag);
@@ -2055,7 +2190,13 @@
 .home__card-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  align-items: center;
+  gap: 5px 8px;
+}
+
+.home__card-people {
+  color: var(--chalk-3);
+  font-size: 12.5px;
 }
 
 .home__card-name {
@@ -2068,16 +2209,11 @@
   overflow-wrap: anywhere;
 }
 
-.home__card-rules,
 .home__card-warn {
   margin: 0;
-  color: var(--chalk-3);
+  color: var(--close);
   font-size: 12.5px;
   line-height: 1.45;
-}
-
-.home__card-warn {
-  color: var(--close);
 }
 
 /* The code, as the ticket stub: chalked in mono, spaced, selectable. */
@@ -2141,28 +2277,36 @@
   stroke-linejoin: round;
 }
 
-.home__card-actions[hidden],
-.home__confirm[hidden] {
+.home__card-actions[hidden] {
   display: none;
 }
 
-.home__confirm {
-  display: grid;
-  gap: 8px;
-  margin-top: auto;
+/* The leave question, in its sheet. */
+.home__sheet--confirm {
+  width: min(380px, calc(100vw - 32px));
 }
 
 .home__confirm-ask {
   margin: 0;
   color: var(--chalk-2);
-  font-size: 12.5px;
-  line-height: 1.45;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.home__confirm-ask strong {
+  color: var(--chalk);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .home__confirm-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-top: 4px;
 }
 
 .home__menu {
@@ -2741,35 +2885,6 @@
     font-size: 12px;
   }
 
-  /* Sheets rise from the bottom edge, with a grab handle. */
-  .settings,
-  .home__sheet {
-    width: 100vw;
-    max-width: 100vw;
-    max-height: 92dvh;
-    margin: 0;
-    inset: auto 0 0 0;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  }
-
-  .settings__head,
-  .home__sheet-head {
-    padding-top: calc(var(--sp-5) + 10px);
-  }
-
-  .settings__head::before,
-  .home__sheet-head::before {
-    content: "";
-    position: absolute;
-    top: 9px;
-    left: 50%;
-    width: 44px;
-    height: 4px;
-    border-radius: 2px;
-    background: var(--chalk-4);
-    transform: translateX(-50%);
-  }
-
   .notice {
     font-size: 13.5px;
   }
@@ -2792,12 +2907,24 @@
 /* wide ------------------------------------------------------------------------- */
 
 @media (min-width: 900px) {
+  /* Every week fits, so the field stops scrolling and the weeks share it. */
   .pitch__field {
     --zone-w: 60px;
-    height: 150px;
+    height: 160px;
+    overflow: hidden;
   }
 
-  .pitch__zone {
+  .pitch__track {
+    flex: 1 1 auto;
+  }
+
+  .pitch__yard {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+  }
+
+  .pitch__zone span {
     font-size: 18px;
   }
 
@@ -2806,9 +2933,10 @@
     bottom: 6px;
   }
 
-  .pitch__mark {
-    height: 14px;
-    top: 8px;
+  .pitch__label {
+    bottom: 26px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
   }
 
   .pitch__ball {
@@ -2816,36 +2944,17 @@
     height: 16px;
   }
 
-  /* With a yard line 60px wide, every week names its pick on the field. */
-  .pitch__label {
-    display: block;
-    position: absolute;
-    left: 50%;
-    bottom: 22px;
-    transform: translateX(-50%);
-    max-width: calc(100% - 6px);
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 11px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--chalk-2);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .pitch__stat-value {
+    font-size: 20px;
   }
 
-  .pitch__yard--now .pitch__label,
-  .pitch__yard--viewing .pitch__label {
-    color: var(--chalk);
+  .pitch__tag {
+    height: 40px;
+    font-size: 14px;
   }
 
-  .pitch__drive-line {
-    font-size: 13px;
-  }
-
-  .pitch__drive-note {
-    font-size: 11.5px;
+  .pitch__tag-value {
+    font-size: 20px;
   }
 
   /* The call and its action in one row. */
@@ -2911,15 +3020,12 @@
     align-content: end;
   }
 
-  .seam__lock {
-    height: 56px;
-    font-size: 17px;
+  .seam {
+    grid-template-columns: 46px minmax(0, 1fr);
   }
 
-  /* Every panel is open, so the tabs have nothing to switch and there is no
-     sheet to grab. */
-  .drawer__tabs,
-  .drawer__handle {
+  /* Every panel is open, so the tabs have nothing to switch. */
+  .drawer__tabs {
     display: none;
   }
 

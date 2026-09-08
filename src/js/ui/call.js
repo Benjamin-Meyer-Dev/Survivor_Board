@@ -141,10 +141,15 @@ function slotMarkup(pick, board, two, active) {
           text: pending ? "The coach is planning the season." : "Pick a team from the sideline.",
         };
 
+  // The coach's badge stays on a locked pick: the board clears isRecommended
+  // once a lock is a constraint the coach plans around, but it keeps the call
+  // the coach made before the lock (coachCall), which is what the badge means.
+  const coached =
+    pick.team && (pick.isRecommended || (status.locked && pick.coachCall?.team === pick.team));
   const marks = shown
     ? `<span class="chip chip--${shown.tier}">${TIER_LABEL[shown.tier]}</span>` +
-      (pick.isRecommended && pick.team
-        ? '<span class="chip chip--rec" title="This is the coach’s call">Coach</span>'
+      (coached
+        ? '<span class="chip chip--rec" title="This was the coach’s call">Coach</span>'
         : "") +
       resultChip(status)
     : "";
