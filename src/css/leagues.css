@@ -1,95 +1,96 @@
 /* ===========================================================================
    League palettes.
 
-   Every league uses the permanent dark stadium theme. The palette follows two
-   attributes on the root element: the season it plays (data-league, from
-   src/js/sports.js) and what its picks have to do (data-objective). College
-   carries the green field palette from tokens.css, the NFL a cool primetime
-   blue, and any league picking losers takes a warm amber over its season's own
-   surfaces - two leagues on one schedule wanting opposite results should not
-   look the same. Confidence colors do not change between leagues.
+   Every league plays the same night game. The palette follows two attributes
+   on the root element: the season it plays (data-league, from src/js/sports.js)
+   and what its picks have to do (data-objective). College keeps the turf
+   palette from tokens.css, the NFL goes primetime blue, and any league picking
+   losers takes spoiler amber over its season's own surfaces - two leagues on
+   one schedule wanting opposite results must not look the same. The confidence
+   scale never changes between them.
    ========================================================================== */
 
-/* --- NFL: primetime blue ------------------------------------------------ */
+/* --- NFL: primetime -------------------------------------------------------- */
 
 :root[data-league="nfl"] {
-  --ground: #080b12;
-  --surface: #131824;
-  --surface-2: #171d2b;
-  --line: #29314a;
-  --line-soft: #1f2637;
+  --ground: #04060d;
+  --ground-2: #0a1122;
+  --surface: #0b1222;
+  --surface-2: #10192d;
+  --surface-3: #16223c;
+  --line: #24304c;
+  --line-soft: #1b2539;
+  --line-strong: #33456c;
 
-  --ink: #e9ecf4;
-  --ink-2: #a6aec2;
-  --ink-3: #737c92;
+  --ink: #eef2fb;
+  --ink-2: #a9b5cf;
+  --ink-3: #6d7b9b;
 
-  --accent: #93b4f0;
-  --accent-soft: #17203a;
-  --accent-ink: #b6cdf8;
-  --on-accent: #0a1122;
+  --accent: #5fa6ff;
+  --accent-2: #8fdcff;
+  --accent-soft: #10203e;
+  --accent-ink: #acceff;
+  --on-accent: #030f24;
 
-  --lock: #93b4f0;
-  --lock-bg: #17203a;
+  --lock: #5fa6ff;
+  --lock-bg: #10203e;
 
   /* Magenta stays distinct from the blue league accent. */
-  --mulligan: #e58ab8;
-  --mulligan-bg: #2a1522;
-
-  --shadow: 0 1px 2px rgb(0 0 0 / 50%), 0 4px 14px rgb(0 0 0 / 40%);
+  --mulligan: #f08bcb;
+  --mulligan-bg: #2c1429;
 
   /* field.css tokens: a dome rather than green turf */
-  --yard: rgb(255 255 255 / 4%);
-  --yard-major: rgb(255 255 255 / 7%);
-  --chalk: rgb(255 255 255 / 11%);
-  --mow: rgb(147 180 240 / 2.6%);
-  --endzone: rgb(147 180 240 / 10%);
+  --yard: rgb(255 255 255 / 4.5%);
+  --yard-major: rgb(255 255 255 / 8%);
+  --chalk: rgb(255 255 255 / 12%);
+  --mow: rgb(95 166 255 / 2.4%);
+  --endzone: rgb(95 166 255 / 12%);
 }
 
-/* --- picking losers: spoiler amber -------------------------------------- */
+/* --- picking losers: spoiler amber ---------------------------------------- */
 
-/* A league whose picks have to lose, on whichever season it plays. The
-   surfaces are the season's own, because it is the same games under the same
-   lights; the accent turns warm, because what this league wants is the upset -
-   and because two leagues on one schedule wanting opposite results must not
-   look identical on the same phone. */
+/* Accents only. The ground, the surfaces and the ink stay the season's, so a
+   college losers league is still played on turf and an NFL one still under the
+   dome; what changes is every mark the board makes on top of them, which is
+   the half a glance actually lands on. */
 :root[data-objective="lose"] {
-  /* Accents only. The ground, the surfaces and the ink stay the season's, so a
-     college losers league is still played on green and an NFL one still under
-     the blue-black dome - what changes is every mark the board makes on top of
-     them, which is the half a glance actually lands on. */
-  --accent: #e9a24e;
-  --accent-soft: #2c1e12;
-  --accent-ink: #f3bd7a;
-  --on-accent: #1b1105;
+  --accent: #ffb02e;
+  --accent-2: #ffe08a;
+  --accent-soft: #2c1d08;
+  --accent-ink: #ffd489;
+  --on-accent: #1c1100;
 
-  --lock: #e9a24e;
-  --lock-bg: #2c1e12;
+  --lock: #ffb02e;
+  --lock-bg: #2c1d08;
 
   /* Cool against the amber, as the magenta is against the blue. */
-  --mulligan: #8fd0d8;
-  --mulligan-bg: #13262a;
+  --mulligan: #7fdbe8;
+  --mulligan-bg: #10282d;
 
-  /* field.css: the turf keeps its own light, the markings take the accent. */
-  --mow: rgb(233 162 78 / 2.6%);
-  --endzone: rgb(233 162 78 / 10%);
+  --mow: rgb(255 176 46 / 2.4%);
+  --endzone: rgb(255 176 46 / 12%);
 }
 
-/* --- league bar --------------------------------------------------------- */
+/* --- travelling colour ----------------------------------------------------- */
 
-/* The pool pill takes the open pool's accent, which every palette above sets,
-   so the bar needs no per-league rule of its own. Only the crossfade is left:
-   every board token changes with the pool and the board is faded out while it
-   happens, but the masthead and the bar stay visible, so their colours have to
+/* Every board token changes with the pool, and the board is faded out while
+   that happens; the masthead and the league bar stay visible, so their colours
    travel rather than jump. */
 body,
-.league-bar__back,
-.league-bar__pool,
+.masthead::after,
+.mast-ball,
+.masthead__title span,
+.league-bar__back::before,
+.league-bar__back::after,
+.league-bar__pool::before,
 .league-bar__select,
 .league-bar__chevron,
-.masthead::after {
+.settings__open::before,
+.settings__open::after {
   transition:
     background-color 0.3s ease,
     border-color 0.3s ease,
     stroke 0.3s ease,
+    fill 0.3s ease,
     color 0.3s ease;
 }

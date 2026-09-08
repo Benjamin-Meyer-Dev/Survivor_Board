@@ -65,6 +65,7 @@ export function renderStrip(root, board) {
         <span class="strip__key">${escapeHtml(cell.key)}</span>
         <span class="strip__value"${cell.motionValue ? ` data-motion-key="strip-value-${cell.id}"` : ""}>${cell.raw ? cell.value : escapeHtml(cell.value)}</span>
         <span class="strip__note"${cell.motionNote ? ` data-motion-key="strip-note-${cell.id}"` : ""}>${cell.noteRaw ? cell.note : escapeHtml(cell.note)}</span>
+        ${typeof cell.probability === "number" ? `<span class="strip__bar" style="--p:${cell.probability.toFixed(3)}" aria-hidden="true"></span>` : ""}
       </div>`,
     )
     .join("");

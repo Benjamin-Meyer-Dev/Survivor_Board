@@ -241,7 +241,7 @@ function card(league) {
         ${kinds
           .map(
             (kind) =>
-              `<span class="chip chip--${POOL_KINDS[kind].objective === "lose" ? "danger" : "picked"}">${escapeHtml(POOL_KINDS[kind].short)}</span>`,
+              `<span class="chip chip--kind chip--kind-${kind}">${escapeHtml(POOL_KINDS[kind].short)}</span>`,
           )
           .join("")}
       </div>

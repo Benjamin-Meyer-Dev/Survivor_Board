@@ -1,52 +1,110 @@
 /* ===========================================================================
-   Design tokens, "night game".
+   Design tokens, "under the lights".
 
-   The app has one permanent dark stadium theme. College uses a home-field
-   green accent; NFL overrides it with primetime blue in leagues.css.
+   One permanent night-game theme, built like a broadcast package rather than a
+   dashboard: top-lit surfaces on a near-black ground, one saturated accent per
+   league that everything live is drawn in, a fixed confidence scale, and an
+   angular shape language (cut corners, skewed slabs, corner brackets) that says
+   sports graphics rather than settings screen.
+
+   College carries the turf palette below; the NFL overrides it with primetime
+   blue and a losers pool turns the accent amber, both in leagues.css. Every
+   colour in the app resolves through one of these names.
    ========================================================================== */
 
 :root {
   color-scheme: dark;
 
-  /* dark turf surfaces */
-  --ground: #0a120e;
-  --surface: #121b16;
-  --surface-2: #16211b;
-  --line: #25332b;
-  --line-soft: #1d2822;
+  /* ground and surfaces: turf under floodlights ----------------------------
+     The ground is the stadium at night. Surfaces step up in three lifts so a
+     card, a row and a hover can each sit one step above what holds them. */
+  --ground: #04080a;
+  --ground-2: #0a1510;
+  --surface: #0c1712;
+  --surface-2: #101d17;
+  --surface-3: #15261e;
+  --line: #21332a;
+  --line-soft: #182720;
+  --line-strong: #2e4638;
 
-  /* text */
-  --ink: #e9eee9;
-  --ink-2: #a6b3aa;
-  --ink-3: #74847a;
+  /* ink */
+  --ink: #eef4ef;
+  --ink-2: #a7b8ac;
+  --ink-3: #6b8072;
 
-  /* college accent */
-  --accent: #65cf8b;
-  --accent-soft: #102a1a;
-  --accent-ink: #91e4ad;
-  --on-accent: #07150d;
+  /* college accent: turf green, with a hotter lime partner for gradients */
+  --accent: #4be487;
+  --accent-2: #a6ff6a;
+  --accent-soft: #0e2a1a;
+  --accent-ink: #9cf3bd;
+  --on-accent: #03170b;
 
-  /* confidence scale */
-  --safe: #58c98a;
-  --safe-bg: #102a1d;
-  --solid: #55bfaa;
-  --solid-bg: #0f2622;
-  --thin: #e08b3c;
-  --thin-bg: #2c1d0f;
-  --close: #ed8a66;
-  --close-bg: #321a14;
-  --danger: #e56b62;
-  --danger-bg: #2e1614;
+  /* confidence scale --------------------------------------------------------
+     Fixed across leagues on purpose: a status colour that moved with the
+     league would be a status colour nobody could trust. */
+  --safe: #4fe38f;
+  --safe-bg: #0f2a1c;
+  --solid: #4fd3c4;
+  --solid-bg: #0e2825;
+  --thin: #f0a23a;
+  --thin-bg: #2e1d0b;
+  --close: #ff7f5a;
+  --close-bg: #341a12;
+  --danger: #ff5f5f;
+  --danger-bg: #331414;
 
-  --lock: #65cf8b;
-  --lock-bg: #102a1a;
+  --lock: #4be487;
+  --lock-bg: #0e2a1a;
 
-  /* The buy back is deliberately outside both the confidence scale and the
-     league accent, so it cannot be mistaken for a status or an action. */
-  --mulligan: #b39ae0;
-  --mulligan-bg: #1e1930;
+  /* The buy back sits outside both the confidence scale and the league accent,
+     so it can never be mistaken for a status or an action. */
+  --mulligan: #b89dff;
+  --mulligan-bg: #1e1735;
 
-  --shadow: 0 1px 2px rgb(0 0 0 / 45%), 0 4px 14px rgb(0 0 0 / 35%);
+  /* The kinds of pool, as the home page tells them apart: the season's colour,
+     and amber for any pool that wants its picks to lose. These are the only
+     colours that do not follow the open league, because the home page is where
+     every league sits side by side. */
+  --kind-nfl: #63a5ff;
+  --kind-cfb: #4be487;
+  --kind-lose: #ffb02e;
+
+  /* light -------------------------------------------------------------------
+     Glows are the accent at part strength; the sheen is the floodlight catching
+     the top edge of a surface; the stripes are the hazard tape of an end zone. */
+  --glow: color-mix(in srgb, var(--accent) 45%, transparent);
+  --glow-soft: color-mix(in srgb, var(--accent) 22%, transparent);
+  --sheen: linear-gradient(180deg, rgb(255 255 255 / 5%), transparent 38%);
+  --stripes: repeating-linear-gradient(135deg, rgb(255 255 255 / 3.5%) 0 6px, transparent 6px 14px);
+  --shadow: 0 1px 0 rgb(255 255 255 / 4%) inset, 0 14px 34px -18px rgb(0 0 0 / 85%);
+  --shadow-lift: 0 1px 0 rgb(255 255 255 / 6%) inset, 0 22px 44px -18px rgb(0 0 0 / 90%);
+
+  /* shape -------------------------------------------------------------------
+     Cut corners, top right and bottom left: the one diagonal every tag and
+     control shares, so the whole board leans the same way. clip-path clips a
+     box-shadow with it, so anything that needs a glow draws its fill on a
+     clipped pseudo-element and puts the glow on the element (see components). */
+  --cut: 8px;
+  --cut-sm: 5px;
+  --clip-cut: polygon(
+    0 0,
+    calc(100% - var(--cut)) 0,
+    100% var(--cut),
+    100% 100%,
+    var(--cut) 100%,
+    0 calc(100% - var(--cut))
+  );
+  --clip-cut-sm: polygon(
+    0 0,
+    calc(100% - var(--cut-sm)) 0,
+    100% var(--cut-sm),
+    100% 100%,
+    var(--cut-sm) 100%,
+    0 calc(100% - var(--cut-sm))
+  );
+  --radius: 8px;
+  --radius-sm: 4px;
+  --radius-lg: 16px;
 
   /* type */
   --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
@@ -60,7 +118,4 @@
   --sp-4: 14px;
   --sp-5: 18px;
   --sp-6: 26px;
-
-  --radius: 10px;
-  --radius-sm: 6px;
 }

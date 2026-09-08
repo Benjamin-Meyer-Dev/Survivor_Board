@@ -507,7 +507,7 @@ function weekMarkup(week, board, canWrite) {
   return `
     <article class="panel week-slide${covered ? " week-slide--covered" : ""}${moot ? " week-slide--moot" : ""}"
              aria-label="Week ${week.week}">
-      <div class="panel__head">
+      <div class="panel__head" data-week="${String(week.week).padStart(2, "0")}">
         <h2 class="scoreboard">
           <span class="scoreboard__label">Week</span>
           <span class="scoreboard__num">${String(week.week).padStart(2, "0")}</span>
@@ -545,7 +545,7 @@ function renderSlot(pick, board, canWrite) {
 
   return `
     <div class="slot ${status.locked ? "slot--locked" : "slot--picked"}"
-         data-motion-key="slot-${pick.week}-${pick.slot}">
+         data-tier="${pick.tier}" data-motion-key="slot-${pick.week}-${pick.slot}">
       <div class="slot__head">
         <div class="slot__identity">
           <div class="u-eyebrow slot__eyebrow">${status.locked ? "Locked in" : "Your pick"}</div>
@@ -610,7 +610,8 @@ function renderEmptySlot(pick, board, canWrite) {
         </div>`;
 
   return `
-    <div class="slot slot--empty" data-motion-key="slot-${pick.week}-${pick.slot}">
+    <div class="slot slot--empty"${suggestion ? ` data-tier="${suggestion.tier}"` : ""}
+         data-motion-key="slot-${pick.week}-${pick.slot}">
       <div class="slot__head">${head}</div>
 
       ${numbers(suggestion, board)}
@@ -828,7 +829,20 @@ function numbers(line, board) {
         ${metric("Spread", line ? formatSpread(line.spread) : "—", false, line?.tier)}
         ${metric(probKey, line ? formatPercent(line.winProb) : "—", false, line?.tier)}
         ${metric("Line", line ? (line.source === "market" ? "Market" : "Projected") : "—", true)}
-      </div>`;
+      </div>
+      ${meter(line)}`;
+}
+
+/**
+ * The chance as field position: a bar under the numbers, filled to the
+ * probability in the tier's colour with the ball on the yard line it reached
+ * (see .slot__meter). Decoration for the number above it, so it is hidden from
+ * assistive tech; with nothing to price the field stands empty.
+ */
+function meter(line) {
+  if (!line) return `<div class="slot__meter slot__meter--none" aria-hidden="true"><i></i></div>`;
+  const share = Math.min(Math.max(line.winProb, 0), 1).toFixed(3);
+  return `<div class="slot__meter" style="--p:${share}" aria-hidden="true"><i></i></div>`;
 }
 
 function metric(key, value, isText = false, tier = null) {

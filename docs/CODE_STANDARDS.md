@@ -51,17 +51,30 @@ src/js/app.js   the only module that wires the other three together
   `scrollbar-width: none` and `::-webkit-scrollbar` are declared because
   setting the former makes Chromium ignore the latter.
 - The tab bar and the view it switches are one card: the bar owns the top
-  corners and has no bottom edge, the view owns the bottom corners and has no
-  top edge, and the selected tab takes the view's background so the seam
-  closes. Anything nested inside a view drops its own border, radius and
-  shadow rather than stacking a card inside a card.
+  corners and has no bottom edge, the view owns the bottom corners, and the
+  selected tab is lit by the slab that travels between tabs (`.tab-marker`)
+  rather than by a colour change on the label. Anything nested inside a view
+  drops its own border, radius and shadow rather than stacking a card inside a
+  card.
+- Cut corners come from `--clip-cut` in `tokens.css`, and `clip-path` clips a
+  border and a box-shadow with them. So a cut control is transparent and draws
+  its edge and its fill on `::before` and `::after`, coloured by `--edge` and
+  `--fill`, and a glow goes on the control itself as a `filter: drop-shadow`,
+  which follows the clipped outline. New cut controls join the selector list
+  at the top of `components.css`; do not hand-roll another one.
+- A tag (`.chip`) is coloured by `--tag-bg` and `--tag-fg`. A modifier sets
+  those two and nothing else, so every tag keeps the same cut and left bar.
+- A slot carries its pick's tier as `data-tier`, which sets `--tier`, and
+  everything in the slot that shows confidence (the edge bar, the meter) draws
+  from that one variable rather than from a tier class of its own.
 
 ## The theme
 
-`src/css/field.css` is the thematic layer, yard lines, the scoreboard header,
-chalk dividers, the field-position meter. It is separate on purpose: it sets
-no layout and no state, so deleting the file leaves a working, plainer app.
-Keep it that way. Anything structural belongs in `components.css`.
+`src/css/field.css` is the thematic layer: the stadium light and grain, the
+yard lines, the score-bug brackets and sidelines, the end zone on the week on
+the clock, the yard lines on the field-position meter. It is separate on
+purpose: it sets no layout and no state, so deleting the file leaves a working,
+plainer app. Keep it that way. Anything structural belongs in `components.css`.
 
 Football vocabulary is content, not decoration, and lives where the content
 does: `TIER_LABEL` in `core/probability.js` (Lock / Solid / Shaky / Close call /

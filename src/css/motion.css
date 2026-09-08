@@ -135,14 +135,14 @@
 
 /* --- press and hover, the states that outlive a render ------------------- */
 
+/* Cut controls draw their edge and fill on pseudo-elements and their glow as a
+   filter, so those are what travel on hover; colour is the label's. */
 .lock-toggle,
-.tab,
-.swap__option,
-.panel__nav button {
+.swap__option {
   transition:
     background-color 0.16s ease,
-    border-color 0.16s ease,
     color 0.16s ease,
+    filter 0.16s ease,
     transform 0.12s var(--ease-out);
 }
 
@@ -151,13 +151,11 @@
 }
 
 .swap__option:active:not(:disabled) {
-  transform: scale(0.965);
+  transform: scale(0.985);
 }
 
 .tab {
-  transition:
-    color 0.18s ease,
-    border-color 0.18s ease;
+  transition: color 0.18s ease;
 }
 
 .tab:active {
@@ -168,6 +166,41 @@
   transition:
     background-color 0.2s ease,
     color 0.2s ease;
+}
+
+/* --- sheets --------------------------------------------------------------- */
+
+/* A sheet rises into place and its backdrop fades up behind it. Keyed on the
+   open attribute, which the dialog gains every time it is shown, so the
+   entrance plays on each opening rather than once. */
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.settings[open],
+.home__sheet[open] {
+  animation: sheet-in 0.32s var(--ease-out) both;
+}
+
+.settings[open]::backdrop,
+.home__sheet[open]::backdrop {
+  animation: backdrop-in 0.3s ease both;
 }
 
 /* --- entering a tab ------------------------------------------------------ */
@@ -219,7 +252,7 @@
 }
 
 /* The board on its way out while the next league is being built. The masthead
-   is deliberately left alone: the switch you just tapped should stay solid and
+   is deliberately left alone: the picker you just tapped should stay solid and
    responsive, and it is what tells you the tap landed. */
 .shell.is-swapping .notice,
 .shell.is-swapping .strip,
@@ -343,11 +376,13 @@
 /* The head's children rather than the head: the head is also the lock band,
    and the band should stay put while what it holds settles. */
 .slot.is-data-updated .slot__head > *,
-.slot.is-data-updated .slot__numbers {
+.slot.is-data-updated .slot__numbers,
+.slot.is-data-updated .slot__meter {
   animation: data-settle 0.34s var(--ease-out) both;
 }
 
-.slot.is-data-updated .slot__numbers {
+.slot.is-data-updated .slot__numbers,
+.slot.is-data-updated .slot__meter {
   animation-delay: 35ms;
 }
 
@@ -358,16 +393,9 @@
 }
 
 /* Both halves of the lock feedback are overlays, drawn on top of the slot and
-   animated on opacity alone.
-
-   On top, so a lock and an unlock draw the same thing. The ring used to be an
-   inset shadow on the slot itself, and the head - once it had taken the lock
-   tint - covered the top of it: a lock showed the ring on three sides, an
-   unlock on all four.
-
-   Opacity alone, so the motion runs on the compositor and keeps running if
-   the re-plan that follows a lock lands early (see REPLAN_DELAY_MS in
-   app.js); an animated shadow stalls with the main thread and then jumps. */
+   animated on opacity alone, so the motion runs on the compositor and keeps
+   running if the re-plan that follows a lock lands early (see REPLAN_DELAY_MS
+   in app.js); an animated shadow stalls with the main thread and then jumps. */
 .slot__head::after,
 .slot::after {
   content: "";
@@ -381,13 +409,14 @@
    and draining away. A tint at its peak, never the full colour. */
 .slot__head::after {
   background: color-mix(in srgb, var(--lock) 30%, transparent);
-  border-radius: inherit;
 }
 
 /* The ring, round the whole slot and over everything in it. */
 .slot::after {
   z-index: 1;
-  box-shadow: inset 0 0 0 2px var(--lock);
+  box-shadow:
+    inset 0 0 0 2px var(--lock),
+    inset 0 0 30px var(--glow-soft);
 }
 
 /* Up quickly but not at once - an instant start is what reads as a flash -
@@ -414,7 +443,8 @@
   animation: lock-pulse 0.85s cubic-bezier(0.33, 0, 0.2, 1) 80ms both;
 }
 
-/* A new team arriving in the slot rises into place, numbers just behind it. */
+/* A new team arriving in the slot rises into place, numbers just behind it,
+   and the meter runs out to the new chance from the goal line. */
 @keyframes rise {
   from {
     opacity: 0;
@@ -422,6 +452,15 @@
   }
   to {
     opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes meter-run {
+  from {
+    transform: scaleX(0);
+  }
+  to {
     transform: none;
   }
 }
@@ -434,6 +473,11 @@
 .slot.fx-swap .slot__numbers {
   animation: rise 0.36s var(--ease-out) both;
   animation-delay: 0.05s;
+}
+
+.slot.fx-swap .slot__meter i {
+  transform-origin: left;
+  animation: meter-run 0.5s var(--ease-out) 0.08s both;
 }
 
 /* --- week pips ----------------------------------------------------------- */

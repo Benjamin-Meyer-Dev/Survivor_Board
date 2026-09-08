@@ -58,7 +58,7 @@ function rowMarkup(week, pick, board, showWeekProbability) {
           ? `<td class="is-wide-only ladder__num${isFirstSlot && week.pathTier ? ` confidence--${week.pathTier}` : ""}">${isFirstSlot && week.pathWinProb !== null ? formatPercent(week.pathWinProb) : ""}</td>`
           : ""
       }
-      <td class="ladder__num ladder__season${isFirstSlot && week.seasonTier ? ` confidence--${week.seasonTier}` : ""}">${isFirstSlot && week.seasonWinProb !== null ? formatPercent(week.seasonWinProb) : ""}</td>
+      <td class="ladder__num ladder__season${isFirstSlot && week.seasonTier ? ` confidence--${week.seasonTier}` : ""}"${isFirstSlot && week.seasonWinProb !== null ? ` style="--p:${week.seasonWinProb.toFixed(3)}"` : ""}>${isFirstSlot && week.seasonWinProb !== null ? formatPercent(week.seasonWinProb) : ""}</td>
       <td>${statusChip(pick.status, kind, moot)}</td>
     </tr>`;
 }

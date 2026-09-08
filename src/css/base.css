@@ -9,8 +9,13 @@
   box-sizing: border-box;
 }
 
+html {
+  background: var(--ground);
+}
+
 body {
   margin: 0;
+  min-height: 100dvh;
   background: var(--ground);
   color: var(--ink);
   font-family: var(--font-body);
@@ -33,6 +38,11 @@ a {
 
 button {
   font: inherit;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 /* Tapping a control must not flash the platform's own highlight over it - a
@@ -74,7 +84,7 @@ button {
 
 .u-display {
   font-family: var(--font-display);
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.01em;
 }
 
@@ -83,12 +93,15 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
+/* The small caption over a name or a number: a broadcast's "QB" over the
+   passer's name. Wide tracking, small, and quieter than what it labels. */
 .u-eyebrow {
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 12px;
+  letter-spacing: 0.16em;
+  font-size: 11px;
+  line-height: 1.2;
   color: var(--ink-3);
 }
 
@@ -107,7 +120,7 @@ button {
   }
 
   .u-eyebrow {
-    font-size: 13px;
+    font-size: 12px;
   }
 }
 
@@ -125,7 +138,7 @@ button {
   }
 
   /* The lock feedback overlays in motion.css are decorative; the state they
-     announce is already visible in the chips and colours. */
+     announce is already visible in the tags and colours. */
   .slot::after,
   .slot__head::after {
     display: none;
