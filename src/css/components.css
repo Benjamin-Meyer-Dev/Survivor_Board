@@ -750,13 +750,66 @@
   gap: 8px;
 }
 
-/* One chip per pool the league runs. */
+/* Copy link and Leave, as icons in the card's corner: about the league rather
+   than about going into it, so apart from the Open buttons below. */
+.home__card-tools {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+
+.home__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--surface-2);
+  color: var(--ink-3);
+  cursor: pointer;
+  transition:
+    color 180ms ease,
+    border-color 180ms ease;
+}
+
+.home__icon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.home__icon:hover {
+  color: var(--ink);
+  border-color: var(--ink-3);
+}
+
+.home__icon:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The link icon reporting: a tick in the accent, or a cross in the warning. */
+.home__icon--done {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.home__icon--failed {
+  color: var(--thin);
+  border-color: var(--thin);
+}
+
+/* One chip per pool the league runs, in a row under the name. */
 .home__card-chips {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
   gap: 4px;
-  flex-shrink: 0;
 }
 
 .home__card-name {
@@ -817,6 +870,33 @@
   flex-wrap: wrap;
   gap: 8px;
   margin-top: auto;
+}
+
+/* Leaving, asked in place of the Open buttons: the question takes their row
+   so the tap that means "no" cannot open a board instead. Both carry a display,
+   so the attribute needs saying. */
+.home__card-actions[hidden],
+.home__confirm[hidden] {
+  display: none;
+}
+
+.home__confirm {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.home__confirm-ask {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.home__confirm-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .home__forms {
@@ -885,88 +965,44 @@
   min-width: 0;
 }
 
-/* One row per kind of pool a league can run, as a list of checkboxes: any
-   number can be ticked, and each one ticked is a board the league gets. */
+/* One line per kind of pool a league can run, as a plain list of checkboxes:
+   any number can be ticked, and each one ticked is a board the league gets. */
 .home__options {
   display: grid;
-  gap: 6px;
-  margin-top: 6px;
+  gap: 10px;
+  margin-top: 8px;
 }
 
-/* The checkbox itself is the control; the row is what is tapped, so it carries
-   the whole target and the state. */
+/* The whole line is the tap target; the box is the platform's own checkbox,
+   in the accent, so it reads as a checkbox on every phone rather than as one
+   more pill that happens to toggle. */
 .home__option {
-  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
+  min-height: 28px;
   cursor: pointer;
 }
 
 .home__option input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* The box, drawn here so it reads the same on every platform: a line while
-   off, filled in the accent with a tick once the row is on. */
-.home__check {
-  position: relative;
+  appearance: auto;
   flex: none;
-  width: 20px;
-  height: 20px;
-  border: 1.5px solid var(--ink-3);
-  border-radius: 5px;
-  background: var(--surface-2);
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
-.home__check::after {
-  content: "";
-  position: absolute;
-  left: 6px;
-  top: 2px;
-  width: 5px;
-  height: 10px;
-  border: solid var(--on-accent);
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-  opacity: 0;
-}
-
-.home__option:has(input:checked) {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.home__option:has(input:checked) .home__check {
-  border-color: var(--accent);
-  background: var(--accent);
-}
-
-.home__option:has(input:checked) .home__check::after {
-  opacity: 1;
-}
-
-.home__option:has(input:focus-visible) {
+.home__option input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-}
-
-.home__option-text {
-  display: grid;
-  gap: 1px;
-  min-width: 0;
 }
 
 .home__option-name {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 13px;
+  font-size: 13.5px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-2);
@@ -974,12 +1010,6 @@
 
 .home__option:has(input:checked) .home__option-name {
   color: var(--ink);
-}
-
-.home__option-hint {
-  font-size: 11.5px;
-  line-height: 1.4;
-  color: var(--ink-3);
 }
 
 .home__hint {
@@ -1047,6 +1077,19 @@
 
 .home__btn--quiet {
   color: var(--ink-3);
+}
+
+/* The yes of a leave: red, so it is never mistaken for an Open. */
+.home__btn--danger {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.home__btn--danger:hover:not(:disabled) {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--ink);
 }
 
 .home__btn:focus-visible {

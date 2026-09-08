@@ -14,7 +14,9 @@
  * A league's code is shown on its card rather than hidden behind a share
  * sheet, because the code is the whole of how anyone else gets in: it has to
  * be readable off a screenshot and repeatable down a phone line, and Copy link
- * is the convenience rather than the mechanism.
+ * is the convenience rather than the mechanism. Copy link and Leave sit in the
+ * card's corner as icons, apart from the Open buttons: they are about the
+ * league, not about going into it, and Leave asks once more before it acts.
  *
  * Rebuilt on every render, unlike the masthead controls: nothing here animates
  * from a previous position, and the list changes shape as leagues arrive.
@@ -27,6 +29,21 @@
 import { POOL_KINDS, KIND_IDS, normaliseKinds } from "../sports.js";
 import { formatCode, joinLink, normaliseCode, isCode } from "../core/code.js";
 import { escapeHtml } from "../core/format.js";
+
+/* Stroke icons for the card's corner: a link, a door with an arrow out, and
+   the tick and cross the link swaps to while it reports. */
+const ICONS = {
+  link: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+  </svg>`,
+  leave: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <path d="m16 17 5-5-5-5M21 12H9" />
+  </svg>`,
+  done: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20 6-11 11-5-5" /></svg>`,
+  failed: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>`,
+};
 
 /**
  * @param {HTMLElement} root
@@ -93,11 +110,7 @@ function homeMarkup({ name, leagues, shared, loading, message }) {
                 (id) => `
               <label class="home__option">
                 <input type="checkbox" name="kinds" value="${id}" />
-                <span class="home__check" aria-hidden="true"></span>
-                <span class="home__option-text">
-                  <span class="home__option-name">${escapeHtml(POOL_KINDS[id].label)}</span>
-                  <span class="home__option-hint">${escapeHtml(POOL_KINDS[id].hint)}</span>
-                </span>
+                <span class="home__option-name">${escapeHtml(POOL_KINDS[id].label)}</span>
               </label>`,
               ).join("")}
             </div>
@@ -154,14 +167,21 @@ function card(league) {
              data-league="${escapeHtml(league.code)}">
       <div class="home__card-head">
         <h3 class="home__card-name">${escapeHtml(league.name)}</h3>
-        <span class="home__card-chips">
-          ${kinds
-            .map(
-              (kind) =>
-                `<span class="chip chip--${POOL_KINDS[kind].objective === "lose" ? "danger" : "picked"}">${escapeHtml(POOL_KINDS[kind].short)}</span>`,
-            )
-            .join("")}
-        </span>
+        <div class="home__card-tools">
+          <button type="button" class="home__icon" data-act="copy"
+                  aria-label="Copy the link to join" title="Copy link">${ICONS.link}</button>
+          <button type="button" class="home__icon" data-act="leave"
+                  aria-label="Leave this league" title="Leave">${ICONS.leave}</button>
+        </div>
+      </div>
+
+      <div class="home__card-chips">
+        ${kinds
+          .map(
+            (kind) =>
+              `<span class="chip chip--${POOL_KINDS[kind].objective === "lose" ? "danger" : "picked"}">${escapeHtml(POOL_KINDS[kind].short)}</span>`,
+          )
+          .join("")}
       </div>
 
       ${lines.map((line) => `<p class="home__card-rules">${escapeHtml(line)}</p>`).join("")}
@@ -188,8 +208,17 @@ function card(league) {
                 data-kind="${kind}">${several ? `Open ${escapeHtml(POOL_KINDS[kind].label)}` : "Open"}</button>`,
           )
           .join("")}
-        <button type="button" class="home__btn" data-act="copy">Copy link</button>
-        <button type="button" class="home__btn home__btn--quiet" data-act="leave">Leave</button>
+      </div>
+
+      <div class="home__confirm" hidden>
+        <p class="home__confirm-ask">
+          Leave ${escapeHtml(league.name)}? It stays for everyone else, and the code gets
+          you back in.
+        </p>
+        <div class="home__confirm-row">
+          <button type="button" class="home__btn home__btn--danger" data-act="leave-yes">Yes, leave</button>
+          <button type="button" class="home__btn home__btn--quiet" data-act="leave-no">Stay</button>
+        </div>
       </div>
     </article>`;
 }
@@ -263,26 +292,59 @@ function wire(root, handlers) {
     for (const open of node.querySelectorAll('[data-act="open"]')) {
       open.addEventListener("click", () => handlers.onOpen(code, open.dataset.kind));
     }
-    node
-      .querySelector('[data-act="leave"]')
-      .addEventListener("click", () => handlers.onLeave(code));
-
-    const copy = node.querySelector('[data-act="copy"]');
-    copy.addEventListener("click", async () => {
-      const link = joinLink(code);
-      try {
-        await navigator.clipboard.writeText(link);
-        copy.textContent = "Link copied";
-      } catch {
-        // Clipboard refused - an insecure origin, or a browser that asks. The
-        // code is on the card either way, which is the part that matters.
-        copy.textContent = "Copy failed";
-      }
-      setTimeout(() => {
-        copy.textContent = "Copy link";
-      }, 1800);
-    });
+    wireLeave(node, () => handlers.onLeave(code));
+    wireCopy(node.querySelector('[data-act="copy"]'), code);
   }
+}
+
+/**
+ * Leaving, in two taps: the icon swaps the Open buttons for the question, and
+ * only the answer acts. Leaving is easy to undo - the code gets you back in -
+ * but a card's corner is an easy place for a thumb to land, and the swap means
+ * nothing can be opened by the tap that was meant to say no.
+ */
+function wireLeave(node, onLeave) {
+  const leave = node.querySelector('[data-act="leave"]');
+  const actions = node.querySelector(".home__card-actions");
+  const confirm = node.querySelector(".home__confirm");
+  const yes = confirm.querySelector('[data-act="leave-yes"]');
+  const no = confirm.querySelector('[data-act="leave-no"]');
+
+  leave.addEventListener("click", () => {
+    actions.hidden = true;
+    confirm.hidden = false;
+    yes.focus();
+  });
+  no.addEventListener("click", () => {
+    confirm.hidden = true;
+    actions.hidden = false;
+    leave.focus();
+  });
+  yes.addEventListener("click", onLeave);
+}
+
+/**
+ * Copy the join link, and say so with the icon: a tick for a moment, or a cross
+ * when the browser refused - an insecure origin, or a permission declined. The
+ * code is on the card either way, which is the part that matters.
+ */
+function wireCopy(button, code) {
+  button.addEventListener("click", async () => {
+    let state = "done";
+    try {
+      await navigator.clipboard.writeText(joinLink(code));
+    } catch {
+      state = "failed";
+    }
+    button.innerHTML = ICONS[state];
+    button.classList.add(`home__icon--${state}`);
+    button.title = state === "done" ? "Link copied" : "Copy failed";
+    setTimeout(() => {
+      button.innerHTML = ICONS.link;
+      button.classList.remove(`home__icon--${state}`);
+      button.title = "Copy link";
+    }, 1800);
+  });
 }
 
 /** The pools ticked in the create form, in the order they are offered. */
