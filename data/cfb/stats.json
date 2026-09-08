@@ -1,6 +1,6 @@
 {
   "$comment": "Written by scripts/pull-stats.mjs from CollegeFootballData game PPA. Never edit by hand. One record per team per game, keyed \"<week>|<team>\" like odds.json: `margin` is the team's offensive expected points added less its opponent's, capped, and is what the rating fit in form.json reads as an efficiency observation. The other fields say where it came from.",
-  "updatedAt": "2026-09-07T18:16:47Z",
+  "updatedAt": "2026-09-08T13:27:29Z",
   "source": "https://api.collegefootballdata.com/ppa/games",
   "season": 2026,
   "games": {
@@ -487,10 +487,10 @@
     "1|Georgia Southern": {
       "opponent": "Charleston Southern",
       "margin": 35,
-      "offensePerPlay": 0.27,
-      "defensePerPlay": 0.32,
-      "passingPerPlay": 0.34,
-      "rushingPerPlay": 0.16
+      "offensePerPlay": 0.24,
+      "defensePerPlay": 0.29,
+      "passingPerPlay": 0.35,
+      "rushingPerPlay": 0.1
     },
     "1|Georgia State": {
       "opponent": "North Carolina A&T",
@@ -1078,51 +1078,59 @@
     },
     "1|Louisville": {
       "opponent": "Ole Miss",
-      "margin": 6.3,
-      "offensePerPlay": 0.39,
-      "defensePerPlay": -0.3,
+      "margin": 4.2,
+      "offensePerPlay": 0.35,
+      "defensePerPlay": -0.29,
       "passingPerPlay": 0.47,
-      "rushingPerPlay": 0.32
+      "rushingPerPlay": 0.24
     },
     "1|Notre Dame": {
       "opponent": "Wisconsin",
-      "margin": 19.6,
+      "margin": 27.3,
       "offensePerPlay": 0.35,
-      "defensePerPlay": -0.07,
+      "defensePerPlay": 0.04,
       "passingPerPlay": 0.44,
       "rushingPerPlay": 0.22
     },
     "1|Ole Miss": {
       "opponent": "Louisville",
-      "margin": -6.3,
-      "offensePerPlay": 0.3,
-      "defensePerPlay": -0.39,
+      "margin": -4.2,
+      "offensePerPlay": 0.29,
+      "defensePerPlay": -0.35,
       "passingPerPlay": 0.54,
-      "rushingPerPlay": 0.13
+      "rushingPerPlay": 0.11
     },
     "1|Washington": {
       "opponent": "Washington State",
-      "margin": 7.7,
+      "margin": 7,
       "offensePerPlay": 0.08,
-      "defensePerPlay": 0.03,
+      "defensePerPlay": 0.02,
       "passingPerPlay": 0.26,
       "rushingPerPlay": 0
     },
     "1|Washington State": {
       "opponent": "Washington",
-      "margin": -7.7,
-      "offensePerPlay": -0.03,
+      "margin": -7,
+      "offensePerPlay": -0.02,
       "defensePerPlay": -0.08,
       "passingPerPlay": -0.08,
-      "rushingPerPlay": -0.02
+      "rushingPerPlay": 0
     },
     "1|Wisconsin": {
       "opponent": "Notre Dame",
-      "margin": -19.6,
-      "offensePerPlay": 0.07,
+      "margin": -27.3,
+      "offensePerPlay": -0.04,
       "defensePerPlay": -0.35,
-      "passingPerPlay": 0.29,
+      "passingPerPlay": 0.07,
       "rushingPerPlay": -0.16
+    },
+    "1|SMU": {
+      "opponent": "Florida State",
+      "margin": 12.6,
+      "offensePerPlay": 0.37,
+      "defensePerPlay": -0.19,
+      "passingPerPlay": 0.58,
+      "rushingPerPlay": 0.13
     }
   }
 }
