@@ -282,6 +282,40 @@
     transform 0.16s ease;
 }
 
+/* --- between the home page and a board ------------------------------------
+   A step between the two pages is one movement rather than a cut: whichever
+   is on its way out sinks and fades, and the one that arrives rises into the
+   place it left. The board's own arrival is league-enter below, which is the
+   same shape at the same easing - these two are the half the home page was
+   missing, and what makes the pair read as a single move.
+
+   The leaving page stops taking taps while it goes, so a control halfway
+   through a fade cannot be pressed. */
+
+.is-page-leaving {
+  opacity: 0;
+  transform: translateY(8px) scale(0.994);
+  transition:
+    opacity 0.17s ease,
+    transform 0.17s ease;
+  pointer-events: none;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.is-page-entering {
+  animation: page-enter 0.34s var(--ease-out) both;
+}
+
 @keyframes league-enter {
   from {
     opacity: 0;

@@ -561,9 +561,13 @@
   max-height: inherit;
 }
 
+/* The name and the code to join, chalked off from the rules below: what the
+   league is called and how to get into it are not rules, and the sheet reads
+   as three things rather than one list with a header. */
 .settings__head {
   position: relative;
-  padding: var(--sp-5) var(--sp-5) 0;
+  padding: var(--sp-5) var(--sp-5) var(--sp-5);
+  border-bottom: var(--dash);
 }
 
 .settings__title {
@@ -791,10 +795,16 @@
 }
 
 /* The foot of the body, set apart: taking a pool or the league down. */
+/* Taking the pool or the league down, chalked off the same way. The line runs
+   to the sheet's edges like the head's above it, so the two read as the same
+   kind of division; the body's own padding is given back for the width and
+   taken again inside. */
 .settings__danger {
   display: grid;
   gap: 8px;
-  padding-top: var(--sp-3);
+  margin: 0 calc(var(--sp-5) * -1) calc(var(--sp-5) * -1);
+  padding: var(--sp-5);
+  border-top: var(--dash);
 }
 
 .settings__danger-row {
@@ -1023,12 +1033,14 @@
   gap: 10px;
 }
 
+/* The readouts are laid out by the drive row itself rather than inside a box
+   of their own, so every one of them and the season tag are spaced as a single
+   set however many there are. A college pool has no buy back to show, and a
+   row that pushed its own two ends apart left a hole in the middle while
+   crowding the tag on the right. From 900px there is width enough that the
+   readouts group at the left instead, and the box comes back to do it. */
 .pitch__stats {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
+  display: contents;
 }
 
 .pitch__stat {
@@ -1057,6 +1069,17 @@
   text-transform: uppercase;
   color: var(--chalk);
   white-space: nowrap;
+}
+
+/* The arrow before an "if locked" number, lifted to sit level with it. The
+   display face draws the arrow around the middle of its x-height and the
+   figures from the baseline to their cap height, so the two ink centres are
+   0.14em apart and the arrow reads as sagging under the number until it is
+   moved. Measured, not guessed: see PREVIEW_ARROW in ui/pitch.js. */
+.pitch__stat-arrow {
+  display: inline-block;
+  margin-right: 2px;
+  transform: translateY(-0.14em);
 }
 
 /* The refresh countdown is a number, so it keeps the mono face. */
@@ -1294,9 +1317,22 @@
   font-size: 12px;
 }
 
-/* When the game kicks off, kept on one line at the end of the matchup. */
+/* When the game kicks off, at the end of the matchup and never broken inside
+   itself. */
 .call__kickoff {
   white-space: nowrap;
+}
+
+/* Two picks a week halve the slot, and the game and its kickoff have never fit
+   one line there: the kickoff wrapped whole and left the dot hanging at the end
+   of the line above. So it takes its own line instead and the break does the
+   separating - see kickoffMarkup in ui/call.js. */
+.call__slots--two .call__kickoff {
+  display: block;
+}
+
+.call__slots--two .call__sep {
+  display: none;
 }
 
 /* The stat line, under the name where it has the width: spread, the chance
@@ -2052,11 +2088,17 @@
 
 /* The key, across the foot: each swatch is a real card in the state it
    explains, so the key cannot drift from the chart above it. */
+/* Two columns, centred as a block. A wrapping flex row centred each of its
+   rows on its own, and because the keys are different lengths - "Open" against
+   "Coach plan" - the second item of one row never lined up with the second of
+   the next. Two grid tracks sized to their own widest item line up down the
+   column, and centring the tracks rather than the items keeps the pair
+   centred as a whole. */
 .legend {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
   justify-content: center;
-  gap: 10px 24px;
+  gap: 10px 22px;
   padding: 14px 0 0;
   margin-top: 10px;
   border-top: 1px solid var(--line);
@@ -3072,6 +3114,16 @@
     font-size: 32px;
   }
 
+  /* Two columns still fit on the narrowest phone, but only just: the swatch
+     and the gap between the columns give up what they need to. */
+  .legend {
+    column-gap: 14px;
+  }
+
+  .legend__swatch {
+    width: 92px;
+  }
+
   .pitch__stats {
     gap: 8px;
   }
@@ -3131,6 +3183,9 @@
   }
 
   .pitch__stats {
+    display: flex;
+    flex: 1;
+    min-width: 0;
     justify-content: flex-start;
     gap: 28px;
   }
@@ -3227,7 +3282,11 @@
     padding-top: 0;
   }
 
+  /* The bench sits in the narrowest of the three panels - a quarter of the
+     board, where a phone gives it the whole width - so the two columns it has
+     there do not fit and it runs as one. Still a column that lines up, still
+     centred. */
   .legend {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: max-content;
   }
 }

@@ -144,6 +144,16 @@ const SLIDE_OUT_MS = 130;
 /** And how long that one takes to come in, for the clip to be lifted after. */
 const SLIDE_IN_MS = 280;
 
+/**
+ * How long the page on its way out takes to clear before the next one shows.
+ *
+ * Long enough to read as leaving and short enough not to be a wait. The board
+ * takes longer to arrive than this - its data may still be loading, and its
+ * entrance is league-enter's 360ms on top - so this is the only part of the
+ * move whose length is ours to choose.
+ */
+const PAGE_LEAVE_MS = 170;
+
 const REDUCED_MOTION = matchMedia("(prefers-reduced-motion: reduce)");
 
 /**
@@ -228,6 +238,46 @@ function playSwitch() {
   void shell.offsetWidth;
   shell.classList.add("is-switching");
   setTimeout(() => shell.classList.remove("is-switching"), 500);
+}
+
+/**
+ * Send a page away: it sinks and fades, and stops taking taps while it does.
+ *
+ * Returns how long to wait before the next page is put up, so a caller can
+ * sequence the two halves without knowing the timing. Zero with motion
+ * reduced, or for a page that was not on screen to begin with, and then the
+ * change is a straight swap.
+ */
+function leavePage(page) {
+  if (!page || page.hidden || REDUCED_MOTION.matches) return 0;
+  page.classList.add("is-page-leaving");
+  return PAGE_LEAVE_MS;
+}
+
+/**
+ * And bring one on: it rises into the place the last one left.
+ *
+ * One-shot, applied after the render that built the page, for the same reason
+ * playEffect and playSwitch are - innerHTML has just replaced the nodes an
+ * earlier class would have been sitting on. The board has its own entrance in
+ * playSwitch, which is the same shape; this is the half the home page was
+ * missing, and why a step between the two used to be a cut.
+ */
+function enterPage(page) {
+  if (!page || REDUCED_MOTION.matches) return;
+  page.classList.remove("is-page-leaving", "is-page-entering");
+  // Forces the finished animation to be dropped before it is re-added, so a
+  // second visit plays rather than doing nothing.
+  void page.offsetWidth;
+  page.classList.add("is-page-entering");
+  setTimeout(() => page.classList.remove("is-page-entering"), 400);
+}
+
+/** Whatever a page change left on either page, off. */
+function settlePages() {
+  for (const page of [el.home, el.board]) {
+    page?.classList.remove("is-page-leaving", "is-page-entering");
+  }
 }
 
 /**
@@ -564,6 +614,11 @@ function lookAt(week) {
 function renderHomeView() {
   el.board.hidden = true;
   el.home.hidden = false;
+  // Whatever a page change left on either of them, off. This is the one place
+  // that puts the home page up and the board away, so a fade that was
+  // interrupted - or one that has just finished - cannot leave the board
+  // flagged as leaving and invisible the next time it is opened.
+  settlePages();
   // The league bar is a board's: on the home page there is no league for it to
   // name, so it is hidden whole - the way back, the picker and the gear.
   if (el.leagueBar) el.leagueBar.hidden = true;
@@ -637,13 +692,31 @@ async function reloadLeagues() {
  * where the person is rather than back inside a league.
  */
 function goHome() {
-  app.view = "home";
+  if (app.switching) return;
+  // The address bar answers at once, whatever the board is still doing on
+  // screen: the tap has been taken, and a URL that lags looks like it has not.
   if (window.location.hash)
     window.history.pushState(null, "", window.location.pathname + window.location.search);
-  // Back from a board, the page starts folded: a form left open on the way
-  // out is not what anyone came back for.
-  closeHomePanels();
-  renderHomeView();
+
+  const wait = leavePage(el.board);
+  const land = () => {
+    app.view = "home";
+    // Back from a board, the page starts folded: a form left open on the way
+    // out is not what anyone came back for.
+    closeHomePanels();
+    renderHomeView();
+    enterPage(el.home);
+    app.switching = false;
+  };
+
+  if (!wait) {
+    land();
+    return;
+  }
+  // Held for the length of the fade, so a second tap cannot start a board
+  // opening behind a board that is still leaving.
+  app.switching = true;
+  setTimeout(land, wait);
 }
 
 /**
@@ -658,27 +731,50 @@ async function openBoard(code, kind = null) {
   const clean = normaliseCode(code);
   if (app.switching) return;
   app.switching = true;
-  el.shell?.classList.add("is-swapping");
+  // The board's own regions fade out only when a board is what we are leaving
+  // - a link followed while one is already open. From the home page there is
+  // no board on screen to fade, and adding it there showed the topline of the
+  // new board for a frame over a readout still held at nothing.
+  if (!el.board?.hidden) el.shell?.classList.add("is-swapping");
+
+  // The home page leaves while the league loads rather than after it: the two
+  // overlap, so the wait is spent on the half of the move that can be shown.
+  const left = leavePage(el.home);
 
   try {
     const league = await leagueByCode(clean);
     if (!league) throw new Error("That league could not be found.");
+    // The rest of the fade, if the league arrived before it finished. A board
+    // that cut in over a half-faded home page would be the jump this is here
+    // to avoid.
+    if (left) await new Promise((done) => setTimeout(done, left));
     // Before openLeague, because it ends in the first render of the new board
     // and a render reads this to decide which screen it is painting.
     app.view = "board";
     el.home.hidden = true;
     el.board.hidden = false;
+    el.board.classList.remove("is-page-leaving");
     if (el.leagueBar) el.leagueBar.hidden = false;
     await openLeague(league, kind);
     window.history.replaceState(null, "", leagueHash(league.code, app.kind));
-    playSwitch();
+    // The whole board arrives, topline and all: coming from the home page this
+    // is a page change, so the thing that rises is the page. playSwitch is for
+    // the other kind of arrival - a switch between one league's pools, where
+    // the topline is deliberately left solid because the picker that was just
+    // tapped is in it.
+    enterPage(el.board);
   } catch (error) {
     app.view = "home";
     app.league = null;
     app.homeMessage = `Could not open that league: ${error.message}`;
     renderHomeView();
+    enterPage(el.home);
   } finally {
     el.shell?.classList.remove("is-swapping");
+    // Whichever way it went, neither page is mid-move any more: the board is
+    // up, or the home page is back with the reason it did not open.
+    el.home?.classList.remove("is-page-leaving");
+    el.board?.classList.remove("is-page-leaving");
     app.switching = false;
   }
 }

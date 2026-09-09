@@ -310,9 +310,11 @@ function takeDown(root, dialog, step) {
 }
 
 /**
- * The foot of the body: taking a pool out of the league, and taking the league
- * down. The last pool cannot go on its own - a league with no board is nothing
- * to open - so that button waits for the league to be deleted instead.
+ * The foot of the body, sectioned off by a chalk line: taking a pool out of
+ * the league, and taking the league down. The last pool cannot go on its own -
+ * a league with no board is nothing to open - so that button waits for the
+ * league to be deleted instead, and says so on itself rather than in a line
+ * under the pair.
  */
 function takeDownMarkup() {
   const { league, kind } = current;
@@ -356,17 +358,12 @@ function takeDownMarkup() {
     <div class="settings__danger">
       <div class="settings__danger-row">
         <button type="button" class="settings__btn settings__btn--quiet" data-danger="remove"
-                ${last || !pool ? "disabled" : ""}>Remove ${escapeHtml(pool?.label ?? "this pool")}</button>
-        <button type="button" class="settings__btn settings__btn--danger"
-                data-danger="delete">Delete league</button>
+                ${last || !pool ? "disabled" : ""}
+                title="${last ? "A league keeps its last pool: deleting the league is what takes it down" : `Remove ${escapeHtml(pool?.label ?? "this pool")} from the league, for everyone in it`}"
+                >Remove ${escapeHtml(pool?.label ?? "this pool")}</button>
+        <button type="button" class="settings__btn settings__btn--danger" data-danger="delete"
+                title="Delete the league for everyone in it">Delete league</button>
       </div>
-      <p class="settings__hint">
-        ${
-          last
-            ? "A league keeps its last pool: deleting the league is what takes it down."
-            : "Either one is for everyone in the league, and asks once more before it acts."
-        }
-      </p>
     </div>`;
 }
 
@@ -430,6 +427,11 @@ function paint(root, keep = null) {
     })}
 
     ${group({
+      legend: "Buy backs",
+      controls: stepper("buyBacks", rules.buyBacks, { min: 0, max: maxBuyBacks, none: "None" }),
+    })}
+
+    ${group({
       legend: "Buy Back Weeks",
       stack: true,
       controls: `<div class="settings__weeks">
@@ -442,11 +444,6 @@ function paint(root, keep = null) {
           )
           .join("")}
       </div>`,
-    })}
-
-    ${group({
-      legend: "Buy backs",
-      controls: stepper("buyBacks", rules.buyBacks, { min: 0, max: maxBuyBacks, none: "None" }),
     })}
 
     ${takeDownMarkup()}`;

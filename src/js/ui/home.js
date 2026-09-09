@@ -66,9 +66,14 @@ const ICONS = {
   failed: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>`,
   go: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>`,
   plus: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>`,
+  /* A key laid flat: the bow, the shaft, and two teeth hanging off it. The
+     diagonal one this replaces drew its teeth across the shaft rather than
+     off one side of it, so at 17px the head read as a cross rather than as a
+     key. Flat and level with the plus beside it also gives the bow's hole
+     enough room to still be a hole at that size. */
   key: `<svg viewBox="0 0 24 24" aria-hidden="true">
-    <circle cx="7.5" cy="15.5" r="4.5" />
-    <path d="m10.8 12.2 9.7-9.7M15 7l3 3M18 4l2 2" />
+    <circle cx="8" cy="12" r="5.5" />
+    <path d="M13.5 12h8M17.5 12v4M21.5 12v2.6" />
   </svg>`,
   close: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>`,
 };

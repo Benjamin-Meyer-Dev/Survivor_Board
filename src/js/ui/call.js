@@ -360,7 +360,18 @@ function lineMove(pick) {
 }
 
 /** When the game kicks off, after the matchup, when the feed has timed it. */
+/**
+ * When the game kicks off, after the game itself.
+ *
+ * The separator is an element rather than a character because it is not always
+ * wanted. In a two-pick week the slot is half a card wide and the game and its
+ * kickoff never fit one line; the kickoff wraps whole, since it must never
+ * break inside itself, and the dot was left hanging at the end of the line
+ * above. There the CSS drops the dot and gives the kickoff its own line, so the
+ * break is the separator. In a one-pick week the pair fits and the dot stays.
+ */
 function kickoffMarkup(line) {
   const when = formatKickoff(line.kickoff);
-  return when ? ' · <span class="call__kickoff">' + escapeHtml(when) + "</span>" : "";
+  if (!when) return "";
+  return `<span class="call__sep"> · </span><span class="call__kickoff">${escapeHtml(when)}</span>`;
 }

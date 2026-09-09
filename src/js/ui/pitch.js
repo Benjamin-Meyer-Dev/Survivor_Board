@@ -49,6 +49,17 @@ const BALL = `<svg class="pitch__ball" viewBox="0 0 34 21" aria-hidden="true">
 </svg>`;
 
 /**
+ * The arrow before the "if locked" number.
+ *
+ * Its own element so it can be lifted. The display face draws the arrow around
+ * the middle of its x-height, well under the middle of the figures beside it -
+ * measured at 0.14em of the two ink centres apart - so left alone it sits
+ * below the number rather than level with it. Hidden from a screen reader,
+ * which reads the number and the key above it and needs no glyph for "to".
+ */
+const PREVIEW_ARROW = `<span class="pitch__stat-arrow" aria-hidden="true">→</span>`;
+
+/**
  * @param {HTMLElement} root
  * @param {object} board Result of buildBoard().
  * @param {number} viewWeek The week being looked at (1-based).
@@ -214,7 +225,12 @@ function stats(board) {
           ? "better"
           : "worse";
     items.push(
-      stat("If locked", `→ ${formatPercent(board.previewPathProbability)}`, `preview-${change}`),
+      stat(
+        "If locked",
+        `${PREVIEW_ARROW}${escapeHtml(formatPercent(board.previewPathProbability))}`,
+        `preview-${change}`,
+        true,
+      ),
     );
   } else {
     items.push(

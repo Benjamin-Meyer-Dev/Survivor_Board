@@ -112,6 +112,17 @@ unchanged and never asks which pool it is in. The one exception is
 `core/scenarios.js`, which draws its own spreads and so has to be told which
 side of them to price.
 
+Stepping between the home page and a board is one movement rather than a cut:
+whichever page is leaving sinks and fades and stops taking taps, and the one
+arriving rises into the place it left (`leavePage`/`enterPage` in `app.js`,
+`is-page-leaving`/`page-enter` in `motion.css`). Opening a league overlaps the
+two halves - the home page leaves while the league's files load, so the wait is
+spent on the part of the move that can be shown. A whole board arriving is a
+page change and rises as one, topline included; a switch between one league's
+pools is not, and there `playSwitch` moves only the readout and the drawer,
+because the picker that was just tapped is in the topline and should stay
+solid.
+
 Colour is the one thing that does not come off the board: `app.js` stamps
 `data-league` on the root element and `src/css/leagues.css` redefines the
 tokens beneath it, so the whole app repaints from one attribute write. The
