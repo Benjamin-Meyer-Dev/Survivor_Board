@@ -4,11 +4,13 @@
  * The gear beside the league picker opens a modal `<dialog>` holding
  * everything about a league that is not a pick. The code and the link to join
  * by are at the top, because handing those out is the most common reason to
- * open it, and the name is edited in place there; the rules a pool can change
- * are below - which weeks of the season it runs over, how many picks a week,
- * how many buy backs, and which weeks a buy back can cover. Native dialog, so
- * the focus trap, the backdrop, Esc and the top layer are the platform's
- * rather than three hundred lines of ours.
+ * open it, and the name is edited in place there; taking the pool or the
+ * league down sits with them, since all three are about the league itself
+ * rather than about how it is played. Those stay put. Only the rules scroll -
+ * which weeks of the season it runs over, how many picks a week, how many buy
+ * backs, and which weeks a buy back can cover. Native dialog, so the focus
+ * trap, the backdrop, Esc and the top layer are the platform's rather than
+ * three hundred lines of ours.
  *
  * Edits are a draft until Save. Changing a rule re-plans the season - a beam
  * search over every remaining week - so committing on each tap would run it
@@ -149,6 +151,7 @@ function buildSheet(root) {
           <p class="settings__pool" hidden>
             Read-only on this device: the rules can be read here and not changed.
           </p>
+          <div class="settings__take"></div>
         </div>
         <div class="settings__body"></div>
         <div class="settings__foot">
@@ -160,7 +163,6 @@ function buildSheet(root) {
 
   const dialog = root.querySelector(".settings");
   const form = root.querySelector(".settings__form");
-  const body = root.querySelector(".settings__body");
   const name = root.querySelector(".settings__name");
 
   // The name is edited in place: tapping away saves it, and a blank or
@@ -228,8 +230,11 @@ function buildSheet(root) {
   });
 
   // One listener for every control in the sheet: they are rebuilt on each
-  // paint, so binding per control would leak a listener per keystroke.
-  body.addEventListener("click", (event) => {
+  // paint, so binding per control would leak a listener per keystroke. On the
+  // form rather than on the body, because the take-down buttons live in the
+  // pinned head and the rules in the part that scrolls, and both are rebuilt
+  // by the same paint.
+  form.addEventListener("click", (event) => {
     const take = event.target.closest("[data-danger]");
     if (take) {
       takeDown(root, dialog, take.dataset.danger);
@@ -310,11 +315,13 @@ function takeDown(root, dialog, step) {
 }
 
 /**
- * The foot of the body, sectioned off by a chalk line: taking a pool out of
- * the league, and taking the league down. The last pool cannot go on its own -
- * a league with no board is nothing to open - so that button waits for the
- * league to be deleted instead, and says so on itself rather than in a line
- * under the pair.
+ * Taking a pool out of the league, and taking the league down. Pinned in the
+ * head with the name and the code, because all three are about the league
+ * rather than about how it is played, and because a button that ends a league
+ * for everyone in it should not be something you have to go looking for at the
+ * bottom of a scroll. The last pool cannot go on its own - a league with no
+ * board is nothing to open - so that button waits for the league to be deleted
+ * instead, and says so on itself rather than in a line under the pair.
  */
 function takeDownMarkup() {
   const { league, kind } = current;
@@ -444,16 +451,16 @@ function paint(root, keep = null) {
           )
           .join("")}
       </div>`,
-    })}
+    })}`;
 
-    ${takeDownMarkup()}`;
+  root.querySelector(".settings__take").innerHTML = takeDownMarkup();
 
   for (const control of root.querySelectorAll(".settings__body [data-rule]")) {
     if (!canWrite) control.disabled = true;
   }
   // Read-only devices can read what the league runs and change none of it,
   // and that includes taking any of it down.
-  for (const button of root.querySelectorAll(".settings__body [data-danger]")) {
+  for (const button of root.querySelectorAll(".settings__take [data-danger]")) {
     if (!canWrite) button.disabled = true;
   }
   root.querySelector(".settings__save").disabled = !canWrite;

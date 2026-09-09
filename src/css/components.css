@@ -796,12 +796,15 @@
   cursor: default;
 }
 
+/* The chalk line closes the scrolling middle off the way the head's opens it,
+   so the rules read as the one part of the sheet that moves. */
 .settings__foot {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  padding: var(--sp-3) var(--sp-5) calc(var(--sp-5) + env(safe-area-inset-bottom));
+  padding: var(--sp-4) var(--sp-5) calc(var(--sp-5) + env(safe-area-inset-bottom));
+  border-top: var(--dash);
 }
 
 .settings__btn,
@@ -813,17 +816,13 @@
 }
 
 /* The foot of the body, set apart: taking a pool or the league down. */
-/* Taking the pool or the league down, chalked off the same way. The line runs
-   to the sheet's edges like the head's above it, so the two read as the same
-   kind of division; the body's own padding is given back for the width and
-   taken again inside. */
+/* Taking the pool or the league down: in the head with the name and the code,
+   set off from them by the gap rather than by a line, since the whole block is
+   one section - what this league is, and how to end it. */
 .settings__danger {
   display: grid;
   gap: 8px;
-  margin: 0 calc(var(--sp-5) * -1) calc(var(--sp-5) * -1);
-  padding: var(--sp-5);
-  border-top: var(--dash);
-  border-bottom: var(--dash);
+  margin-top: var(--sp-5);
 }
 
 /* The two of them, halves of the row: the same size whatever they are called,
@@ -2565,6 +2564,14 @@
   flex: 1 1 0;
   min-height: 50px;
   padding: 0 14px;
+  border-color: var(--neutral-line);
+  color: var(--neutral);
+}
+
+.home__menu-btn:hover:not(:disabled) {
+  border-color: var(--neutral);
+  background: var(--neutral-bg);
+  color: var(--neutral-2);
 }
 
 .home__menu-btn svg {
