@@ -14,7 +14,12 @@ import { formatSpread, formatPercent, formatMatchup, escapeHtml } from "../core/
 /** What an open row says while the optimiser has not reported yet. */
 const PLANNING = "Working out the path…";
 
-const BALL = `<svg viewBox="0 0 34 21" aria-hidden="true"><ellipse cx="17" cy="10.5" rx="15.6" ry="9.2" style="fill: var(--flag)" /></svg>`;
+/**
+ * The ball on the week on the clock: the flag, laced in black. The mark is
+ * 14px wide (.drive__wk svg), so the seam and three laces are drawn heavy
+ * enough to survive that.
+ */
+const BALL = `<svg viewBox="0 0 34 21" aria-hidden="true"><ellipse cx="17" cy="10.5" rx="15.6" ry="9.2" style="fill: var(--flag)" /><path d="M9.5 10.5h15M12.5 8v5M17 8v5M21.5 8v5" fill="none" stroke="#000" stroke-width="2.6" stroke-linecap="round" /></svg>`;
 
 /**
  * @param {HTMLElement} root
