@@ -444,3 +444,39 @@
 .pitch__field--scrubbing .pitch__yard {
   transition: none;
 }
+
+/* --- the call, one week along ---------------------------------------------
+   A swipe across the board turns the week, and the card it lands on comes in
+   from the side the swipe pushed it in from. The field's bracket slides at the
+   same time under its own smooth scroll, so the gesture is answered in both
+   halves of the readout at once. */
+
+@keyframes call-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes call-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.call.is-from-right {
+  animation: call-from-right 0.24s var(--ease-out) both;
+}
+
+.call.is-from-left {
+  animation: call-from-left 0.24s var(--ease-out) both;
+}

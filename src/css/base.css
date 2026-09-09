@@ -12,6 +12,11 @@
 html {
   height: 100%;
   background: var(--turf);
+  /* A swipe sideways turns the week (ui/swipe.js). Nothing here scrolls that
+     way, so without this the browser takes the same gesture as an overscroll
+     and goes back a page instead - which on a board opened from an invite
+     link means leaving it. */
+  overscroll-behavior-x: contain;
 }
 
 body {

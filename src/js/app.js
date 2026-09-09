@@ -34,6 +34,7 @@ import {
 import { codeFromHash, leagueHash, normaliseCode } from "./core/code.js";
 import { renderLeagueBar } from "./ui/league-bar.js";
 import { renderSettings } from "./ui/settings.js";
+import { watchSwipes } from "./ui/swipe.js";
 import { renderHome, closeHomePanels } from "./ui/home.js";
 import { renderPitch, markViewing } from "./ui/pitch.js";
 import { renderCall } from "./ui/call.js";
@@ -399,8 +400,29 @@ function renderSelection(board) {
 }
 
 /**
- * Look at a week, from a tap on the field or a row of the drive. Only the
- * parts that follow the week are redrawn: the field moves its own bracket
+ * One week along, from a swipe across the board.
+ *
+ * The ends of the run hold rather than wrap: week 18 is the end of the season,
+ * and a swipe that landed back on week 1 would read as the board having lost
+ * its place. Nothing happens there, which is what the field does too when the
+ * arrow keys run out of yard lines.
+ *
+ * The card the swipe lands on comes in from the side the swipe came from (see
+ * motion.css). It is a fresh element every time - renderSelection rewrites the
+ * call - so the class is set once and goes with the node on the next render.
+ */
+function stepWeek(direction) {
+  if (!lastBoard) return;
+  const at = lastBoard.weeks.findIndex((week) => week.week === app.viewWeek);
+  const next = lastBoard.weeks[at + direction];
+  if (at === -1 || !next) return;
+  lookAt(next.week);
+  el.call?.firstElementChild?.classList.add(direction > 0 ? "is-from-right" : "is-from-left");
+}
+
+/**
+ * Look at a week, from a tap on the field, a row of the drive or a swipe. Only
+ * the parts that follow the week are redrawn: the field moves its own bracket
  * (pitch.js) rather than being rebuilt under a finger that is still on it,
  * and the board itself is not rebuilt, so a scrub costs a few milliseconds a
  * step and never runs the optimiser.
@@ -1097,6 +1119,23 @@ async function main() {
   await finishStartup();
   startClock();
   registerServiceWorker();
+
+  // Swipe the board sideways to turn the week. Bound once to the board rather
+  // than to anything a render replaces, minus the places a sideways drag
+  // already means something else: the field pans its own yard lines, a sheet
+  // or a menu over the top is not the board underneath it, a field being typed
+  // in is a text selection, and the depth chart is not about a week at all.
+  watchSwipes(el.board, stepWeek, {
+    ignore: [
+      ".pitch__field",
+      "#view-burn",
+      "dialog",
+      ".league-bar__menu",
+      "input",
+      "textarea",
+      "select",
+    ],
+  });
 
   // Back and forward, and a link tapped while the app is already open.
   window.addEventListener("hashchange", () => {

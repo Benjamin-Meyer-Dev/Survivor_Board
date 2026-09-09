@@ -655,10 +655,20 @@ side from 900px.
 
 On a phone the field is wider than the screen and scrolls sideways under end
 zones pinned to either edge, so every week has room to name its pick; a
-desktop shows all of them at once. Looking at a week, by a tap on the field or
-a row of the drive, redraws only the call, the sideline and the drive's
-bracket, moves the field's bracket in place and scrolls that week into view,
-and never rebuilds the board.
+desktop shows all of them at once. Looking at a week, by a tap on the field, a
+row of the drive or a swipe across the board, redraws only the call, the
+sideline and the drive's bracket, moves the field's bracket in place and
+scrolls that week into view, and never rebuilds the board.
+
+The swipe is `ui/swipe.js`, bound once to the board and told apart from a
+scroll by shape rather than by speed: far enough sideways, and enough more
+sideways than up. It listens on touch events rather than pointer events
+because the board scrolls vertically, and Chrome cancels a pointer stream the
+moment that scroller claims the gesture - even for a dead-horizontal drag. It
+does not fire where a sideways drag already means something: over the field,
+which pans its own yard lines, over a sheet or menu on top of the board, in a
+field being typed in, or on the bench, which is not about a week at all. The
+ends of the season hold rather than wrap.
 
 Colour is the one thing that does not come off the board: `app.js` stamps
 `data-league` and `data-objective` on the root element and `src/css/leagues.css`

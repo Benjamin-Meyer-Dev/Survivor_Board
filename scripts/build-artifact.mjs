@@ -68,6 +68,7 @@ const JS = [
   "ui/drive.js",
   "ui/bench.js",
   "ui/notices.js",
+  "ui/swipe.js",
   "app.js",
 ];
 const DATA = ["plan.json", "teams.json", "odds.json", "schedule.json", "ratings.json"];
