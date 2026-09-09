@@ -20,7 +20,13 @@
  * Handlers are injected; this module knows nothing about the store.
  */
 
-import { formatSpread, formatPercent, formatMatchup, escapeHtml } from "../core/format.js";
+import {
+  formatSpread,
+  formatPercent,
+  formatMatchup,
+  formatKickoff,
+  escapeHtml,
+} from "../core/format.js";
 import { TIER_LABEL } from "../core/probability.js";
 
 /** What an open slot says while the optimiser has not reported yet. */
@@ -169,7 +175,7 @@ function slotMarkup(pick, board, two, active) {
       ${
         shown
           ? `<div class="call__team">${escapeHtml(shown.team)}</div>
-             <div class="call__matchup">${escapeHtml(formatMatchup(shown.site, shown.opponent))} · ${escapeHtml(shown.conference)}</div>`
+             <div class="call__matchup">${escapeHtml(formatMatchup(shown.site, shown.opponent))} · ${escapeHtml(shown.conference)}${kickoffMarkup(shown)}</div>`
           : `<div class="call__team call__team--blank">${escapeHtml(blank.team)}</div>
              <div class="call__matchup">${escapeHtml(blank.text)}</div>`
       }
@@ -242,14 +248,16 @@ function actionsMarkup(pick, board, canWrite) {
       disabled: true,
     });
   } else if (status.locked) {
+    const moved = lineMove(pick);
     lock = button({
-      label: "Locked in · tap to unlock",
+      label: "Locked in · " + moved.words + " · tap to unlock",
       icon: LOCK_SHUT,
       on: true,
+      shift: moved.shift,
       action: "lock",
       pick,
       disabled: !canWrite,
-      title: "Locked in. Tap to unlock",
+      title: "Locked in. " + moved.sentence + " Tap to unlock",
     });
   } else if (pick.team) {
     lock = button({
@@ -302,6 +310,7 @@ function button({
   on = false,
   go = false,
   take = false,
+  shift = null,
   action = null,
   pick = null,
   team = null,
@@ -313,6 +322,7 @@ function button({
     on ? "call__lock--on" : "",
     go ? "call__lock--go" : "",
     take ? "call__lock--take" : "",
+    shift ? "call__lock--" + shift : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -322,4 +332,35 @@ function button({
   return `<button type="button" class="${classes}"${data}${disabled ? " disabled" : ""}
       ${action === "lock" ? ` aria-pressed="${on}"` : ""} aria-label="${escapeHtml(label)}"
       title="${escapeHtml(title || label)}">${icon}</button>`;
+}
+
+/**
+ * Which way the line has gone since the lock, for the ring on the lock and
+ * its words. The board signs the move so a positive number is the pick's way
+ * in either pool (core/plan.js, sinceLock); a lock that saved no line, or a
+ * line that has not moved, is flat.
+ */
+function lineMove(pick) {
+  const points = pick.sinceLock;
+  if (!Number.isFinite(points) || points === 0) {
+    return { shift: "flat", words: "line unchanged", sentence: "The line has not moved." };
+  }
+  const size = Math.abs(points) + (Math.abs(points) === 1 ? " pt" : " pts");
+  return points > 0
+    ? {
+        shift: "up",
+        words: "line " + size + " your way",
+        sentence: "The line has moved " + size + " your way.",
+      }
+    : {
+        shift: "down",
+        words: "line " + size + " against you",
+        sentence: "The line has moved " + size + " against you.",
+      };
+}
+
+/** When the game kicks off, after the matchup, when the feed has timed it. */
+function kickoffMarkup(line) {
+  const when = formatKickoff(line.kickoff);
+  return when ? ' · <span class="call__kickoff">' + escapeHtml(when) + "</span>" : "";
 }

@@ -35,3 +35,25 @@ export function escapeHtml(value) {
     (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char],
   );
 }
+
+/**
+ * When a game kicks off, in the reader's own time: "Sun Sep 13 · 4:25 PM".
+ * Nothing for a game the feed has not timed.
+ *
+ * @param {string|null|undefined} iso
+ * @returns {string}
+ */
+export function formatKickoff(iso) {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const day = new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  }).format(date);
+  const time = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(
+    date,
+  );
+  return `${day} · ${time}`;
+}

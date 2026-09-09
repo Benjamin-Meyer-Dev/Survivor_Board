@@ -697,6 +697,8 @@ async function priceWeek({
       opened,
       openedAt,
       updatedAt: now,
+      // When the game kicks off, as the feed states it, for the board to show.
+      kickoff: event.commence_time ?? null,
     };
     fresh[target.key] = lines[target.key];
     priced += 1;

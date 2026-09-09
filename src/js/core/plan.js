@@ -27,7 +27,7 @@ import {
   DEFAULT_TIERS,
 } from "./probability.js";
 import { recommendForBoard } from "./recommend.js";
-import { advanceProb, advanceResult, bySpread } from "./objective.js";
+import { advanceProb, advanceResult, bySpread, dangerSign } from "./objective.js";
 import { mergeRules, sameRules } from "./rules.js";
 import { nextRefreshAt } from "./refresh.js";
 import { survival } from "./survival.js";
@@ -192,6 +192,15 @@ function resolvePick({
     ? advanceResult(odds.results?.[lineKey(week, base.team)], objective)
     : null;
 
+  // How far the line has moved in the pick's favour since it was locked, in
+  // points: the spread saved with the lock against the spread now, signed so
+  // a positive number is good news in either pool (core/objective.js). Null
+  // for a pick that is not locked, or a lock made before the spread was saved.
+  const sinceLock =
+    locked && Number.isFinite(saved.spread) && Number.isFinite(spread)
+      ? Number((dangerSign(objective) * (saved.spread - spread)).toFixed(1))
+      : null;
+
   return {
     week,
     slot,
@@ -205,6 +214,8 @@ function resolvePick({
     tier: confidenceTier(winProb, tiers),
     weeksAhead: base.weeksAhead ?? 0,
     movement: base.movement ?? null,
+    kickoff: base.kickoff ?? line?.kickoff ?? null,
+    sinceLock,
     availability: base.availability ?? null,
     status: {
       ...saved,
@@ -336,6 +347,9 @@ function weekOptions({
         weeksAhead: line ? 0 : weeksAhead,
         unseenSides: line ? 0 : unseenSides,
         total: line?.total ?? null,
+        // When the game kicks off, from the market feed: nothing until the
+        // week has been priced.
+        kickoff: line?.kickoff ?? null,
         // Where the line opened, when the refresh job has seen it move: the
         // spread now less the spread when the week was first priced, so a
         // negative number is the market warming to the team.
@@ -411,6 +425,7 @@ function lineOf(pick) {
     tier,
     weeksAhead: pick.weeksAhead ?? 0,
     movement: pick.movement ?? null,
+    kickoff: pick.kickoff ?? null,
     availability: pick.availability ?? null,
   };
 }

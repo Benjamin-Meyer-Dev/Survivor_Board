@@ -1105,7 +1105,7 @@
 .call__box {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
   padding: 10px 12px 12px;
   border-radius: var(--radius);
 }
@@ -1261,6 +1261,11 @@
   font-size: 12px;
 }
 
+/* When the game kicks off, kept on one line at the end of the matchup. */
+.call__kickoff {
+  white-space: nowrap;
+}
+
 /* The stat line, under the name where it has the width: spread, the chance
    the pick carries the week, where the line came from. Chalk tiles. */
 .call__tiles {
@@ -1348,11 +1353,11 @@
   color: var(--chalk-2);
 }
 
-/* The actions, at the end of the head row: the other side of the game and
-   the one action, both filled in the flag's colour so a thumb finds them
-   without reading the row. Marks, not words, so the drawer under the card
-   gets the room; the eyebrow says the state. Round, like the topline's own
-   buttons. */
+/* The actions, at the end of the head row: the other side of the game on the
+   swap's blue and the one action on the flag, both filled so a thumb finds
+   them without reading the row. Marks, not words, so the drawer under the
+   card gets the room; the eyebrow says the state. Round, like the topline's
+   own buttons. */
 .call__actions {
   display: flex;
   gap: 6px;
@@ -1365,6 +1370,10 @@
   height: 36px;
   padding: 0;
   border-radius: 50%;
+}
+
+/* The one action is the flag, locked or not. */
+.call__lock {
   background: var(--flag);
   border-color: var(--flag);
   color: var(--on-flag);
@@ -1381,26 +1390,41 @@
   stroke-linejoin: round;
 }
 
-/* The other side of the game: the two arrows, lighter under a hover. */
+/* The other side of the game: the two arrows on the swap's blue, so it is
+   never taken for the lock beside it. */
+.call__flip {
+  background: var(--swap);
+  border-color: var(--swap);
+  color: var(--on-swap);
+}
+
 .call__flip svg {
   stroke-width: 2;
 }
 
 .call__flip:hover:not(:disabled) {
-  background: var(--flag-2);
-  border-color: var(--flag-2);
+  background: var(--swap-2);
+  border-color: var(--swap-2);
 }
 
 .call__lock svg {
   stroke-width: 2.4;
 }
 
-/* Locked: solid chalk, painted on, so it reads apart from the flag of an
-   action still to take. Tap to undo. */
+/* Locked: still the flag, ringed to say how the line has moved since the
+   lock - chalk for not at all, green for the pick's way, red against it. Tap
+   to undo. */
 .call__lock--on {
-  border-color: var(--chalk);
-  background: var(--chalk);
-  color: var(--paint);
+  outline: 2.5px solid var(--chalk);
+  outline-offset: 2px;
+}
+
+.call__lock--up {
+  outline-color: var(--safe);
+}
+
+.call__lock--down {
+  outline-color: var(--danger);
 }
 
 /* the drawer (ui/tabs.js) ---------------------------------------------------- */
@@ -1530,7 +1554,7 @@
   align-items: center;
   gap: 10px;
   min-height: 54px;
-  padding: 6px 8px 6px 10px;
+  padding: 6px 12px 6px 14px;
   border: 0;
   border-bottom: 1px solid var(--line-soft);
   border-radius: var(--radius-sm);
@@ -1741,7 +1765,7 @@
 }
 
 .drive__head {
-  padding: 2px 8px 8px 4px;
+  padding: 2px 12px 8px 10px;
   border-bottom: 1px solid var(--line);
   font-family: var(--font-display);
   font-weight: 700;
@@ -1760,7 +1784,7 @@
   appearance: none;
   position: relative;
   min-height: 56px;
-  padding: 6px 8px 6px 4px;
+  padding: 6px 12px 6px 10px;
   border: 0;
   border-bottom: 1px solid var(--line-soft);
   border-radius: var(--radius-sm);
@@ -1996,9 +2020,10 @@
 /* The key, across the foot: each swatch is a real card in the state it
    explains, so the key cannot drift from the chart above it. */
 .legend {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 24px;
   padding: 14px 0 0;
   margin-top: 10px;
   border-top: 1px solid var(--line);

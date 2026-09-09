@@ -43,6 +43,13 @@
   --on-flag-rise: #1f6b3a;
   --on-flag-fall: #b3261e;
 
+  /* the swap ---------------------------------------------------------------
+     Sky blue for the other side of the game: an action too, but never the
+     flag's, so the two marks on the call are told apart at a glance. */
+  --swap: #a9d8ff;
+  --swap-2: #d2ebff;
+  --on-swap: #0a2f1c;
+
   /* paint ------------------------------------------------------------------
      The end zones and the league's mark. College paints them the turf's own
      dark green; leagues.css repaints the NFL navy and a losers pool burnt

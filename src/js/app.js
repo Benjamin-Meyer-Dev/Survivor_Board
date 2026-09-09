@@ -633,6 +633,9 @@ function handleAction({ action, week, slot, team }) {
           ...current,
           locked: true,
           coachTeam: held.isRecommended ? held.team : (held.coachCall?.team ?? null),
+          // The line as it stood, so the board can say which way it has moved
+          // since (plan.js sinceLock).
+          spread: Number.isFinite(held.spread) ? held.spread : null,
           by: ME,
           at: Date.now(),
         };

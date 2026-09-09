@@ -178,6 +178,38 @@ assert.equal(lockedSlot.onPath.kind, "locked");
 assert.equal(locked.spentCount, 1, "a locked pick spends its team");
 assert.equal(locked.spentTeams[other], first.week);
 assert.equal(lockedSlot.status.result, "W", "locked picks receive feed results");
+
+// The spread saved with a lock lets the board say which way the line has moved
+// since, signed so a positive number is the pick's way in either pool; a lock
+// that saved none says nothing. The kickoff the feed times a game with rides
+// along on the option and on the pick.
+assert.equal(lockedSlot.sinceLock, null, "a lock without a saved spread has no movement");
+const sinceLockOf = (spread) =>
+  build({ picks: { [key]: { locked: true, spread } }, swaps: { [key]: other } }, withFeedResult)
+    .weeks[0].picks[0].sinceLock;
+assert.equal(
+  sinceLockOf(lockedSlot.spread + 1),
+  1,
+  "a line fallen since the lock is the pick's way",
+);
+assert.equal(
+  sinceLockOf(lockedSlot.spread - 1),
+  -1,
+  "a line risen since the lock is against the pick",
+);
+assert.equal(sinceLockOf(lockedSlot.spread), 0, "a line that has not moved is flat");
+const kickoffAt = "2026-09-13T20:25:00Z";
+const withKickoff = structuredClone(odds);
+withKickoff.updatedAt = odds.updatedAt + "-kickoff-check";
+for (const [lineId, line] of Object.entries(withKickoff.lines)) {
+  if (lineId.startsWith(first.week + "|")) line.kickoff = kickoffAt;
+}
+const timed = build({ picks: {}, swaps: { [key]: pending } }, withKickoff);
+assert.equal(timed.weeks[0].picks[0].kickoff, kickoffAt, "a pick carries its game's kickoff");
+assert.ok(
+  timed.weeks[0].options.some((option) => option.kickoff === kickoffAt),
+  "the week's options carry the kickoff the feed timed them with",
+);
 assert.equal(lockedSlot.status.resultSource, "final");
 assert.equal(locked.previewPathProbability, null, "the preview is adopted and cleared on lock");
 assert.equal(
