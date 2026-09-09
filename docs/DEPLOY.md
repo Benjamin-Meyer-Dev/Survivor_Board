@@ -130,8 +130,8 @@ Then, on the home page:
 
 1. **Create** a league - give it a name, pick the season, and it appears with a
    twelve-character code (`BXQK-7HRT-M4WD`).
-2. **Copy link** puts `https://<your board>/#/join/BXQK7HRTM4WD` on the
-   clipboard. Send that, or read the code out: **Join** takes it typed, with or
+2. The copy icon beside the code puts `https://<your board>/#/join/BXQK7HRTM4WD`
+   on the clipboard. Send that, or read the code out: **Join** takes it typed, with or
    without the dashes, and the five characters that get misread - I, L, O, 0 and
    1 - are not in the alphabet, so a code cannot be copied down as a different
    one.
@@ -200,8 +200,8 @@ layer is off and fits on lines and margins alone.
 The gear beside the league picker holds that league's name, its code, and its
 rules - win or lose, picks a week, buy backs and the weeks they cover. Saving
 rules writes them into the league's shared row, so they land on every device in
-it. Nothing in `data/` changes: the season's plan file stays the default and
-**Back to the plan** returns to it.
+it. Nothing in `data/` changes: the season's plan file stays the default, and
+saving rules that match it returns the pool to following it.
 
 Two consequences worth knowing. A league running its own rules shows a lit gear,
 because a week with one slot looks the same whether the pool takes one pick or

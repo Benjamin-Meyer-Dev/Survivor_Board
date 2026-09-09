@@ -125,6 +125,7 @@
 .league-bar__back,
 .settings__open,
 .settings__btn,
+.settings__copy,
 .home__icon,
 .home__menu-btn,
 .home__btn,
@@ -157,6 +158,7 @@
 .league-bar__back:hover,
 .settings__open:hover,
 .settings__btn:hover:not(:disabled),
+.settings__copy:hover:not(:disabled),
 .home__icon:hover,
 .home__menu-btn:hover:not(:disabled),
 .home__btn:hover:not(:disabled) {
@@ -561,8 +563,7 @@
 
 .settings__head {
   position: relative;
-  padding: var(--sp-5) var(--sp-5) var(--sp-4);
-  border-bottom: var(--dash);
+  padding: var(--sp-5) var(--sp-5) 0;
 }
 
 .settings__title {
@@ -592,27 +593,29 @@
   color: var(--chalk-3);
 }
 
-.settings__rename,
-.settings__share {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
+/* The name, edited in place: the field is the control. */
 .settings__input {
-  flex: 1 1 auto;
+  box-sizing: border-box;
+  width: 100%;
   min-height: 42px;
   padding: 0 12px;
   font-size: 15px;
 }
 
-/* The code, chalked in the face it is read in, and selectable. */
+/* The code, chalked in the face it is read in and selectable, with the copy
+   icon set into the end of its box like the card on the home page. */
+.settings__code-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 5px 5px 12px;
+  border: var(--dash);
+  border-radius: var(--radius-sm);
+}
+
 .settings__code {
   flex: 1 1 auto;
   min-width: 0;
-  padding: 10px 12px;
-  border: var(--dash);
-  border-radius: var(--radius-sm);
   color: var(--flag);
   font-family: var(--font-mono);
   font-weight: 600;
@@ -622,6 +625,37 @@
   overflow-wrap: anywhere;
 }
 
+.settings__copy {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--chalk-2);
+  font-size: 0;
+}
+
+.settings__copy svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.settings__copy--done {
+  background: var(--flag);
+  border-color: var(--flag);
+  color: var(--on-flag);
+}
+
+.settings__copy--failed {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
 .settings__body {
   display: grid;
   gap: var(--sp-5);
@@ -629,16 +663,27 @@
   overflow-y: auto;
 }
 
+/* One rule to a row: its name on the left, its control on the right, and the
+   line saying what it does under both. The weeks take the full width. */
 .settings__group {
-  border: 0;
-  padding: 0;
-  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px 14px;
   min-width: 0;
+}
+
+.settings__group--stack {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.settings__group .settings__hint {
+  grid-column: 1 / -1;
+  margin-top: 0;
 }
 
 .settings__legend {
   padding: 0;
-  margin-bottom: 8px;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 12px;
@@ -654,43 +699,45 @@
   line-height: 1.45;
 }
 
-/* A row of choices as chalk pills, the chosen one in the flag. */
-.settings__choices {
+/* A count, chalked large like a scoreboard, with a step either side. */
+.settings__stepper {
   display: inline-flex;
-  gap: 6px;
-  max-width: 100%;
-  overflow-x: auto;
+  align-items: center;
+  gap: 2px;
 }
 
-.settings__choice {
-  flex: 1 0 auto;
-  min-width: 54px;
-  min-height: 36px;
-  padding: 0 14px;
+.settings__step {
+  width: 40px;
+  height: 40px;
+  padding: 0;
   border: 1.5px solid var(--line);
-  border-radius: 999px;
+  border-radius: 50%;
   background: none;
-  color: var(--chalk-2);
+  color: var(--chalk);
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 14px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 22px;
+  line-height: 1;
   cursor: pointer;
   transition:
-    background-color 160ms ease,
     border-color 160ms ease,
     color 160ms ease;
 }
 
-.settings__choice:hover:not(:disabled):not([aria-pressed="true"]) {
+.settings__step:hover:not(:disabled) {
   border-color: var(--chalk);
 }
 
-.settings__choice[aria-pressed="true"] {
-  background: var(--flag);
-  border-color: var(--flag);
-  color: var(--on-flag);
+.settings__count {
+  min-width: 64px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--chalk);
 }
 
 /* The weeks, as a grid of chalk boxes; a week a buy back covers is chalked in
@@ -728,24 +775,16 @@
 }
 
 .settings__body [data-rule]:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: default;
 }
 
 .settings__foot {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: var(--sp-4) var(--sp-5) calc(var(--sp-5) + env(safe-area-inset-bottom));
-  border-top: var(--dash);
-}
-
-.settings__actions {
-  display: flex;
+  justify-content: flex-end;
   gap: 8px;
-  margin-left: auto;
+  padding: var(--sp-3) var(--sp-5) calc(var(--sp-5) + env(safe-area-inset-bottom));
 }
 
 .settings__btn,
@@ -760,8 +799,7 @@
 .settings__danger {
   display: grid;
   gap: 8px;
-  padding-top: var(--sp-4);
-  border-top: var(--dash);
+  padding-top: var(--sp-3);
 }
 
 .settings__danger-row {
@@ -1049,7 +1087,7 @@
 }
 
 .pitch__stat--preview-even .pitch__stat-value {
-  color: var(--chalk-2);
+  color: var(--chalk);
 }
 
 /* The season number, on the flag: the same shape as the readouts beside it,

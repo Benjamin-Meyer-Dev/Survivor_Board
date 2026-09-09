@@ -57,8 +57,8 @@ hold it together:
 - **Shared, not per-device.** Rules belong to the pool, so they live in the
   same document the picks do and arrive on the other phone through the same
   realtime push. A pool with nothing saved has no `rules` key at all, which is
-  what "follows the plan" looks like on disk - and what "Back to the plan"
-  restores by deleting it.
+  what "follows the plan" looks like on disk - and what saving rules that
+  match the plan's restores by deleting it.
 - **Clamped, never trusted.** An override comes from a document another device
   wrote, an older version of the app may have written, or a person may have
   edited by hand in the Supabase table. `mergeRules` refuses anything unusable

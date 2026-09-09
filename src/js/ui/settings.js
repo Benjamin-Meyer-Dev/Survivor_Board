@@ -4,8 +4,8 @@
  * The gear beside the league picker opens a modal `<dialog>` holding
  * everything about a league that is not a pick. The code and the link to join
  * by are at the top, because handing those out is the most common reason to
- * open it; the four rules a league can change are below - whether a pick has
- * to win or lose, how many picks a week, how many buy backs, and which weeks a
+ * open it, and the name is edited in place there; the rules a pool can change
+ * are below - how many picks a week, how many buy backs, and which weeks a
  * buy back can cover. Native dialog, so the focus trap, the backdrop, Esc and
  * the top layer are the platform's rather than three hundred lines of ours.
  *
@@ -46,6 +46,14 @@ const GEAR_ICON = `
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
   </svg>`;
+
+/* The copy icon set into the code's box, and what it turns into for a moment. */
+const COPY_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="9" y="9" width="12" height="12" rx="2" />
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+  </svg>`;
+const DONE_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20 6-11 11-5-5" /></svg>`;
+const FAILED_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>`;
 
 /**
  * @param {HTMLElement} root
@@ -122,51 +130,68 @@ function buildSheet(root) {
         <div class="settings__head">
           <h2 class="settings__title" id="settings-title">League</h2>
           <label class="settings__label" for="settings-name">Name</label>
-          <div class="settings__rename">
-            <input class="settings__input" id="settings-name" type="text" maxlength="60"
-                   autocomplete="off" />
-            <button type="button" class="settings__btn settings__rename-go">Rename</button>
+          <input class="settings__input settings__name" id="settings-name" type="text" maxlength="60"
+                 autocomplete="off" placeholder="Name the league"
+                 title="Tap to rename. Enter, or tapping away, saves it" />
+          <p class="settings__label" id="settings-code-label">Code to join</p>
+          <div class="settings__code-box">
+            <code class="settings__code" aria-labelledby="settings-code-label"></code>
+            <button type="button" class="settings__copy" aria-label="Copy the link to join"
+                    title="Copy the link to join">${COPY_ICON}</button>
           </div>
-          <p class="settings__label">Code to join</p>
-          <div class="settings__share">
-            <code class="settings__code"></code>
-            <button type="button" class="settings__btn settings__copy">Copy link</button>
-          </div>
-          <p class="settings__pool"></p>
+          <p class="settings__pool" hidden>
+            Read-only on this device: the rules can be read here and not changed.
+          </p>
         </div>
         <div class="settings__body"></div>
         <div class="settings__foot">
-          <button type="button" class="settings__btn settings__btn--quiet settings__reset">Back to the plan</button>
-          <div class="settings__actions">
-            <button type="button" class="settings__btn settings__btn--quiet settings__cancel">Cancel</button>
-            <button type="button" class="settings__btn settings__btn--go settings__save">Save rules</button>
-          </div>
+          <button type="button" class="settings__btn settings__btn--quiet settings__cancel">Cancel</button>
+          <button type="button" class="settings__btn settings__btn--go settings__save">Save rules</button>
         </div>
       </form>
     </dialog>`;
 
   const dialog = root.querySelector(".settings");
+  const form = root.querySelector(".settings__form");
   const body = root.querySelector(".settings__body");
+  const name = root.querySelector(".settings__name");
 
-  root.querySelector(".settings__rename-go").addEventListener("click", () => {
-    const typed = root.querySelector(".settings__input").value.trim();
-    if (!typed || typed === current.league?.name) return;
+  // The name is edited in place: tapping away saves it, and a blank or
+  // unchanged field puts the stored name back. Enter blurs the field, which
+  // saves it the same way; left alone it would submit the form, and a form on
+  // a dialog closes it.
+  name.addEventListener("change", () => {
+    const typed = name.value.trim();
+    if (!typed || typed === current.league?.name) {
+      name.value = current.league?.name ?? "";
+      return;
+    }
     onRenameLeague(typed);
   });
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (document.activeElement === name) name.blur();
+  });
 
+  // The link to join, on the clipboard, and the icon says so for a moment: a
+  // tick, or a cross when the browser refused - an insecure origin, or a
+  // permission declined. The code is on screen either way, which is the part
+  // anyone actually needs.
   root.querySelector(".settings__copy").addEventListener("click", async (event) => {
     const button = event.currentTarget;
+    let state = "done";
     try {
       await navigator.clipboard.writeText(joinLink(current.league.code));
-      button.textContent = "Link copied";
     } catch {
-      // Refused by the browser - an insecure origin, or a permission prompt
-      // declined. The code is on screen either way, which is the part anyone
-      // actually needs.
-      button.textContent = "Copy failed";
+      state = "failed";
     }
+    button.innerHTML = state === "done" ? DONE_ICON : FAILED_ICON;
+    button.classList.add(`settings__copy--${state}`);
+    button.title = state === "done" ? "Link copied" : "Copy failed";
     setTimeout(() => {
-      button.textContent = "Copy link";
+      button.innerHTML = COPY_ICON;
+      button.classList.remove(`settings__copy--${state}`);
+      button.title = "Copy the link to join";
     }, 1800);
   });
 
@@ -183,14 +208,6 @@ function buildSheet(root) {
   root.querySelector(".settings__cancel").addEventListener("click", () => {
     draft = null;
     dialog.close();
-  });
-
-  // The plan's own rules, back in the fields rather than saved from under you:
-  // the sheet still has to be saved, so "back to the plan" is undoable by
-  // cancelling like anything else here.
-  root.querySelector(".settings__reset").addEventListener("click", () => {
-    draft = onlyEditable(current.board.ruleDefaults);
-    paint(root);
   });
 
   root.querySelector(".settings__save").addEventListener("click", () => {
@@ -344,34 +361,30 @@ function takeDownMarkup() {
 /**
  * The sheet's fields, from the draft.
  *
- * The body is rebuilt rather than reconciled - four groups of buttons is not
- * enough DOM to be worth diffing - so `keep` is the control that was just
+ * The body is rebuilt rather than reconciled - three groups of controls is
+ * not enough DOM to be worth diffing - so `keep` is the control that was just
  * used, and focus is put back on its replacement afterwards. Without it a
- * keyboard or switch user pressing "2 picks a week" would find their focus
+ * keyboard or switch user stepping picks a week up would find their focus
  * back at the top of the document, and every subsequent choice would need the
  * sheet navigated again from the start.
  */
 function paint(root, keep = null) {
   const { board, canWrite, league } = current;
 
-  const name = root.querySelector(".settings__input");
+  const name = root.querySelector(".settings__name");
   // Not while it is being typed in: a render landing between keystrokes would
   // put the stored name back and take the edit with it.
   if (document.activeElement !== name) name.value = league?.name ?? "";
   name.disabled = !canWrite;
-  root.querySelector(".settings__rename-go").disabled = !canWrite;
   root.querySelector(".settings__code").textContent = league
     ? formatCode(league.code)
     : "not shared";
+  root.querySelector(".settings__copy").disabled = !league;
+  root.querySelector(".settings__pool").hidden = canWrite;
 
   const rules = draft ?? onlyEditable(board.rules);
   const weeks = board.weeks.map((week) => week.week);
   const maxBuyBacks = Math.min(MAX_BUY_BACKS, rules.buyBackWeeks.length);
-
-  root.querySelector(".settings__pool").innerHTML = canWrite
-    ? `These are the whole pool's rules: saving them changes the board on every device.
-       ${board.rulesCustom ? "This pool is running its own, not the plan's." : ""}`
-    : `Read-only on this device, so the rules can be read here and not changed.`;
 
   // No control for what a pick has to do: that is the kind of pool this is,
   // fixed when the league was made and named in the title above.
@@ -379,19 +392,13 @@ function paint(root, keep = null) {
     ${group({
       legend: "Picks a week",
       hint: shortfallHint(rules.picksPerWeek, weeks.length, board.totalTeams),
-      controls: segmented(
-        "picksPerWeek",
-        rules.picksPerWeek,
-        Array.from({ length: MAX_PICKS_PER_WEEK }, (_, index) => ({
-          value: index + 1,
-          label: String(index + 1),
-        })),
-      ),
+      controls: stepper("picksPerWeek", rules.picksPerWeek, { min: 1, max: MAX_PICKS_PER_WEEK }),
     })}
 
     ${group({
       legend: "Weeks a buy back covers",
       hint: "Tap the weeks a loss can be bought back in. The path takes more risk in them, because it can afford to.",
+      stack: true,
       controls: `<div class="settings__weeks">
         ${weeks
           .map(
@@ -409,20 +416,13 @@ function paint(root, keep = null) {
       hint: maxBuyBacks
         ? "How many of those weeks a loss can actually be bought back in. Spent, not refunded: the team stays burned either way."
         : "Pick the weeks a buy back can cover first.",
-      controls: segmented(
-        "buyBacks",
-        rules.buyBacks,
-        Array.from({ length: maxBuyBacks + 1 }, (_, index) => ({
-          value: index,
-          label: index === 0 ? "None" : String(index),
-        })),
-      ),
+      controls: stepper("buyBacks", rules.buyBacks, { min: 0, max: maxBuyBacks, none: "None" }),
     })}
 
     ${takeDownMarkup()}`;
 
   for (const control of root.querySelectorAll(".settings__body [data-rule]")) {
-    control.disabled = !canWrite;
+    if (!canWrite) control.disabled = true;
   }
   // Read-only devices can read what the league runs and change none of it,
   // and that includes taking any of it down.
@@ -430,18 +430,19 @@ function paint(root, keep = null) {
     if (!canWrite) button.disabled = true;
   }
   root.querySelector(".settings__save").disabled = !canWrite;
-  root.querySelector(".settings__reset").disabled = !canWrite;
 
   if (!keep) return;
-  const { rule, value } = keep.dataset;
-  // The same control, or - for a buy back count that the weeks have just taken
-  // away - the nearest one still standing in that group.
+  const { rule, value, step } = keep.dataset;
+  // The same control: for a step, the one going the same way, unless it has
+  // just run out of room, in which case the other; for a week, the same week.
   // Named for what they are rather than "group", which is the markup helper
   // this function calls: a const of that name here shadows it for the whole
   // of paint, and the fields would never be built at all.
   const siblings = [...root.querySelectorAll(`.settings__body [data-rule="${rule}"]`)];
-  const same = siblings.find((control) => control.dataset.value === value);
-  (same ?? siblings.at(-1))?.focus();
+  const same = step
+    ? siblings.find((control) => control.dataset.step === step && !control.disabled)
+    : siblings.find((control) => control.dataset.value === value);
+  (same ?? siblings.find((control) => !control.disabled) ?? siblings.at(-1))?.focus();
 }
 
 /**
@@ -462,27 +463,35 @@ function shortfallHint(picksPerWeek, weeks, totalTeams) {
   return `${weeks} weeks at ${picksPerWeek} a week needs ${needed} teams and this pool has ${totalTeams}, so the last weeks will run short. ${kept}`;
 }
 
-function group({ legend, hint, controls }) {
+/**
+ * One rule: its name, its control beside it and a line under both saying what
+ * it does. A group that needs the width - the weeks - stacks instead.
+ */
+function group({ legend, hint, controls, stack = false }) {
   return `
-    <fieldset class="settings__group">
-      <legend class="settings__legend">${escapeHtml(legend)}</legend>
-      ${controls}
+    <div class="settings__group${stack ? " settings__group--stack" : ""}" role="group"
+         aria-label="${escapeHtml(legend)}">
+      <span class="settings__legend">${escapeHtml(legend)}</span>
+      <div class="settings__control">${controls}</div>
       <p class="settings__hint">${escapeHtml(hint)}</p>
-    </fieldset>`;
+    </div>`;
 }
 
-/** A row of choices, one of them on. */
-function segmented(rule, active, options) {
+/**
+ * A count with a step either side, like a scoreboard: the number, large, and
+ * a minus and a plus that go grey at the ends of the range. `none` is what a
+ * zero is called, where a zero means there are none.
+ */
+function stepper(rule, value, { min, max, none = null }) {
+  const shown = value === 0 && none ? none : String(value);
+  const step = (to, direction, words) => `
+        <button type="button" class="settings__step" data-rule="${rule}" data-step="${direction}"
+                data-value="${to}" aria-label="${escapeHtml(words)}"
+                ${to < min || to > max ? "disabled" : ""}>${direction === "down" ? "−" : "+"}</button>`;
   return `
-    <div class="settings__choices">
-      ${options
-        .map(
-          (option) => `
-        <button type="button" class="settings__choice" data-rule="${rule}"
-                data-value="${escapeHtml(String(option.value))}"
-                aria-pressed="${String(option.value) === String(active)}"
-                >${escapeHtml(option.label)}</button>`,
-        )
-        .join("")}
+    <div class="settings__stepper">
+      ${step(value - 1, "down", "Fewer")}
+      <output class="settings__count" aria-live="polite">${escapeHtml(shown)}</output>
+      ${step(value + 1, "up", "More")}
     </div>`;
 }
