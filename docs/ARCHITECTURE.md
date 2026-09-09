@@ -670,6 +670,17 @@ which pans its own yard lines, over a sheet or menu on top of the board, in a
 field being typed in, or on the bench, which is not about a week at all. The
 ends of the season hold rather than wrap.
 
+A swipe slides: the card and the drawer's panel are pushed off the side the
+swipe went, the render happens behind them, and the week that arrives comes on
+from the other side, both regions moving together over a full width of travel
+while the field stays still for the movement to be read against. It is two
+one-shot keyframes rather than one, because the markup between them is
+replaced (`slideToWeek` in `app.js`, `week-slide-out`/`week-slide-in` in
+`motion.css`), and every class it sets is cleared again by the next full
+render - which adopts the week the swipe was turning to rather than dropping
+it, so a lock or another device's change arriving mid-slide keeps the gesture
+and puts the board flat.
+
 Colour is the one thing that does not come off the board: `app.js` stamps
 `data-league` and `data-objective` on the root element and `src/css/leagues.css`
 repaints the end zones and the league's mark from them. Everything else is the

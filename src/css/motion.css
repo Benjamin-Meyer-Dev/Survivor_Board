@@ -445,38 +445,67 @@
   transition: none;
 }
 
-/* --- the call, one week along ---------------------------------------------
-   A swipe across the board turns the week, and the card it lands on comes in
-   from the side the swipe pushed it in from. The field's bracket slides at the
-   same time under its own smooth scroll, so the gesture is answered in both
-   halves of the readout at once. */
+/* --- turning the week -----------------------------------------------------
+   A swipe pushes the week off the side it was swiped towards and brings the
+   next one on behind it, in the readout's card and in the drawer's panel at
+   once, so the board turns rather than one card of it. The field's bracket
+   slides along the yard lines at the same time under its own smooth scroll,
+   which is what the movement is read against.
 
-@keyframes call-from-right {
+   Two halves, because the markup is replaced between them: what is on screen
+   animates out, the render happens, and what arrives animates in from the
+   other side (slideToWeek in app.js drives both). `--slide` is +1 for a swipe
+   to the left and -1 for one to the right, so a single pair of keyframes
+   serves both directions.
+
+   A full width of travel, which is why the parent clips - and clips only while
+   this is running, so a focus ring or a shadow that overflows its box on
+   purpose is not clipped the rest of the time. Out is quicker than in and
+   accelerates away; in decelerates, so the week that arrives is the half of
+   the move the eye follows.
+
+   Both stay solid through the part of the travel that is actually on screen
+   and only fade at the far end, where they are mostly behind the clip. The
+   fade is there to cover the one frame between the halves, where the same
+   element jumps from one edge to the other; a slide that faded the whole way
+   across would read as a dissolve rather than as a push. */
+
+.is-sliding {
+  overflow: hidden;
+}
+
+@keyframes week-slide-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  55% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(calc(var(--slide, 1) * -100%));
+  }
+}
+
+@keyframes week-slide-in {
   from {
     opacity: 0;
-    transform: translateX(16px);
+    transform: translateX(calc(var(--slide, 1) * 100%));
+  }
+  35% {
+    opacity: 1;
   }
   to {
     opacity: 1;
-    transform: none;
+    transform: translateX(0);
   }
 }
 
-@keyframes call-from-left {
-  from {
-    opacity: 0;
-    transform: translateX(-16px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+.is-slide-out {
+  animation: week-slide-out 0.13s cubic-bezier(0.45, 0, 0.9, 0.5) both;
 }
 
-.call.is-from-right {
-  animation: call-from-right 0.24s var(--ease-out) both;
-}
-
-.call.is-from-left {
-  animation: call-from-left 0.24s var(--ease-out) both;
+.is-slide-in {
+  animation: week-slide-in 0.28s var(--ease-out) both;
 }

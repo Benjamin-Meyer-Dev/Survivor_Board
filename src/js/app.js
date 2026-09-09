@@ -114,10 +114,37 @@ const app = {
   unsubscribe: null,
   switching: false,
   recommendTimer: null,
+  /** The half-played slide of a swipe: which week it is turning to, and its timer. */
+  slideTo: null,
+  slideTimer: null,
 };
 
 /** Which keyframe an action should play on the slot it changed. */
 const EFFECT_FOR = { lock: "fx-lock", pick: "fx-swap" };
+
+/**
+ * What turns when the week does: a box that clips the slide, and the thing
+ * inside it that moves across.
+ *
+ * The field is deliberately not here. Its bracket slides along the yard lines
+ * under its own smooth scroll, and it is what everything else moves against -
+ * a board where the field slid too would have nothing standing still to read
+ * the movement from. Nor is the bench, which says the same thing whatever week
+ * is open.
+ */
+const SLIDING = [
+  { clip: "#call", moves: ".call" },
+  { clip: "#view-week", moves: "#sideline" },
+  { clip: "#view-path", moves: "#drive" },
+];
+
+/** How long the week on screen takes to clear out before the next arrives. */
+const SLIDE_OUT_MS = 130;
+
+/** And how long that one takes to come in, for the clip to be lifted after. */
+const SLIDE_IN_MS = 280;
+
+const REDUCED_MOTION = matchMedia("(prefers-reduced-motion: reduce)");
 
 /**
  * Feedback has to be applied AFTER the render that produced the new markup -
@@ -327,6 +354,10 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
     return;
   }
 
+  // A full render is not a swipe: take the week a slide was heading for and
+  // put the board flat, so nothing is left mid-move under the new markup.
+  landPendingSlide();
+
   const previousMotion = captureMotionState();
   const board = buildBoard({ ...boardInputs(), allowSearch: search });
   // The week being looked at has to be one the pool plays. Which weeks those
@@ -413,11 +444,97 @@ function renderSelection(board) {
  */
 function stepWeek(direction) {
   if (!lastBoard) return;
-  const at = lastBoard.weeks.findIndex((week) => week.week === app.viewWeek);
+  // From where the last swipe is heading, not from what is on screen: two
+  // flicks in quick succession move two weeks, even though the first has not
+  // finished sliding.
+  const from = app.slideTo ?? app.viewWeek;
+  const at = lastBoard.weeks.findIndex((week) => week.week === from);
   const next = lastBoard.weeks[at + direction];
   if (at === -1 || !next) return;
-  lookAt(next.week);
-  el.call?.firstElementChild?.classList.add(direction > 0 ? "is-from-right" : "is-from-left");
+  slideToWeek(next.week, direction);
+}
+
+/**
+ * Turn the board to a week, sliding.
+ *
+ * In two halves, because the markup is replaced between them: the week on
+ * screen slides off the way the swipe pushed it, the render happens, and the
+ * week that arrives slides in from the other side. `--slide` carries the
+ * direction, so one pair of keyframes serves both ways (see motion.css).
+ *
+ * The clip goes on for the length of the move and comes off after, so nothing
+ * that overflows its box on purpose - a focus ring, a shadow - is clipped for
+ * the rest of the time. Every class this sets is also cleared by
+ * landPendingSlide, so a render arriving mid-slide cannot leave the board
+ * halfway off its own edge.
+ */
+function slideToWeek(week, direction) {
+  const parts = slidingParts();
+  if (!parts.length || REDUCED_MOTION.matches) {
+    lookAt(week);
+    return;
+  }
+
+  for (const { clip, moves } of parts) {
+    clip.classList.add("is-sliding");
+    moves.style.setProperty("--slide", String(direction));
+    moves.classList.remove("is-slide-in");
+    moves.classList.add("is-slide-out");
+  }
+
+  clearTimeout(app.slideTimer);
+  app.slideTo = week;
+  app.slideTimer = setTimeout(() => {
+    app.slideTo = null;
+    lookAt(week);
+    // Looked up again: the call's card is a new element after that render,
+    // where the drawer's lists are the ones the markup ships and stay put.
+    for (const { moves } of slidingParts()) {
+      moves.style.setProperty("--slide", String(direction));
+      moves.classList.remove("is-slide-out");
+      moves.classList.add("is-slide-in");
+    }
+    app.slideTimer = setTimeout(landPendingSlide, SLIDE_IN_MS);
+  }, SLIDE_OUT_MS);
+}
+
+/** The regions to slide, as element pairs, skipping any that is not on screen. */
+function slidingParts() {
+  const parts = [];
+  for (const { clip, moves } of SLIDING) {
+    const box = document.querySelector(clip);
+    const inner = box?.querySelector(moves);
+    // A panel behind another tab has nothing to show for a slide.
+    if (inner && box.offsetParent !== null) parts.push({ clip: box, moves: inner });
+  }
+  return parts;
+}
+
+/**
+ * Put the board flat again: no clip, no transform, and the week a slide was
+ * heading for adopted as the week being looked at.
+ *
+ * Called at the end of a slide and at the top of every full render. A render
+ * rebuilds the whole board, which would strand a half-played slide - the card
+ * left sitting off its own edge at opacity nothing - so a render lands the
+ * swipe instead of dropping it: the week it was turning to becomes the week
+ * the render paints.
+ */
+function landPendingSlide() {
+  clearTimeout(app.slideTimer);
+  app.slideTimer = null;
+  if (app.slideTo !== null) {
+    app.viewWeek = app.slideTo;
+    app.slideTo = null;
+    app.activeSlot = 0;
+  }
+  for (const { clip, moves } of SLIDING) {
+    const box = document.querySelector(clip);
+    box?.classList.remove("is-sliding");
+    const inner = box?.querySelector(moves);
+    inner?.classList.remove("is-slide-out", "is-slide-in");
+    inner?.style.removeProperty("--slide");
+  }
 }
 
 /**
