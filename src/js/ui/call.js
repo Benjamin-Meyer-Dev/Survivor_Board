@@ -101,11 +101,6 @@ function whenLine(week, board) {
 
 function weekTags(week, board) {
   const tags = [];
-  if (week.isBuyBack && (board.buyBack?.left ?? 0) > 0) {
-    tags.push(
-      `<span class="chip chip--buyback" title="A loss this week costs the buy back, not the season. The team is still burned.">Buy back</span>`,
-    );
-  }
   // The week on the clock is already said by the live dot on the when-line;
   // a tag saying it again only cost the drawer a row.
   if (board.eliminated && week.week === board.eliminatedWeek) {

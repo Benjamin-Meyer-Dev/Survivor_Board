@@ -80,10 +80,6 @@
   background: transparent;
 }
 
-.chip--buyback {
-  --tag-fg: var(--mulligan);
-}
-
 .chip--moot {
   --tag-fg: var(--chalk-4);
   background: transparent;
@@ -540,6 +536,14 @@
   color: var(--chalk);
   box-shadow: var(--shadow-lift);
   overflow: hidden;
+}
+
+/* A sheet takes focus itself on open (ui/home.js, ui/settings.js), so no
+   field brings the keyboard up before it has been read; the ring would only
+   say what the backdrop already does. */
+.settings:focus,
+.home__sheet:focus {
+  outline: none;
 }
 
 .settings::backdrop,
@@ -1344,10 +1348,11 @@
   color: var(--chalk-2);
 }
 
-/* The actions, at the end of the head row: the other side of the game as a
-   quiet mark, and the one action in the flag's colour. Marks, not words, so
-   the drawer under the card gets the room; the eyebrow says the state. Round,
-   like the topline's own buttons. */
+/* The actions, at the end of the head row: the other side of the game and
+   the one action, both filled in the flag's colour so a thumb finds them
+   without reading the row. Marks, not words, so the drawer under the card
+   gets the room; the eyebrow says the state. Round, like the topline's own
+   buttons. */
 .call__actions {
   display: flex;
   gap: 6px;
@@ -1360,6 +1365,9 @@
   height: 36px;
   padding: 0;
   border-radius: 50%;
+  background: var(--flag);
+  border-color: var(--flag);
+  color: var(--on-flag);
 }
 
 .call__flip svg,
@@ -1373,36 +1381,26 @@
   stroke-linejoin: round;
 }
 
-/* The other side of the game: the two arrows, quiet. */
-.call__flip {
-  border-color: var(--line);
-  color: var(--chalk-2);
-}
-
+/* The other side of the game: the two arrows, lighter under a hover. */
 .call__flip svg {
   stroke-width: 2;
 }
 
 .call__flip:hover:not(:disabled) {
-  border-color: var(--chalk);
-  color: var(--chalk);
+  background: var(--flag-2);
+  border-color: var(--flag-2);
 }
 
 .call__lock svg {
   stroke-width: 2.4;
 }
 
-/* Locked: chalk outline, painted on. Tap to undo. */
+/* Locked: solid chalk, painted on, so it reads apart from the flag of an
+   action still to take. Tap to undo. */
 .call__lock--on {
   border-color: var(--chalk);
-  background: rgb(243 247 241 / 8%);
-  color: var(--chalk);
-}
-
-/* Taking the coach's call: the check, in the outlined flag. */
-.call__lock--take {
-  border: 2px solid var(--flag);
-  color: var(--flag);
+  background: var(--chalk);
+  color: var(--paint);
 }
 
 /* the drawer (ui/tabs.js) ---------------------------------------------------- */

@@ -166,7 +166,7 @@ function homeMarkup({ name, leagues, shared, loading, message }) {
 /** The two sheets: a head with the name and a way out, and the form beneath. */
 function sheetsMarkup() {
   return `
-    <dialog class="home__sheet" id="home-create" aria-labelledby="home-create-title">
+    <dialog class="home__sheet" id="home-create" aria-labelledby="home-create-title" tabindex="-1" autofocus>
       <div class="home__sheet-head">
         <h3 class="home__sheet-title" id="home-create-title">New league</h3>
         <button type="button" class="home__icon home__sheet-close" data-close
@@ -198,7 +198,7 @@ function sheetsMarkup() {
       </form>
     </dialog>
 
-    <dialog class="home__sheet" id="home-join" aria-labelledby="home-join-title">
+    <dialog class="home__sheet" id="home-join" aria-labelledby="home-join-title" tabindex="-1" autofocus>
       <div class="home__sheet-head">
         <h3 class="home__sheet-title" id="home-join-title">Join a league</h3>
         <button type="button" class="home__icon home__sheet-close" data-close
@@ -218,7 +218,7 @@ function sheetsMarkup() {
       </form>
     </dialog>
 
-    <dialog class="home__sheet home__sheet--confirm" id="home-leave" aria-labelledby="home-leave-title">
+    <dialog class="home__sheet home__sheet--confirm" id="home-leave" aria-labelledby="home-leave-title" tabindex="-1" autofocus>
       <div class="home__sheet-head">
         <h3 class="home__sheet-title" id="home-leave-title">Leave this league?</h3>
         <button type="button" class="home__icon home__sheet-close" data-close
@@ -382,15 +382,17 @@ function wireSheets(sheets) {
 /**
  * Open one sheet over the page. An earlier attempt's error is cleared, since
  * the person is starting again; what they typed is kept, since they may be
- * coming back to finish it. Nothing is focused: on a phone that would bring
- * the keyboard up over a sheet nobody has read yet, and the field is the
- * obvious thing to tap.
+ * coming back to finish it. The sheet itself takes focus, not its first
+ * field: a modal dialog focuses the field on open unless told otherwise, and
+ * on a phone that brings the keyboard up over a sheet nobody has read yet.
+ * The field is the obvious thing to tap.
  */
 function openSheet(id) {
   const dialog = sheetsRoot?.querySelector(`#home-${id}`);
   if (!dialog || dialog.open) return;
   showProblem(dialog.querySelector(".home__form"), "");
   dialog.showModal();
+  dialog.focus();
 }
 
 /**
@@ -405,6 +407,7 @@ function askToLeave(code, name) {
   leaving = code;
   dialog.querySelector("[data-leave-name]").textContent = name;
   dialog.showModal();
+  dialog.focus();
 }
 
 /**

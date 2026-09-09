@@ -117,7 +117,7 @@ function buildSheet(root) {
     <button type="button" class="settings__open" aria-haspopup="dialog" aria-label="Pool rules">
       ${GEAR_ICON}
     </button>
-    <dialog class="settings" aria-labelledby="settings-title">
+    <dialog class="settings" aria-labelledby="settings-title" tabindex="-1" autofocus>
       <form class="settings__form" method="dialog">
         <div class="settings__head">
           <h2 class="settings__title" id="settings-title">League</h2>
@@ -175,6 +175,9 @@ function buildSheet(root) {
     danger = null;
     paint(root);
     dialog.showModal();
+    // The sheet itself takes focus, not the name field: a field focused on
+    // open brings the keyboard up on a phone before the sheet has been read.
+    dialog.focus();
   });
 
   root.querySelector(".settings__cancel").addEventListener("click", () => {
