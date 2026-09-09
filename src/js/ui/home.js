@@ -203,12 +203,11 @@ function sheetsMarkup() {
                 aria-label="Close">${ICONS.close}</button>
       </div>
       <form class="home__form" data-act="join">
-        <label class="home__label" for="home-code">Paste the code you were sent</label>
         <input class="home__input home__input--code" id="home-code" name="code" type="text"
                placeholder="BXQK-7HRT-M4WD" autocomplete="off" autocapitalize="characters"
-               spellcheck="false" />
+               spellcheck="false" aria-label="The code you were sent" />
         <p class="home__form-error" role="alert" hidden></p>
-        <button type="submit" class="home__btn home__btn--go">Join</button>
+        <button type="submit" class="home__btn home__btn--go" disabled>Join</button>
       </form>
     </dialog>
 
@@ -356,6 +355,7 @@ function wireSheets(sheets) {
 
   const create = sheets.querySelector('form[data-act="create"]');
   syncCreate(create);
+  create.addEventListener("input", () => syncCreate(create));
   create.addEventListener("change", () => {
     syncCreate(create);
     // The one complaint the sheet can make on its own is answered by a tick.
@@ -372,6 +372,8 @@ function wireSheets(sheets) {
   });
 
   const join = sheets.querySelector('form[data-act="join"]');
+  syncJoin(join);
+  join.addEventListener("input", () => syncJoin(join));
   join.addEventListener("submit", (event) => {
     event.preventDefault();
     const typed = join.elements.code.value;
@@ -471,12 +473,20 @@ function chosenKinds(form) {
 }
 
 /**
- * Create is held until a pool is ticked. A league of no pools would have no
- * board to open, so the button says what is missing by being unavailable
- * rather than by failing after the tap.
+ * Create is held until the league has a name and a pool is ticked. A league
+ * of no pools would have no board to open, and one with no name nothing to
+ * list it by, so the button says what is missing by being unavailable rather
+ * than by failing after the tap.
  */
 function syncCreate(form) {
-  form.querySelector('button[type="submit"]').disabled = chosenKinds(form).length === 0;
+  const named = form.elements.name.value.trim().length > 0;
+  form.querySelector('button[type="submit"]').disabled = !named || chosenKinds(form).length === 0;
+}
+
+/** Join is held until something has been typed into the code box. */
+function syncJoin(form) {
+  form.querySelector('button[type="submit"]').disabled =
+    form.elements.code.value.trim().length === 0;
 }
 
 /**
