@@ -307,18 +307,43 @@
   white-space: nowrap;
 }
 
-/* The pool showing, as a chalk pill holding a native select, with the
-   league's paint as a mark at its start. The picker holds this league's pools
-   and nothing else; another league is a trip through the home page. */
-.league-bar__pool {
+/* The pool showing, as a chalk pill with the league's paint as a mark at its
+   start. Press it and the league's pools hang under it on a chalkboard, each
+   in its own paint, the one showing checked (ui/league-bar.js). Drawn here
+   rather than by the platform: Android's own picker is a radio dialog in the
+   system's face, floating over the middle of the field. */
+.league-bar__picker {
   position: relative;
+  display: flex;
+  min-width: 0;
+  max-width: min(100%, 240px);
+  flex: none;
+}
+
+.league-bar__pool {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   height: 30px;
-  padding-left: 10px;
+  max-width: 100%;
+  padding: 0 10px;
   border: 1.5px solid var(--line-strong);
   border-radius: 999px;
-  flex: none;
+  background: none;
+  color: var(--chalk);
+  cursor: pointer;
+}
+
+/* Open, the pill is drawn in full chalk. Hover only where there is a pointer
+   to hover with: on a phone the state would stick after every tap. */
+.league-bar__pool[aria-expanded="true"] {
+  border-color: var(--chalk);
+}
+
+@media (hover: hover) {
+  .league-bar__pool:hover:not(:disabled) {
+    border-color: var(--chalk);
+  }
 }
 
 .league-bar__mark {
@@ -331,68 +356,149 @@
   pointer-events: none;
 }
 
-/* Room on the right for the chevron, drawn over the select rather than beside
-   it: a select sized by its longest option would leave the pill wider than
-   the name it is showing. */
-.league-bar__select {
-  appearance: none;
-  height: 28px;
-  max-width: min(100%, 220px);
-  padding: 0 28px 0 8px;
-  border: 0;
-  background: none;
-  color: var(--chalk);
+.league-bar__showing {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  text-overflow: ellipsis;
-  cursor: pointer;
-}
-
-/* The open picker is the platform's, and on a desktop it inherits nothing
-   from the pill: the rows have to carry their own ground. */
-/* No ring on the select itself: Chrome draws one on a click as well as a
-   keystroke, and a rectangle inside a pill reads as a glitch. The pill
-   brightens instead while the picker has focus, which keyboard users see. */
-.league-bar__select:focus-visible {
-  outline: none;
-}
-
-.league-bar__pool:has(.league-bar__select:focus-visible) {
-  border-color: var(--chalk);
-}
-
-.league-bar__select option {
-  background: var(--board);
-  color: var(--chalk);
-  text-transform: none;
-  letter-spacing: normal;
 }
 
 .league-bar__chevron {
-  position: absolute;
-  right: 9px;
   width: 11px;
   height: 11px;
+  flex: none;
   fill: none;
   stroke: var(--chalk);
   stroke-width: 2.6;
   stroke-linecap: round;
   stroke-linejoin: round;
-  pointer-events: none;
+  transition: transform 0.2s var(--ease-out);
+}
+
+.league-bar__pool[aria-expanded="true"] .league-bar__chevron {
+  transform: rotate(180deg);
 }
 
 /* A league of one pool has nothing to pick: the pill just names it. */
-.league-bar__pool--one .league-bar__select {
-  padding-right: 10px;
-  opacity: 1;
+.league-bar__pool--one {
   cursor: default;
+  opacity: 1;
 }
 
 .league-bar__pool--one .league-bar__chevron {
   display: none;
+}
+
+/* The menu, hung from the pill's left edge; --right when that would run off
+   the screen. Above the field, which stacks its own zones. */
+.league-bar__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 10;
+  min-width: max(100%, 200px);
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--board);
+  box-shadow: var(--shadow-lift);
+}
+
+.league-bar__menu--right {
+  left: auto;
+  right: 0;
+}
+
+/* A row per pool: its paint as a mark, its name, a check on the one showing.
+   Keyboard focus lights the row rather than ringing it. */
+.league-bar__option {
+  --mark: var(--chalk-3);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 10px 0 12px;
+  border-radius: 8px;
+  color: var(--chalk-2);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.league-bar__option[data-kind="nfl-win"] {
+  --mark: var(--kind-nfl);
+}
+
+.league-bar__option[data-kind="cfb-win"] {
+  --mark: var(--kind-cfb);
+}
+
+.league-bar__option[data-kind$="-lose"] {
+  --mark: var(--kind-lose);
+}
+
+.league-bar__option[aria-selected="true"] {
+  color: var(--chalk);
+}
+
+.league-bar__option:focus-visible {
+  outline: none;
+  background: rgb(243 247 241 / 10%);
+  color: var(--chalk);
+}
+
+@media (hover: hover) {
+  .league-bar__option:hover {
+    background: rgb(243 247 241 / 10%);
+    color: var(--chalk);
+  }
+}
+
+.league-bar__option:active {
+  background: rgb(243 247 241 / 16%);
+}
+
+.league-bar__option-mark {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--mark);
+  box-shadow: 0 0 0 1.5px var(--chalk-4);
+}
+
+.league-bar__option-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.league-bar__option-check {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  fill: none;
+  stroke: var(--chalk);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  visibility: hidden;
+}
+
+.league-bar__option[aria-selected="true"] .league-bar__option-check {
+  visibility: visible;
 }
 
 /* pool rules sheet (ui/settings.js) ---------------------------------------- */

@@ -179,6 +179,25 @@
   animation: backdrop-in 0.3s ease both;
 }
 
+/* --- the pool menu --------------------------------------------------------- */
+
+/* The menu drops the last few pixels into place. Keyed on the hidden attribute
+   coming off, which restarts it on every open. */
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.league-bar__menu:not([hidden]) {
+  animation: menu-in 0.18s var(--ease-out) both;
+}
+
 /* --- the drawer changing panel ------------------------------------------- */
 
 @keyframes panel-enter {
