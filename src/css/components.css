@@ -2165,31 +2165,8 @@
 /* home page (ui/home.js) ------------------------------------------------------- */
 
 .home {
-  position: relative;
-  isolation: isolate;
   display: grid;
   gap: var(--sp-5);
-}
-
-/* The field behind the home page: the floodlit turf the start screen stands
-   on, fixed to the viewport so the leagues scroll over it. Under everything
-   in the section, and no part of anything a finger can hit. */
-/* Eased back a little: the page's own chalk has to read over the field's. */
-.home__backdrop .stadium {
-  opacity: 0.8;
-}
-
-.home__backdrop {
-  --ground: #0f4d2c;
-  --line: rgb(243 247 241 / 35%);
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  overflow: hidden;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse 90% 40% at 50% -6%, rgb(255 255 255 / 14%), transparent 70%),
-    repeating-linear-gradient(180deg, rgb(0 0 0 / 5%) 0 48px, transparent 48px 96px), var(--ground);
 }
 
 .home__head {
@@ -2305,7 +2282,7 @@
   padding: var(--sp-5);
   border: var(--dash);
   border-radius: var(--radius);
-  background: rgb(10 58 32 / 40%);
+  background: rgb(10 58 32 / 68%);
   box-shadow: var(--shadow);
   transition:
     border-color 180ms ease,

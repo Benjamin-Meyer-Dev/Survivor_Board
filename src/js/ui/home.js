@@ -38,7 +38,6 @@
 import { POOL_KINDS, KIND_IDS, normaliseKinds } from "../sports.js";
 import { formatCode, normaliseCode, isCode } from "../core/code.js";
 import { escapeHtml } from "../core/format.js";
-import { stadiumMarkup } from "./stadium.js";
 
 /** Latest handlers, so the sheets wired on the first render stay current. */
 let handlers = {};
@@ -118,7 +117,6 @@ export function renderHome(root, state, given, sheets = null) {
 function homeMarkup({ name, leagues, shared, loading, message }) {
   return `
     <section class="home">
-      <div class="home__backdrop" aria-hidden="true">${stadiumMarkup()}</div>
       <header class="home__head">
         <div>
           <h1 class="home__brand">
