@@ -453,20 +453,9 @@ function renderHomeView() {
         await reloadLeagues();
         renderHomeView();
       },
-      onRenameMe: async () => {
-        document.body.classList.add("is-gated");
-        const name = await requireName(el.start, {
-          name: app.name,
-          heading: "Who's picking?",
-          action: "Save",
-          back: true,
-        });
-        document.body.classList.remove("is-gated");
-        // Back resolves null: the name stays as it was.
-        if (name) {
-          setMyName(name);
-          app.name = name;
-        }
+      onRenameMe: (name) => {
+        setMyName(name);
+        app.name = name;
         renderHomeView();
       },
     },

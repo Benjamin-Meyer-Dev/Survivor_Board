@@ -38,6 +38,7 @@
 import { POOL_KINDS, KIND_IDS, normaliseKinds } from "../sports.js";
 import { formatCode, normaliseCode, isCode } from "../core/code.js";
 import { escapeHtml } from "../core/format.js";
+import { stadiumMarkup } from "./stadium.js";
 
 /** Latest handlers, so the sheets wired on the first render stay current. */
 let handlers = {};
@@ -81,6 +82,8 @@ const SHEETS = [
 
 /** The league a leave is being asked about, while the question is up. */
 let leaving = null;
+/** This person's name as last rendered, for the rename sheet to start from. */
+let me = "";
 
 /**
  * @param {HTMLElement} root Where the list and the menu are drawn.
@@ -92,7 +95,7 @@ let leaving = null;
  * @param {boolean} state.loading Whether the shared copy is still on its way.
  * @param {string} state.message A line to show above the list, or "".
  * @param {object} given onOpen(code), onCreate({name, kinds}), onJoin(code),
- *   onLeave(code), onRenameMe(). onCreate and onJoin may reject; the message is
+ *   onLeave(code), onRenameMe(name). onCreate and onJoin may reject; the message is
  *   shown in their sheet.
  * @param {HTMLElement} [sheets] Where the two sheets live. Built once, on the
  *   first render that names it, and left alone after.
@@ -107,6 +110,7 @@ export function renderHome(root, state, given, sheets = null) {
       wireSheets(sheets);
     }
   }
+  me = state.name ?? "";
   root.innerHTML = homeMarkup(state);
   wire(root);
 }
@@ -114,6 +118,7 @@ export function renderHome(root, state, given, sheets = null) {
 function homeMarkup({ name, leagues, shared, loading, message }) {
   return `
     <section class="home">
+      <div class="home__backdrop" aria-hidden="true">${stadiumMarkup()}</div>
       <header class="home__head">
         <div>
           <h1 class="home__brand">
@@ -189,11 +194,6 @@ function sheetsMarkup() {
             ).join("")}
           </div>
         </fieldset>
-        <p class="home__hint">
-          Tick every pool this league runs: one code brings people into all of them, with
-          a board for each. Whether a pick has to win or lose is fixed here; picks a week
-          and buy backs are set per pool inside the league, from the gear beside its name.
-        </p>
         <button type="submit" class="home__btn home__btn--go" disabled>Create league</button>
       </form>
     </dialog>
@@ -210,11 +210,25 @@ function sheetsMarkup() {
                placeholder="BXQK-7HRT-M4WD" autocomplete="off" autocapitalize="characters"
                spellcheck="false" />
         <p class="home__form-error" role="alert" hidden></p>
-        <p class="home__hint">
-          Twelve characters, dashes optional. Everyone in a league shares its boards: you
-          will see the same picks and locks as the rest of them, and they will see yours.
-        </p>
         <button type="submit" class="home__btn home__btn--go">Join</button>
+      </form>
+    </dialog>
+
+    <dialog class="home__sheet home__sheet--confirm" id="home-rename" aria-labelledby="home-rename-title" tabindex="-1" autofocus>
+      <div class="home__sheet-head">
+        <h3 class="home__sheet-title" id="home-rename-title">Who's picking?</h3>
+        <button type="button" class="home__icon home__sheet-close" data-close
+                aria-label="Close">${ICONS.close}</button>
+      </div>
+      <form class="home__form" data-act="rename">
+        <label class="home__label" for="home-me">Your name</label>
+        <input class="home__input" id="home-me" name="name" type="text" maxlength="40"
+               autocomplete="name" autocapitalize="words" spellcheck="false" placeholder="Ben" />
+        <p class="home__form-error" role="alert" hidden></p>
+        <div class="home__confirm-row">
+          <button type="submit" class="home__btn home__btn--go">Save</button>
+          <button type="button" class="home__btn home__btn--quiet" data-close>Cancel</button>
+        </div>
       </form>
     </dialog>
 
@@ -302,9 +316,12 @@ function kindsOf(league) {
 
 /** The list and the menu: redrawn on every render. */
 function wire(root) {
-  root
-    .querySelector('[data-act="rename-me"]')
-    ?.addEventListener("click", () => handlers.onRenameMe());
+  root.querySelector('[data-act="rename-me"]')?.addEventListener("click", () => {
+    // The name as it stands, to edit rather than retype.
+    const field = sheetsRoot?.querySelector("#home-me");
+    if (field) field.value = me;
+    openSheet("rename");
+  });
 
   for (const button of root.querySelectorAll("[data-sheet]")) {
     button.addEventListener("click", () => openSheet(button.dataset.sheet));
@@ -329,7 +346,9 @@ function wire(root) {
  */
 function wireSheets(sheets) {
   for (const dialog of sheets.querySelectorAll(".home__sheet")) {
-    dialog.querySelector("[data-close]").addEventListener("click", () => dialog.close());
+    for (const close of dialog.querySelectorAll("[data-close]")) {
+      close.addEventListener("click", () => dialog.close());
+    }
     // A tap outside the sheet, which on a modal dialog lands on the dialog
     // element itself rather than on anything inside it.
     dialog.addEventListener("click", (event) => {
@@ -363,6 +382,20 @@ function wireSheets(sheets) {
       return;
     }
     attempt(join, () => handlers.onJoin(normaliseCode(typed)));
+  });
+
+  // The name: trimmed, never blank - it is how the others know whose picks
+  // are whose - and saved on Save, which shuts the sheet.
+  const rename = sheets.querySelector('form[data-act="rename"]');
+  rename.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const typed = rename.elements.name.value.trim().slice(0, 40);
+    if (!typed) {
+      showProblem(rename, "A name is how the others know which picks are yours.");
+      return;
+    }
+    rename.closest("dialog").close();
+    handlers.onRenameMe(typed);
   });
 
   // The leave question: the answer acts on whichever league asked it.
