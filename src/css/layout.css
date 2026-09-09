@@ -125,9 +125,9 @@
 
 /* wide ----------------------------------------------------------------------- */
 
-/* The desktop follows the phone: the same field across the top, the call and
-   its actions in one row under it, and the drawer's three panels open side by
-   side rather than behind tabs. */
+/* The desktop follows the phone: the same field across the top, the call under
+   it, and the drawer's three panels open side by side rather than behind
+   tabs. */
 @media (min-width: 900px) {
   .shell {
     --gutter: var(--sp-6);

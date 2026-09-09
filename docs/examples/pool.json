@@ -1,8 +1,10 @@
 {
-  "$comment": "Template for data/<league>/pool.json. `entriesAlive` is how many entries are still standing; `popularity` is the share of them on each team this week, keyed \"<week>|<team>\" like odds.json, and only the current week's keys are read (shares need not sum to one; the rest of the field is assumed spread across unlisted teams). `mode` is safest (the default, survival alone), equity (survival across futures times leverage) or balanced (equity, but only among openings whose chance this week is at least `floor`). The coach's own call never changes; the pool's preference is reported beside it in the refresh summary. Bump `updatedAt` whenever the file changes.",
+  "$comment": "Template for data/<league>/pool.json. `entriesAlive` is how many entries are still standing; `popularity` is the share of them on each team this week, keyed \"<week>|<team>\" like odds.json, and only the current week's keys are read (shares need not sum to one; the rest of the field is assumed spread across unlisted teams). Without the file, or for a week it says nothing about, the field is implied from the lines. `mode` is safest (the default: survival alone, the best mean across the futures among openings whose chance this week is at least `floor`, 0.7 unless set), balanced (the same openings ranked by survival times leverage) or equity (leverage with no floor). In a week a buy back in hand covers, openings within `coveredMargin` (0.05) of the best are near enough equal that the weakest team goes, down to `coveredFloor` (0.667). The coach's call follows the mode. Bump `updatedAt` whenever the file changes.",
   "updatedAt": "2026-09-04T12:00:00Z",
-  "mode": "balanced",
-  "floor": 0.75,
+  "mode": "safest",
+  "floor": 0.7,
+  "coveredFloor": 0.667,
+  "coveredMargin": 0.05,
   "entriesAlive": 42,
   "popularity": {
     "1|Chargers": 0.55,

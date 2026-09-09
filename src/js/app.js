@@ -54,7 +54,7 @@ const el = {
   startup: document.getElementById("startup"),
   startupStatus: document.getElementById("startup-status"),
   notices: document.getElementById("notices"),
-  /** The readout: the field and drive line, then the week's call and its seam. */
+  /** The readout: the field and drive line, then the week's call. */
   pitch: document.getElementById("pitch"),
   call: document.getElementById("call"),
   /** The drawer's three panels. */
@@ -96,7 +96,7 @@ const app = {
   calibration: null,
   /** Player availability, kept by hand. Null means nothing reported. */
   availability: null,
-  /** The pool's size and pick popularity, kept by hand. Null is survival mode. */
+  /** The pool's size and pick popularity, kept by hand. Null, and the field is implied. */
   pool: null,
   entry: { picks: {}, swaps: {} },
   store: null,

@@ -16,6 +16,7 @@ import { readFile } from "node:fs/promises";
 import { recommendPath, continuationWeights, recommendForBoard } from "../src/js/core/recommend.js";
 import { assignPath, maximumAssignment, FORBIDDEN } from "../src/js/core/assignment.js";
 import { survival } from "../src/js/core/survival.js";
+import { COVERED_FLOOR, COVERED_MARGIN } from "../src/js/core/equity.js";
 import { buildBoard } from "../src/js/core/plan.js";
 import { CONFIG } from "../src/js/config.js";
 import { SPORT_IDS } from "../src/js/sports.js";
@@ -84,6 +85,9 @@ const SMALL = [
   ]),
 }));
 
+/** Survival alone, no floor and no covered tilt: the optimum brute force finds. */
+const PURE = { mode: "safest", floor: 0, coveredMargin: 0 };
+
 /** Every legal path, scored exactly. */
 function bruteForce(weeks, { picksPerWeek, buyBackWeeks, buyBacks }) {
   let best = { probability: -1, path: null };
@@ -128,7 +132,7 @@ function bruteForce(weeks, { picksPerWeek, buyBackWeeks, buyBacks }) {
 {
   const rules = { picksPerWeek: 1, buyBackWeeks: [], buyBacks: 0 };
   const truth = bruteForce(SMALL, rules);
-  const found = recommendPath({ weeks: SMALL, burned: new Set(), ...rules });
+  const found = recommendPath({ weeks: SMALL, burned: new Set(), ...rules, pool: PURE });
   close(found.pathProbability, truth.probability, 1e-9, "one pick a week: the optimum is found");
   assert.ok(truth.probability > 0, "the fixture has a legal path");
   // Taking the favourite every week, under the no-repeat rule, is the path
@@ -152,12 +156,83 @@ function bruteForce(weeks, { picksPerWeek, buyBackWeeks, buyBacks }) {
 {
   const rules = { picksPerWeek: 1, buyBackWeeks: [1, 2], buyBacks: 1 };
   const truth = bruteForce(SMALL, rules);
-  const found = recommendPath({ weeks: SMALL, burned: new Set(), ...rules });
+  const found = recommendPath({ weeks: SMALL, burned: new Set(), ...rules, pool: PURE });
   close(found.pathProbability, truth.probability, 1e-9, "with a buy back: the optimum is found");
   assert.ok(
     found.frontier && found.frontier.candidates.length >= 1,
     "the frontier has something to say about week 1",
   );
+}
+
+// The default call: survival alone above the floor, with the field implied
+// from the lines and priced beside it.
+{
+  const rules = { picksPerWeek: 1, buyBackWeeks: [], buyBacks: 0 };
+  const found = recommendPath({ weeks: SMALL, burned: new Set(), ...rules });
+  const { frontier } = found;
+  assert.equal(frontier.pool.mode, "safest");
+  assert.equal(frontier.pool.source, "implied");
+  assert.equal(frontier.pool.covered, false);
+  const call = frontier.candidates[0];
+  assert.ok(call.chosen && call.preferred, "the call is the mode's preference");
+  assert.ok(call.weekWinProb >= frontier.pool.floor, "the call clears the floor");
+  for (const candidate of frontier.candidates) {
+    assert.ok(candidate.leverage >= 1 - 1e-9, "the field is priced for every opening");
+    if (candidate.weekWinProb >= frontier.pool.floor) {
+      assert.ok(
+        call.scenarioMean >= candidate.scenarioMean - 1e-9,
+        `nothing above the floor beats the call across the futures: ${candidate.teams}`,
+      );
+    }
+  }
+  assert.deepEqual(found.picks[1], call.teams, "the path shown opens with the call");
+  // Asked to, the pool's leverage makes the call instead.
+  const leveraged = recommendPath({
+    weeks: SMALL,
+    burned: new Set(),
+    ...rules,
+    pool: { mode: "equity" },
+  });
+  const top = leveraged.frontier.candidates[0];
+  for (const candidate of leveraged.frontier.candidates) {
+    assert.ok(
+      top.equity >= candidate.equity - 1e-9,
+      "equity mode: nothing beats the call on equity",
+    );
+  }
+}
+
+// A week a buy back covers: the loss is paid for, so among the openings the
+// futures rate within a whisker of each other the coach spends the weakest
+// team. With the buy back spent, the week is an ordinary one.
+{
+  const rules = { picksPerWeek: 1, buyBackWeeks: [1, 2], buyBacks: 1 };
+  const found = recommendPath({ weeks: SMALL, burned: new Set(), ...rules });
+  const { frontier } = found;
+  assert.equal(frontier.pool.covered, true, "week 1 is covered with the buy back in hand");
+  assert.equal(frontier.pool.floor, COVERED_FLOOR, "and the floor drops to the covered one");
+  assert.ok(
+    frontier.pool.cover > 0 && frontier.pool.cover < 1,
+    "the field keeps part of its worth",
+  );
+  const call = frontier.candidates[0];
+  const best = Math.max(...frontier.candidates.map((candidate) => candidate.scenarioMean));
+  assert.ok(
+    call.scenarioMean >= best * (1 - COVERED_MARGIN) - 1e-9,
+    "the call is within the margin of the best mean across the futures",
+  );
+  for (const candidate of frontier.candidates) {
+    const near = candidate.scenarioMean >= best * (1 - COVERED_MARGIN) - 1e-9;
+    if (near && candidate.weekWinProb >= COVERED_FLOOR) {
+      assert.ok(
+        call.weekWinProb <= candidate.weekWinProb + 1e-9,
+        `the call spends no stronger a team than ${candidate.teams} within the margin`,
+      );
+    }
+  }
+  assert.deepEqual(found.picks[1], call.teams, "the path shown opens with the call");
+  const spent = recommendPath({ weeks: SMALL, burned: new Set(), ...rules, buyBacks: 0 });
+  assert.equal(spent.frontier.pool.covered, false, "with the buy back spent, not covered");
 }
 
 // Two picks a week: never both sides of one game, and still the optimum. Six
@@ -168,7 +243,7 @@ function bruteForce(weeks, { picksPerWeek, buyBackWeeks, buyBacks }) {
   const three = SMALL.slice(0, 3);
   const truth = bruteForce(three, rules);
   assert.ok(truth.probability > 0, "six teams fill three two-pick weeks");
-  const found = recommendPath({ weeks: three, burned: new Set(), ...rules });
+  const found = recommendPath({ weeks: three, burned: new Set(), ...rules, pool: PURE });
   close(found.pathProbability, truth.probability, 1e-9, "two picks a week: the optimum is found");
   for (const week of three) {
     const teams = found.picks[week.week];
@@ -341,9 +416,22 @@ for (const league of SPORT_IDS) {
   });
   if (board.rules.buyBacks === 0 && relaxed.complete) {
     const relaxedSurvival = Math.exp(relaxed.value);
+    const safest = recommendPath({
+      weeks: upcoming,
+      burned: new Set(),
+      picksPerWeek: board.rules.picksPerWeek,
+      buyBackWeeks: board.rules.buyBackWeeks,
+      buyBacks: board.rules.buyBacks,
+      model: board.model,
+      pool: PURE,
+    });
     assert.ok(
-      recommendation.pathProbability >= relaxedSurvival - 1e-9,
-      `${league}: the path (${recommendation.pathProbability}) matches the exact relaxation (${relaxedSurvival})`,
+      safest.pathProbability >= relaxedSurvival - 1e-9,
+      `${league}: on survival alone the path (${safest.pathProbability}) matches the exact relaxation (${relaxedSurvival})`,
+    );
+    assert.ok(
+      recommendation.pathProbability >= relaxedSurvival * 0.9 - 1e-9,
+      `${league}: the value call (${recommendation.pathProbability}) gives up no more than a tenth of the season (${relaxedSurvival})`,
     );
   }
 
@@ -363,25 +451,55 @@ for (const league of SPORT_IDS) {
     1e-9,
     `${league}: the call's season number is the path's`,
   );
+  assert.ok(frontier.pool, `${league}: the coach has a field to price leverage against`);
+  assert.equal(frontier.pool.source, "implied", `${league}: implied from the lines, no file kept`);
+  assert.equal(frontier.pool.mode, "safest");
+  const call = frontier.candidates[0];
   for (const candidate of frontier.candidates) {
     assert.ok(candidate.weekWinProb > 0 && candidate.weekWinProb <= 1);
     assert.ok(candidate.season >= 0 && candidate.scenarioMean >= 0);
     assert.ok(candidate.robust >= 0 && candidate.robust <= 1);
     assert.ok(
-      candidate.scenarioCost >= -1e-9,
-      `${league}: no alternative beats the call across futures`,
+      candidate.leverage >= 1 - 1e-9 && candidate.equity >= 0,
+      `${league}: leverage and equity are priced`,
+    );
+    assert.ok(
+      candidate.scenarioCost >= -1e-9 && candidate.equityCost >= -1e-9,
+      `${league}: costs are measured against the best`,
     );
     assert.equal(
       candidate.options.length,
       candidate.teams.length,
       `${league}: every team is described`,
     );
+    // Safest: nothing above the floor beats the call across the futures,
+    // unless the week is covered and the call spent a weaker team within the
+    // margin.
+    if (candidate.weekWinProb >= frontier.pool.floor) {
+      const allowed = frontier.pool.covered ? 1 - COVERED_MARGIN : 1;
+      assert.ok(
+        call.scenarioMean >= candidate.scenarioMean * allowed - 1e-9,
+        `${league}: the call holds its own across the futures against ${candidate.teams.join("+")}`,
+      );
+    }
   }
-  const sorted = [...frontier.candidates].sort((a, b) => b.scenarioMean - a.scenarioMean);
+  assert.ok(
+    call.weekWinProb >= frontier.pool.floor - 1e-9 ||
+      frontier.candidates.every((c) => c.weekWinProb < frontier.pool.floor),
+    `${league}: the call clears the floor (${frontier.pool.floor})`,
+  );
+  if (frontier.pool.covered) {
+    assert.ok(
+      call.weekWinProb >= COVERED_FLOOR - 1e-9,
+      `${league}: a covered call keeps the covered floor`,
+    );
+  }
+  const rest = frontier.candidates.slice(1);
+  const sorted = [...rest].sort((a, b) => b.scenarioMean - a.scenarioMean);
   assert.deepEqual(
-    frontier.candidates.map((c) => c.teams.join("+")),
+    rest.map((c) => c.teams.join("+")),
     sorted.map((c) => c.teams.join("+")),
-    `${league}: candidates are ordered by how they do across futures`,
+    `${league}: alternatives are ordered by how they do across the futures`,
   );
 
   // The same inputs give the same answer: the futures are seeded.
@@ -409,5 +527,6 @@ for (const league of SPORT_IDS) {
 console.log(
   "Recommend OK: the optimum on an enumerable league with and without a buy back, one side of a " +
     "game only, locks honoured, continuation weights exact, the assignment solver against brute " +
-    "force, and on every board a deterministic frontier whose call is the path shown.",
+    "force, the call above a floor with a covered week spending the weaker team and leverage " +
+    "priced beside it, and on every board a deterministic frontier whose call is the path shown.",
 );

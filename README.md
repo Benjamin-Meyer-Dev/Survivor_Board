@@ -71,7 +71,7 @@ data/cfb/  data/nfl/          one folder per season, the same files
   calibration.json            the league's fitted probability model, from `npm run calibrate`
   history.json                past seasons' lines and results, from `npm run history`
   availability.json           player availability, kept by hand (optional)
-  pool.json                   the pool's size and pick popularity, kept by hand (optional)
+  pool.json                   the pool's picks by team, kept by hand (optional; implied from the lines without it)
 
 src/css/
   tokens.css                  every colour in the app
@@ -112,7 +112,7 @@ scripts/
   calibrate.mjs               fit the probability model and tune the rating fit on history
   backtest.mjs                score this season's board against what has happened
   seed-plan.mjs               author a league's plan.json from the optimiser
-  build-icons.mjs             redraws icons/ from the startup football through headless Chrome
+  build-icons.mjs             redraws icons/ from the board's football through headless Chrome
   validate-*.mjs              the checks `npm test` runs
   lib/                        odds API client, season calendar, rating fit, calibration, backtest
 
@@ -127,7 +127,7 @@ docs/                         architecture, code standards, deploy
 | --------------------- | ---------------------------------------------------------------------- |
 | `npm run serve`       | Local server on :4173                                                  |
 | `npm test`            | Validates every `plan.json` against its rules, and the config          |
-| `npm run icons`       | Redraws the home-screen icons from the startup football (needs Chrome) |
+| `npm run icons`       | Redraws the home-screen icons from the board's football (needs Chrome) |
 | `npm run refresh`     | Pulls live odds (needs `ODDS_API_KEY`)                                 |
 | `npm run seed -- nfl` | Re-authors a league's plan from the optimiser                          |
 | `npm run rate`        | Refits the team ratings from the pulls on disk, no API call            |

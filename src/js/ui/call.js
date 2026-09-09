@@ -1,10 +1,12 @@
 /**
  * The call: the week being looked at, and the one thing you can do about it.
  *
- * Under the field sits the week's date and tags, then its slot - or two, in a
- * pool that takes two picks - and at the seam the one action, in the flag's
- * colour: lock the pick in, or take the coach's call when the slot is empty.
- * The other side of the game sits beside it as a flip.
+ * Under the field sits the week's date and tags, with the one action at the
+ * end of that row as a mark in the flag's colour: lock the pick in, or take the
+ * coach's call when the slot is empty. The other side of the game sits beside
+ * it as a flip. Then the slot - or two, in a pool that takes two picks. The
+ * actions are marks rather than words so the drawer under the card gets the
+ * room; the slot's eyebrow says in words what state it is in.
  *
  * A slot is one of three things: empty, with the coach's suggestion pencilled
  * in; picked, a team the users chose but have not committed to; or locked. The
@@ -12,7 +14,7 @@
  * wears the bracket, and tapping the other hands it the sideline.
  *
  * Every slot has the same rows in the same order - eyebrow, team, matchup,
- * tiles - so a pick or lock changes what the rows say without moving the seam
+ * tiles - so a pick or lock changes what the rows say without moving anything
  * under the thumb that just tapped it.
  *
  * Handlers are injected; this module knows nothing about the store.
@@ -27,6 +29,8 @@ const WORKING = "Working out the path…";
 const LOCK_OPEN = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 7.6-1.2" /></svg>`;
 const LOCK_SHUT = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>`;
 const FLIP = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h13m-4-4 4 4-4 4M21 17H8m4 4-4-4 4-4" /></svg>`;
+/** Taking the coach's call: a check. */
+const TAKE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7" /></svg>`;
 
 /**
  * @param {HTMLElement} root
@@ -46,12 +50,12 @@ export function renderCall(root, board, viewWeek, activeSlot, handlers) {
         <div class="call__head">
           <span class="call__when${isNow(week, board) ? " call__when--now" : ""}">${escapeHtml(whenLine(week, board))}</span>
           <span class="call__tags">${weekTags(week, board)}</span>
+          ${actionsMarkup(week.picks[active], board, handlers.canWrite)}
         </div>
         <div class="call__slots${two ? " call__slots--two" : ""}">
           ${week.picks.map((pick, index) => slotMarkup(pick, board, two, index === active)).join("")}
         </div>
       </div>
-      ${seamMarkup(week.picks[active], board, handlers.canWrite)}
     </div>`;
 
   for (const button of root.querySelectorAll("[data-action]")) {
@@ -188,8 +192,8 @@ function resultChip(status) {
 
 /**
  * Spread, the chance the pick carries the week, and where the line came from.
- * With nothing to price the tiles still stand, blank, so the seam keeps its
- * place. In a losers pool the middle number is the chance the team loses (see
+ * With nothing to price the tiles still stand, blank, so the card keeps its
+ * height. In a losers pool the middle number is the chance the team loses (see
  * core/objective.js), and its name says so.
  */
 function tiles(line, board) {
@@ -213,12 +217,13 @@ function tile(key, value, tier) {
 }
 
 /**
- * The seam: the flip and the one action, for the slot the sideline is filling.
+ * The actions: the flip and the one action, for the slot the sideline is
+ * filling, as marks whose words are the tooltip and the accessible name.
  * Locking commits a pick; on an empty slot the action takes the coach's call,
  * which then becomes a pick to lock. Disabled when there is nothing to do, and
  * once a result is in, when the lock is history rather than a choice.
  */
-function seamMarkup(pick, board, canWrite) {
+function actionsMarkup(pick, board, canWrite) {
   const { status } = pick;
   const shown = pick.team ? pick : pick.suggestion;
   const moot = board.eliminated && pick.week > board.eliminatedWeek;
@@ -226,11 +231,11 @@ function seamMarkup(pick, board, canWrite) {
 
   let lock;
   if (moot) {
-    lock = button({ label: "Not played", disabled: true });
+    lock = button({ label: "Not played", icon: LOCK_OPEN, disabled: true });
   } else if (board.eliminated) {
     lock = button({
       label: status.locked ? "Locked in · season over" : "Season over",
-      icon: status.locked ? LOCK_SHUT : "",
+      icon: status.locked ? LOCK_SHUT : LOCK_OPEN,
       on: status.locked,
       disabled: true,
     });
@@ -263,6 +268,7 @@ function seamMarkup(pick, board, canWrite) {
   } else if (pick.suggestion) {
     lock = button({
       label: `Take the ${pick.suggestion.team}${later}`,
+      icon: TAKE,
       take: true,
       action: "pick",
       pick,
@@ -272,7 +278,11 @@ function seamMarkup(pick, board, canWrite) {
     });
   } else {
     const pending = board.recommendationPending && pick.week >= board.currentWeek;
-    lock = button({ label: pending ? WORKING : "Pick a team from the sideline", disabled: true });
+    lock = button({
+      label: pending ? WORKING : "Pick a team from the sideline",
+      icon: LOCK_OPEN,
+      disabled: true,
+    });
   }
 
   // The reverse side is a shortcut only when it is a legal option right now.
@@ -283,12 +293,12 @@ function seamMarkup(pick, board, canWrite) {
             option.team === shown.opponent && option.opponent === shown.team && !option.disabled,
         )
       : null;
-  const flip = `<button type="button" class="seam__flip"
+  const flip = `<button type="button" class="call__flip"
       ${reverse ? `data-action="pick" data-week="${pick.week}" data-slot="${pick.slot}" data-team="${escapeHtml(reverse.team)}"` : "disabled"}
       aria-label="${reverse ? `Flip to ${escapeHtml(reverse.team)}` : "No other side to flip to"}"
       title="${reverse ? `Pick the other side: ${escapeHtml(reverse.team)}` : "Pick the other side of this game"}">${FLIP}</button>`;
 
-  return `<div class="seam">${flip}${lock}</div>`;
+  return `<div class="call__actions">${flip}${lock}</div>`;
 }
 
 function button({
@@ -304,10 +314,10 @@ function button({
   title = "",
 }) {
   const classes = [
-    "seam__lock",
-    on ? "seam__lock--on" : "",
-    go ? "seam__lock--go" : "",
-    take ? "seam__lock--take" : "",
+    "call__lock",
+    on ? "call__lock--on" : "",
+    go ? "call__lock--go" : "",
+    take ? "call__lock--take" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -315,7 +325,6 @@ function button({
     ? ` data-action="${action}" data-week="${pick.week}" data-slot="${pick.slot}"${team ? ` data-team="${escapeHtml(team)}"` : ""}`
     : "";
   return `<button type="button" class="${classes}"${data}${disabled ? " disabled" : ""}
-      ${action === "lock" ? ` aria-pressed="${on}"` : ""}${title ? ` title="${escapeHtml(title)}"` : ""}>
-      ${icon}<span>${escapeHtml(label)}</span>
-    </button>`;
+      ${action === "lock" ? ` aria-pressed="${on}"` : ""} aria-label="${escapeHtml(label)}"
+      title="${escapeHtml(title || label)}">${icon}</button>`;
 }

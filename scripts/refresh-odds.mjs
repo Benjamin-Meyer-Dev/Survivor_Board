@@ -537,11 +537,14 @@ function replan({
   // on the numbers as they stand and across the futures.
   const frontier = after.frontier;
   if (frontier) {
-    console.log(
-      `This week (${frontier.scenarios} futures${frontier.pool ? `, pool mode ${frontier.pool.mode}` : ""}):`,
-    );
+    const field = frontier.pool
+      ? `, ${frontier.pool.mode} against ${frontier.pool.source === "file" ? "the pool's picks" : "an implied field"}${frontier.pool.covered ? ", a buy back covers the week" : ""}`
+      : "";
+    console.log(`This week (${frontier.scenarios} futures${field}):`);
     for (const candidate of frontier.candidates) {
-      const leverage = candidate.leverage ? `  leverage x${candidate.leverage.toFixed(2)}` : "";
+      const leverage = candidate.leverage
+        ? `  leverage x${candidate.leverage.toFixed(2)}  equity ${(candidate.equity * 100).toFixed(2)}%`
+        : "";
       console.log(
         `  ${candidate.teams.join(" + ").padEnd(34)} week ${(candidate.weekWinProb * 100).toFixed(1)}%` +
           `  season ${(candidate.season * 100).toFixed(2)}%  futures ${(candidate.scenarioMean * 100).toFixed(2)}%` +
@@ -561,6 +564,14 @@ function replan({
         ? {
             week: frontier.week,
             scenarios: frontier.scenarios,
+            pool: frontier.pool
+              ? {
+                  mode: frontier.pool.mode,
+                  source: frontier.pool.source,
+                  floor: frontier.pool.floor,
+                  covered: frontier.pool.covered,
+                }
+              : null,
             candidates: frontier.candidates.map((candidate) => ({
               teams: candidate.teams,
               weekWinProb: Number(candidate.weekWinProb.toFixed(4)),
@@ -569,7 +580,12 @@ function replan({
               robust: Number(candidate.robust.toFixed(3)),
               seasonCost: Number(candidate.seasonCost.toFixed(4)),
               scenarioCost: Number(candidate.scenarioCost.toFixed(4)),
-              ...(candidate.leverage ? { leverage: Number(candidate.leverage.toFixed(3)) } : {}),
+              ...(candidate.leverage
+                ? {
+                    leverage: Number(candidate.leverage.toFixed(3)),
+                    equity: Number(candidate.equity.toFixed(6)),
+                  }
+                : {}),
               chosen: candidate.chosen,
             })),
           }

@@ -148,7 +148,8 @@ Everything is switched off by the `prefers-reduced-motion` block in
 - Four data files are optional and the board opens without any of them:
   `form.json` (until the first run with something to fit), `calibration.json`
   (the defaults in `core/probability.js` are the college numbers),
-  `availability.json` (nothing reported) and `pool.json` (survival mode).
+  `availability.json` (nothing reported) and `pool.json` (the field implied
+  from the lines).
   Anything loading them treats absence as normal. `ratings.json` stays the FBS
   membership test either way. `npm run rate` refits `form.json` from what is
   already on disk, with no API call, which is also how you rebuild it after a

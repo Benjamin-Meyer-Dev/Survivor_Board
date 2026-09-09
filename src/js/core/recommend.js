@@ -13,7 +13,7 @@
  * Pure and environment-free, so scripts/refresh-odds.mjs runs the same code
  * the browser does and can tell when the recommendation has moved.
  *
- * Two layers:
+ * Three layers:
  *
  *   1. A beam search over the weeks finds the best complete path on the
  *      numbers as they stand. Exact search over the set of spent teams is
@@ -30,12 +30,21 @@
  *      assignment (core/assignment.js), and the candidate that survives most
  *      of those futures is the call. That values keeping options open, which
  *      a single path priced to the decimal cannot.
+ *
+ *   3. The call keeps a floor on this week's chance: the season is the goal,
+ *      but not at the price of a week that is nearly a coin flip. A week a buy
+ *      back in hand covers spends the weakest team the futures cannot fault,
+ *      keeping the stronger ones for the weeks that can end the season. And
+ *      when the pool asks for it (data/<league>/pool.json), the field's
+ *      leverage weighs in: surviving alongside everyone else wins nothing
+ *      (core/equity.js). By default the field is only priced and reported.
  */
 
 import { survival } from "./survival.js";
 import { assignPath } from "./assignment.js";
 import { scenarioSet } from "./scenarios.js";
 import { DEFAULT_MODEL } from "./probability.js";
+import { equityOverlay, bySurvival, byEquity } from "./equity.js";
 
 /** Beams carried between weeks. Higher = better paths, slower. */
 const BEAM_WIDTH = 160;
@@ -91,6 +100,11 @@ const logp = (p) => Math.log(Math.max(p, 1e-9));
  *   frontier: a millisecond's answer for a preview, where the full search's
  *   hundred would be felt on every tap. The beam still runs if the assignment
  *   has no legal answer.
+ * @param {object|null} [args.pool] data/<league>/pool.json, when kept. The
+ *   frontier prices leverage against the field it names, or against one
+ *   implied from the lines (core/equity.js), and calls the week by its mode.
+ * @param {number} [args.poolBuyBacks] The buy backs the pool grants everyone,
+ *   for the field's own cushion; `buyBacks` is what this entry has left.
  * @returns {{picks:Object<number,string[]>, pathProbability:number, shortfalls:number[],
  *            frontier:object|null}}
  */
@@ -105,6 +119,8 @@ export function recommendPath({
   scenarios = SCENARIO_COUNT,
   quick = false,
   objective = "win",
+  pool = null,
+  poolBuyBacks = buyBacks,
 }) {
   const forgiving = new Set(buyBacks > 0 ? buyBackWeeks : []);
 
@@ -168,6 +184,8 @@ export function recommendPath({
           model,
           scenarios,
           objective,
+          pool,
+          poolBuyBacks,
         })
       : null;
 
@@ -417,7 +435,11 @@ function openOptions(week, fixed) {
  * re-planned around it by exact assignment on the future's numbers, and the
  * whole path is scored on the exact survival maths. What comes back per
  * candidate is its survival in every future, and from that its mean, its
- * downside, and how often it was within a whisker of the best.
+ * downside, and how often it was within a whisker of the best. The pool's
+ * field is then laid over the candidates and the mode makes the call
+ * (core/equity.js): the best mean above the floor - or the best equity, when
+ * the pool asks - and in a week a buy back in hand covers, the weakest team
+ * among the openings within a whisker of it.
  *
  * @returns {object|null} Null when this week has nothing open to decide.
  */
@@ -431,6 +453,8 @@ function judgeFrontier({
   model,
   scenarios,
   objective = "win",
+  pool = null,
+  poolBuyBacks = buyBacks,
 }) {
   const [first, ...rest] = weeks;
   if (!first) return null;
@@ -552,33 +576,56 @@ function judgeFrontier({
     }
   }
 
-  // Best across the futures; on the numbers as they stand when the futures
-  // cannot separate two; and the safer week when nothing else can - which is
-  // the case in a forgiving week with a buy back still in hand, where any loss
-  // is covered and the only thing at stake is the team spent.
-  judged.sort(
-    (a, b) =>
-      b.scenarioMean - a.scenarioMean || b.season - a.season || b.weekWinProb - a.weekWinProb,
-  );
-  const chosen = judged[0];
-  const bestSeason = Math.max(...judged.map((candidate) => candidate.season));
+  // The pool's field over each opening - its leverage, and survival across
+  // the futures times that as equity - and the mode's call among them. A week
+  // is covered when it is forgiving and this entry still holds a buy back; the
+  // field's own cushion is what the pool grants everyone.
+  const covered = forgiving.has(first.week) && buyBacks > 0;
+  const overlaid = equityOverlay({
+    frontier: { week: first.week, candidates: judged },
+    options: first.options,
+    pool,
+    picksPerWeek,
+    forgiving: new Set(poolBuyBacks > 0 ? buyBackWeeks : []),
+    poolBuyBacks,
+    covered,
+  });
+  const byMode = overlaid.pool
+    ? [...overlaid.candidates].sort(overlaid.pool.mode === "safest" ? bySurvival : byEquity)
+    : [...judged].sort(bySurvival);
+  const chosen =
+    (overlaid.pool && overlaid.candidates.find((candidate) => candidate.preferred)) || byMode[0];
+  const ordered = [chosen, ...byMode.filter((candidate) => candidate !== chosen)];
+  const bestSeason = Math.max(...ordered.map((candidate) => candidate.season));
+  const bestMean = Math.max(...ordered.map((candidate) => candidate.scenarioMean));
 
   return {
     week: first.week,
     scenarios: futures.length,
     chosen: { teams: chosen.teams, path: chosen.path, season: chosen.season },
-    candidates: judged.slice(0, FRONTIER_SHOWN).map((candidate, index) => ({
+    pool: overlaid.pool ?? null,
+    candidates: ordered.slice(0, FRONTIER_SHOWN).map((candidate, index) => ({
       teams: candidate.teams,
       weekWinProb: candidate.weekWinProb,
       season: candidate.season,
       scenarioMean: candidate.scenarioMean,
       scenarioLow: candidate.scenarioLow,
       robust: candidate.robust / futures.length,
-      // Against the best on each measure, as a share of it: what the choice
+      ...(overlaid.pool
+        ? {
+            popularity: candidate.popularity,
+            fieldSurvival: candidate.fieldSurvival,
+            leverage: candidate.leverage,
+            equity: candidate.equity,
+            equityCost: candidate.equityCost,
+          }
+        : {}),
+      // Against the best on each measure, as a share of it: what the call
       // costs on the numbers as they stand, and across the futures.
       seasonCost: bestSeason > 0 ? 1 - candidate.season / bestSeason : 0,
-      scenarioCost: chosen.scenarioMean > 0 ? 1 - candidate.scenarioMean / chosen.scenarioMean : 0,
+      scenarioCost: bestMean > 0 ? 1 - candidate.scenarioMean / bestMean : 0,
       chosen: index === 0,
+      preferred: index === 0,
     })),
   };
 }
@@ -784,5 +831,9 @@ export function recommendForBoard(board, seed = null, { holdPicks = false, quick
     // the week, so the search needs this for one thing only: the futures it
     // draws re-price their own spreads.
     objective: board.rules?.objective ?? "win",
+    // The pool's field, for the frontier's leverage. The pool's own grant of
+    // buy backs is the field's cushion, whatever this entry has left.
+    pool: board.pool ?? null,
+    poolBuyBacks: buyBacks,
   });
 }

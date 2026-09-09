@@ -32,7 +32,6 @@ import { mergeRules, sameRules } from "./rules.js";
 import { nextRefreshAt } from "./refresh.js";
 import { survival } from "./survival.js";
 import { availabilityAdjustment, availabilityNote } from "./availability.js";
-import { equityOverlay } from "./equity.js";
 
 /**
  * The rules a board runs on: what data/<league>/plan.json ships, with the
@@ -434,8 +433,8 @@ function lineOf(pick) {
  * @param {object} [args.availability] data/<league>/availability.json, player
  *   availability by hand. Optional: nothing listed moves nothing.
  * @param {object} [args.pool] data/<league>/pool.json, the pool's size and
- *   this week's pick popularity. Optional: without it the coach plays for
- *   survival alone.
+ *   this week's pick popularity. Optional: without it the coach prices
+ *   leverage against a field implied from the lines (core/equity.js).
  * @param {boolean} args.allowSearch Pass false to build without running the
  *   optimiser when its answer is not already cached. The board comes back with
  *   `recommendationPending` set and the previous plan standing in where there
@@ -650,6 +649,9 @@ export function buildBoard({
     rulesCustom: !sameRules(rules, ruleDefaults),
     updatedAt: odds.updatedAt,
     nextRefreshAt: nextRefresh,
+    // The pool's file, for the coach's field (core/equity.js); null, and the
+    // field is implied from the lines.
+    pool,
   };
 
   // The recommendation is the expensive part of a build (a beam search over
@@ -676,7 +678,7 @@ export function buildBoard({
   // when there are any, and each candidate's teams described the way the
   // week's list describes them. Only for a fresh plan: a stand-in's frontier
   // belongs to the locks it was planned around.
-  board.frontier = fresh ? frontierOf(recommendation.frontier, board.weeks, rules, pool) : null;
+  board.frontier = fresh ? frontierOf(recommendation.frontier, board.weeks, rules) : null;
   // A search is still owed; app.js schedules it once this board is painted.
   board.recommendationPending = !fresh;
 
@@ -1106,24 +1108,18 @@ function standInFor(base, locks) {
 
 /**
  * The coach's frontier for the board: each candidate's teams as the week's
- * list describes them, and the pool's leverage laid over when pool.json has
- * this week's popularity. Null when there is nothing open to decide.
+ * list describes them. The pool's leverage is already on it - the engine lays
+ * the field over the candidates before it names the call (core/recommend.js).
+ * Null when there is nothing open to decide.
  */
-function frontierOf(frontier, weeks, rules, pool) {
+function frontierOf(frontier, weeks, rules) {
   if (!frontier) return null;
   const week = weeks.find((entry) => entry.week === frontier.week);
   if (!week) return null;
 
-  const overlaid = equityOverlay({
-    frontier,
-    options: week.options,
-    pool,
-    picksPerWeek: rules.picksPerWeek,
-  });
-
   return {
-    ...overlaid,
-    candidates: overlaid.candidates.map((candidate) => ({
+    ...frontier,
+    candidates: frontier.candidates.map((candidate) => ({
       ...candidate,
       preferred: candidate.preferred ?? candidate.chosen,
       options: candidate.teams

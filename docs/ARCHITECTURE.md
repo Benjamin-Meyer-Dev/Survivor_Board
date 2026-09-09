@@ -343,10 +343,17 @@ foresight nobody has (it roughly quadrupled the season numbers when tried).
 
 What comes back per candidate is its survival in every future, and from that
 its mean, its downside (the 20th percentile), and how often it was within a
-whisker of the best. The call is the candidate with the best mean; the beam's
-best path stands in only when the futures cannot separate two, and the safer
-week when nothing else can. The path shown is then the best complete path
-through that opening. Because every candidate meets the same futures, the
+whisker of the best. The call is the candidate with the best mean among
+those at least `floor` likely to hold this week (0.7 unless the pool's file
+says otherwise): the season is the goal, but not at the price of a week that
+is nearly a coin flip. In a week a buy back in hand covers, the loss is paid
+for and the team spent is what is at stake, so among the openings within 5%
+of the best mean the coach spends the weakest team - no worse than a
+two-to-one favourite - and keeps the stronger ones for the weeks that can end
+the season. The pool's file can also ask for the field's leverage to make the
+call instead (see [Pool equity](#pool-equity)). The path shown is the best
+complete path through that opening. Because every candidate meets the same
+futures, the
 comparison between them is far steadier than the futures themselves, and
 because the draws are seeded, the refresh job and the browser agree.
 
@@ -367,22 +374,40 @@ which one number cannot give.
 Surviving alongside everyone else gains nothing. If most of the pool is on
 the same favourite, a week it holds thins nobody out and a week it falls takes
 you with them; a lightly held team of nearly the same strength wins ground in
-the week it holds. That leverage needs numbers the odds never carry - how many
-entries are alive and what share of them sits on each team this week - and
-they come from `data/<league>/pool.json`, kept by hand. Without it the board
-stays in survival mode rather than invent them.
+the week it holds. That leverage needs a number the odds never carry - what
+share of the field sits on each team this week. `data/<league>/pool.json`,
+kept by hand, supplies it when someone has the pool's actual picks. Without
+it the field is implied from the lines: survivor fields crowd the biggest
+favourites in a steep and well-documented shape (the top favourite of an NFL
+week draws about a third of the picks, the next two most of the rest), and a
+softmax over this week's probabilities (`IMPLIED_TEMPERATURE` in
+`core/equity.js`) reproduces it closely enough to price leverage off. It is a
+shape, not a census - it knows nothing of which teams the field has spent -
+and the file wins whenever it speaks.
 
-With it, `core/equity.js` lays over each candidate the share of the field
-expected to survive the week if your own pick holds (an entry on your team
-survives with you, one on your opponent is gone, anyone else at their own
-probability, a two-pick field at the rate squared), the inverse of that as
-leverage, and survival across futures times leverage as equity. The file
-chooses the mode: `safest` (the default), `equity`, or `balanced`, which is
-equity subject to a floor on this week's chance. The coach's own call never
-moves; the pool's preference is reported beside it in the refresh summary,
-and the call stays what survival alone would say. It is the standard one-week
-approximation of a season-long game whose proper treatment needs every rival's
-spent teams.
+`core/equity.js` lays over each candidate the share of the field expected to
+survive the week if your own pick holds (an entry on your team survives with
+you, one on your opponent is gone, anyone else at their own probability, a
+two-pick field at the rate squared), the inverse of that as leverage, and
+survival across futures times leverage as equity. Where the pool grants buy
+backs the field has them too: in a forgiving week a losing entry is not gone
+but worth `cover`, the value of playing on without the cushion (one buy back
+over two weeks comes out near three quarters), so the leverage on offer there
+shrinks to match.
+
+The mode makes the call. `safest`, the default, is survival alone: the best
+mean across the futures among the openings whose chance this week is at
+least `floor` (0.7 unless the file says otherwise), with leverage priced and
+reported beside it but not consulted. `balanced` ranks the same openings by
+equity instead; `equity` drops the floor too. Whatever the mode, a week a buy
+back in hand covers plays the covered rule described under
+[Futures](#futures): among the openings within `coveredMargin` (5%) of the
+best on the mode's measure, the weakest team goes, and the floor drops to
+`coveredFloor` (two in three) to let it. Both knobs are the file's, so a pool
+that wants its buy back spent more or less freely says so there. The path
+shown is the best complete path through the opening called. Leverage is the
+standard one-week approximation of a season-long game whose proper treatment
+needs every rival's spent teams.
 
 ## How the ratings learn
 
@@ -620,7 +645,8 @@ on the clock, a chalk bracket on the week being looked at, and a mark on each
 week for what it holds. Under the field runs the drive line, saying where the
 ball is, what the pool forgives, what a pick being weighed would do, and how
 far the season is from the end zone. Then the call (`ui/call.js`): the week
-being looked at, its slot or slots, and the one action at the seam. The bottom
+being looked at with the one action as a mark at the end of its first row, then
+its slot or slots. The bottom
 half is the drawer, which takes what is left and scrolls inside itself: the
 sideline (`ui/sideline.js`, every team the active slot could hold), the drive
 (`ui/drive.js`, the season week by week) and the bench (`ui/bench.js`, every

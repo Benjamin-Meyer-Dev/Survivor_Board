@@ -15,7 +15,15 @@ import {
   POINTS_BY_POSITION,
   TEAM_CAP,
 } from "../src/js/core/availability.js";
-import { poolSettings, fieldAfterWeek, equityOverlay } from "../src/js/core/equity.js";
+import {
+  poolSettings,
+  fieldAfterWeek,
+  fieldCover,
+  impliedPopularity,
+  chooseCall,
+  equityOverlay,
+  DEFAULT_MODE,
+} from "../src/js/core/equity.js";
 import { resolveModel, winProbFromSpread, DEFAULT_MODEL } from "../src/js/core/probability.js";
 import { buildBoard } from "../src/js/core/plan.js";
 import { CONFIG } from "../src/js/config.js";
@@ -420,24 +428,63 @@ const close = (a, b, tolerance, message) =>
     { team: "C", opponent: "D", winProb: 0.7 },
     { team: "D", opponent: "C", winProb: 0.3 },
   ];
-  assert.equal(poolSettings(null, 1), null, "no file is no pool");
+  assert.equal(poolSettings(null, 1), null, "no file and no lines is no pool");
   const settings = poolSettings(
     { mode: "equity", entriesAlive: 40, popularity: { "1|A": 0.6, "1|C": 0.3, "2|A": 0.9 } },
     1,
   );
   assert.ok(settings.active);
+  assert.equal(settings.source, "file");
   assert.equal(settings.mode, "equity");
   assert.equal(settings.popularity.get("A"), 0.6);
   assert.equal(settings.popularity.has("2|A"), false, "another week's shares are not this week's");
   assert.equal(
     poolSettings({ popularity: { "2|A": 0.9 } }, 1).active,
     false,
-    "no shares for the week, no leverage",
+    "no shares for the week and no lines, no leverage",
   );
+  const implied = poolSettings({ popularity: { "2|A": 0.9 } }, 1, options);
+  assert.equal(implied.source, "implied", "with the lines, the field is implied");
+  assert.equal(implied.mode, DEFAULT_MODE, "a file that names no mode plays the default");
   assert.equal(
-    poolSettings({ mode: "nonsense" }, 1).mode,
+    poolSettings({ mode: "nonsense" }, 1, options).mode,
     "safest",
     "an unknown mode is the safe one",
+  );
+  assert.equal(implied.coveredFloor, 2 / 3, "the covered floor is two in three unless set");
+  assert.equal(
+    poolSettings({ coveredFloor: 0.75, coveredMargin: 0.02 }, 1, options).coveredMargin,
+    0.02,
+    "the file can tune the covered rule",
+  );
+
+  // The implied field: shares that sum to one, crowd the favourite, skip the dog.
+  const shares = impliedPopularity(options);
+  close(
+    [...shares.values()].reduce((sum, share) => sum + share, 0),
+    1,
+    1e-9,
+    "shares sum to one",
+  );
+  assert.ok(
+    shares.get("A") > shares.get("C") && shares.get("C") > shares.get("D"),
+    "the field crowds the favourite",
+  );
+  assert.ok(shares.get("B") < 0.01, "nobody is on a 20% dog");
+  // A typical NFL week's shape: a third to a half on the top favourite, a fifth or so on the next.
+  const typical = impliedPopularity(
+    [0.8, 0.75, 0.72, 0.7, 0.68, 0.65, 0.62, 0.6, 0.58, 0.55, 0.52].flatMap((p, i) => [
+      { team: `F${i}`, opponent: `U${i}`, winProb: p },
+      { team: `U${i}`, opponent: `F${i}`, winProb: 1 - p },
+    ]),
+  );
+  assert.ok(
+    typical.get("F0") > 0.3 && typical.get("F0") < 0.5,
+    `the top favourite draws a third to a half: ${typical.get("F0")}`,
+  );
+  assert.ok(
+    typical.get("F1") > 0.12 && typical.get("F1") < 0.28,
+    `the second a fifth or so: ${typical.get("F1")}`,
   );
 
   // On the same team as the crowd: the field survives with you, no leverage.
@@ -481,7 +528,112 @@ const close = (a, b, tolerance, message) =>
     picksPerWeek: 2,
   });
   close(pair.fieldSurvival, 0.8 ** 2, 1e-9, "a two-pick field survives at the rate squared");
+  // Covered: a losing entry plays on, worth its cover.
+  const covered = fieldAfterWeek({
+    teams: ["C"],
+    options,
+    popularity: new Map([["A", 1]]),
+    picksPerWeek: 1,
+    cover: 0.75,
+  });
+  close(covered.fieldSurvival, 0.8 + 0.2 * 0.75, 1e-9, "a losing entry is worth its cover");
+  const opposed = fieldAfterWeek({
+    teams: ["B"],
+    options,
+    popularity: new Map([["A", 1]]),
+    picksPerWeek: 1,
+    cover: 0.75,
+  });
+  close(opposed.fieldSurvival, 0.75, 1e-9, "the crowd on your opponent keeps its cover");
 
+  // The cover itself: nothing in an ordinary week or a pool without buy backs;
+  // with one buy back over two weeks, the field's hold rate; in the last
+  // forgiving week, everything.
+  const forgiving = new Set([1, 2]);
+  assert.equal(fieldCover({ week: 3, forgiving, buyBacks: 1, popularity: shares, options }), 0);
+  assert.equal(fieldCover({ week: 1, forgiving, buyBacks: 0, popularity: shares, options }), 0);
+  const hold = [...shares].reduce(
+    (sum, [team, share]) => sum + share * options.find((o) => o.team === team).winProb,
+    0,
+  );
+  close(
+    fieldCover({ week: 1, forgiving, buyBacks: 1, popularity: shares, options }),
+    hold,
+    1e-9,
+    "one other forgiving week: the field's hold rate",
+  );
+  close(
+    fieldCover({ week: 1, forgiving: new Set([1]), buyBacks: 1, popularity: shares, options }),
+    1,
+    1e-9,
+    "the last forgiving week costs the field nothing",
+  );
+
+  // The call by mode.
+  const candidates = [
+    { teams: ["A"], weekWinProb: 0.8, scenarioMean: 0.1, season: 0.1, equity: 0.11 },
+    { teams: ["C"], weekWinProb: 0.7, scenarioMean: 0.098, season: 0.098, equity: 0.12 },
+    { teams: ["E"], weekWinProb: 0.68, scenarioMean: 0.096, season: 0.096, equity: 0.118 },
+  ];
+  const call = (settings, state) => chooseCall(candidates, settings, state).teams;
+  assert.deepEqual(call({ mode: "safest", floor: 0.7 }), ["A"], "safest is the best mean");
+  assert.deepEqual(
+    call({ mode: "safest", floor: 0.85 }),
+    ["A"],
+    "a floor nothing clears is waived",
+  );
+  assert.deepEqual(call({ mode: "equity", floor: 0.7 }), ["C"], "equity is the best equity");
+  assert.deepEqual(call({ mode: "equity", floor: 0.75 }), ["C"], "and has no floor");
+  assert.deepEqual(
+    call({ mode: "balanced", floor: 0.75 }),
+    ["A"],
+    "balanced keeps the floor: C at 70% is out",
+  );
+  assert.deepEqual(
+    call({ mode: "balanced", floor: 0.7 }),
+    ["C"],
+    "and takes the best equity above it",
+  );
+  assert.deepEqual(
+    call({ mode: "safest", floor: 0.7 }, { covered: true }),
+    ["E"],
+    "covered: the weakest team within the margin of the best mean, above the covered floor",
+  );
+  assert.deepEqual(
+    call({ mode: "balanced", floor: 0.7 }, { covered: true }),
+    ["E"],
+    "and within the margin of the best equity in balanced mode",
+  );
+  assert.deepEqual(
+    call({ mode: "safest", floor: 0.7, coveredMargin: 0.03 }, { covered: true }),
+    ["C"],
+    "a tighter margin drops E at 4% below the best but still spends C at 2%",
+  );
+  assert.deepEqual(
+    call({ mode: "safest", floor: 0.7, coveredMargin: 0.01 }, { covered: true }),
+    ["A"],
+    "a margin nothing else clears keeps the favourite",
+  );
+  assert.deepEqual(
+    call({ mode: "safest", floor: 0.75, coveredFloor: 0.75 }, { covered: true }),
+    ["A"],
+    "a covered floor at the week's own floor takes no more risk than an ordinary week",
+  );
+  const far = candidates.map((c) => (c.teams[0] === "E" ? { ...c, equity: 0.1 } : c));
+  assert.deepEqual(
+    chooseCall(far, { mode: "balanced", floor: 0.7 }, { covered: true }).teams,
+    ["C"],
+    "a covered week still spends nothing on an opening outside the margin",
+  );
+  const low = candidates.map((c) => (c.teams[0] === "E" ? { ...c, weekWinProb: 0.62 } : c));
+  assert.deepEqual(
+    chooseCall(low, { mode: "safest", floor: 0.7 }, { covered: true }).teams,
+    ["C"],
+    "nor on one under the covered floor",
+  );
+
+  // The overlay on a frontier handed in: leverage, equity and the pool's
+  // preference, with the call it came with left alone.
   const frontier = {
     week: 1,
     scenarios: 8,
@@ -505,12 +657,13 @@ const close = (a, b, tolerance, message) =>
     picksPerWeek: 1,
   });
   assert.equal(overlaid.pool.mode, "equity");
+  assert.equal(overlaid.pool.source, "file");
   const [a, c] = overlaid.candidates;
   close(a.leverage, 1 / (0.9 + 0.1 * 1), 1e-9, "the crowd's team has almost no leverage");
   assert.ok(c.leverage > a.leverage, "the lightly held team has more");
   assert.ok(c.equity > a.equity, "enough to prefer it on equity");
   assert.equal(c.preferred, true, "equity mode prefers it");
-  assert.equal(a.chosen, true, "while the coach's call stays the call");
+  assert.equal(a.chosen, true, "while a frontier handed in keeps its call");
   const balanced = equityOverlay({
     frontier,
     options,
@@ -525,14 +678,17 @@ const close = (a, b, tolerance, message) =>
   const safest = equityOverlay({
     frontier,
     options,
-    pool: { popularity: { "1|A": 0.9 } },
+    pool: { mode: "safest", popularity: { "1|A": 0.9 } },
     picksPerWeek: 1,
   });
-  assert.equal(safest.candidates[0].preferred, true, "safest mode prefers the call");
+  assert.equal(safest.candidates[0].preferred, true, "safest mode prefers the best mean");
+  const noFile = equityOverlay({ frontier, options, pool: null, picksPerWeek: 1 });
+  assert.equal(noFile.pool.source, "implied", "no file: the field is implied from the lines");
+  assert.equal(noFile.pool.mode, "safest");
   assert.equal(
-    equityOverlay({ frontier, options, pool: null, picksPerWeek: 1 }).pool,
+    equityOverlay({ frontier, options: [], pool: null, picksPerWeek: 1 }).pool,
     null,
-    "no file, no overlay",
+    "no lines either, no overlay",
   );
 }
 
@@ -676,9 +832,16 @@ const close = (a, b, tolerance, message) =>
   );
   assert.equal(stillPriced.winProb, priced.winProb);
 
-  // The pool reaches the frontier, and its absence leaves survival mode.
+  // The pool reaches the frontier. Without a file the field is implied from
+  // the lines; with one, its picks and its mode take over, and the call
+  // follows the mode.
   const withSearch = buildBoard({ ...base, allowSearch: true });
-  assert.equal(withSearch.frontier.pool, null, "no pool.json: no leverage shown");
+  assert.equal(withSearch.frontier.pool.source, "implied", "no pool.json: the field is implied");
+  assert.equal(withSearch.frontier.pool.mode, "safest");
+  assert.ok(
+    withSearch.frontier.candidates.every((c) => Number.isFinite(c.leverage)),
+    "every candidate carries leverage",
+  );
   const call = withSearch.frontier.candidates[0].teams[0];
   const pool = {
     updatedAt: "2026-09-04T12:00:00Z",
@@ -687,19 +850,28 @@ const close = (a, b, tolerance, message) =>
     popularity: { [`${withSearch.currentWeek}|${call}`]: 0.7 },
   };
   const leveraged = buildBoard({ ...base, pool, allowSearch: true });
+  assert.equal(
+    leveraged.frontier.pool.source,
+    "file",
+    "a file with this week's picks is the field",
+  );
   assert.equal(leveraged.frontier.pool.mode, "equity");
-  assert.ok(
-    leveraged.frontier.candidates.every((c) => Number.isFinite(c.leverage)),
-    "every candidate carries leverage",
-  );
-  assert.ok(
-    leveraged.frontier.candidates.some((c) => c.preferred),
-    "and the pool names a preference",
-  );
+  const preferred = leveraged.frontier.candidates.find((c) => c.preferred);
+  assert.ok(preferred?.chosen, "the pool's preference is the call");
   assert.deepEqual(
-    leveraged.recommendation.picks,
-    withSearch.recommendation.picks,
-    "the pool never changes the coach's own path",
+    leveraged.recommendation.picks[leveraged.currentWeek],
+    preferred.teams,
+    "and the path shown opens with it",
+  );
+  const safest = buildBoard({
+    ...base, // A new stamp: the memo keys on it, as pool.json edits must.
+    pool: { ...pool, mode: "safest", updatedAt: "2026-09-04T13:00:00Z" },
+    allowSearch: true,
+  });
+  assert.equal(safest.frontier.pool.mode, "safest");
+  assert.ok(
+    safest.frontier.candidates.every((c) => c.scenarioCost >= -1e-9),
+    "in safest mode nothing beats the call across the futures",
   );
 }
 

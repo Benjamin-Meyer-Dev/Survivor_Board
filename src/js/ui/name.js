@@ -65,8 +65,8 @@ function startMarkup({ name, heading, label, action }) {
       <svg class="gate__midfield-ball" viewBox="0 0 34 21" aria-hidden="true">
         <ellipse cx="17" cy="10.5" rx="15.6" ry="9.2" fill="none" stroke="currentColor"
                  stroke-width="2.1" />
-        <path d="M11.6 10.5h10.8M14 7.6v5.8M17 7.1v6.8M20 7.6v5.8" stroke="currentColor"
-              stroke-width="1.7" stroke-linecap="round" />
+        <path d="M9.5 10.5h15M12 8.6v3.8M14.5 8.6v3.8M17 8.6v3.8M19.5 8.6v3.8M22 8.6v3.8"
+              stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
       </svg>
     </div>
 

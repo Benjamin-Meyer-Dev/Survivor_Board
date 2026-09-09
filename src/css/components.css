@@ -133,8 +133,8 @@
 .home__menu-btn,
 .home__btn,
 .gate__btn,
-.seam__flip,
-.seam__lock {
+.call__flip,
+.call__lock {
   appearance: none;
   display: inline-flex;
   align-items: center;
@@ -173,7 +173,7 @@
 .home__menu-btn:active:not(:disabled),
 .home__btn:active:not(:disabled),
 .gate__btn:active:not(:disabled),
-.seam__lock:active:not(:disabled) {
+.call__lock:active:not(:disabled) {
   transform: translateY(1px);
 }
 
@@ -182,7 +182,7 @@
 .settings__btn--go,
 .home__btn--go,
 .gate__btn,
-.seam__lock--go {
+.call__lock--go {
   background: var(--flag);
   border-color: var(--flag);
   color: var(--on-flag);
@@ -193,7 +193,7 @@
 .settings__btn--go:hover:not(:disabled),
 .home__btn--go:hover:not(:disabled),
 .gate__btn:hover:not(:disabled),
-.seam__lock--go:hover:not(:disabled) {
+.call__lock--go:hover:not(:disabled) {
   background: var(--flag-2);
   border-color: var(--flag-2);
   color: var(--on-flag);
@@ -221,8 +221,8 @@
 
 .settings__btn:disabled,
 .home__btn:disabled,
-.seam__lock:disabled,
-.seam__flip:disabled {
+.call__lock:disabled,
+.call__flip:disabled {
   opacity: 0.45;
   cursor: default;
   box-shadow: none;
@@ -1090,8 +1090,8 @@
 
 /* the call (ui/call.js) ----------------------------------------------------- */
 
-/* The week being looked at: its date and its tags, then its slot or slots,
-   then the one action at the seam. */
+/* The week being looked at: its date, its tags and its actions in one row,
+   then its slot or slots. */
 .call {
   display: flex;
   flex-direction: column;
@@ -1106,12 +1106,12 @@
   border-radius: var(--radius);
 }
 
-/* One row: the week and its date, the week's tags at the end. The when-line
-   gives way first, so the row never wraps and the drawer keeps its height. */
+/* One row: the week and its date, then the week's tags and the actions at the
+   end. The when-line gives way first, so the row never wraps and the drawer
+   keeps its height. */
 .call__head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
 }
 
@@ -1119,6 +1119,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  flex: 1 1 auto;
   min-width: 0;
   font-family: var(--font-display);
   font-weight: 700;
@@ -1343,71 +1344,63 @@
   color: var(--chalk-2);
 }
 
-/* The seam: the one action, where a thumb rests, and the other side of the
-   game beside it. */
-.seam {
-  display: grid;
-  grid-template-columns: 46px minmax(0, 1fr);
-  gap: 8px;
+/* The actions, at the end of the head row: the other side of the game as a
+   quiet mark, and the one action in the flag's colour. Marks, not words, so
+   the drawer under the card gets the room; the eyebrow says the state. Round,
+   like the topline's own buttons. */
+.call__actions {
+  display: flex;
+  gap: 6px;
+  flex: none;
 }
 
-/* The other side of the game: a square with the two arrows, quiet. */
-.seam__flip {
-  height: 46px;
+.call__flip,
+.call__lock {
+  width: 36px;
+  height: 36px;
   padding: 0;
+  border-radius: 50%;
+}
+
+.call__flip svg,
+.call__lock svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The other side of the game: the two arrows, quiet. */
+.call__flip {
   border-color: var(--line);
   color: var(--chalk-2);
 }
 
-.seam__flip:hover:not(:disabled) {
+.call__flip svg {
+  stroke-width: 2;
+}
+
+.call__flip:hover:not(:disabled) {
   border-color: var(--chalk);
   color: var(--chalk);
 }
 
-.seam__flip svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentcolor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.seam__lock {
-  height: 46px;
-  padding: 0 14px;
-  font-size: 16px;
-  letter-spacing: 0.1em;
-  min-width: 0;
-}
-
-.seam__lock span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.seam__lock svg {
-  width: 18px;
-  height: 18px;
-  flex: none;
-  fill: none;
-  stroke: currentcolor;
-  stroke-width: 2.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.call__lock svg {
+  stroke-width: 2.4;
 }
 
 /* Locked: chalk outline, painted on. Tap to undo. */
-.seam__lock--on {
+.call__lock--on {
   border-color: var(--chalk);
   background: rgb(243 247 241 / 8%);
   color: var(--chalk);
 }
 
-/* Taking the coach's call for a week not yet on the clock: outlined flag. */
-.seam__lock--take {
+/* Taking the coach's call: the check, in the outlined flag. */
+.call__lock--take {
   border: 2px solid var(--flag);
   color: var(--flag);
 }
@@ -3104,14 +3097,6 @@
     grid-template-columns: 34px minmax(0, 1fr) 60px 78px;
   }
 
-  /* The call and its action in one row. */
-  .call {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 400px;
-    gap: 14px;
-    align-items: stretch;
-  }
-
   .call__box {
     padding: 14px 18px 16px;
   }
@@ -3160,15 +3145,6 @@
 
   .tile__value {
     font-size: 20px;
-  }
-
-  .seam {
-    grid-template-columns: 54px minmax(0, 1fr);
-    align-content: end;
-  }
-
-  .seam {
-    grid-template-columns: 46px minmax(0, 1fr);
   }
 
   /* Every panel is open, so the tabs have nothing to switch. */
