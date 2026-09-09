@@ -459,10 +459,14 @@ function renderHomeView() {
           name: app.name,
           heading: "Who's picking?",
           action: "Save",
+          back: true,
         });
         document.body.classList.remove("is-gated");
-        setMyName(name);
-        app.name = name;
+        // Back resolves null: the name stays as it was.
+        if (name) {
+          setMyName(name);
+          app.name = name;
+        }
         renderHomeView();
       },
     },

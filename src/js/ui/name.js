@@ -19,13 +19,14 @@
  * Render the start screen into `root` and resolve with a trimmed name.
  *
  * @param {HTMLElement} root
- * @param {{name?:string, heading?:string, label?:string, action?:string}} [options]
- *   `name` prefills the field, for a change of name rather than a first run.
- * @returns {Promise<string>}
+ * @param {{name?:string, heading?:string, label?:string, action?:string, back?:boolean}} [options]
+ *   `name` prefills the field, for a change of name rather than a first run;
+ *   `back` offers a way out of one, which resolves null.
+ * @returns {Promise<string|null>}
  */
-export function requireName(root, { name = "", heading, label, action } = {}) {
+export function requireName(root, { name = "", heading, label, action, back = false } = {}) {
   return new Promise((resolve) => {
-    root.innerHTML = startMarkup({ name, heading, label, action });
+    root.innerHTML = startMarkup({ name, heading, label, action, back });
     root.hidden = false;
 
     const form = root.querySelector("form");
@@ -36,6 +37,13 @@ export function requireName(root, { name = "", heading, label, action } = {}) {
     // before anyone has looked at it is a worse first frame than an empty
     // field, and the field is the only thing on screen to tap.
     if (!matchMedia("(hover: none)").matches) input.focus();
+
+    // Back, for a change of name that is not going to be made: the screen
+    // goes and nothing is resolved but null.
+    root.querySelector(".gate__back")?.addEventListener("click", () => {
+      root.hidden = true;
+      resolve(null);
+    });
 
     form.addEventListener("submit", (event) => {
       event.preventDefault();
@@ -51,17 +59,17 @@ export function requireName(root, { name = "", heading, label, action } = {}) {
   });
 }
 
-function startMarkup({ name, heading, label, action }) {
+function startMarkup({ name, heading, label, action, back }) {
   return `
     <div class="gate__stadium" aria-hidden="true">
-      <span class="gate__endzone gate__endzone--top"></span>
-      <span class="gate__endzone gate__endzone--bottom"></span>
+      <span class="gate__endzone gate__endzone--top">Survivor</span>
+      <span class="gate__endzone gate__endzone--bottom">Board</span>
       <span class="gate__hashes gate__hashes--left"><i></i><i></i><i></i><i></i><i></i></span>
       <span class="gate__hashes gate__hashes--right"><i></i><i></i><i></i><i></i><i></i></span>
-      <span class="gate__yard-number gate__yard-number--20"><i>2</i><i>0</i></span>
-      <span class="gate__yard-number gate__yard-number--40"><i>4</i><i>0</i></span>
-      <span class="gate__yard-number gate__yard-number--opposing-40"><i>4</i><i>0</i></span>
-      <span class="gate__yard-number gate__yard-number--opposing-20"><i>2</i><i>0</i></span>
+      <span class="gate__yard-number gate__yard-number--20"><i>20</i><i>20</i></span>
+      <span class="gate__yard-number gate__yard-number--40"><i>40</i><i>40</i></span>
+      <span class="gate__yard-number gate__yard-number--opposing-40"><i>40</i><i>40</i></span>
+      <span class="gate__yard-number gate__yard-number--opposing-20"><i>20</i><i>20</i></span>
       <svg class="gate__midfield-ball" viewBox="0 0 34 21" aria-hidden="true">
         <ellipse cx="17" cy="10.5" rx="15.6" ry="9.2" fill="none" stroke="currentColor"
                  stroke-width="2.1" />
@@ -91,7 +99,10 @@ function startMarkup({ name, heading, label, action }) {
         />
       </div>
       <p class="gate__error" role="alert"></p>
-      <button type="submit" class="gate__btn">${action ?? "Start"}</button>
+      <div class="gate__actions">
+        ${back ? '<button type="button" class="gate__btn gate__btn--quiet gate__back">Back</button>' : ""}
+        <button type="submit" class="gate__btn">${action ?? "Start"}</button>
+      </div>
     </form>`;
 }
 

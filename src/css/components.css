@@ -2893,6 +2893,7 @@
   line-height: 1;
   letter-spacing: 0.3em;
   text-transform: uppercase;
+  white-space: nowrap;
   color: rgb(243 247 241 / 55%);
 }
 
@@ -2973,7 +2974,6 @@
   gap: var(--sp-3);
   padding: var(--sp-6);
   background: var(--surface);
-  border-top: 3px solid var(--ink);
   border-radius: var(--radius);
   box-shadow: var(--shadow-lift);
 }
@@ -3020,6 +3020,31 @@
 .gate__btn:disabled {
   opacity: 0.6;
   cursor: progress;
+}
+
+/* Back beside Save when the name is being changed rather than set. */
+.gate__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.gate__actions .gate__btn {
+  flex: 1 1 auto;
+}
+
+.gate__btn--quiet {
+  flex: 0 0 auto;
+  padding: 0 18px;
+  background: transparent;
+  border-color: var(--line-strong);
+  color: var(--ink-2);
+  box-shadow: none;
+}
+
+.gate__btn--quiet:hover:not(:disabled) {
+  background: rgb(243 247 241 / 6%);
+  border-color: var(--ink);
+  color: var(--ink);
 }
 
 .gate__hint {
