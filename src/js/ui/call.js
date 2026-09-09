@@ -34,7 +34,11 @@ const WORKING = "Working out the path…";
 
 const LOCK_OPEN = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 7.6-1.2" /></svg>`;
 const LOCK_SHUT = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>`;
-const FLIP = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h13m-4-4 4 4-4 4M21 17H8m4 4-4-4 4-4" /></svg>`;
+/* Two arrows passing, one each way. A unit further apart than they read
+   naturally, because at 17px the heads met in the middle and the pair became
+   one zigzag: the tip of each head reaches four units off its own shaft, and
+   with the stroke on top of that there was nothing between them. */
+const FLIP = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h13m-4-4 4 4-4 4M21 18H8m4 4-4-4 4-4" /></svg>`;
 /** Taking the coach's call: a check. */
 const TAKE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7" /></svg>`;
 
