@@ -147,55 +147,93 @@
 
 /* --- sheets --------------------------------------------------------------- */
 
-/* A sheet rises into place and its backdrop fades up behind it. Keyed on the
-   open attribute, which the dialog gains every time it is shown. */
-@keyframes sheet-in {
-  from {
-    opacity: 0;
-    transform: translateY(14px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+/* A sheet rises into place and its backdrop fades up behind it, and on the way
+   out both run back the way they came. Transitions rather than keyframes, so
+   the close gets the same motion as the open: the dialog's display and its
+   place in the top layer are allowed to change discretely at the end of the
+   transition, and @starting-style gives the open a state to come from. A
+   browser without either simply cuts, as it did before. A sheet on its way
+   out takes no taps. */
+.settings,
+.home__sheet {
+  opacity: 0;
+  transform: translateY(14px) scale(0.985);
+  transition:
+    opacity 0.28s var(--ease-out),
+    transform 0.28s var(--ease-out),
+    overlay 0.28s allow-discrete,
+    display 0.28s allow-discrete;
 }
 
-@keyframes backdrop-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+.settings:not([open]),
+.home__sheet:not([open]) {
+  pointer-events: none;
 }
 
 .settings[open],
 .home__sheet[open] {
-  animation: sheet-in 0.32s var(--ease-out) both;
+  opacity: 1;
+  transform: none;
+}
+
+@starting-style {
+  .settings[open],
+  .home__sheet[open] {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+}
+
+.settings::backdrop,
+.home__sheet::backdrop {
+  opacity: 0;
+  transition:
+    opacity 0.28s ease,
+    overlay 0.28s allow-discrete,
+    display 0.28s allow-discrete;
 }
 
 .settings[open]::backdrop,
 .home__sheet[open]::backdrop {
-  animation: backdrop-in 0.3s ease both;
+  opacity: 1;
+}
+
+@starting-style {
+  .settings[open]::backdrop,
+  .home__sheet[open]::backdrop {
+    opacity: 0;
+  }
 }
 
 /* --- the pool menu --------------------------------------------------------- */
 
-/* The menu drops the last few pixels into place. Keyed on the hidden attribute
-   coming off, which restarts it on every open. */
-@keyframes menu-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+/* The menu drops the last few pixels into place and lifts back out the same
+   way. The hidden attribute drives it: display is allowed to change at the end
+   of the transition, so the menu is still there to fade, and while it fades it
+   takes no taps. */
+.league-bar__menu {
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity 0.18s var(--ease-out),
+    transform 0.18s var(--ease-out),
+    display 0.18s allow-discrete;
+}
+
+.league-bar__menu[hidden] {
+  pointer-events: none;
 }
 
 .league-bar__menu:not([hidden]) {
-  animation: menu-in 0.18s var(--ease-out) both;
+  opacity: 1;
+  transform: none;
+}
+
+@starting-style {
+  .league-bar__menu:not([hidden]) {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
 }
 
 /* --- the drawer changing panel ------------------------------------------- */
