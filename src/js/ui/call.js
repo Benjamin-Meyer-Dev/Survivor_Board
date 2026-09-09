@@ -46,7 +46,7 @@ const TAKE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4
  * @param {{onAction:Function, onSlot:(slot:number)=>void, canWrite:boolean}} handlers
  */
 export function renderCall(root, board, viewWeek, activeSlot, handlers) {
-  const week = board.weeks[viewWeek - 1] ?? board.weeks[0];
+  const week = board.weeks.find((entry) => entry.week === viewWeek) ?? board.weeks[0];
   const active = Math.min(activeSlot, week.picks.length - 1);
   const two = week.picks.length > 1;
 

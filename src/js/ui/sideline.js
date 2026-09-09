@@ -33,7 +33,7 @@ const COACH_MARK = `<span class="sideline__coach" aria-hidden="true">Coach</span
  * @param {{onAction:Function, canWrite:boolean}} handlers
  */
 export function renderSideline(root, board, viewWeek, activeSlot, handlers) {
-  const week = board.weeks[viewWeek - 1] ?? board.weeks[0];
+  const week = board.weeks.find((entry) => entry.week === viewWeek) ?? board.weeks[0];
   const pick = week.picks[Math.min(activeSlot, week.picks.length - 1)];
   const carried = captureState(root);
 

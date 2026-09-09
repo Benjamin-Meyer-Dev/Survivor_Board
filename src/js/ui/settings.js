@@ -5,9 +5,10 @@
  * everything about a league that is not a pick. The code and the link to join
  * by are at the top, because handing those out is the most common reason to
  * open it, and the name is edited in place there; the rules a pool can change
- * are below - how many picks a week, how many buy backs, and which weeks a
- * buy back can cover. Native dialog, so the focus trap, the backdrop, Esc and
- * the top layer are the platform's rather than three hundred lines of ours.
+ * are below - which weeks of the season it runs over, how many picks a week,
+ * how many buy backs, and which weeks a buy back can cover. Native dialog, so
+ * the focus trap, the backdrop, Esc and the top layer are the platform's
+ * rather than three hundred lines of ours.
  *
  * Edits are a draft until Save. Changing a rule re-plans the season - a beam
  * search over every remaining week - so committing on each tap would run it
@@ -27,7 +28,13 @@
  * Rendering only: app.js owns the save.
  */
 
-import { MAX_PICKS_PER_WEEK, MAX_BUY_BACKS, sameRules, onlyEditable } from "../core/rules.js";
+import {
+  MAX_PICKS_PER_WEEK,
+  MAX_BUY_BACKS,
+  mergeRules,
+  sameRules,
+  onlyEditable,
+} from "../core/rules.js";
 import { formatCode, joinLink } from "../core/code.js";
 import { escapeHtml } from "../core/format.js";
 import { POOL_KINDS } from "../sports.js";
@@ -237,12 +244,17 @@ function buildSheet(root) {
       const weeks = new Set(draft.buyBackWeeks);
       if (weeks.has(week)) weeks.delete(week);
       else weeks.add(week);
-      draft.buyBackWeeks = [...weeks].sort((a, b) => a - b);
-      // The count can never exceed the weeks it has to spend itself on.
-      draft.buyBacks = Math.min(draft.buyBacks, draft.buyBackWeeks.length);
+      draft.buyBackWeeks = [...weeks];
     } else {
       draft[rule] = Number(value);
     }
+
+    // One rule bounds the next - the run of weeks decides which of them a buy
+    // back can cover, and those decide how many buy backs there can be - so
+    // the draft goes back through the model's own clamps rather than through a
+    // second set of them written out here. A week dropped by a narrowed run is
+    // dropped for good: the pills show what is left, so nothing is hidden.
+    draft = onlyEditable(mergeRules(draft, draft, current.board.seasonWeeks));
 
     paint(root, control);
   });
@@ -383,21 +395,42 @@ function paint(root, keep = null) {
   root.querySelector(".settings__pool").hidden = canWrite;
 
   const rules = draft ?? onlyEditable(board.rules);
-  const weeks = board.weeks.map((week) => week.week);
+  // The whole calendar, and the run of it this pool plays. The run is the
+  // draft's rather than the board's, so the weeks on offer follow the start
+  // and end being chosen instead of the ones last saved.
+  const season = board.seasonWeeks;
+  const weeks = season.filter((week) => week >= rules.startWeek && week <= rules.endWeek);
   const maxBuyBacks = Math.min(MAX_BUY_BACKS, rules.buyBackWeeks.length);
 
   // No control for what a pick has to do: that is the kind of pool this is,
   // fixed when the league was made and named in the title above.
   root.querySelector(".settings__body").innerHTML = `
     ${group({
-      legend: "Picks a week",
-      hint: shortfallHint(rules.picksPerWeek, weeks.length, board.totalTeams),
-      controls: stepper("picksPerWeek", rules.picksPerWeek, { min: 1, max: MAX_PICKS_PER_WEEK }),
+      legend: "Start week",
+      controls: stepper("startWeek", rules.startWeek, {
+        min: season[0] ?? rules.startWeek,
+        max: rules.endWeek,
+      }),
     })}
 
     ${group({
-      legend: "Weeks a buy back covers",
-      hint: "Tap the weeks a loss can be bought back in. The path takes more risk in them, because it can afford to.",
+      legend: "End week",
+      controls: stepper("endWeek", rules.endWeek, {
+        min: rules.startWeek,
+        max: season.at(-1) ?? rules.endWeek,
+      }),
+    })}
+
+    ${group({
+      legend: "Picks a week",
+      controls: stepper("picksPerWeek", rules.picksPerWeek, {
+        min: 1,
+        max: maxPicksPerWeek(weeks.length, board.totalTeams),
+      }),
+    })}
+
+    ${group({
+      legend: "Buy Back Weeks",
       stack: true,
       controls: `<div class="settings__weeks">
         ${weeks
@@ -413,9 +446,6 @@ function paint(root, keep = null) {
 
     ${group({
       legend: "Buy backs",
-      hint: maxBuyBacks
-        ? "How many of those weeks a loss can actually be bought back in. Spent, not refunded: the team stays burned either way."
-        : "Pick the weeks a buy back can cover first.",
       controls: stepper("buyBacks", rules.buyBacks, { min: 0, max: maxBuyBacks, none: "None" }),
     })}
 
@@ -446,34 +476,31 @@ function paint(root, keep = null) {
 }
 
 /**
- * What picks-a-week costs in teams.
+ * The most picks a week this pool has teams for.
  *
  * No team twice is the one rule that is not negotiable here, so a pool taking
- * more picks than it has teams to spend runs out before the season does - and
- * the board says so honestly, in weeks that hold fewer picks than the rules
- * ask for and a season probability that collapses. Better to say it here,
- * while the number is being chosen, than to leave someone to work out why
- * their path reads zero.
+ * more picks than it has teams to spend runs out before its run does: the last
+ * weeks hold fewer picks than the rules ask for and the season probability
+ * collapses. So the step simply stops there. Eighteen NFL weeks at two a week
+ * needs thirty-six teams and the league has thirty-two - which is why a full
+ * NFL season takes one a week, and why shortening the run is what makes room
+ * for two.
  */
-function shortfallHint(picksPerWeek, weeks, totalTeams) {
-  const needed = picksPerWeek * weeks;
-  const kept =
-    "Fewer picks than a week already holds hides the extra slots. Nothing saved in them is lost, and raising this again brings them back.";
-  if (!totalTeams || needed <= totalTeams) return kept;
-  return `${weeks} weeks at ${picksPerWeek} a week needs ${needed} teams and this pool has ${totalTeams}, so the last weeks will run short. ${kept}`;
+function maxPicksPerWeek(weeks, totalTeams) {
+  if (!totalTeams || !weeks) return MAX_PICKS_PER_WEEK;
+  return Math.max(1, Math.min(MAX_PICKS_PER_WEEK, Math.floor(totalTeams / weeks)));
 }
 
 /**
- * One rule: its name, its control beside it and a line under both saying what
- * it does. A group that needs the width - the weeks - stacks instead.
+ * One rule: its name and its control beside it. A group that needs the width -
+ * the weeks - stacks instead.
  */
-function group({ legend, hint, controls, stack = false }) {
+function group({ legend, controls, stack = false }) {
   return `
     <div class="settings__group${stack ? " settings__group--stack" : ""}" role="group"
          aria-label="${escapeHtml(legend)}">
       <span class="settings__legend">${escapeHtml(legend)}</span>
       <div class="settings__control">${controls}</div>
-      <p class="settings__hint">${escapeHtml(hint)}</p>
     </div>`;
 }
 

@@ -328,6 +328,10 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
 
   const previousMotion = captureMotionState();
   const board = buildBoard({ ...boardInputs(), allowSearch: search });
+  // The week being looked at has to be one the pool plays. Which weeks those
+  // are is a rule now (core/rules.js), so a range narrowed here or on another
+  // device can take the open week out from under the drawer.
+  app.viewWeek = weekOnBoard(board, app.viewWeek);
 
   lastBoard = board;
   renderLeagueBar(el.league, { league: app.league, kind: app.kind }, BAR_HANDLERS);
@@ -355,6 +359,18 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
   playDataUpdates(previousMotion, effect);
 
   if (board.recommendationPending) scheduleRecommendation(settle);
+}
+
+/**
+ * The nearest week the board actually holds: the week itself where the pool
+ * plays it, and otherwise the end of the run it fell off. The board's weeks
+ * are the run between the pool's start and end week, so this is a clamp
+ * rather than a search.
+ */
+function weekOnBoard(board, week) {
+  const first = board.weeks[0]?.week ?? 1;
+  const last = board.weeks.at(-1)?.week ?? first;
+  return Math.min(Math.max(week, first), last);
 }
 
 /**
@@ -680,9 +696,8 @@ function applyRules(rules) {
     next.rules = stored;
   }
   app.entry = next;
-  // A week can lose the slot the sideline was filling, and a week the season
-  // no longer has is not a place to be left looking at.
-  app.viewWeek = Math.min(app.viewWeek, app.plan.weeks.length);
+  // A week can lose the slot the sideline was filling. The week itself is
+  // settled in render(), which knows which weeks the new rules leave.
   app.activeSlot = 0;
 
   clearTimeout(app.recommendTimer);

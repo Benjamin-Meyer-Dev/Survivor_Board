@@ -38,8 +38,11 @@ export const SPORTS = Object.freeze({
     conferences: ["AFC", "NFC"],
     /* What a new league on this sport starts with, before anyone changes it in
        the settings sheet. The NFL's own pool convention: one pick a week and a
-       single buy back over the opening two weeks. */
+       single buy back over the opening two weeks, over the regular season's
+       eighteen weeks - which are also the weeks a pool can start and end on. */
     defaultRules: {
+      startWeek: 1,
+      endWeek: 18,
       picksPerWeek: 1,
       objective: "win",
       buyBackWeeks: [1, 2],
@@ -60,8 +63,12 @@ export const SPORTS = Object.freeze({
     ratingLabel: "SP+",
     conferences: ["SEC", "Big Ten", "Big 12"],
     /* Two picks a week and no forgiveness, which is how the college pools
-       these boards were built for run. */
+       these boards were built for run. Thirteen weeks: the regular season the
+       schedule carries, and the range a pool can pick its own start and end
+       from. */
     defaultRules: {
+      startWeek: 1,
+      endWeek: 13,
       picksPerWeek: 2,
       objective: "win",
       buyBackWeeks: [],

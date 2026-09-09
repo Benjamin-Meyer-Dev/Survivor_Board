@@ -477,50 +477,59 @@ export function buildBoard({
   const rules = rulesOf(plan, entry?.rules);
   const slots = Array.from({ length: rules.picksPerWeek }, (_, index) => index);
   const model = resolveModel(calibration);
+  // The week the season is in, over the whole calendar rather than the pool's
+  // slice of it: it is a fact about the sport, and the horizon the model
+  // prices an unposted week at is measured from it. A pool whose run has not
+  // started, or has finished, simply has no week that is "now".
   const currentWeek = clampWeek(odds.currentWeek ?? 1, plan.weeks.length);
 
   // Pass one: resolve what each slot holds. Options for a week are built once
-  // and shared by every slot in it.
-  const weeks = plan.weeks.map((weekPlan) => {
-    const options = weekOptions({
-      schedule,
-      ratings,
-      teams,
-      odds,
-      form,
-      week: weekPlan.week,
-      currentWeek,
-      model,
-      availability,
-      objective: rules.objective,
-    });
-    const picks = slots.map((slot) =>
-      resolvePick({
-        weekPlan,
-        odds,
-        entry,
+  // and shared by every slot in it. Only the weeks the pool plays: a week
+  // outside its start and end is not on the board at all, so nothing is picked
+  // in it, nothing is spent in it and the season it survives is the run it
+  // actually plays (see core/rules.js).
+  const weeks = plan.weeks
+    .filter((weekPlan) => weekPlan.week >= rules.startWeek && weekPlan.week <= rules.endWeek)
+    .map((weekPlan) => {
+      const options = weekOptions({
+        schedule,
+        ratings,
         teams,
-        options,
+        odds,
+        form,
         week: weekPlan.week,
-        slot,
-        tiers: rules.tiers,
+        currentWeek,
         model,
+        availability,
         objective: rules.objective,
-      }),
-    );
+      });
+      const picks = slots.map((slot) =>
+        resolvePick({
+          weekPlan,
+          odds,
+          entry,
+          teams,
+          options,
+          week: weekPlan.week,
+          slot,
+          tiers: rules.tiers,
+          model,
+          objective: rules.objective,
+        }),
+      );
 
-    return {
-      week: weekPlan.week,
-      label: weekPlan.label,
-      // Every date shown in the UI carries its year, so a label is never
-      // ambiguous once a screenshot leaves the app.
-      labelFull: `${weekPlan.label}, ${plan.season}`,
-      kickoff: weekPlan.kickoff,
-      options,
-      picks,
-      isBuyBack: rules.buyBackWeeks.includes(weekPlan.week),
-    };
-  });
+      return {
+        week: weekPlan.week,
+        label: weekPlan.label,
+        // Every date shown in the UI carries its year, so a label is never
+        // ambiguous once a screenshot leaves the app.
+        labelFull: `${weekPlan.label}, ${plan.season}`,
+        kickoff: weekPlan.kickoff,
+        options,
+        picks,
+        isBuyBack: rules.buyBackWeeks.includes(weekPlan.week),
+      };
+    });
 
   // Only locked picks spend teams. An unlocked pick is still being weighed and
   // the coach's advice is only advice, so neither can burn a team or create a
@@ -628,6 +637,10 @@ export function buildBoard({
     // and must not carry one league's state onto the other's board.
     league: plan.league ?? "cfb",
     weeks,
+    // Every week the calendar has, whether the pool plays it or not: the
+    // settings sheet needs the whole season to offer a start and an end from,
+    // and `weeks` above is only the run between them.
+    seasonWeeks: plan.weeks.map((weekPlan) => weekPlan.week),
     rules,
     currentWeek,
     // The probability model the week was priced with, for the coach's futures
@@ -976,12 +989,15 @@ function signatureBase(board, plan, odds, form, inputs) {
     board.currentWeek,
     board.buyBack?.left ?? 0,
     // The rules the pool is running, because they are no longer a property of
-    // the file: the settings sheet can change what a pick has to do, how many
-    // a week takes and what can be forgiven, and every one of those is a
-    // different search. Without them here, flipping a pool to picking losers
-    // was answered out of the cache with the plan it had for picking winners -
-    // the same teams, at one minus their probabilities.
+    // the file: the settings sheet can change what a pick has to do, which
+    // weeks it runs over, how many a week takes and what can be forgiven, and
+    // every one of those is a different search. Without them here, flipping a
+    // pool to picking losers was answered out of the cache with the plan it
+    // had for picking winners - the same teams, at one minus their
+    // probabilities.
     board.rules.objective,
+    board.rules.startWeek,
+    board.rules.endWeek,
     board.rules.picksPerWeek,
     board.rules.buyBacks,
     board.rules.buyBackWeeks.join("+"),

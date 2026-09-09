@@ -47,7 +47,7 @@ export function renderNotices(root, { store = null, board = null, message = "" }
  */
 function reviewBanner(board) {
   const { week, losses } = board.elimination;
-  const label = board.weeks[week - 1]?.labelFull ?? `Week ${week}`;
+  const label = board.weeks.find((entry) => entry.week === week)?.labelFull ?? `Week ${week}`;
   const what = losses.length
     ? losses.map((loss) => `${loss.team} lost to ${loss.opponent}`).join(" and ") + "."
     : "";

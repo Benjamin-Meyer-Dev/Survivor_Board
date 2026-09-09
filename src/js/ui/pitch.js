@@ -79,8 +79,11 @@ export function renderPitch(root, board, viewWeek, handlers) {
     </div>`;
 
   const field = root.querySelector(".pitch__field");
+  // By place in the field, not by week number: a pool starting after week one
+  // has its first yard line somewhere other than week 1.
   const jumpTo = (index) => {
-    const week = Math.min(Math.max(index, 0), board.weeks.length - 1) + 1;
+    const at = Math.min(Math.max(index, 0), board.weeks.length - 1);
+    const week = board.weeks[at].week;
     markViewing(root, week);
     handlers.onWeekChange(week);
   };
@@ -192,7 +195,7 @@ function stats(board) {
     items.push(stat("Eliminated", `Wk ${board.eliminatedWeek}`));
     items.push(stat("Final record", `${board.record.won}-${board.record.lost}`));
   } else {
-    items.push(stat("Week", `${board.currentWeek} of ${board.weeks.length}`));
+    items.push(stat("Week", `${board.currentWeek} of ${board.weeks.at(-1)?.week ?? 0}`));
     if (board.buyBack) {
       const left = board.buyBack.left;
       items.push(

@@ -35,11 +35,19 @@ import {} from "../src/js/sports.js";
 // ---------------------------------------------------------------------------
 
 const weeks18 = Array.from({ length: 18 }, (_, index) => index + 1);
-const nflRules = { picksPerWeek: 1, buyBacks: 1, buyBackWeeks: [1, 2] };
+const nflRules = {
+  startWeek: 1,
+  endWeek: 18,
+  picksPerWeek: 1,
+  buyBacks: 1,
+  buyBackWeeks: [1, 2],
+};
 
 // Nothing saved: the plan's own rules, untouched.
 assert.deepEqual(mergeRules(nflRules, null, weeks18), {
   objective: "win",
+  startWeek: 1,
+  endWeek: 18,
   picksPerWeek: 1,
   buyBacks: 1,
   buyBackWeeks: [1, 2],
@@ -62,6 +70,36 @@ assert.equal(mergeRules(nflRules, { picksPerWeek: "3" }, weeks18).picksPerWeek, 
 assert.equal(mergeRules(nflRules, { picksPerWeek: "many" }, weeks18).picksPerWeek, 1);
 assert.equal(mergeRules(nflRules, { picksPerWeek: null }, weeks18).picksPerWeek, 1);
 
+// The run of weeks the pool plays. Inside the season, and never back to
+// front: an end before the start collapses onto the start, because a pool
+// always plays at least the week it begins in.
+assert.equal(mergeRules(nflRules, { startWeek: 5 }, weeks18).startWeek, 5);
+assert.equal(mergeRules(nflRules, { endWeek: 12 }, weeks18).endWeek, 12);
+assert.equal(mergeRules(nflRules, { startWeek: 0 }, weeks18).startWeek, 1);
+assert.equal(mergeRules(nflRules, { startWeek: 99 }, weeks18).startWeek, 18);
+assert.equal(mergeRules(nflRules, { endWeek: 99 }, weeks18).endWeek, 18);
+assert.equal(mergeRules(nflRules, { endWeek: 0 }, weeks18).endWeek, 1);
+assert.equal(mergeRules(nflRules, { startWeek: 10, endWeek: 4 }, weeks18).endWeek, 10);
+assert.equal(mergeRules(nflRules, { startWeek: "6" }, weeks18).startWeek, 6);
+assert.equal(mergeRules(nflRules, { startWeek: "opening day" }, weeks18).startWeek, 1);
+assert.equal(
+  mergeRules({ picksPerWeek: 2, weeks: 13 }, null, []).endWeek,
+  13,
+  "with no calendar, a plan's own count of its weeks is the end of the run",
+);
+
+// The run is the calendar as far as every other rule is concerned: a buy back
+// on a week the pool does not play is a buy back on a week that does not exist.
+assert.deepEqual(
+  mergeRules(nflRules, { startWeek: 3, buyBackWeeks: [1, 2, 4] }, weeks18).buyBackWeeks,
+  [4],
+);
+assert.equal(
+  mergeRules(nflRules, { startWeek: 3 }, weeks18).buyBacks,
+  0,
+  "and a cushion with nowhere left to spend itself is no cushion",
+);
+
 // Buy back weeks: only weeks the season has, each once, in order.
 assert.deepEqual(mergeRules(nflRules, { buyBackWeeks: [3, 1, 3] }, weeks18).buyBackWeeks, [1, 3]);
 assert.deepEqual(mergeRules(nflRules, { buyBackWeeks: [19, 0, -2] }, weeks18).buyBackWeeks, []);
@@ -73,7 +111,7 @@ assert.deepEqual(
 assert.deepEqual(
   mergeRules(nflRules, { buyBackWeeks: [2, 1] }, []).buyBackWeeks,
   [1, 2],
-  "with no calendar to check against, the weeks are taken as given",
+  "with no calendar to check against, the plan's own run stands in for one",
 );
 
 // A buy back needs a week to spend itself in, so the weeks are its ceiling.
@@ -103,6 +141,8 @@ const base = mergeRules(nflRules, null, weeks18);
 assert.equal(sameRules(base, mergeRules(nflRules, { buyBackWeeks: [2, 1] }, weeks18)), true);
 assert.equal(sameRules(base, mergeRules(nflRules, { buyBackWeeks: [1] }, weeks18)), false);
 assert.equal(sameRules(base, mergeRules(nflRules, { objective: "lose" }, weeks18)), false);
+assert.equal(sameRules(base, mergeRules(nflRules, { startWeek: 2 }, weeks18)), false);
+assert.equal(sameRules(base, mergeRules(nflRules, { endWeek: 17 }, weeks18)), false);
 assert.equal(sameRules(base, { ...base, tiers: { safe: 0.9 } }), true, "tiers are not a rule");
 
 // ---------------------------------------------------------------------------
@@ -287,12 +327,70 @@ assert.deepEqual(
   [4, 5],
 );
 
+// The run of weeks, through the board: the weeks outside it are not on the
+// board at all, so nothing is picked in them and nothing is spent in them.
+const short = boardFor(nfl, withRules({ startWeek: 4, endWeek: 9 }));
+assert.deepEqual(
+  short.weeks.map((week) => week.week),
+  [4, 5, 6, 7, 8, 9],
+);
+assert.deepEqual(
+  short.seasonWeeks,
+  weeks18,
+  "and the whole calendar is still there for the sheet to offer a range from",
+);
+assert.equal(short.rules.startWeek, 4);
+assert.equal(short.rules.endWeek, 9);
+assert.deepEqual(short.rules.buyBackWeeks, [], "the plan's opening-week buy backs are outside it");
+assert.equal(short.buyBack, null);
+assert.ok(
+  short.recommendation.pathProbability > boardFor(nfl, nothing()).recommendation.pathProbability,
+  "six weeks are easier to survive than eighteen",
+);
+
+// A pick locked in a week the run does not reach is held but not spent: the
+// entry is keyed by week and slot, so narrowing the run changes what the board
+// shows rather than what it holds - the same promise picks-a-week makes.
+const outsideWeek = 15;
+const outsideTeam = plain.weeks.find((week) => week.week === outsideWeek).options[0].team;
+const outsideEntry = {
+  picks: { [slotKey(outsideWeek, 0)]: { locked: true } },
+  swaps: { [slotKey(outsideWeek, 0)]: outsideTeam },
+};
+assert.equal(boardFor(nfl, outsideEntry).spentTeams[outsideTeam], outsideWeek);
+const narrowedRun = boardFor(nfl, { ...outsideEntry, rules: { endWeek: 10 } });
+assert.equal(narrowedRun.spentTeams[outsideTeam], undefined, "the lock is outside the run");
+assert.equal(
+  boardFor(nfl, { ...outsideEntry, rules: { endWeek: 18 } }).spentTeams[outsideTeam],
+  outsideWeek,
+  "and comes back with the week",
+);
+
+// A different run is a different search, and the memo has to know it: the
+// signature carries the range for the same reason it carries the objective.
+assert.notDeepEqual(
+  callsOf(boardFor(nfl, withRules({ endWeek: 9 }))),
+  callsOf(boardFor(nfl, withRules({ startWeek: 4, endWeek: 9 }))),
+  "two runs of different length never share a plan",
+);
+
+// A shorter run leaves teams for more picks a week. Eighteen NFL weeks at two
+// a week needs thirty-six teams and the league has thirty-two, which is what
+// the sheet's step stops at; sixteen weeks has room for both.
+assert.equal(boardFor(nfl, withRules({ picksPerWeek: 2, endWeek: 16 })).spentCount, 0);
+const twoAWeek = boardFor(nfl, withRules({ picksPerWeek: 2, endWeek: 16 }));
+for (const week of twoAWeek.weeks) {
+  assert.equal(week.pathRecommendation.length, 2, `week ${week.week} is fully planned`);
+}
+
 // A document nobody sane wrote. Every value is refused and the board still
 // builds, plans and prices.
 const junk = boardFor(
   nfl,
   withRules({
     objective: 42,
+    startWeek: "opening night",
+    endWeek: [],
     picksPerWeek: "lots",
     buyBacks: "one",
     buyBackWeeks: [99, "three", null],
@@ -300,6 +398,8 @@ const junk = boardFor(
   }),
 );
 assert.equal(junk.rules.objective, "win");
+assert.equal(junk.rules.startWeek, 1);
+assert.equal(junk.rules.endWeek, 18);
 assert.equal(junk.rules.picksPerWeek, 1);
 assert.equal(junk.rules.buyBacks, 0);
 assert.deepEqual(junk.rules.buyBackWeeks, []);
@@ -307,7 +407,8 @@ assert.equal(junk.rulesCustom, true, "it is still not the plan's rules");
 assert.ok(openWeek(junk).picks[0].suggestion?.team, "and the coach still has a call");
 
 console.log(
-  "Settings OK: pool rules merge over the plan and clamp to a coherent set, a buy back " +
-    "cannot outnumber the weeks it covers, junk in the shared entry cannot break a board, " +
-    "and the objective, the slots and the buy backs all reach the model.",
+  "Settings OK: pool rules merge over the plan and clamp to a coherent set, a pool's run " +
+    "of weeks is the only season the board has, a buy back cannot outnumber the weeks it " +
+    "covers, junk in the shared entry cannot break a board, and the objective, the range, " +
+    "the slots and the buy backs all reach the model.",
 );
