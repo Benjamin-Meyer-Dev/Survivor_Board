@@ -805,12 +805,23 @@
   margin: 0 calc(var(--sp-5) * -1) calc(var(--sp-5) * -1);
   padding: var(--sp-5);
   border-top: var(--dash);
+  border-bottom: var(--dash);
 }
 
+/* The two of them, halves of the row: the same size whatever they are called,
+   so neither reads as the bigger button, and the pair fills the width the way
+   Cancel and Save do below. A label with no room left wraps rather than
+   overflowing, and both grow together because the row stretches them. */
 .settings__danger-row {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
+}
+
+.settings__danger-row .settings__btn {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+  white-space: normal;
 }
 
 .settings__danger-ask {

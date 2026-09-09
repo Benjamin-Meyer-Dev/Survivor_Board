@@ -283,28 +283,46 @@
 }
 
 /* --- between the home page and a board ------------------------------------
-   A step between the two pages is one movement rather than a cut: whichever
-   is on its way out sinks and fades, and the one that arrives rises into the
-   place it left. The board's own arrival is league-enter below, which is the
-   same shape at the same easing - these two are the half the home page was
-   missing, and what makes the pair read as a single move.
+   Depth rather than distance, and a direction: stepping into a league goes
+   through the list of them, stepping back pulls out of the board. The page
+   being left scales the way you are travelling and is gone in seventy
+   milliseconds - it has already been read, and every frame it stays is a frame
+   before the page that was asked for starts arriving, which is the whole of
+   what made the step feel slow. The page arriving comes from the other side of
+   the same move.
+
+   And it arrives in bands rather than as a slab: the topline, then the field,
+   then the drawer, each a beat behind the last, so a board reads as being
+   dealt out. The home page's own three follow the same beat. Naming the bands
+   rather than picking them by depth is deliberate - the two pages nest
+   differently, a board's bands being its own children and the home page's
+   sitting inside its section.
 
    The leaving page stops taking taps while it goes, so a control halfway
    through a fade cannot be pressed. */
 
 .is-page-leaving {
   opacity: 0;
-  transform: translateY(8px) scale(0.994);
-  transition:
-    opacity 0.17s ease,
-    transform 0.17s ease;
   pointer-events: none;
+  transition:
+    opacity 0.07s ease-in,
+    transform 0.07s ease-in;
 }
 
-@keyframes page-enter {
+/* Into a league: the list you tapped comes past you. */
+.is-page-leaving--in {
+  transform: scale(1.03);
+}
+
+/* Back out of one: the board recedes into the list. */
+.is-page-leaving--out {
+  transform: scale(0.97);
+}
+
+@keyframes page-in {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.992);
+    transform: scale(0.955);
   }
   to {
     opacity: 1;
@@ -312,8 +330,37 @@
   }
 }
 
-.is-page-entering {
-  animation: page-enter 0.34s var(--ease-out) both;
+@keyframes page-out {
+  from {
+    opacity: 0;
+    transform: scale(1.045);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --ease-snap, not --ease-out: it overshoots a shade and lands, where the
+   easing the rest of the app settles with has a long approach that on a whole
+   page reads as the arrival dragging its feet. */
+.is-page-entering--in
+  :where(.topline, .readout, .drawer, .home__head, .home__message, .home__menu, .home__list) {
+  animation: page-in 0.18s var(--ease-snap) both;
+}
+
+.is-page-entering--out
+  :where(.topline, .readout, .drawer, .home__head, .home__message, .home__menu, .home__list) {
+  animation: page-out 0.18s var(--ease-snap) both;
+}
+
+/* The second band and the third, a beat and two behind the first. */
+.is-page-entering :where(.readout, .home__message, .home__menu) {
+  animation-delay: 0.04s;
+}
+
+.is-page-entering :where(.drawer, .home__list) {
+  animation-delay: 0.08s;
 }
 
 @keyframes league-enter {

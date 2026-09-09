@@ -147,12 +147,20 @@ const SLIDE_IN_MS = 280;
 /**
  * How long the page on its way out takes to clear before the next one shows.
  *
- * Long enough to read as leaving and short enough not to be a wait. The board
- * takes longer to arrive than this - its data may still be loading, and its
- * entrance is league-enter's 360ms on top - so this is the only part of the
- * move whose length is ours to choose.
+ * Seventy milliseconds: the page being left has already been read, and every
+ * frame it stays is a frame before the one being asked for starts arriving.
+ * This is the only part of the move whose length is ours to choose - the rest
+ * is the league's files loading, which the leave runs alongside.
  */
-const PAGE_LEAVE_MS = 170;
+const PAGE_LEAVE_MS = 70;
+
+/**
+ * And how long the arriving page takes to settle: its last band's delay plus
+ * the length of a band (see motion.css). The classes come off after this, and
+ * the optimiser waits for it - a search freezes the main thread, and an
+ * animation caught half way through by that does not resume, it jumps.
+ */
+const PAGE_ENTER_MS = 260;
 
 const REDUCED_MOTION = matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -241,42 +249,57 @@ function playSwitch() {
 }
 
 /**
- * Send a page away: it sinks and fades, and stops taking taps while it does.
+ * The classes a page change puts on a page, in two halves.
  *
- * Returns how long to wait before the next page is put up, so a caller can
- * sequence the two halves without knowing the timing. Zero with motion
- * reduced, or for a page that was not on screen to begin with, and then the
- * change is a straight swap.
+ * Kept apart because the halves are cleared at different moments: a page has
+ * finished leaving as soon as the next one is up, but the one arriving is
+ * still arriving then, and stripping its classes there is exactly what stopped
+ * a board from ever animating in.
  */
-function leavePage(page) {
+const PAGE_LEAVE_CLASSES = ["is-page-leaving", "is-page-leaving--in", "is-page-leaving--out"];
+const PAGE_ENTER_CLASSES = ["is-page-entering", "is-page-entering--in", "is-page-entering--out"];
+const PAGE_CLASSES = [...PAGE_LEAVE_CLASSES, ...PAGE_ENTER_CLASSES];
+
+/**
+ * Send a page away: it goes the way you are travelling and stops taking taps.
+ *
+ * @param {HTMLElement|null} page
+ * @param {"in"|"out"} way "in" for stepping into a league, "out" for stepping
+ *   back to the list of them. The two scale opposite ways, which is what makes
+ *   the step read as forward or back rather than as a swap.
+ * @returns {number} How long to wait before the next page goes up, so a caller
+ *   can sequence the halves without knowing the timing. Zero with motion
+ *   reduced, or for a page that was not on screen to begin with, and then the
+ *   change is a straight swap.
+ */
+function leavePage(page, way) {
   if (!page || page.hidden || REDUCED_MOTION.matches) return 0;
-  page.classList.add("is-page-leaving");
+  page.classList.add("is-page-leaving", `is-page-leaving--${way}`);
   return PAGE_LEAVE_MS;
 }
 
 /**
- * And bring one on: it rises into the place the last one left.
+ * And bring one on: it comes from the other side of the same move, in bands a
+ * beat apart (see motion.css).
  *
  * One-shot, applied after the render that built the page, for the same reason
  * playEffect and playSwitch are - innerHTML has just replaced the nodes an
- * earlier class would have been sitting on. The board has its own entrance in
- * playSwitch, which is the same shape; this is the half the home page was
- * missing, and why a step between the two used to be a cut.
+ * earlier class would have been sitting on.
  */
-function enterPage(page) {
+function enterPage(page, way) {
   if (!page || REDUCED_MOTION.matches) return;
-  page.classList.remove("is-page-leaving", "is-page-entering");
+  page.classList.remove(...PAGE_CLASSES);
   // Forces the finished animation to be dropped before it is re-added, so a
   // second visit plays rather than doing nothing.
   void page.offsetWidth;
-  page.classList.add("is-page-entering");
-  setTimeout(() => page.classList.remove("is-page-entering"), 400);
+  page.classList.add("is-page-entering", `is-page-entering--${way}`);
+  setTimeout(() => page.classList.remove(...PAGE_ENTER_CLASSES), PAGE_ENTER_MS + 60);
 }
 
 /** Whatever a page change left on either page, off. */
 function settlePages() {
   for (const page of [el.home, el.board]) {
-    page?.classList.remove("is-page-leaving", "is-page-entering");
+    page?.classList.remove(...PAGE_CLASSES);
   }
 }
 
@@ -698,14 +721,14 @@ function goHome() {
   if (window.location.hash)
     window.history.pushState(null, "", window.location.pathname + window.location.search);
 
-  const wait = leavePage(el.board);
+  const wait = leavePage(el.board, "out");
   const land = () => {
     app.view = "home";
     // Back from a board, the page starts folded: a form left open on the way
     // out is not what anyone came back for.
     closeHomePanels();
     renderHomeView();
-    enterPage(el.home);
+    enterPage(el.home, "out");
     app.switching = false;
   };
 
@@ -739,7 +762,7 @@ async function openBoard(code, kind = null) {
 
   // The home page leaves while the league loads rather than after it: the two
   // overlap, so the wait is spent on the half of the move that can be shown.
-  const left = leavePage(el.home);
+  const left = leavePage(el.home, "in");
 
   try {
     const league = await leagueByCode(clean);
@@ -762,19 +785,22 @@ async function openBoard(code, kind = null) {
     // the other kind of arrival - a switch between one league's pools, where
     // the topline is deliberately left solid because the picker that was just
     // tapped is in it.
-    enterPage(el.board);
+    enterPage(el.board, "in");
   } catch (error) {
     app.view = "home";
     app.league = null;
     app.homeMessage = `Could not open that league: ${error.message}`;
     renderHomeView();
-    enterPage(el.home);
+    enterPage(el.home, "out");
   } finally {
     el.shell?.classList.remove("is-swapping");
-    // Whichever way it went, neither page is mid-move any more: the board is
-    // up, or the home page is back with the reason it did not open.
-    el.home?.classList.remove("is-page-leaving");
-    el.board?.classList.remove("is-page-leaving");
+    // Whichever way it went, neither page is still leaving: the board is up, or
+    // the home page is back with the reason it did not open. The direction goes
+    // with it, since a page left holding the scale it was travelling at would
+    // sit there wrong. Only the leaving half - the page that has just arrived
+    // is still arriving, and enterPage clears up after itself.
+    el.home?.classList.remove(...PAGE_LEAVE_CLASSES);
+    el.board?.classList.remove(...PAGE_LEAVE_CLASSES);
     app.switching = false;
   }
 }
@@ -788,8 +814,12 @@ async function openBoard(code, kind = null) {
  * and then jumps to its end. Waiting for the animation to be over is what buys
  * the smooth arrival; the freeze then lands while the board is sitting still
  * and being read, where nothing visible is waiting on it.
+ *
+ * Which is why it follows the entrance rather than being a number of its own:
+ * a shorter arrival is a plan that lands sooner, and the two must not be able
+ * to drift apart.
  */
-const RECOMMEND_DELAY_MS = 380;
+const RECOMMEND_DELAY_MS = PAGE_ENTER_MS;
 
 /**
  * A lock or an unlock changes what the coach has to plan around, so the search

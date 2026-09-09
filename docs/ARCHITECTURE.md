@@ -112,16 +112,27 @@ unchanged and never asks which pool it is in. The one exception is
 `core/scenarios.js`, which draws its own spreads and so has to be told which
 side of them to price.
 
-Stepping between the home page and a board is one movement rather than a cut:
-whichever page is leaving sinks and fades and stops taking taps, and the one
-arriving rises into the place it left (`leavePage`/`enterPage` in `app.js`,
-`is-page-leaving`/`page-enter` in `motion.css`). Opening a league overlaps the
-two halves - the home page leaves while the league's files load, so the wait is
-spent on the part of the move that can be shown. A whole board arriving is a
-page change and rises as one, topline included; a switch between one league's
-pools is not, and there `playSwitch` moves only the readout and the drawer,
-because the picker that was just tapped is in the topline and should stay
-solid.
+Stepping between the home page and a board is depth with a direction, not a
+cut: into a league goes through the list of them and back out of a board
+recedes into it, so the two scale opposite ways (`leavePage`/`enterPage` in
+`app.js`, `is-page-leaving--in|--out` and `page-in`/`page-out` in
+`motion.css`). The page being left is gone in 70ms - it has already been read,
+and every frame it stays is a frame before the one asked for starts arriving.
+The page arriving comes in bands a beat apart, the topline then the field then
+the drawer, each 180ms on the overshooting `--ease-snap` so it lands rather
+than drifts; the home page's own three follow the same beat. Tap to settled is
+under 400ms either way, and the first band is readable inside 200.
+
+Opening a league overlaps the halves - the home page leaves while the league's
+files load, so the wait is spent on the part of the move that can be shown. A
+whole board arriving is a page change and comes in as one; a switch between one
+league's pools is not, and there `playSwitch` moves only the readout and the
+drawer, because the picker that was just tapped is in the topline and should
+stay solid. `RECOMMEND_DELAY_MS` is the arrival's own length rather than a
+number of its own: the season search freezes the main thread, an animation
+caught half way through by that jumps rather than resumes, and a shorter
+arrival should mean a plan that lands sooner rather than two constants drifting
+apart.
 
 Colour is the one thing that does not come off the board: `app.js` stamps
 `data-league` on the root element and `src/css/leagues.css` redefines the
