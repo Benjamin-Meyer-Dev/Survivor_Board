@@ -212,9 +212,20 @@
   color: var(--on-flag);
 }
 
+/* The quiet ones - Cancel, Keep it, take a pool out - in the neutral, which
+   is the app's whole vocabulary for "you can press this and it is not the
+   one action". */
 .settings__btn--quiet,
 .home__btn--quiet {
-  color: var(--chalk-3);
+  border-color: var(--neutral-line);
+  color: var(--neutral);
+}
+
+.settings__btn--quiet:hover:not(:disabled),
+.home__btn--quiet:hover:not(:disabled) {
+  border-color: var(--neutral);
+  background: var(--neutral-bg);
+  color: var(--neutral-2);
 }
 
 .settings__btn:disabled,
@@ -635,8 +646,15 @@
   height: 32px;
   padding: 0;
   border-radius: 50%;
-  color: var(--chalk-2);
+  border-color: var(--neutral-line);
+  color: var(--neutral);
   font-size: 0;
+}
+
+.settings__copy:hover:not(:disabled) {
+  border-color: var(--neutral);
+  background: var(--neutral-bg);
+  color: var(--neutral-2);
 }
 
 .settings__copy svg {
@@ -768,9 +786,9 @@
 }
 
 .settings__week[aria-pressed="true"] {
-  background: var(--mulligan-bg);
-  border-color: var(--mulligan);
-  color: var(--mulligan);
+  background: var(--neutral);
+  border-color: var(--neutral);
+  color: var(--on-neutral);
 }
 
 .settings__body [data-rule]:disabled {
@@ -2273,10 +2291,10 @@
   align-items: center;
   height: 38px;
   padding: 0 14px;
-  border: 1.5px solid var(--line);
+  border: 1.5px solid var(--neutral-line);
   border-radius: 999px;
   background: none;
-  color: var(--chalk-2);
+  color: var(--neutral);
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 15px;
@@ -2289,8 +2307,8 @@
 }
 
 .home__name:hover {
-  border-color: var(--chalk);
-  color: var(--chalk);
+  border-color: var(--neutral);
+  color: var(--neutral-2);
 }
 
 .home__message {
@@ -2364,7 +2382,8 @@
   height: 36px;
   padding: 0;
   border-radius: 50%;
-  color: var(--chalk-2);
+  border-color: var(--neutral-line);
+  color: var(--neutral);
   font-size: 0;
 }
 
@@ -2378,8 +2397,9 @@
   stroke-linejoin: round;
 }
 
-/* Each icon in its own chalk, so the two are never taken for each other:
-   leaving is red, copying is teal. */
+/* Leaving a league is the one that cannot be undone, so it keeps the red.
+   Copying is just a thing you can press: it takes the neutral, like every
+   other one of those. */
 .home__icon--leave {
   border-color: color-mix(in srgb, var(--danger) 60%, transparent);
   color: var(--danger);
@@ -2392,14 +2412,14 @@
 }
 
 .home__icon--copy {
-  border-color: color-mix(in srgb, var(--solid) 60%, transparent);
-  color: var(--solid);
+  border-color: var(--neutral-line);
+  color: var(--neutral);
 }
 
 .home__icon--copy:hover {
-  border-color: var(--solid);
-  background: var(--solid-bg);
-  color: var(--solid);
+  border-color: var(--neutral);
+  background: var(--neutral-bg);
+  color: var(--neutral-2);
 }
 
 /* The copy icon reporting: a tick on the flag, or a cross in red chalk. */

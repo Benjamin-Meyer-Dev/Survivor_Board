@@ -71,10 +71,34 @@
   --lock: #f3f7f1;
   --lock-bg: rgb(243 247 241 / 12%);
 
-  /* The buy back sits outside both the confidence scale and the flag, so it
-     can never be mistaken for a status or an action. */
-  --mulligan: #c9b6ff;
-  --mulligan-bg: rgb(201 182 255 / 14%);
+  /* neutral ---------------------------------------------------------------
+     The second thing you can press.
+
+     The flag is the one action and red is the one that cannot be undone;
+     everything else you can press - copy this, keep it, take that pool out,
+     mark this week - is this. So a control's colour says how much weight it
+     carries rather than which corner of the app it happens to live in, which
+     is what the copy buttons (one teal, one chalk) and the buy back's own
+     lavender used to say instead.
+
+     The cool grey of the sideline - the benches, the chain, the whistle. The
+     one colour here that is not part of the game being played, which is
+     exactly what a secondary control is. Cool rather than warm on purpose:
+     every warm tone on this board is already spoken for (the flag, the
+     confidence scale's amber and salmon, a losers pool's paint), so a warm
+     neutral reads as a weak version of one of those, and against green turf
+     it goes muddy at the size a copy button is drawn. Low chroma so it never
+     competes, high enough in value to read at 16px. */
+  --neutral: #a7c0cc;
+  --neutral-2: #cbdde5;
+  --neutral-bg: rgb(167 192 204 / 15%);
+  --neutral-line: rgb(167 192 204 / 58%);
+  /* Ink on a filled one, for the few that are filled rather than outlined:
+     a marked buy back week is a choice that has been made, and an outline is
+     not enough to say so at the size a pill is drawn. Fixed rather than the
+     league's paint, which on a losers pool is a burnt orange that would sit
+     badly on this. */
+  --on-neutral: #0c2a22;
 
   /* The kinds of pool, as the home page tells them apart: each season's
      paint, and burnt orange for any pool that wants its picks to lose. */
