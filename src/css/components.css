@@ -1353,11 +1353,11 @@
   color: var(--chalk-2);
 }
 
-/* The actions, at the end of the head row: the other side of the game on the
-   swap's blue and the one action on the flag, both filled so a thumb finds
-   them without reading the row. Marks, not words, so the drawer under the
-   card gets the room; the eyebrow says the state. Round, like the topline's
-   own buttons. */
+/* The actions, at the end of the head row: the other side of the game in
+   chalk and the one action on the flag, both filled so a thumb finds them
+   without reading the row. Marks, not words, so the drawer under the card
+   gets the room; the eyebrow says the state. Round, like the topline's own
+   buttons. */
 .call__actions {
   display: flex;
   gap: 6px;
@@ -1390,12 +1390,12 @@
   stroke-linejoin: round;
 }
 
-/* The other side of the game: the two arrows on the swap's blue, so it is
-   never taken for the lock beside it. */
+/* The other side of the game: the two arrows in solid chalk, so it is never
+   taken for the flag of the lock beside it. */
 .call__flip {
-  background: var(--swap);
-  border-color: var(--swap);
-  color: var(--on-swap);
+  background: var(--chalk);
+  border-color: var(--chalk);
+  color: var(--paint);
 }
 
 .call__flip svg {
@@ -1403,8 +1403,8 @@
 }
 
 .call__flip:hover:not(:disabled) {
-  background: var(--swap-2);
-  border-color: var(--swap-2);
+  background: var(--chalk-2);
+  border-color: var(--chalk-2);
 }
 
 .call__lock svg {

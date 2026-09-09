@@ -202,12 +202,14 @@ function stats(board) {
   }
 
   if (!board.eliminated && board.previewPathProbability !== null) {
+    // Judged as shown: a preview that rounds to the same tenth of a percent as
+    // the season number reads as even, however the unrounded pair fall.
     const change =
-      board.previewPathProbability > board.pathProbability
-        ? "better"
-        : board.previewPathProbability < board.pathProbability
-          ? "worse"
-          : "even";
+      formatPercent(board.previewPathProbability) === formatPercent(board.pathProbability)
+        ? "even"
+        : board.previewPathProbability > board.pathProbability
+          ? "better"
+          : "worse";
     items.push(
       stat("If locked", `→ ${formatPercent(board.previewPathProbability)}`, `preview-${change}`),
     );
@@ -255,7 +257,9 @@ function markChange(root, league, from, to) {
   const el = root.querySelector('[data-cell="survival"] .pitch__tag-value');
   if (!el || typeof to !== "number") return;
 
-  if (typeof from === "number" && from !== to) {
+  // A move the readout cannot show is no move: the pulse waits for the shown
+  // figure to change, not the number behind it.
+  if (typeof from === "number" && formatPercent(from) !== formatPercent(to)) {
     pulse = {
       league,
       to,
