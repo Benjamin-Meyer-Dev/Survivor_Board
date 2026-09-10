@@ -42,6 +42,19 @@
 
 /* board --------------------------------------------------------------------- */
 
+/* The three surfaces a sideways drag turns the week on (ui/swipe.js): the
+   week's card, and the drawer's two panels that are about a week. Sideways
+   panning is ours on these, up-and-down is still the browser's, which is what
+   lets the drag be tracked with pointer events at all - without pan-y the
+   vertical scroller takes the gesture and cancels the pointer on the first
+   move. The field is deliberately not one of them: its yard lines pan sideways
+   themselves, and the bench is not about a week. */
+#call,
+#view-week,
+#view-path {
+  touch-action: pan-y;
+}
+
 .board {
   flex: 1;
   display: flex;

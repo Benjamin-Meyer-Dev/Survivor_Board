@@ -80,30 +80,6 @@
   background: transparent;
 }
 
-.chip--moot {
-  --tag-fg: var(--chalk-4);
-  background: transparent;
-}
-
-/* The week on the clock: the flag, solid, with the live dot of a score bug. */
-.chip--clock {
-  --tag-fg: var(--flag);
-  background: var(--flag);
-  border-color: var(--flag);
-  color: var(--on-flag);
-  height: 24px;
-  padding: 0 9px 0 8px;
-}
-
-.chip--clock::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--on-flag);
-}
-
 /* The kinds of pool a league runs, on its home card, each in its paint. */
 .chip--kind-nfl-win {
   --tag-fg: var(--kind-nfl);
@@ -559,11 +535,27 @@
   outline: none;
 }
 
+/* Behind a sheet: the board dimmed and thrown out of focus.
+
+   The blur is the one genuinely expensive paint in the app - it reads the whole
+   layer under the sheet on every frame the sheet is moving - and a phone is
+   both the device least able to afford it and the one where the sheet covers
+   nearly all of what it would blur. So a narrow screen gets a heavier dim
+   instead, which says the same thing (the board is behind this, and not for
+   tapping) for the price of one fill. The blur returns from a tablet up, where
+   the board is visible around the sheet and there is a machine to draw it. */
 .settings::backdrop,
 .home__sheet::backdrop {
-  background: rgb(4 20 11 / 70%);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  background: rgb(4 20 11 / 88%);
+}
+
+@media (min-width: 700px) {
+  .settings::backdrop,
+  .home__sheet::backdrop {
+    background: rgb(4 20 11 / 70%);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
 }
 
 .settings__form {
@@ -707,13 +699,6 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--flag);
-}
-
-.settings__hint {
-  margin-top: 8px;
-  color: var(--chalk-3);
-  font-size: 11.5px;
-  line-height: 1.45;
 }
 
 /* A count, chalked large like a scoreboard, with a step either side. */
@@ -1024,10 +1009,33 @@
   background: var(--danger);
 }
 
-/* The week being looked at wears the chalk bracket. */
-.pitch__yard--viewing {
+/* The chalk bracket on the week being looked at: one element that slides
+   between yard lines rather than a border lit on each in turn.
+
+   Positioned off the track's own --weeks, so it needs no measuring: the
+   bracket is exactly one column wide, and --yard - the zero-based place of the
+   week being looked at, set by markViewing in ui/pitch.js - moves it by whole
+   columns of its own width. Every yard line is the same width in both layouts
+   (a fixed --yard-w on a phone, an equal flex share on a desktop), so the
+   arithmetic holds either way and a rotation moves the bracket with the
+   columns. */
+.pitch__bracket {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(100% / var(--weeks, 1));
+  transform: translateX(calc(var(--yard, 0) * 100%));
+  pointer-events: none;
   box-shadow: inset 0 0 0 2px var(--chalk);
   background-color: rgb(255 255 255 / 10%);
+}
+
+/* The week being looked at is one the pool does not play - a range narrowed on
+   another device, say. There is no column for the bracket to stand on. */
+.pitch__track--off-field .pitch__bracket {
+  opacity: 0;
 }
 
 .pitch__yard--viewing .pitch__num {
@@ -1050,8 +1058,8 @@
   opacity: 0.45;
 }
 
-/* The drive line under the field: the readouts of the season - where the
-   ball is, what the pool forgives, what a pick being weighed would do - and
+/* The drive line under the field: the readouts of the season - how fresh the
+   lines are, what the pool forgives, what a pick being weighed would do - and
    the flag saying how far the end zone is on today's numbers. The flag drops
    under the readouts when a phone cannot hold both on one row. */
 .pitch__drive {
@@ -1420,6 +1428,87 @@
   color: var(--chalk-2);
 }
 
+/* The coach's next, under the slots: what the week would take behind the calls
+   in them, one per slot still open and numbered with its rank. Quiet chalk
+   rectangles - advice, not a pick - laid out on one row with the key, and
+   wrapping to a second only where a phone cannot hold both. */
+.call__next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 6px 8px;
+}
+
+.call__next-key {
+  display: flex;
+  align-items: center;
+  flex: none;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--flag);
+}
+
+.call__alt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 130px;
+  min-width: 0;
+  padding: 4px 8px;
+  border: var(--dash);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--chalk);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 0.16s ease;
+}
+
+.call__alt:hover:not(:disabled) {
+  background: var(--flag-soft);
+}
+
+.call__alt:disabled {
+  cursor: default;
+}
+
+/* Where the coach ranks it. A figure on its own, so the row needs no words to
+   say what it is once the key beside it has. */
+.call__alt-rank {
+  flex: none;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--flag);
+}
+
+/* The name gives way before the numbers do: a spread nobody can read is worse
+   than a name cut short, and the whole point of the row is the comparison. */
+.call__alt-team {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.call__alt-line {
+  flex: none;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 12px;
+}
+
 /* One confidence language everywhere a single game's number appears. */
 .confidence--safe {
   --confidence-color: var(--safe);
@@ -1529,11 +1618,30 @@
 /* A strip of tabs along the top of the chalkboard: the open one is chalked
    bright with the flag drawn under it. */
 .drawer__tabs {
+  position: relative;
   display: flex;
   gap: 0;
   padding: 0 var(--gutter);
   border-bottom: 1px solid var(--line);
   flex: none;
+}
+
+/* The indicator: one mark that slides between the tabs. Every tab is an equal
+   share of the bar, so --tab - the open tab's place in the list, set by
+   renderTabs - moves the mark by whole tab widths of its own width, and nothing
+   here has to be measured. The gutter is taken off because the tabs sit in the
+   bar's content box while this is positioned against its padding box. */
+.tab-marker {
+  position: absolute;
+  z-index: 1;
+  bottom: -1px;
+  left: calc(var(--gutter) + 10px);
+  width: calc((100% - 2 * var(--gutter)) / var(--tabs, 3) - 20px);
+  height: 3px;
+  border-radius: 2px 2px 0 0;
+  background: var(--flag);
+  transform: translateX(calc(var(--tab, 0) * (100% + 20px)));
+  pointer-events: none;
 }
 
 .tab {
@@ -1559,53 +1667,12 @@
   transition: color 0.18s ease;
 }
 
-/* The indicator, drawn under every tab and lit only under the open one, so it
-   is there to transition rather than appear. */
-.tab::after {
-  content: "";
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: -1px;
-  height: 3px;
-  border-radius: 2px 2px 0 0;
-  background: transparent;
-  transition: background-color 0.18s ease;
-}
-
 .tab:hover:not([aria-selected="true"]) {
   color: var(--chalk-2);
 }
 
 .tab[aria-selected="true"] {
   color: var(--chalk);
-}
-
-.tab[aria-selected="true"]::after {
-  background: var(--flag);
-}
-
-.tab__count {
-  font-family: var(--font-mono);
-  font-weight: 600;
-  font-size: 11px;
-  letter-spacing: 0;
-}
-
-/* A drawer panel's caption row. */
-.drawer__caption {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 2px 0 8px;
-  border-bottom: 1px solid var(--line);
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--chalk-3);
 }
 
 /* the sideline (ui/sideline.js) --------------------------------------------- */
@@ -1743,6 +1810,7 @@
   align-items: center;
   height: 18px;
   padding: 0 7px;
+  border: 1.5px solid var(--flag);
   border-radius: 3px;
   background: var(--flag);
   color: var(--on-flag);
@@ -1751,6 +1819,15 @@
   font-size: 11px;
   letter-spacing: 0.1em;
   flex: none;
+}
+
+/* A fallback the coach ranks behind its calls: the same tag, unfilled and
+   dashed. The week would take the filled ones; these are what it would take
+   instead, and the two must never read alike. */
+.sideline__coach--next {
+  border-style: dashed;
+  background: none;
+  color: var(--flag);
 }
 
 .sideline__lock {
@@ -3114,23 +3191,6 @@
   color: var(--danger);
 }
 
-.gate__card.is-wrong {
-  animation: gate-shake 0.35s ease;
-}
-
-@keyframes gate-shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  25% {
-    transform: translateX(-6px);
-  }
-  75% {
-    transform: translateX(6px);
-  }
-}
-
 /* phone ----------------------------------------------------------------------- */
 
 @media (max-width: 899px) {
@@ -3172,10 +3232,6 @@
 
   .league-bar__name {
     font-size: 18px;
-  }
-
-  .pitch__drive-line {
-    font-size: 11px;
   }
 }
 

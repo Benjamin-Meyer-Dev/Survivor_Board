@@ -18,6 +18,9 @@ export default [
         getComputedStyle: "readonly",
         matchMedia: "readonly",
         requestAnimationFrame: "readonly",
+        cancelAnimationFrame: "readonly",
+        Worker: "readonly",
+        CloseWatcher: "readonly",
         performance: "readonly",
         navigator: "readonly",
         process: "readonly",
@@ -41,6 +44,15 @@ export default [
       globals: {
         self: "readonly",
         caches: "readonly",
+      },
+    },
+  },
+  {
+    // And so does the search worker, which has no document to reach for.
+    files: ["src/js/**/*.worker.js"],
+    languageOptions: {
+      globals: {
+        self: "readonly",
       },
     },
   },

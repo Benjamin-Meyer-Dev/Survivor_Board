@@ -84,6 +84,7 @@ src/js/
   app.js                      wiring and the render loop
   config.js                   Supabase keys, storage keys, paths
   sports.js                   the two seasons: what a league is made of that nobody chooses
+  worker-search.js            hands the season search to a worker, where there is one
   core/                       pure logic, also imported by the Node scripts
     objective.js              win or lose: the one place two leagues on one season differ
     rules.js                  a league's rules, over its season's defaults, clamped
@@ -92,6 +93,8 @@ src/js/
     probability.js            the calibrated margin model: spread → win probability, de-vig, horizon
     survival.js               season survival, buy backs included
     recommend.js              beam search over the remaining weeks, plus the frontier across futures
+    recommend.worker.js       the same search, on its own thread
+    search.js                 where a search runs: nowhere by default, so Node searches inline
     assignment.js             exact maximum-weight assignment (Hungarian), the beam's benchmark
     scenarios.js              seeded futures: how the projections might turn out
     availability.js           player availability as a points adjustment
@@ -99,7 +102,10 @@ src/js/
     format.js                 display formatting and HTML escaping
   store/                      persistence (Supabase, localStorage fallback)
     directory.js              the leagues: made, joined, listed, renamed, left
+    merge.js                  two devices' writes to one pool, reconciled per slot
   ui/                         rendering only, no state, no fetch
+    motion.js                 waiting for a move to finish, so no duration is written twice
+    events.js                 one delegated listener per region, however often it is rebuilt
     home.js                   your leagues, and where they are made and shared
     name.js                   the start screen: what to call you
     settings.js               a league's own sheet - its name, its code, its rules
@@ -114,7 +120,7 @@ scripts/
   seed-plan.mjs               author a league's plan.json from the optimiser
   build-icons.mjs             redraws icons/ from the board's football through headless Chrome
   validate-*.mjs              the checks `npm test` runs
-  lib/                        odds API client, season calendar, rating fit, calibration, backtest
+  lib/                        odds API client, season calendar, rating fit, calibration, backtest, JSON I/O
 
 supabase/schema.sql           one table, RLS policies, realtime
 .github/workflows/            refresh-odds · pages · ci
@@ -126,7 +132,7 @@ docs/                         architecture, code standards, deploy
 | Command               | What it does                                                           |
 | --------------------- | ---------------------------------------------------------------------- |
 | `npm run serve`       | Local server on :4173                                                  |
-| `npm test`            | Validates every `plan.json` against its rules, and the config          |
+| `npm test`            | Validates every `plan.json` against its rules, the config and the CSS  |
 | `npm run icons`       | Redraws the home-screen icons from the board's football (needs Chrome) |
 | `npm run refresh`     | Pulls live odds (needs `ODDS_API_KEY`)                                 |
 | `npm run seed -- nfl` | Re-authors a league's plan from the optimiser                          |
@@ -150,6 +156,12 @@ Every slot is picked by hand and locked by hand. The coach only suggests: a
 badge on the team it would take, a ghosted stand-in where a slot is empty, and
 a faint path for the weeks ahead. Locking or unlocking a pick is what makes it
 re-plan the rest of the season.
+
+It names twice what a week needs, ranked - a first and a second choice for the
+NFL pool's one pick a week, four for the college pool's two - and a fallback is
+the whole rest of the season re-planned without the calls above it, not the
+next biggest favourite of the week. See
+[Suggestion vs pick](docs/ARCHITECTURE.md#suggestion-vs-pick).
 
 Nothing under `src/js/ui/` knows which league is loaded. How many picks a week
 holds, whether a loss can be bought back, and where "Lock" starts all come off

@@ -18,6 +18,13 @@ const OPEN = { picks: {}, swaps: {} };
 
 /** Postgres renders a timestamptz with an offset; the client sends a Z. */
 const pg = (iso) => iso.replace("Z", "+00:00");
+
+/**
+ * And it compares them as instants, not as text, which is what makes a filter
+ * on `updated_at` work at all: the version the store sends back came off a read
+ * in Postgres's rendering, and the row holds the one the client wrote.
+ */
+const sameStamp = (a, b) => Date.parse(a) === Date.parse(b);
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 /**
@@ -50,21 +57,34 @@ function fakeClient() {
           };
           return chain;
         },
-        // The store writes with update().eq().eq().eq(): a pool's row is
-        // created when the league is, so a save that could insert one would
-        // make a league out of a mistyped code.
+        // The store writes with update().eq()...eq("updated_at", seen).select():
+        // a pool's row is created when the league is, so a save that could
+        // insert one would make a league out of a mistyped code, and the
+        // version filter is what stops it writing over a change it never saw.
         update(values) {
           let request = null;
+          const filters = [];
           const chain = {
-            eq: () => chain,
+            eq: (column, value) => {
+              filters.push([column, value]);
+              return chain;
+            },
+            select: () => chain,
             then: (resolve, reject) => {
               request ??= later("upsert", () => {
+                const expected = filters.find(([column]) => column === "updated_at")?.[1];
+                // The row has moved on since the entry being written was read.
+                // Postgres changes nothing and says so; nothing is committed,
+                // so there is no realtime event either.
+                if (expected !== undefined && !sameStamp(state.row.updated_at, expected)) {
+                  return { data: [], error: null };
+                }
                 state.row = { entry: values.entry, updated_at: values.updated_at };
                 // Realtime fires on commit; the test decides when it is heard.
                 client.echoes.push({
                   new: { ...state.row, updated_at: pg(state.row.updated_at) },
                 });
-                return { error: null };
+                return { data: [{ updated_at: pg(state.row.updated_at) }], error: null };
               });
               return request.then(resolve, reject);
             },
@@ -210,10 +230,14 @@ await scenario("change during our save recovers on poll", ["open"], async ({ cli
 // A failed save gives the version back, so the next poll is trusted again.
 await scenario("failed save then poll", ["open"], async ({ client, store }) => {
   const original = client.from;
-  client.from = () => ({
-    ...original(),
-    update: () => ({ eq: () => Promise.resolve({ error: new Error("offline") }) }),
-  });
+  const offline = () => {
+    const chain = {
+      eq: () => chain,
+      select: () => Promise.resolve({ data: null, error: new Error("offline") }),
+    };
+    return chain;
+  };
+  client.from = () => ({ ...original(), update: offline });
   await assert.rejects(store.save(OPEN));
   client.from = original;
   client.state.row = { entry: OPEN, updated_at: "2026-09-04T10:07:00.000Z" };
@@ -223,6 +247,147 @@ await scenario("failed save then poll", ["open"], async ({ client, store }) => {
   await tick();
 });
 
+/* --- what reaches the row ------------------------------------------------
+   Above is about what reaches the screen. The rest is about what reaches the
+   database: a save carries the version it was built from, and a save that lost
+   the race merges its own changes onto whatever won rather than overwriting
+   it. */
+
+/**
+ * Drive one save with another device committing in the middle of it.
+ *
+ * @param {string} name
+ * @param {object} mine What this device is saving.
+ * @param {object} theirs The row the other device leaves behind, mid-save.
+ * @param {(row:object, name:string, heard:object[]) => void} check
+ */
+async function race(name, mine, theirs, check) {
+  const client = fakeClient();
+  const store = await createSupabaseStore("BXQK7HRTM4WD", "nfl-win", { client });
+  const init = store.init();
+  client.answer("read");
+  await init;
+  const heard = [];
+  const stop = store.subscribe((entry) => heard.push(entry));
+
+  const save = store.save(mine);
+  await tick();
+  // Their commit lands first, so ours no longer matches the row.
+  client.state.row = theirs;
+  client.answer("upsert");
+  await tick();
+  // Ours is refused, so the store reads the row and merges onto it.
+  client.answer("read");
+  await tick();
+  client.answer("upsert");
+  await save;
+  stop();
+  check(client.state.row, name, heard);
+}
+
+const LOCK_AND_THREE = {
+  picks: { "1-0": { locked: true }, "3-0": { locked: true, by: "us" } },
+  swaps: {},
+};
+const LOCK_AND_FIVE = {
+  picks: { "1-0": { locked: true }, "5-0": { locked: true, by: "them" } },
+  swaps: {},
+};
+
+await race(
+  "a save that lost the race keeps both changes",
+  LOCK_AND_THREE,
+  { entry: LOCK_AND_FIVE, updated_at: "2026-09-04T10:09:00.000Z" },
+  (row, name, heard) => {
+    assert.deepEqual(Object.keys(row.entry.picks).sort(), ["1-0", "3-0", "5-0"], name);
+    assert.equal(row.entry.picks["5-0"].by, "them", `${name}: theirs is untouched`);
+    assert.equal(row.entry.picks["3-0"].by, "us", `${name}: ours is applied`);
+    // The write that merged is the only time this device will ever see their
+    // lock: the realtime event for it is our own echo, and echoes are dropped.
+    assert.equal(heard.length, 1, `${name}: the board is told once`);
+    assert.deepEqual(
+      Object.keys(heard[0].picks).sort(),
+      ["1-0", "3-0", "5-0"],
+      `${name}: and told the merged entry`,
+    );
+  },
+);
+
+// The same race, where what we did was to take a lock off. Removing a slot is
+// a change like any other, and the merge has to keep it removed.
+await race(
+  "an unlock that lost the race stays unlocked",
+  { picks: {}, swaps: {} },
+  {
+    entry: { picks: { "1-0": { locked: true }, "9-0": { locked: true } }, swaps: {} },
+    updated_at: "2026-09-04T10:11:00.000Z",
+  },
+  (row, name) => {
+    assert.deepEqual(Object.keys(row.entry.picks), ["9-0"], name);
+  },
+);
+
+// The board edits the entry it was handed in place - a lock writes into
+// `entry.picks` - and the base a merge measures against must not be that same
+// object, or our own change looks like something the row already had and is
+// dropped.
+{
+  const client = fakeClient();
+  const store = await createSupabaseStore("BXQK7HRTM4WD", "nfl-win", { client });
+  const init = store.init();
+  client.answer("read");
+  await init;
+  const mine = await init;
+
+  // What app.js does on a tap: mutate what the store handed over.
+  mine.picks["7-0"] = { locked: true, by: "us" };
+  const save = store.save(mine);
+  await tick();
+  // And somebody else commits first, so the save has to merge.
+  client.state.row = {
+    entry: { picks: { "1-0": { locked: true }, "8-0": { locked: true } }, swaps: {} },
+    updated_at: "2026-09-04T10:20:00.000Z",
+  };
+  client.answer("upsert");
+  await tick();
+  client.answer("read");
+  await tick();
+  client.answer("upsert");
+  await save;
+  assert.deepEqual(
+    Object.keys(client.state.row.entry.picks).sort(),
+    ["1-0", "7-0", "8-0"],
+    "a change made in the entry the store handed over survives a merge",
+  );
+}
+
+// A save whose row keeps moving gives up rather than trying for ever, and says
+// so, because a change nobody was told was dropped is worse than an error.
+{
+  const client = fakeClient();
+  const store = await createSupabaseStore("BXQK7HRTM4WD", "nfl-win", { client });
+  const init = store.init();
+  client.answer("read");
+  await init;
+
+  const save = store.save(LOCK_AND_THREE);
+  // The handler goes on now, not after the loop: a rejection nobody is
+  // listening to yet is a crash, not a test failure.
+  const refused = assert.rejects(save, /saving to this pool/, "a save that never wins reports it");
+  let moved = 11;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await tick();
+    // Somebody else commits between every read and every write.
+    client.state.row = { entry: OPEN, updated_at: `2026-09-04T10:${(moved += 1)}:00.000Z` };
+    client.answer("upsert");
+    await tick();
+    if (attempt < 2) client.answer("read");
+  }
+  await refused;
+}
+
 console.log(
-  "Store sync OK: own echoes and stale polls never reach the board, other devices' changes do.",
+  "Store sync OK: own echoes and stale polls never reach the board, other devices' changes do, " +
+    "and a save that lost the race merges onto what won, keeps its own change, tells the board " +
+    "what it merged, and gives up rather than trying for ever.",
 );

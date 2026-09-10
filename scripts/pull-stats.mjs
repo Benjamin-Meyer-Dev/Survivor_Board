@@ -12,10 +12,10 @@
  * saying so, without it.
  */
 
-import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
+import { readJson, writeJson } from "./lib/json.mjs";
 import { pullEfficiency } from "./lib/stats.mjs";
 import { SPORTS, SPORT_IDS } from "../src/js/sports.js";
 
@@ -31,7 +31,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
  * @returns {Promise<{written:boolean, reason:string, document:object|null}>}
  */
 export async function pullStatsForLeague(league, { root = ROOT, fetchImpl = fetch } = {}) {
-  const read = async (name) => JSON.parse(await readFile(join(root, "data", league, name), "utf8"));
+  const read = (name) => readJson(join(root, "data", league, name));
   const optional = (name) => read(name).catch(() => null);
   const [plan, odds, ratings, previous] = await Promise.all([
     read("plan.json"),
@@ -58,7 +58,7 @@ export async function pullStatsForLeague(league, { root = ROOT, fetchImpl = fetc
   if (!document) return { written: false, reason, document: null };
 
   const path = join(root, "data", league, "stats.json");
-  await writeFile(path, `${JSON.stringify(document, null, 2)}\n`, "utf8");
+  await writeJson(path, document);
   return { written: true, reason, document };
 }
 

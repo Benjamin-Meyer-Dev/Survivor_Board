@@ -80,10 +80,9 @@ body::after {
 
 /* --- chalk ----------------------------------------------------------------- */
 
-/* Panels are chalked onto the turf: a dashed chalk rectangle, a little of the
-   turf's own dark showing through. */
-.call__box,
-.pitch__meta {
+/* The week's card is chalked onto the turf: a dashed chalk rectangle, a little
+   of the turf's own dark showing through. */
+.call__box {
   border: var(--dash);
   background: rgb(10 58 32 / 35%);
 }
@@ -96,6 +95,12 @@ body::after {
   text-decoration: underline dashed color-mix(in srgb, var(--flag) 70%, transparent);
   text-underline-offset: 0.16em;
   text-decoration-thickness: 1.5px;
+}
+
+/* The fallbacks behind the calls are pencilled in too: the chalk dash the
+   rectangle ships with, taken over in the flag's colour. */
+.call__alt {
+  border-color: color-mix(in srgb, var(--flag) 55%, transparent);
 }
 
 /* --- the drawer as a chalkboard ------------------------------------------- */

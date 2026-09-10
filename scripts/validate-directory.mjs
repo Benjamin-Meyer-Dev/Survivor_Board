@@ -40,13 +40,16 @@ globalThis.localStorage = storage;
 
 /**
  * The slice of supabase-js the directory calls: insert (one row or several),
- * select narrowed by eq and in, update narrowed by eq, each awaited directly
- * or through maybeSingle. Rows are keyed by code, season and objective, as the
- * table is. Every call is synchronous here; the ordering the store depends on
- * is validate-store-sync's job, not this one.
+ * select narrowed by eq and in, update narrowed by eq and reporting what it
+ * changed through select, each awaited directly or through maybeSingle. Rows
+ * are keyed by code, season and objective, as the table is. Every call is
+ * synchronous here; the ordering the store depends on is validate-store-sync's
+ * job, not this one.
  */
 function fakeTable() {
   const rows = new Map();
+  let clock = 0;
+  const stamp = () => `t${(clock += 1)}`;
   const keyOf = (row) => `${row.code}/${row.sport}/${row.objective}`;
 
   /** A query: filters chain, and the request goes out when the chain is read. */
@@ -60,6 +63,11 @@ function fakeTable() {
       },
       in(column, values) {
         filters.push((row) => values.includes(row[column]));
+        return chain;
+      },
+      // What a write changed, which is how the directory knows whether the row
+      // it was writing over is still the row that is there.
+      select() {
         return chain;
       },
       maybeSingle() {
@@ -88,7 +96,7 @@ function fakeTable() {
             return Promise.resolve({ error: { message: "duplicate key" } });
           }
           for (const row of list) {
-            rows.set(keyOf(row), { ...row, created_at: "now", updated_at: "now" });
+            rows.set(keyOf(row), { ...row, created_at: "now", updated_at: stamp() });
           }
           return Promise.resolve({ error: null });
         },
@@ -97,8 +105,11 @@ function fakeTable() {
         },
         update(values) {
           return query((found) => {
-            for (const row of found) rows.set(keyOf(row), { ...row, ...values });
-            return { error: null };
+            // A version the caller supplied is its own; anything else gets one
+            // from here, the way the column's default does.
+            const written = found.map((row) => ({ ...row, ...values, updated_at: stamp() }));
+            for (const row of written) rows.set(keyOf(row), row);
+            return { data: written.map(({ updated_at }) => ({ updated_at })), error: null };
           });
         },
         delete() {

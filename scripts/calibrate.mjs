@@ -14,10 +14,10 @@
  * horizon table says how far a projection misses by weeks ahead.
  */
 
-import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
+import { readJson, writeJson } from "./lib/json.mjs";
 import { calibrate } from "./lib/calibrate.mjs";
 import { expandHistory } from "./lib/history.mjs";
 import { marketError } from "./lib/rate.mjs";
@@ -49,7 +49,7 @@ for (const league of leagues) {
 if (failed) process.exit(1);
 
 async function run(league) {
-  const read = async (name) => JSON.parse(await readFile(join(ROOT, "data", league, name), "utf8"));
+  const read = (name) => readJson(join(ROOT, "data", league, name));
   const [history, ratings] = await Promise.all([read("history.json"), read("ratings.json")]);
   const games = expandHistory(history);
   const homeFieldPoints = ratings.homeFieldPoints ?? 2.5;
@@ -161,7 +161,7 @@ async function run(league) {
     },
   };
   const target = join(ROOT, "data", league, "calibration.json");
-  await writeFile(target, `${JSON.stringify(document, null, 2)}\n`, "utf8");
+  await writeJson(target, document);
   console.log(`\nWrote ${target}.`);
 }
 
@@ -170,7 +170,7 @@ async function run(league) {
  * odds.json and schedule.json. Null when no week has been priced.
  */
 async function livePrior(league, ratings) {
-  const read = async (name) => JSON.parse(await readFile(join(ROOT, "data", league, name), "utf8"));
+  const read = (name) => readJson(join(ROOT, "data", league, name));
   const [odds, schedule] = await Promise.all([read("odds.json"), read("schedule.json")]);
   const weeks = Object.entries(odds.lines ?? {})
     .filter(([, line]) => line?.source === "market")

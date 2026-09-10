@@ -18,10 +18,10 @@
  * Usage: node scripts/seed-plan.mjs nfl
  */
 
-import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
+import { readJson, writeJson } from "./lib/json.mjs";
 import { SPORTS } from "../src/js/sports.js";
 import { recommendPath } from "../src/js/core/recommend.js";
 import { winProbFromSpread, projectSpread, resolveModel } from "../src/js/core/probability.js";
@@ -36,7 +36,7 @@ if (!config) {
   process.exit(1);
 }
 
-const read = async (name) => JSON.parse(await readFile(join(ROOT, "data", league, name), "utf8"));
+const read = (name) => readJson(join(ROOT, "data", league, name));
 
 const objective = objectiveOf(config.rules);
 
@@ -150,7 +150,7 @@ const plan = {
   }),
 };
 
-await writeFile(join(ROOT, "data", league, "plan.json"), `${JSON.stringify(plan, null, 2)}\n`);
+await writeJson(join(ROOT, "data", league, "plan.json"), plan);
 
 console.log(
   `Wrote data/${league}/plan.json: ${plan.weeks.length} weeks, ` +

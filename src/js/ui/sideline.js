@@ -2,10 +2,11 @@
  * The sideline: every team the slot could hold this week.
  *
  * The drawer's first panel, for the week being looked at and the slot the
- * call has active. The coach's call carries a tag, and that tag is the whole
- * of how the coach steers a pick. A locked slot keeps its list to read - the
- * week's other lines are still worth a look - but nothing in it can be tapped
- * until the slot is unlocked.
+ * call has active. The coach's calls carry a tag numbered with where the coach
+ * ranks them, the fallbacks behind them the same tag unfilled, and those tags
+ * are the whole of how the coach steers a pick. A locked slot keeps its list
+ * to read - the week's other lines are still worth a look - but nothing in it
+ * can be tapped until the slot is unlocked.
  *
  * The list is rebuilt on every render, and a pick is a render. So that a tap
  * on the list does not move the list, the option order does not depend on
@@ -15,6 +16,7 @@
  */
 
 import { formatSpread, formatPercent, formatMatchup, escapeHtml } from "../core/format.js";
+import { delegate } from "./events.js";
 
 const LOCK_ICON = `<span class="sideline__lock" role="img" aria-label="Locked in">
   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -23,7 +25,19 @@ const LOCK_ICON = `<span class="sideline__lock" role="img" aria-label="Locked in
   </svg>
 </span>`;
 
-const COACH_MARK = `<span class="sideline__coach" aria-hidden="true">Coach</span><span class="u-visually-hidden">Coach's call</span>`;
+/**
+ * The coach's mark on a row, carrying where the coach ranks the team this week
+ * (core/plan.js, option.coachRank): the calls the week would take, then the
+ * fallbacks behind them. A fallback is drawn dashed and unfilled - it is not
+ * the call, and the two must never read alike - and the number is the whole of
+ * what separates them, so a screen reader is told the rank in words.
+ */
+function coachMark(option) {
+  if (!option.coachRank) return "";
+  const call = option.isCoach;
+  return `<span class="sideline__coach${call ? "" : " sideline__coach--next"}" aria-hidden="true">Coach ${option.coachRank}</span>
+    <span class="u-visually-hidden">${call ? "The coach's call" : `The coach's number ${option.coachRank} choice`}</span>`;
+}
 
 /**
  * @param {HTMLElement} root
@@ -36,6 +50,19 @@ export function renderSideline(root, board, viewWeek, activeSlot, handlers) {
   const week = board.weeks.find((entry) => entry.week === viewWeek) ?? board.weeks[0];
   const pick = week.picks[Math.min(activeSlot, week.picks.length - 1)];
   const carried = captureState(root);
+
+  // Bound to the panel's root rather than to each of a hundred-odd rows, which
+  // this rebuilds on every render (see ui/events.js).
+  delegate(root, "input", "[data-filter]", (input) => applyFilter(root, input));
+
+  delegate(root, "click", "[data-action]", (button) => {
+    handlers.onAction({
+      action: button.dataset.action,
+      week: Number(button.dataset.week),
+      slot: Number(button.dataset.slot),
+      team: button.dataset.team,
+    });
+  });
 
   const id = `${pick.week}-${pick.slot}`;
   const locked = Boolean(pick.status.locked);
@@ -58,21 +85,6 @@ export function renderSideline(root, board, viewWeek, activeSlot, handlers) {
         ${pick.options.map((option) => rowMarkup(pick, option, canPick)).join("")}
       </div>
     </div>`;
-
-  root.querySelectorAll("[data-filter]").forEach((input) => {
-    input.addEventListener("input", () => applyFilter(root, input));
-  });
-
-  root.querySelectorAll("[data-action]").forEach((button) => {
-    button.addEventListener("click", () => {
-      handlers.onAction({
-        action: button.dataset.action,
-        week: Number(button.dataset.week),
-        slot: Number(button.dataset.slot),
-        team: button.dataset.team,
-      });
-    });
-  });
 
   restoreState(root, carried);
 }
@@ -174,7 +186,7 @@ function rowMarkup(pick, option, canPick) {
             ${canPick && (!option.disabled || option.isCurrent) ? "" : "disabled"}
             ${current}>
       <span class="sideline__team">
-        <span class="sideline__name">${locked || held ? LOCK_ICON : ""}<span>${escapeHtml(option.team)}</span>${option.isCoach ? COACH_MARK : ""}</span>
+        <span class="sideline__name">${locked || held ? LOCK_ICON : ""}<span>${escapeHtml(option.team)}</span>${coachMark(option)}</span>
         <span class="sideline__matchup">${escapeHtml(formatMatchup(option.site, option.opponent))}</span>
       </span>
       ${line(option)}

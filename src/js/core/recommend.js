@@ -41,7 +41,7 @@
  */
 
 import { survival } from "./survival.js";
-import { assignPath } from "./assignment.js";
+import { assignPath, FORBIDDEN } from "./assignment.js";
 import { scenarioSet } from "./scenarios.js";
 import { DEFAULT_MODEL } from "./probability.js";
 import { equityOverlay, bySurvival, byEquity } from "./equity.js";
@@ -75,6 +75,15 @@ const FRONTIER_WIDTH = 6;
 const FRONTIER_SHOWN = 4;
 
 /**
+ * How many calls the coach makes for a week, as a multiple of the picks it has
+ * to make there: one pick a week gets a first and a second choice, two picks a
+ * week get four ranked. Enough that there is always a named fallback for every
+ * slot the week has, and no more - a list longer than the week is deep stops
+ * being advice and becomes the whole board over again.
+ */
+export const COACH_DEPTH = 2;
+
+/**
  * A candidate counts as holding up in a future when it is within this share
  * of the best candidate's survival there.
  */
@@ -106,7 +115,9 @@ const logp = (p) => Math.log(Math.max(p, 1e-9));
  * @param {number} [args.poolBuyBacks] The buy backs the pool grants everyone,
  *   for the field's own cushion; `buyBacks` is what this entry has left.
  * @returns {{picks:Object<number,string[]>, pathProbability:number, shortfalls:number[],
- *            frontier:object|null}}
+ *            frontier:object|null, ranked:Object<number,string[]>}} `ranked` is
+ *   the coach's calls for each week, best first and COACH_DEPTH times as many
+ *   as the week needs (see rankCalls). Empty for a quick answer.
  */
 export function recommendPath({
   weeks,
@@ -162,7 +173,7 @@ export function recommendPath({
   }
 
   if (finalists.length === 0) {
-    return { picks: {}, pathProbability: 0, shortfalls: [], frontier: null };
+    return { picks: {}, pathProbability: 0, shortfalls: [], frontier: null, ranked: {} };
   }
 
   for (const beam of finalists) {
@@ -222,7 +233,104 @@ export function recommendPath({
     pathProbability: best.survival,
     shortfalls: best.shortfalls,
     frontier: frontier ? { ...frontier, chosen: { teams: frontier.chosen.teams } } : null,
+    // A preview is answering a tap and gets the path alone; the coach's ranked
+    // board belongs to the committed plan, which is what the board shows it
+    // from (core/plan.js).
+    ranked: quick ? {} : rankCalls(best.picks, frontier),
   };
+
+  /**
+   * The coach's calls for every week, best first and COACH_DEPTH times as many
+   * as the week needs: the path's own pick or picks, then the fallbacks behind
+   * them.
+   *
+   * A fallback is not "the next biggest favourite this week". It is what the
+   * whole rest of the season does when the calls already ranked for that week
+   * are off the table, which is the only reading of second choice a survivor
+   * pool has: the team you would take instead, given everything you would then
+   * spend the other weeks on. So each rank is a re-plan (nextBest), and the
+   * week on the clock skips it - the frontier has already ranked that week's
+   * openings across the futures, which is a better answer than a re-plan on
+   * today's numbers alone.
+   *
+   * Weeks whose slots are all locked get nothing: there is no call left to
+   * make, and the fallback for a decision already committed to is not advice.
+   */
+  function rankCalls(path, judged) {
+    const board = {};
+    for (const week of weeks) {
+      const fixed = (week.fixed ?? []).filter(Boolean);
+      if (picksPerWeek - fixed.length <= 0) continue;
+      const list = (path[week.week] ?? []).filter((team) => !fixed.includes(team));
+      // Twice what the coach actually calls for the week, which is what the
+      // week needs except where the fixtures are short of it: a week down to
+      // one game left is one call, and one call gets one fallback. A week the
+      // path could not fill at all gets nothing - a fallback stands behind a
+      // call, and with no call there is nothing for it to stand behind.
+      if (list.length === 0) continue;
+      const depth = list.length * COACH_DEPTH;
+
+      if (judged?.week === week.week) {
+        for (const candidate of judged.candidates ?? []) {
+          for (const team of candidate.teams) {
+            if (list.length < depth && !list.includes(team)) list.push(team);
+          }
+        }
+      }
+
+      while (list.length < depth) {
+        const found = nextBest(week, fixed, list);
+        if (found.length === 0) break;
+        list.push(...found);
+      }
+      if (list.length > 0) board[week.week] = list.slice(0, depth);
+    }
+    return board;
+  }
+
+  /**
+   * What a week takes when the calls already ranked for it are barred: the
+   * remaining season re-planned around that by exact assignment, at each level
+   * of forgiveness, and judged on the same survival maths the path itself was
+   * chosen on. Barred in that week only - a team ruled out of week 5 is still
+   * the best thing week 9 has.
+   *
+   * A week with no complete re-plan behind it - late in a season the teams
+   * cannot cover - falls back to its own best remaining line, which is still
+   * the honest next call even where the path cannot be finished.
+   */
+  function nextBest(week, fixed, taken) {
+    const barred = new Set(taken);
+    let found = null;
+    for (const credit of credits) {
+      const effective = (at, p) => (forgiving.has(at) ? 1 - (1 - p) * (1 - credit) : p);
+      const assigned = assignPath({
+        weeks,
+        burned,
+        picksPerWeek,
+        weightOf: (at, team, winProb) =>
+          at === week.week && barred.has(team) ? FORBIDDEN : logp(effective(at, winProb)),
+      });
+      if (!assigned.complete || !conflictFree(weeks, assigned.picks)) continue;
+      const survived = survivalOfPath({
+        weeks,
+        path: assigned.picks,
+        buyBackWeeks,
+        buyBacks,
+      });
+      if (!found || survived > found.survival)
+        found = { survival: survived, picks: assigned.picks };
+    }
+    const teams = (found?.picks[week.week] ?? []).filter(
+      (team) => !fixed.includes(team) && !barred.has(team),
+    );
+    if (teams.length > 0) return teams;
+
+    const spare = openOptions(week, fixed).find(
+      (option) => !burned.has(option.team) && !barred.has(option.team),
+    );
+    return spare ? [spare.team] : [];
+  }
 
   /**
    * The exact best path with the coupling dropped, at one level of
@@ -763,18 +871,20 @@ function quantile(values, q) {
 }
 
 /**
- * Shape a built board into the recommender's input and run it.
+ * Everything a search needs, as plain data, and nothing else.
  *
  * A slot is FIXED when a user locked it - the recommendation has to work
  * around a decision you have committed to, not pretend you can take it back.
  * An unlocked pick is not fixed: the coach plans as if the slot were open, so
  * trying a team out costs nothing, and locking is what makes it re-plan.
  *
- * @param {object} board Result of buildBoard().
- * @returns {{picks:Object<number,string[]>, pathProbability:number, shortfalls:number[],
- *            frontier:object|null}}
- */
-/**
+ * Pulled out of recommendForBoard so a search can be handed to a worker
+ * (core/search.js): what crosses that boundary is this request, which is the
+ * weeks from the current one on with their options and their fixed slots, and
+ * not the board it came from - a board carries every past week, every slot's
+ * annotated copy of the week's list and a plan for each of them, none of which
+ * the search reads.
+ *
  * @param {object} board From buildBoard, far enough along to carry weeks,
  *   options and locks.
  * @param {object|null} [seed] A path to compete as a finalist.
@@ -783,8 +893,9 @@ function quantile(values, q) {
  *   one is treated - its team placed and spent - to see what locking it would
  *   do. Off, only locks constrain the search.
  * @param {boolean} [options.quick] The assignment alone; see recommendPath.
+ * @returns {object} The arguments recommendPath takes.
  */
-export function recommendForBoard(board, seed = null, { holdPicks = false, quick = false } = {}) {
+export function searchRequestFor(board, seed = null, { holdPicks = false, quick = false } = {}) {
   const burned = new Set();
   const upcoming = [];
   const { picksPerWeek, buyBackWeeks, buyBacks } = board.rules;
@@ -817,7 +928,7 @@ export function recommendForBoard(board, seed = null, { holdPicks = false, quick
   // teams are placed directly rather than drawn from the candidate pool.
   // A buy back already spent is gone, so the recommendation stops taking risks
   // it can no longer afford.
-  return recommendPath({
+  return {
     weeks: upcoming,
     burned,
     picksPerWeek,
@@ -835,5 +946,21 @@ export function recommendForBoard(board, seed = null, { holdPicks = false, quick
     // buy backs is the field's cushion, whatever this entry has left.
     pool: board.pool ?? null,
     poolBuyBacks: buyBacks,
-  });
+  };
+}
+
+/**
+ * Search for a board, here and now.
+ *
+ * What the scripts and the validators call, and what the browser falls back to
+ * when there is nowhere to hand the search to.
+ *
+ * @param {object} board Result of buildBoard().
+ * @param {object|null} [seed] A path to compete as a finalist.
+ * @param {object} [options] As searchRequestFor.
+ * @returns {{picks:Object<number,string[]>, pathProbability:number, shortfalls:number[],
+ *            frontier:object|null}}
+ */
+export function recommendForBoard(board, seed = null, options = {}) {
+  return recommendPath(searchRequestFor(board, seed, options));
 }

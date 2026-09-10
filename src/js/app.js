@@ -14,7 +14,9 @@
 
 import { CONFIG } from "./config.js";
 import { POOL_KINDS, KIND_IDS, resolveSport, normaliseKinds } from "./sports.js";
-import { buildBoard, slotKey, sameEntry } from "./core/plan.js";
+import { buildBoard, slotKey, sameEntry, searchesSettled } from "./core/plan.js";
+import { onSearchSettled } from "./core/search.js";
+import { useWorkerForSearch } from "./worker-search.js";
 import { createStore } from "./store/index.js";
 import {
   createLeague,
@@ -34,16 +36,18 @@ import {
 import { codeFromHash, leagueHash, normaliseCode } from "./core/code.js";
 import { renderLeagueBar } from "./ui/league-bar.js";
 import { renderSettings } from "./ui/settings.js";
-import { watchSwipes } from "./ui/swipe.js";
+import { watchDrags } from "./ui/swipe.js";
+import { afterMotion, playOnce, prefersReducedMotion, twoFrames } from "./ui/motion.js";
 import { renderHome, closeHomePanels } from "./ui/home.js";
 import { renderPitch, markViewing } from "./ui/pitch.js";
 import { renderCall } from "./ui/call.js";
 import { renderSideline } from "./ui/sideline.js";
-import { renderDrive } from "./ui/drive.js";
+import { renderDrive, markDriveViewing } from "./ui/drive.js";
 import { renderBench } from "./ui/bench.js";
 import { renderNotices } from "./ui/notices.js";
 import { renderTabs, initialTab } from "./ui/tabs.js";
 import { requireName } from "./ui/name.js";
+import { holdBack, releaseBack } from "./ui/back.js";
 import { formatDuration } from "./core/refresh.js";
 
 const el = {
@@ -58,10 +62,12 @@ const el = {
   /** The readout: the field and drive line, then the week's call. */
   pitch: document.getElementById("pitch"),
   call: document.getElementById("call"),
-  /** The drawer's three panels. */
+  /** The drawer's three panels, and the two of them a week turns. */
   sideline: document.getElementById("sideline"),
   drive: document.getElementById("drive"),
   bench: document.getElementById("bench"),
+  weekPanel: document.getElementById("view-week"),
+  pathPanel: document.getElementById("view-path"),
   benchLegend: document.getElementById("bench-legend"),
   tabs: document.getElementById("tabs"),
   league: document.getElementById("league"),
@@ -106,7 +112,6 @@ const app = {
   /** Which of that week's slots the sideline is filling. */
   activeSlot: 0,
   activeTab: initialTab(),
-  saveTimer: null,
   effect: null,
   /** One line for the notices area, such as a league that failed to load. */
   message: "",
@@ -114,9 +119,6 @@ const app = {
   unsubscribe: null,
   switching: false,
   recommendTimer: null,
-  /** The half-played slide of a swipe: which week it is turning to, and its timer. */
-  slideTo: null,
-  slideTimer: null,
 };
 
 /** Which keyframe an action should play on the slot it changed. */
@@ -138,35 +140,15 @@ const SLIDING = [
   { clip: "#view-path", moves: "#drive" },
 ];
 
-/** How long the week on screen takes to clear out before the next arrives. */
-const SLIDE_OUT_MS = 130;
-
-/** And how long that one takes to come in, for the clip to be lifted after. */
-const SLIDE_IN_MS = 280;
-
-/**
- * How long the page on its way out takes to clear before the next one shows.
- *
- * Seventy milliseconds: the page being left has already been read, and every
- * frame it stays is a frame before the one being asked for starts arriving.
- * This is the only part of the move whose length is ours to choose - the rest
- * is the league's files loading, which the leave runs alongside.
- */
-const PAGE_LEAVE_MS = 70;
-
-/**
- * And how long the arriving page takes to settle: its last band's delay plus
- * the length of a band (see motion.css). The classes come off after this, and
- * the optimiser waits for it - a search freezes the main thread, and an
- * animation caught half way through by that does not resume, it jumps.
- */
-const PAGE_ENTER_MS = 260;
-
-const REDUCED_MOTION = matchMedia("(prefers-reduced-motion: reduce)");
-
 /**
  * Feedback has to be applied AFTER the render that produced the new markup -
  * innerHTML replaces the node, so anything set beforehand is thrown away.
+ *
+ * How long any of it lasts is not written here. Every duration in the app
+ * lives in the stylesheet that draws it, and ui/motion.js asks the browser
+ * when a move is over - a keyframe shortened in motion.css used to leave a
+ * class hanging on for a beat, and a keyframe lengthened had its class
+ * stripped mid-flight, with nothing in the repo able to catch either.
  *
  * @returns {{className:string, nodes:HTMLElement[]}|null} What was decorated,
  *   so the render can keep other motion off the same nodes.
@@ -189,25 +171,9 @@ function playEffect() {
 
   for (const slot of slots) {
     slot.classList.add(effect.className);
-    afterAnimations(slot, () => slot.classList.remove(effect.className));
+    afterMotion(slot).then(() => slot.classList.remove(effect.className));
   }
   return { className: effect.className, nodes: slots };
-}
-
-/**
- * Run `done` once every animation under `node` has finished.
- *
- * An effect's keyframes sit on the slot's children and its ::after, staggered,
- * so they end at different times. Listening for animationend on the slot heard
- * the FIRST of them bubble up and dropped the class while the rest were still
- * running: a ring or a wash was cut short, and on a pick the numbers and
- * actions fell through to the settle keyframe mid-flight and played again from
- * the start. An animation cancelled by a re-render counts as finished, and
- * with motion reduced there is nothing to wait for.
- */
-function afterAnimations(node, done) {
-  const animations = node.getAnimations?.({ subtree: true }) ?? [];
-  Promise.allSettled(animations.map((animation) => animation.finished)).then(done);
 }
 
 /**
@@ -238,14 +204,7 @@ function applyTheme(sport, objective = "win") {
  * nodes an earlier class would have been sitting on.
  */
 function playSwitch() {
-  const shell = el.shell;
-  if (!shell) return;
-  shell.classList.remove("is-switching");
-  // Forces the browser to drop the finished animation before it is re-added,
-  // so a second switch plays rather than doing nothing.
-  void shell.offsetWidth;
-  shell.classList.add("is-switching");
-  setTimeout(() => shell.classList.remove("is-switching"), 500);
+  playOnce(el.shell, ["is-switching"]);
 }
 
 /**
@@ -254,7 +213,9 @@ function playSwitch() {
  * Kept apart because the halves are cleared at different moments: a page has
  * finished leaving as soon as the next one is up, but the one arriving is
  * still arriving then, and stripping its classes there is exactly what stopped
- * a board from ever animating in.
+ * a board from ever animating in - so those come off when the keyframes they
+ * name are over (playOnce in ui/motion.js). Both together is settlePages,
+ * where the change is not an animation at all.
  */
 const PAGE_LEAVE_CLASSES = ["is-page-leaving", "is-page-leaving--in", "is-page-leaving--out"];
 const PAGE_ENTER_CLASSES = ["is-page-entering", "is-page-entering--in", "is-page-entering--out"];
@@ -267,15 +228,17 @@ const PAGE_CLASSES = [...PAGE_LEAVE_CLASSES, ...PAGE_ENTER_CLASSES];
  * @param {"in"|"out"} way "in" for stepping into a league, "out" for stepping
  *   back to the list of them. The two scale opposite ways, which is what makes
  *   the step read as forward or back rather than as a swap.
- * @returns {number} How long to wait before the next page goes up, so a caller
- *   can sequence the halves without knowing the timing. Zero with motion
- *   reduced, or for a page that was not on screen to begin with, and then the
- *   change is a straight swap.
+ * @returns {Promise<void>} Resolves when the page has gone, so a caller can
+ *   sequence the halves without knowing the timing. Already resolved with
+ *   motion reduced, or for a page that was not on screen to begin with, and
+ *   then the change is a straight swap.
  */
 function leavePage(page, way) {
-  if (!page || page.hidden || REDUCED_MOTION.matches) return 0;
+  if (!page || page.hidden || prefersReducedMotion()) return Promise.resolve();
   page.classList.add("is-page-leaving", `is-page-leaving--${way}`);
-  return PAGE_LEAVE_MS;
+  // The page's own fade, not its children's: subtree off, or this would wait
+  // for whatever the page it is replacing still has running inside it.
+  return afterMotion(page, { subtree: false });
 }
 
 /**
@@ -287,13 +250,9 @@ function leavePage(page, way) {
  * earlier class would have been sitting on.
  */
 function enterPage(page, way) {
-  if (!page || REDUCED_MOTION.matches) return;
-  page.classList.remove(...PAGE_CLASSES);
-  // Forces the finished animation to be dropped before it is re-added, so a
-  // second visit plays rather than doing nothing.
-  void page.offsetWidth;
-  page.classList.add("is-page-entering", `is-page-entering--${way}`);
-  setTimeout(() => page.classList.remove(...PAGE_ENTER_CLASSES), PAGE_ENTER_MS + 60);
+  if (!page) return;
+  page.classList.remove(...PAGE_LEAVE_CLASSES);
+  playOnce(page, ["is-page-entering", `is-page-entering--${way}`]);
 }
 
 /** Whatever a page change left on either page, off. */
@@ -311,9 +270,38 @@ function settlePages() {
 const ME = myId();
 
 /**
+ * The files a season is described by, which do not change while the app is
+ * open: the calendar, the roster, the fixtures, the ratings it shipped with and
+ * the fitted model. Read once per sport and held for the session.
+ */
+const SETTLED_FILES = new Set([
+  "plan.json",
+  "teams.json",
+  "schedule.json",
+  "ratings.json",
+  "calibration.json",
+]);
+
+/**
+ * And how long the rest are trusted for: the lines, the fit to them, the
+ * availability reports and the pool's numbers, all of which the refresh job
+ * rewrites. Long enough that switching between a league's pools is free, short
+ * enough that a board left open all evening is not reading this morning's
+ * lines the next time it is opened.
+ */
+const FRESH_FOR_MS = 5 * 60 * 1000;
+
+/** Per sport and file: the request that answered, and when it goes stale. */
+const files = new Map();
+
+/**
  * Read a data file. The artifact build has no sibling files to fetch, so the
- * bundler inlines the three JSON blobs on `globalThis.SURVIVOR_DATA` and this
- * short-circuits. On Pages it fetches normally.
+ * bundler inlines the JSON blobs on `globalThis.SURVIVOR_DATA` and this
+ * short-circuits. On Pages it fetches, once.
+ *
+ * Every caller gets its own copy, because openLeague writes the pool's
+ * objective into the plan's rules and two pools of one league would otherwise
+ * be reading each other's.
  */
 async function loadJson(name, sport = POOL_KINDS[app.kind]?.sport) {
   // Per sport, not per league: every league on the NFL schedule is priced off
@@ -321,12 +309,39 @@ async function loadJson(name, sport = POOL_KINDS[app.kind]?.sport) {
   const folder = resolveSport(sport);
   const preloaded = globalThis.SURVIVOR_DATA?.[folder]?.[name];
   if (preloaded) return structuredClone(preloaded);
+  return structuredClone(await fetchJson(folder, name));
+}
 
-  const response = await fetch(`${CONFIG.dataPath}/${folder}/${name}?v=${Date.now()}`, {
-    cache: "no-store",
+/**
+ * The request for one file, shared by everything that asks for it while it is
+ * still fresh. A league switch used to re-fetch all nine files even between two
+ * pools on the same season, where seven of them are the same bytes.
+ *
+ * No cache-busting query. The fetch is `no-store`, which is what actually keeps
+ * the browser out of it, and the service worker goes to the network for data
+ * files first anyway (sw.js) - the query string only ever made every launch
+ * store the same file under a new key.
+ */
+function fetchJson(folder, name) {
+  const key = `${folder}/${name}`;
+  const held = files.get(key);
+  if (held && held.until > Date.now()) return held.request;
+
+  const request = fetch(`${CONFIG.dataPath}/${folder}/${name}`, { cache: "no-store" }).then(
+    (response) => {
+      if (!response.ok) throw new Error(`Could not load ${folder}/${name} (${response.status})`);
+      return response.json();
+    },
+  );
+  // A file that would not load is not an answer to hold on to. The optional
+  // ones fail on every board that has none of them, and holding those would
+  // mean a form.json written mid-season was never picked up.
+  request.catch(() => files.delete(key));
+  files.set(key, {
+    request,
+    until: SETTLED_FILES.has(name) ? Infinity : Date.now() + FRESH_FOR_MS,
   });
-  if (!response.ok) throw new Error(`Could not load ${folder}/${name} (${response.status})`);
-  return response.json();
+  return request;
 }
 
 let lastBoard = null;
@@ -348,35 +363,25 @@ function boardInputs() {
   };
 }
 
-/** Capture stable UI nodes before a render so changed replacements can settle in. */
+/**
+ * Capture stable UI nodes before a render so changed replacements can settle
+ * in.
+ *
+ * What counts as a change is each module's own business: a node that wants the
+ * settle carries `data-motion-key` to say which node it is across renders and
+ * `data-motion-signature` to say what it is showing. This used to read the
+ * node's classes and serialise its innerHTML instead, which meant every update
+ * built a string of the whole board twice - once before and once after - and
+ * threw both away. It also read as a change when nothing anyone could see had
+ * changed, since any attribute a render happened to write differently was in
+ * the string.
+ */
 function captureMotionState() {
   const state = new Map();
   for (const node of el.shell?.querySelectorAll("[data-motion-key]") ?? []) {
-    state.set(node.dataset.motionKey, motionSignature(node));
+    state.set(node.dataset.motionKey, node.dataset.motionSignature ?? "");
   }
   return state;
-}
-
-/**
- * What counts as the node's state for the settle: its classes and its content,
- * minus two things. Motion classes (the settle itself and the fx- action
- * keyframes) are feedback, not state; a render landing while one is still
- * playing must not read it as a change and settle the node again. And a child
- * marked data-motion-ignore is left out, because the settle does not animate
- * it: a slot's team list is rewritten whenever the sibling slot picks, and the
- * slot's head should not move for that.
- */
-function motionSignature(node) {
-  const classes = [...node.classList]
-    .filter((name) => name !== "is-data-updated" && !name.startsWith("fx-"))
-    .join(" ");
-  const content = node.querySelector(":scope > [data-motion-ignore]")
-    ? [...node.children]
-        .filter((child) => !child.hasAttribute("data-motion-ignore"))
-        .map((child) => child.outerHTML)
-        .join("")
-    : node.innerHTML;
-  return `${classes}|${content}`;
 }
 
 /**
@@ -403,7 +408,7 @@ function playDataUpdates(previous, effect = null) {
   for (const node of el.shell?.querySelectorAll("[data-motion-key]") ?? []) {
     if (skip.has(node)) continue;
     const before = previous.get(node.dataset.motionKey);
-    if (before !== undefined && before !== motionSignature(node)) {
+    if (before !== undefined && before !== (node.dataset.motionSignature ?? "")) {
       node.classList.add("is-data-updated");
       changed.push(node);
     }
@@ -415,24 +420,27 @@ function playDataUpdates(previous, effect = null) {
 }
 
 /**
- * @param {{search?:boolean, settle?:number}} options Pass search:false to paint
- *   without waiting on the optimiser. Used when the board is new to this
- *   session (first load, a league switch) and after a lock or unlock, when the
- *   search would otherwise block the frame the user is waiting to see. A
- *   follow-up render fills it in once `settle` milliseconds have passed.
+ * @param {{search?:boolean, settle?:number, board?:object}} options Pass
+ *   search:false to paint without waiting on the optimiser. Used when the board
+ *   is new to this session (first load, a league switch) and after a lock or
+ *   unlock, when the search would otherwise hold up the frame the user is
+ *   waiting to see. A follow-up render fills it in once `settle` milliseconds
+ *   have passed, or as soon as a handed-off search lands. Pass `board` to paint
+ *   one that has already been built, so opening a league builds it once.
+ * @returns {object|null} The board that was painted, or null on the home page.
  */
-function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
+function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = null } = {}) {
   if (app.view === "home") {
     renderHomeView();
-    return;
+    return null;
   }
 
-  // A full render is not a swipe: take the week a slide was heading for and
-  // put the board flat, so nothing is left mid-move under the new markup.
-  landPendingSlide();
+  // A full render is not a drag: the markup a half-finished turn is moving is
+  // about to be replaced, so put the board flat first.
+  settleTurn();
 
   const previousMotion = captureMotionState();
-  const board = buildBoard({ ...boardInputs(), allowSearch: search });
+  const board = prepared ?? buildBoard({ ...boardInputs(), allowSearch: search });
   // The week being looked at has to be one the pool plays. Which weeks those
   // are is a rule now (core/rules.js), so a range narrowed here or on another
   // device can take the open week out from under the drawer.
@@ -455,15 +463,22 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS } = {}) {
   });
   renderNotices(el.notices, { store: app.store, board, message: app.message });
   renderPitch(el.pitch, board, app.viewWeek, { onWeekChange: lookAt });
+  // The drive is a board's worth of rows and none of them says which week is
+  // being looked at except the one wearing the bracket, so it is rebuilt here
+  // rather than on every step of a scrub (see renderSelection).
+  renderDrive(el.drive, board, app.viewWeek, lookAt);
   renderSelection(board);
   renderTabs(el.tabs, app.activeTab, selectTab);
-  renderBench(el.bench, el.benchLegend, board, app.teams);
+  renderBench(el.bench, el.benchLegend, board);
   // The action's own feedback first, so the settle knows which slot to leave
   // to it.
   const effect = playEffect();
   playDataUpdates(previousMotion, effect);
 
-  if (board.recommendationPending) scheduleRecommendation(settle);
+  // A search that is already running somewhere else will say when it lands
+  // (onSearchSettled in main), so there is nothing to schedule for it.
+  if (board.recommendationPending && !board.recommendationRunning) scheduleRecommendation(settle);
+  return board;
 }
 
 /**
@@ -500,131 +515,113 @@ function renderSelection(board) {
     canWrite,
     onAction: handleAction,
   });
-  renderDrive(el.drive, board, app.viewWeek, lookAt);
+  markDriveViewing(el.drive, app.viewWeek);
 }
 
 /**
- * One week along, from a swipe across the board.
- *
- * The ends of the run hold rather than wrap: week 18 is the end of the season,
- * and a swipe that landed back on week 1 would read as the board having lost
- * its place. Nothing happens there, which is what the field does too when the
- * arrow keys run out of yard lines.
- *
- * The card the swipe lands on comes in from the side the swipe came from (see
- * motion.css). It is a fresh element every time - renderSelection rewrites the
- * call - so the class is set once and goes with the node on the next render.
+ * The week a turn in this direction would land on, or null at the ends of the
+ * run. They hold rather than wrap: week 18 is the end of the season, and a
+ * drag that landed back on week 1 would read as the board having lost its
+ * place. Which is also what the field does when the arrow keys run out of yard
+ * lines.
  */
-function stepWeek(direction) {
-  if (!lastBoard) return;
-  // From where the last swipe is heading, not from what is on screen: two
-  // flicks in quick succession move two weeks, even though the first has not
-  // finished sliding.
-  const from = app.slideTo ?? app.viewWeek;
-  const at = lastBoard.weeks.findIndex((week) => week.week === from);
-  const next = lastBoard.weeks[at + direction];
-  if (at === -1 || !next) return;
-  slideToWeek(next.week, direction);
+function weekAlong(direction) {
+  if (!lastBoard) return null;
+  const at = lastBoard.weeks.findIndex((week) => week.week === app.viewWeek);
+  if (at === -1) return null;
+  return lastBoard.weeks[at + direction] ?? null;
+}
+
+/** Whether there is a week that way, for the drag to pull against if not. */
+function canTurn(direction) {
+  return weekAlong(direction) !== null;
 }
 
 /**
- * Turn the board to a week, sliding.
+ * Turn the board a week, once a drag has carried the week on screen off its
+ * own edge (ui/swipe.js).
  *
- * In two halves, because the markup is replaced between them: the week on
- * screen slides off the way the swipe pushed it, the render happens, and the
- * week that arrives slides in from the other side. `--slide` carries the
- * direction, so one pair of keyframes serves both ways (see motion.css).
+ * The half going out was the drag itself. This is the other half: the render
+ * happens while nothing is on screen, and the week that arrives comes in from
+ * the side the drag came from. `--slide` carries the direction, so one pair of
+ * keyframes serves both ways (see motion.css).
  *
- * The clip goes on for the length of the move and comes off after, so nothing
- * that overflows its box on purpose - a focus ring, a shadow - is clipped for
- * the rest of the time. Every class this sets is also cleared by
- * landPendingSlide, so a render arriving mid-slide cannot leave the board
- * halfway off its own edge.
+ * Looked up again after the render, because the call's card is a new element by
+ * then, where the drawer's panels are the ones the markup ships and stay put.
+ * The clip goes off after the arrival, so nothing that overflows its box on
+ * purpose - a focus ring, a shadow - is clipped for the rest of the time.
  */
-function slideToWeek(week, direction) {
-  const parts = slidingParts();
-  if (!parts.length || REDUCED_MOTION.matches) {
-    lookAt(week);
+function turnWeek(direction) {
+  const next = weekAlong(direction);
+  if (!next) {
+    settleTurn();
     return;
   }
 
-  for (const { clip, moves } of parts) {
-    clip.classList.add("is-sliding");
+  lookAt(next.week);
+  for (const { clip, moves } of slidingParts()) {
     moves.style.setProperty("--slide", String(direction));
-    moves.classList.remove("is-slide-in");
-    moves.classList.add("is-slide-out");
+    moves.classList.add("is-slide-in");
+    afterMotion(moves, { subtree: false }).then(() => {
+      clip.classList.remove("is-dragging");
+      moves.classList.remove("is-slide-in");
+      moves.style.removeProperty("--slide");
+    });
   }
-
-  clearTimeout(app.slideTimer);
-  app.slideTo = week;
-  app.slideTimer = setTimeout(() => {
-    app.slideTo = null;
-    lookAt(week);
-    // Looked up again: the call's card is a new element after that render,
-    // where the drawer's lists are the ones the markup ships and stay put.
-    for (const { moves } of slidingParts()) {
-      moves.style.setProperty("--slide", String(direction));
-      moves.classList.remove("is-slide-out");
-      moves.classList.add("is-slide-in");
-    }
-    app.slideTimer = setTimeout(landPendingSlide, SLIDE_IN_MS);
-  }, SLIDE_OUT_MS);
 }
 
-/** The regions to slide, as element pairs, skipping any that is not on screen. */
+/** The regions to turn, as element pairs, skipping any that is not on screen. */
 function slidingParts() {
   const parts = [];
   for (const { clip, moves } of SLIDING) {
     const box = document.querySelector(clip);
     const inner = box?.querySelector(moves);
-    // A panel behind another tab has nothing to show for a slide.
+    // A panel behind another tab has nothing to show for a turn.
     if (inner && box.offsetParent !== null) parts.push({ clip: box, moves: inner });
   }
   return parts;
 }
 
 /**
- * Put the board flat again: no clip, no transform, and the week a slide was
- * heading for adopted as the week being looked at.
+ * Put the board flat again: no clip, no transform, nothing half way across.
  *
- * Called at the end of a slide and at the top of every full render. A render
- * rebuilds the whole board, which would strand a half-played slide - the card
- * left sitting off its own edge at opacity nothing - so a render lands the
- * swipe instead of dropping it: the week it was turning to becomes the week
- * the render paints.
+ * Called at the top of every full render, which replaces the very markup a
+ * drag or an arriving week is moving. Without it a card could be left sitting
+ * off its own edge at opacity nothing, or a clip could stay on for good.
  */
-function landPendingSlide() {
-  clearTimeout(app.slideTimer);
-  app.slideTimer = null;
-  if (app.slideTo !== null) {
-    app.viewWeek = app.slideTo;
-    app.slideTo = null;
-    app.activeSlot = 0;
-  }
+function settleTurn() {
   for (const { clip, moves } of SLIDING) {
     const box = document.querySelector(clip);
-    box?.classList.remove("is-sliding");
+    box?.classList.remove("is-dragging");
     const inner = box?.querySelector(moves);
-    inner?.classList.remove("is-slide-out", "is-slide-in");
+    inner?.classList.remove("is-slide-in", "is-drag-settling");
     inner?.style.removeProperty("--slide");
+    inner?.style.removeProperty("transform");
+    inner?.style.removeProperty("opacity");
   }
 }
 
 /**
- * Look at a week, from a tap on the field, a row of the drive or a swipe. Only
- * the parts that follow the week are redrawn: the field moves its own bracket
- * (pitch.js) rather than being rebuilt under a finger that is still on it,
- * and the board itself is not rebuilt, so a scrub costs a few milliseconds a
- * step and never runs the optimiser.
+ * Look at a week, from a tap on the field, a row of the drive or a drag across
+ * the board.
+ *
+ * Only the parts that follow the week are touched: the field slides its own
+ * bracket (pitch.js) rather than being rebuilt under a finger that is still on
+ * it, the drive moves the bracket on its rows, and the board itself is not
+ * rebuilt - so a scrub costs a millisecond or two a step and never asks for a
+ * new plan.
+ *
+ * This is the one place the bracket moves from, whichever layer the week came
+ * from. The field used to move it as well, on its own taps, which meant one tap
+ * started the same smooth scroll twice and read the layout twice for it.
  */
 function lookAt(week) {
   if (week === app.viewWeek) return;
   app.viewWeek = week;
   app.activeSlot = 0;
-  if (lastBoard) renderSelection(lastBoard);
-  // A change from the drive has to reach the field too; from the field this
-  // is a no-op, since the pitch has already moved the bracket.
+  // The field first: it is the thing under the thumb that just asked.
   markViewing(el.pitch, week);
+  if (lastBoard) renderSelection(lastBoard);
 }
 
 /**
@@ -662,7 +659,10 @@ function renderHomeView() {
     {
       onOpen: (code, kind) => {
         app.homeMessage = "";
-        openBoard(code, kind);
+        // The row that was tapped is a league this list has just refreshed.
+        openBoard(code, kind, {
+          league: app.leagues.find((league) => league.code === code) ?? null,
+        });
       },
       // Neither of these catches: a failure throws back to the form, which
       // shows the reason under its own field. The message at the top of the
@@ -672,13 +672,13 @@ function renderHomeView() {
         app.homeMessage = "";
         const league = await createLeague({ name, kinds });
         await reloadLeagues();
-        openBoard(league.code);
+        openBoard(league.code, null, { league });
       },
       onJoin: async (code) => {
         app.homeMessage = "";
         const league = await joinLeague(code);
         await reloadLeagues();
-        openBoard(league.code);
+        openBoard(league.code, null, { league });
       },
       onLeave: async (code) => {
         await leaveLeague(code);
@@ -714,32 +714,28 @@ async function reloadLeagues() {
  * Show the home page. The hash goes with it, so Back and a reload both land
  * where the person is rather than back inside a league.
  */
-function goHome() {
+async function goHome() {
   if (app.switching) return;
   // The address bar answers at once, whatever the board is still doing on
   // screen: the tap has been taken, and a URL that lags looks like it has not.
   if (window.location.hash)
     window.history.pushState(null, "", window.location.pathname + window.location.search);
 
-  const wait = leavePage(el.board, "out");
-  const land = () => {
+  // Held for the length of the fade, so a second tap cannot start a board
+  // opening behind a board that is still leaving.
+  app.switching = true;
+  try {
+    await leavePage(el.board, "out");
     app.view = "home";
+    releaseBack();
     // Back from a board, the page starts folded: a form left open on the way
     // out is not what anyone came back for.
     closeHomePanels();
     renderHomeView();
     enterPage(el.home, "out");
+  } finally {
     app.switching = false;
-  };
-
-  if (!wait) {
-    land();
-    return;
   }
-  // Held for the length of the fade, so a second tap cannot start a board
-  // opening behind a board that is still leaving.
-  app.switching = true;
-  setTimeout(land, wait);
 }
 
 /**
@@ -749,8 +745,16 @@ function goHome() {
  * Failures put the person back on the home page with the reason, because a
  * half-open board - a code that no longer exists, a season whose data will not
  * load - is not a place anyone can do anything from.
+ *
+ * @param {string} code
+ * @param {string|null} [kind] Which of the league's pools.
+ * @param {{league?:object|null}} [have] The league as the caller already holds
+ *   it - a row of the home page's list, or what the create or join it just did
+ *   returned. Passing it saves a directory round trip in front of the board;
+ *   the copy is checked behind it instead (revalidateLeague). Only a code from
+ *   a link with nothing behind it has to be looked up first.
  */
-async function openBoard(code, kind = null) {
+async function openBoard(code, kind = null, { league: have = null } = {}) {
   const clean = normaliseCode(code);
   if (app.switching) return;
   app.switching = true;
@@ -765,15 +769,19 @@ async function openBoard(code, kind = null) {
   const left = leavePage(el.home, "in");
 
   try {
-    const league = await leagueByCode(clean);
+    const known = have?.code === clean ? have : null;
+    const league = known ?? (await leagueByCode(clean));
     if (!league) throw new Error("That league could not be found.");
     // The rest of the fade, if the league arrived before it finished. A board
     // that cut in over a half-faded home page would be the jump this is here
     // to avoid.
-    if (left) await new Promise((done) => setTimeout(done, left));
+    await left;
     // Before openLeague, because it ends in the first render of the new board
     // and a render reads this to decide which screen it is painting.
     app.view = "board";
+    // From here a swipe in from the edge of the screen is the board's own
+    // gesture rather than the platform's (ui/back.js).
+    holdBack();
     el.home.hidden = true;
     el.board.hidden = false;
     el.board.classList.remove("is-page-leaving");
@@ -786,8 +794,12 @@ async function openBoard(code, kind = null) {
     // the topline is deliberately left solid because the picker that was just
     // tapped is in it.
     enterPage(el.board, "in");
+    // The list this came from could be a rename or a pool behind. Checked now
+    // the board is up, rather than being waited for before it.
+    if (known) revalidateLeague(clean);
   } catch (error) {
     app.view = "home";
+    releaseBack();
     app.league = null;
     app.homeMessage = `Could not open that league: ${error.message}`;
     renderHomeView();
@@ -806,20 +818,19 @@ async function openBoard(code, kind = null) {
 }
 
 /**
- * How long to leave the main thread alone before running the optimiser.
+ * How long to leave the main thread alone before asking for a plan.
  *
- * Long enough for the board's entrance to finish. The search takes a few
- * hundred milliseconds and cannot be interrupted, and a CSS animation that is
- * only part way through when that happens does not quietly continue: it stalls
- * and then jumps to its end. Waiting for the animation to be over is what buys
- * the smooth arrival; the freeze then lands while the board is sitting still
- * and being read, where nothing visible is waiting on it.
+ * Long enough for the board's entrance to be over. Where the search runs on a
+ * worker this is only when the request goes out, and it could be sooner; where
+ * it falls back to running here it is the whole of what keeps a few hundred
+ * milliseconds of frozen main thread away from an animation that is part way
+ * through - one caught by that does not quietly continue, it stalls and jumps.
  *
- * Which is why it follows the entrance rather than being a number of its own:
- * a shorter arrival is a plan that lands sooner, and the two must not be able
- * to drift apart.
+ * A quarter of a second, which is the length of a page arriving. Not read from
+ * that, though: this is a decision about when to start work, not a duration
+ * that has to match a keyframe, and the two are free to drift.
  */
-const RECOMMEND_DELAY_MS = PAGE_ENTER_MS;
+const RECOMMEND_DELAY_MS = 260;
 
 /**
  * A lock or an unlock changes what the coach has to plan around, so the search
@@ -863,10 +874,18 @@ function startClock() {
   }, 1000);
 }
 
+/**
+ * Open one of the drawer's panels.
+ *
+ * The bar and the panels, and nothing else. All three panels are kept current
+ * by every board render, so which one is showing is not a reason to rebuild the
+ * board - and a full render here would ask for a plan on the tap that opened a
+ * tab, which on a cold board meant the whole season search on it.
+ */
 function selectTab(id) {
   if (id === app.activeTab) return;
   app.activeTab = id;
-  render();
+  renderTabs(el.tabs, app.activeTab, selectTab);
 }
 
 function handleAction({ action, week, slot, team }) {
@@ -1042,22 +1061,68 @@ async function removeCurrentPool(kind) {
   }
 }
 
-/** Coalesce rapid taps into one write. */
+/** Which board a write belongs to: a league's code and one of its pools. */
+function openScope() {
+  return app.league && app.kind ? `${app.league.code}/${app.kind}` : null;
+}
+
+/**
+ * The write waiting to go out, and the board it belongs to.
+ *
+ * Held with its own store and its own copy of the entry rather than reading
+ * app.store and app.entry when the timer fires. A pool switch inside the
+ * quarter second a save is coalescing over used to send the new pool's entry
+ * to the new pool's store and lose the change the old one was waiting to
+ * write.
+ */
+let pendingSave = null;
+
+/** Coalesce rapid taps on one board into one write. */
 function scheduleSave() {
-  clearTimeout(app.saveTimer);
-  app.saveTimer = setTimeout(() => {
-    app.store
-      .save(structuredClone(app.entry))
-      .then(() => {
-        if (!app.message.startsWith("Could not sync")) return;
-        app.message = "";
-        render({ search: false });
-      })
-      .catch((error) => {
-        app.message = `Could not sync this change: ${error.message}`;
-        render({ search: false });
-      });
-  }, 250);
+  const scope = openScope();
+  const store = app.store;
+  if (!scope || !store) return;
+
+  // A write waiting for another board is sent rather than replaced: its entry
+  // is that pool's, and this one has no business coalescing with it.
+  if (pendingSave && pendingSave.scope !== scope) flushSave();
+
+  clearTimeout(pendingSave?.timer);
+  pendingSave = {
+    scope,
+    store,
+    entry: structuredClone(app.entry),
+    timer: setTimeout(sendSave, 250),
+  };
+}
+
+/** Send the waiting write now. Called before a board is taken down. */
+function flushSave() {
+  if (!pendingSave) return;
+  clearTimeout(pendingSave.timer);
+  sendSave();
+}
+
+function sendSave() {
+  const save = pendingSave;
+  pendingSave = null;
+  if (!save) return;
+
+  save.store
+    .save(save.entry)
+    .then(() => {
+      // Another board is open now, so this one's notices are not ours to
+      // clear and its render is not ours to ask for.
+      if (openScope() !== save.scope) return;
+      if (!app.message.startsWith("Could not sync")) return;
+      app.message = "";
+      render({ search: false });
+    })
+    .catch((error) => {
+      if (openScope() !== save.scope) return;
+      app.message = `Could not sync this change: ${error.message}`;
+      render({ search: false });
+    });
 }
 
 /** The tab's title: the league, and which of its pools when it has several. */
@@ -1091,11 +1156,25 @@ async function openLeague(league, wanted = null) {
   if (kinds.length === 0) kinds.push(KIND_IDS[0]);
   const kind = kinds.includes(wanted) ? wanted : kinds[0];
   const { sport, objective } = POOL_KINDS[kind];
+  // A change waiting on the board being left goes out before its store does.
+  flushSave();
   app.unsubscribe?.();
   app.unsubscribe = null;
   clearTimeout(app.recommendTimer);
   app.recommendTimer = null;
   app.message = "";
+
+  // The store opens alongside the files rather than after them. One is a
+  // database round trip and the others are static fetches, and they have
+  // nothing to say to each other; waiting for the files first put the two
+  // end to end for no reason.
+  const opening = createStore(league.code, kind).then(async (store) => ({
+    store,
+    entry: await store.init(),
+  }));
+  // A data file that will not load throws below. Without this the store's own
+  // failure would be unhandled while that error is on its way out.
+  opening.catch(() => {});
 
   const [plan, teams, odds, schedule, ratings, form, calibration, availability, pool] =
     await Promise.all([
@@ -1138,8 +1217,9 @@ async function openLeague(league, wanted = null) {
 
   document.title = titleFor(app.league, kind);
 
-  app.store = await createStore(league.code, kind);
-  app.entry = await app.store.init();
+  const { store, entry } = await opening;
+  app.store = store;
+  app.entry = entry;
   themeFor(kind);
   app.unsubscribe = app.store.subscribe((entry) => {
     // A late push from the store we just replaced - another league, or this
@@ -1158,11 +1238,43 @@ async function openLeague(league, wanted = null) {
     render({ search: false, settle: REPLAN_DELAY_MS });
   });
 
-  // An eliminated entry opens on the week it ended rather than the week the
-  // league is in: the board is a review now, and that is the page to review.
-  const opening = buildBoard({ ...boardInputs(), allowSearch: false });
-  if (opening.eliminated && opening.eliminatedWeek) app.viewWeek = opening.eliminatedWeek;
-  render({ search: false });
+  // Built once and painted. An eliminated entry opens on the week it ended
+  // rather than the week the league is in: the board is a review now, and that
+  // is the page to review. The week it opens on has to be known before the
+  // render, and the render used to build the whole board a second time to
+  // find out.
+  const board = buildBoard({ ...boardInputs(), allowSearch: false });
+  if (board.eliminated && board.eliminatedWeek) app.viewWeek = board.eliminatedWeek;
+  render({ board });
+}
+
+/**
+ * Check the directory's copy of the open league behind the board.
+ *
+ * A rename or a pool removed on somebody else's phone should be picked up, but
+ * not in front of the board: opening a league this device is already in used to
+ * wait on a query for a row it was holding, and so did every switch between one
+ * league's pools. So the board goes up on what is known and this corrects it if
+ * there is anything to correct.
+ *
+ * A pool that has gone is left alone here. The board showing it is stale, but a
+ * league bar whose pools do not include the one on screen is broken, and the
+ * next open sorts it out either way.
+ */
+function revalidateLeague(code) {
+  leagueByCode(code)
+    .then((fresh) => {
+      if (!fresh || app.league?.code !== code) return;
+      const kinds = normaliseKinds(fresh.kinds);
+      const known = kinds.includes(app.kind) ? kinds : app.league.kinds;
+      if (fresh.name === app.league.name && String(known) === String(app.league.kinds)) return;
+      app.league = { ...app.league, name: fresh.name, kinds: known };
+      document.title = titleFor(app.league, app.kind);
+      render({ search: false });
+    })
+    .catch(() => {
+      /* the copy in hand is the board that is open */
+    });
 }
 
 /** What the league bar can ask for: another of the league's pools, or home. */
@@ -1192,11 +1304,14 @@ async function switchPool(kind) {
   await new Promise((resolve) => setTimeout(resolve, 150));
 
   try {
-    // Fresh from the directory, so a rename or a pool removed elsewhere is
-    // seen; the league as held stands in when the network cannot answer.
-    const league = (await leagueByCode(app.league.code)) ?? app.league;
+    // The league as this device holds it, opened at once: it is the same
+    // league, and the pool being asked for is one of its own. A rename or a
+    // pool removed elsewhere is picked up behind the board rather than in
+    // front of it, so the switch is not waiting on the directory.
+    const league = app.league;
     await openLeague(league, kind);
     window.history.replaceState(null, "", leagueHash(league.code, app.kind));
+    revalidateLeague(league.code);
   } catch (error) {
     // Put the board back the way it was, including its colours.
     renderLeagueBar(el.league, { league: app.league, kind: app.kind }, BAR_HANDLERS);
@@ -1210,16 +1325,6 @@ async function switchPool(kind) {
     playSwitch();
     app.switching = false;
   }
-}
-
-/**
- * Resolve after the browser has had a chance to paint. One frame schedules the
- * work; the second runs after the frame that included it has gone out.
- */
-function twoFrames() {
-  return new Promise((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-  });
 }
 
 /**
@@ -1322,7 +1427,7 @@ async function openFromHash() {
     try {
       const league = await joinLeague(asked.code);
       await reloadLeagues();
-      await openBoard(league.code);
+      await openBoard(league.code, null, { league });
       return true;
     } catch (error) {
       app.homeMessage = `That invite did not open: ${error.message}`;
@@ -1330,25 +1435,40 @@ async function openFromHash() {
     }
   }
 
-  const known = app.leagues.some((league) => league.code === asked.code);
+  const known = app.leagues.find((league) => league.code === asked.code) ?? null;
   if (!known && !sharingAvailable()) return false;
-  await openBoard(asked.code, asked.kind);
+  await openBoard(asked.code, asked.kind, { league: known });
   return app.view === "board";
 }
 
 async function main() {
   callTheStartupLine();
+  // Started here, at the top, and awaited at the bottom. This is a floor under
+  // how long the startup play is on screen, and it used to be started after
+  // everything had loaded - which made it nine hundred milliseconds added to
+  // every launch rather than nine hundred the launch had to fill.
+  const minimum = startupMinimum();
   // Every visit begins in the first sport's palette, which is what the start
   // screen and the home page wear before any league is open.
   applyTheme(null);
+  // Where the season search runs. On a worker, where there is one, so a
+  // re-plan no longer freezes the board that is being re-planned.
+  useWorkerForSearch();
+  // A search handed off lands after the board that asked for it was painted.
+  // This is what paints it in.
+  onSearchSettled(() => {
+    if (app.view !== "board" || !lastBoard?.recommendationPending) return;
+    render({ search: false });
+  });
   await requireIdentity();
 
   await reloadLeagues();
   const opened = await openFromHash();
 
   // The first render defers the season search so the board can paint; behind
-  // the startup layer there is nothing to protect, so it runs there instead.
-  if (opened) settleBeforeReveal();
+  // the startup layer there is nothing to protect, so it is asked for and
+  // waited on there instead.
+  if (opened) await settleBeforeReveal();
 
   if (!opened) {
     // No link, or a link that did not open: the home page, and a board is one
@@ -1358,27 +1478,24 @@ async function main() {
     renderHomeView();
   }
 
-  await startupMinimum();
+  await minimum;
   await finishStartup();
   startClock();
   registerServiceWorker();
 
-  // Swipe the board sideways to turn the week. Bound once to the board rather
-  // than to anything a render replaces, minus the places a sideways drag
-  // already means something else: the field pans its own yard lines, a sheet
-  // or a menu over the top is not the board underneath it, a field being typed
-  // in is a text selection, and the depth chart is not about a week at all.
-  watchSwipes(el.board, stepWeek, {
-    ignore: [
-      ".pitch__field",
-      "#view-burn",
-      "dialog",
-      ".league-bar__menu",
-      "input",
-      "textarea",
-      "select",
-    ],
-  });
+  // Drag the board sideways to turn the week. The surfaces are the three
+  // regions a week is about - its card, the team list and the drive - each
+  // bound once rather than to anything a render replaces. The field is not one
+  // of them: it pans its own yard lines. Nor is the depth chart, which says the
+  // same thing whatever week is open. What is left to skip is what a sideways
+  // drag already means something in.
+  watchDrags(
+    { parts: slidingParts, canTurn, turn: turnWeek },
+    {
+      surfaces: [el.call, el.weekPanel, el.pathPanel],
+      ignore: ["input", "textarea", "select", "dialog", ".league-bar__menu"],
+    },
+  );
 
   // Back and forward, and a link tapped while the app is already open.
   window.addEventListener("hashchange", () => {
@@ -1393,21 +1510,27 @@ async function main() {
 }
 
 /**
- * Run the season search the first render put off, while the startup layer
- * still covers the board.
+ * Ask for the season search the first render put off, and hold the startup
+ * layer over the board until it lands.
  *
- * The first render defers the search so a board can paint before the main
- * thread freezes for it. At startup that deferral worked against us: the
- * timer fired a few hundred milliseconds after the board was built, which was
- * often partway through the crossfade from the startup layer, and the fade
- * stalled and jumped. Behind the startup layer the freeze costs nothing to
- * look at, since its play runs on the compositor, so the search goes there.
+ * The first render defers the search so a board can paint before waiting on
+ * it. At startup that deferral worked against us: the timer fired a few
+ * hundred milliseconds after the board was built, which was often partway
+ * through the crossfade from the startup layer - and where the search runs on
+ * the main thread, the fade stalled and jumped for it. Behind the startup layer
+ * neither costs anything to look at, since its own play runs on the
+ * compositor, so this is where the search goes.
  */
-function settleBeforeReveal() {
-  if (!app.recommendTimer) return;
-  clearTimeout(app.recommendTimer);
-  app.recommendTimer = null;
-  render();
+async function settleBeforeReveal() {
+  if (app.recommendTimer) {
+    clearTimeout(app.recommendTimer);
+    app.recommendTimer = null;
+    render();
+  }
+  // Handed to a worker, the plan arrives after the build that asked for it
+  // rather than in it.
+  await searchesSettled();
+  if (lastBoard?.recommendationPending) render({ search: false });
 }
 
 main().catch((error) => {
@@ -1415,6 +1538,12 @@ main().catch((error) => {
   document.body.classList.remove("is-starting");
   if (el.startup) el.startup.hidden = true;
   if (el.start) el.start.hidden = true;
-  el.notices.innerHTML = `<div class="notice notice--warn">Could not load the board: ${error.message}</div>`;
+  // textContent, not innerHTML: this message carries whatever a failure had to
+  // say for itself - a server's response, a parse error quoting the input back
+  // - and the rest of the app has one rule about that (core/format.js).
+  const notice = document.createElement("div");
+  notice.className = "notice notice--warn";
+  notice.textContent = `Could not load the board: ${error.message}`;
+  el.notices.replaceChildren(notice);
   console.error(error);
 });

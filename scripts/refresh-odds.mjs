@@ -31,7 +31,7 @@
  * selection next to it and you decide. See docs/ARCHITECTURE.md.
  */
 
-import { readFile, writeFile, mkdir, access } from "node:fs/promises";
+import { writeFile, mkdir, access } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -46,6 +46,7 @@ import {
   SPORT_KEYS,
   MARKETS,
 } from "./lib/odds-api.mjs";
+import { readJsons, readOptionalJson, writeJson } from "./lib/json.mjs";
 import { currentWeekFor, resultsDueFor } from "./lib/weeks.mjs";
 import { fitForm, holdoutError, marketError, resolveRatingParams } from "./lib/rate.mjs";
 import { pullStatsForLeague } from "./pull-stats.mjs";
@@ -123,21 +124,28 @@ async function refreshLeague(league, apiKey) {
   const oddsPath = pathFor(league, "odds.json");
   const formPath = pathFor(league, "form.json");
 
-  const plan = JSON.parse(await readFile(pathFor(league, "plan.json"), "utf8"));
-  const previous = JSON.parse(await readFile(oddsPath, "utf8"));
-  const schedule = JSON.parse(await readFile(pathFor(league, "schedule.json"), "utf8"));
-  const ratings = JSON.parse(await readFile(pathFor(league, "ratings.json"), "utf8"));
-  const teams = JSON.parse(await readFile(pathFor(league, "teams.json"), "utf8"));
-  // Absent until the first run that has something to fit, and absent again if
-  // it is ever deleted. Both are fine: the board and this job fall back to the
-  // ratings the league shipped with.
-  const previousForm = await readJsonOrNull(formPath);
-  // The league's fitted model and fit weights (scripts/calibrate.mjs), the
-  // availability and pool files a human keeps, and last run's stats. Every one
-  // is optional and every one is read the same way the browser reads it.
-  const calibration = await readJsonOrNull(pathFor(league, "calibration.json"));
-  const availability = await readJsonOrNull(pathFor(league, "availability.json"));
-  const pool = await readJsonOrNull(pathFor(league, "pool.json"));
+  // All at once. Nine files off a local disk is not the slow part of this job -
+  // the market is - but reading them one after another for no reason is the
+  // sort of thing the rest of the repo does not do.
+  const [plan, previous, schedule, ratings, teams] = await readJsons([
+    pathFor(league, "plan.json"),
+    oddsPath,
+    pathFor(league, "schedule.json"),
+    pathFor(league, "ratings.json"),
+    pathFor(league, "teams.json"),
+  ]);
+  // form.json is absent until the first run that has something to fit, and
+  // absent again if it is ever deleted. Both are fine: the board and this job
+  // fall back to the ratings the league shipped with. The league's fitted model
+  // and fit weights (scripts/calibrate.mjs) and the availability and pool files
+  // a human keeps are optional in the same way, and every one is read the way
+  // the browser reads it.
+  const [previousForm, calibration, availability, pool] = await Promise.all([
+    readOptionalJson(formPath),
+    readOptionalJson(pathFor(league, "calibration.json")),
+    readOptionalJson(pathFor(league, "availability.json")),
+    readOptionalJson(pathFor(league, "pool.json")),
+  ]);
   const model = resolveModel(calibration);
   const params = resolveRatingParams(calibration?.rating);
   const isEligible = (team) => Object.values(teams.conferences).some((roster) => team in roster);
@@ -255,10 +263,8 @@ async function refreshLeague(league, apiKey) {
   const flags = [...priced.flags, ...moved.flags, ...(form?.flags ?? [])];
   next.flags = flags;
 
-  await writeFile(oddsPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
-  if (form) {
-    await writeFile(formPath, `${JSON.stringify(form.document, null, 2)}\n`, "utf8");
-  }
+  await writeJson(oddsPath, next);
+  if (form) await writeJson(formPath, form.document);
   if (week !== null && priced.count > 0) {
     await writeSnapshot({
       league,
@@ -279,15 +285,6 @@ async function refreshLeague(league, apiKey) {
       message: `[${SPORTS[league].label}] ${flag.message}`,
     })),
   };
-}
-
-/** A JSON file that is allowed not to exist yet. */
-async function readJsonOrNull(path) {
-  try {
-    return JSON.parse(await readFile(path, "utf8"));
-  } catch {
-    return null;
-  }
 }
 
 async function exists(path) {
@@ -322,24 +319,16 @@ async function writeSnapshot({ league, now, week, lines, form, recommendation })
     path = join(dir, `${stamp}-${attempt}.json`);
   }
   stamp = path.slice(dir.length + 1, -".json".length);
-  await writeFile(
-    path,
-    `${JSON.stringify(
-      {
-        $comment:
-          "One run's lines, written by scripts/refresh-odds.mjs and never rewritten. Read by " +
-          "scripts/backtest.mjs to score what the board showed against what happened.",
-        at: now,
-        week,
-        lines,
-        form: form ? { updatedAt: form.updatedAt, ratings: form.ratings } : null,
-        recommendation,
-      },
-      null,
-      2,
-    )}\n`,
-    "utf8",
-  );
+  await writeJson(path, {
+    $comment:
+      "One run's lines, written by scripts/refresh-odds.mjs and never rewritten. Read by " +
+      "scripts/backtest.mjs to score what the board showed against what happened.",
+    at: now,
+    week,
+    lines,
+    form: form ? { updatedAt: form.updatedAt, ratings: form.ratings } : null,
+    recommendation,
+  });
   console.log(`Snapshot written: snapshots/${stamp}.json`);
 }
 
@@ -350,7 +339,7 @@ async function writeSnapshot({ league, now, week, lines, form, recommendation })
  */
 async function refreshStats({ league, results }) {
   const played = Object.keys(results.results ?? {}).length;
-  const onDisk = await readJsonOrNull(pathFor(league, "stats.json"));
+  const onDisk = await readOptionalJson(pathFor(league, "stats.json"));
   if (played === 0) {
     console.log("No games played yet. Skipping the efficiency pull.");
     return onDisk?.games ?? {};

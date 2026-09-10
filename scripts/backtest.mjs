@@ -13,10 +13,11 @@
  * league's history rather than its present, see `npm run calibrate`.
  */
 
-import { readFile, readdir } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
+import { readJson } from "./lib/json.mjs";
 import { backtest } from "./lib/backtest.mjs";
 import { SPORTS, SPORT_IDS } from "../src/js/sports.js";
 
@@ -43,7 +44,7 @@ for (const league of leagues) {
 if (failed) process.exit(1);
 
 async function report(league) {
-  const read = async (name) => JSON.parse(await readFile(join(ROOT, "data", league, name), "utf8"));
+  const read = (name) => readJson(join(ROOT, "data", league, name));
   const optional = (name) => read(name).catch(() => null);
   const [odds, schedule, ratings, stats, calibration] = await Promise.all([
     read("odds.json"),
@@ -55,9 +56,7 @@ async function report(league) {
 
   const dir = join(ROOT, "data", league, "snapshots");
   const names = (await readdir(dir).catch(() => [])).filter((name) => name.endsWith(".json"));
-  const snapshots = await Promise.all(
-    names.map(async (name) => JSON.parse(await readFile(join(dir, name), "utf8"))),
-  );
+  const snapshots = await Promise.all(names.map((name) => readJson(join(dir, name))));
   // With no snapshot yet, the lines on disk stand in as one, so the report has
   // something to say from the first run.
   if (snapshots.length === 0 && odds.lines) {

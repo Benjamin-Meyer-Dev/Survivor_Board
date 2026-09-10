@@ -16,10 +16,10 @@
  * touch anything a human owns.
  */
 
-import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
+import { readJson, writeJson } from "./lib/json.mjs";
 import { fitForm, marketError, resolveRatingParams } from "./lib/rate.mjs";
 import { SPORTS, SPORT_IDS } from "../src/js/sports.js";
 
@@ -50,7 +50,7 @@ for (const league of leagues) {
 if (failed) process.exit(1);
 
 async function rate(league) {
-  const read = async (name) => JSON.parse(await readFile(join(ROOT, "data", league, name), "utf8"));
+  const read = (name) => readJson(join(ROOT, "data", league, name));
   const optional = (name) => read(name).catch(() => null);
   const [odds, ratings, schedule, calibration, stats] = await Promise.all([
     read("odds.json"),
@@ -127,10 +127,6 @@ async function rate(league) {
     return;
   }
 
-  await writeFile(
-    join(ROOT, "data", league, "form.json"),
-    `${JSON.stringify(form, null, 2)}\n`,
-    "utf8",
-  );
+  await writeJson(join(ROOT, "data", league, "form.json"), form);
   console.log("Wrote form.json.");
 }

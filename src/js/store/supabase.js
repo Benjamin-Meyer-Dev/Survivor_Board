@@ -29,16 +29,41 @@
  *
  * The poll is also the safety net for the rare change from another device
  * that commits during one of our saves: dropped from realtime, it is picked up
- * on the next tick.
+ * on the next read.
+ *
+ * All of which is about what reaches the screen. What reaches the ROW is a
+ * separate promise, and the one this store makes is that a save never
+ * overwrites a change it never saw: the write is conditional on the row still
+ * holding the version it was built from, and when it does not, our own changes
+ * are merged onto what is actually there and the write is tried again (see
+ * store/merge.js). Two people locking different weeks in the same second both
+ * end up in the row, which sending the whole document unconditionally could
+ * not manage - the second one to land simply stood.
  */
 
 import { CONFIG, scopeFor } from "../config.js";
-import { emptyEntry } from "../core/plan.js";
+import { emptyEntry, stableJson } from "../core/plan.js";
 import { POOL_KINDS } from "../sports.js";
 import { supabaseClient } from "./client.js";
+import { mergeEntries } from "./merge.js";
 
-/** How often to read the row directly, as a backstop for realtime. */
-const POLL_MS = 1500;
+/**
+ * How often to read the row directly while realtime is not carrying it.
+ *
+ * A poll every second and a half, whatever the socket was doing, was forty
+ * queries a minute per open board for the sake of the rare moment realtime is
+ * down - and realtime is the thing that is meant to deliver these. So the read
+ * is a recovery rather than a heartbeat: it runs while the channel is not
+ * connected, backs off while it stays that way, and stops entirely behind a
+ * hidden tab, where nobody is looking at the board anyway.
+ */
+const RECOVERY_MS = 15000;
+
+/** The longest that backs off to while the channel stays down. */
+const RECOVERY_MAX_MS = 60000;
+
+/** How many times a save re-reads, merges and tries again before giving up. */
+const SAVE_ATTEMPTS = 3;
 
 /** How many of this device's own versions to remember for the echo check. */
 const OWN_VERSIONS_KEPT = 50;
@@ -61,6 +86,11 @@ function versionKey(version) {
 function sameVersion(a, b) {
   const [left, right] = [versionKey(a), versionKey(b)];
   return left !== null && left === right;
+}
+
+/** Whether a merge changed anything about what we were trying to save. */
+function sameDocument(a, b) {
+  return stableJson(a) === stableJson(b);
 }
 
 /**
@@ -91,6 +121,16 @@ export async function createSupabaseStore(code, kind, { client: given } = {}) {
 
   /** The version of the row the board is showing. */
   let lastVersion = null;
+  /**
+   * And the entry that came with it: what this device believes the row holds,
+   * which is the base a merge measures our own changes against.
+   *
+   * Always a copy of its own. The board is handed a shallow copy of whatever
+   * arrives and edits it in place - a lock writes into `entry.picks` - so a
+   * base that shared those objects would quietly grow our own changes, and a
+   * merge would then find nothing of ours to apply.
+   */
+  let lastEntry = null;
   /** Versions this device has saved, newest last. */
   const ownVersions = [];
   /** Saves on the wire right now. */
@@ -113,7 +153,20 @@ export async function createSupabaseStore(code, kind, { client: given } = {}) {
     if (seenBefore !== lastVersion) return;
     if (isOwn(row.updated_at) || sameVersion(row.updated_at, lastVersion)) return;
     lastVersion = row.updated_at ?? lastVersion;
+    lastEntry = structuredClone(entry);
     listener({ ...emptyEntry(), ...entry });
+  }
+
+  /** This pool's row, narrowed the way every query here is. */
+  const onPool = (query) => query.eq("code", entryId).eq("sport", sport).eq("objective", objective);
+
+  /** Read the row as it stands. Null when it is not there, or cannot be read. */
+  async function readRow() {
+    const { data, error } = await onPool(
+      client.from(table).select("entry, updated_at"),
+    ).maybeSingle();
+    if (error || !data) return null;
+    return { entry: data.entry ?? emptyEntry(), version: data.updated_at ?? null };
   }
 
   return {
@@ -122,21 +175,52 @@ export async function createSupabaseStore(code, kind, { client: given } = {}) {
     canWrite,
 
     async init() {
-      const { data, error } = await client
-        .from(table)
-        .select("entry, updated_at")
-        .eq("code", entryId)
-        .eq("sport", sport)
-        .eq("objective", objective)
-        .maybeSingle();
-
-      if (error || !data) return emptyEntry();
-      lastVersion = data.updated_at;
-      return { ...emptyEntry(), ...data.entry };
+      const row = await readRow();
+      if (!row) return emptyEntry();
+      lastVersion = row.version;
+      lastEntry = structuredClone(row.entry);
+      return { ...emptyEntry(), ...row.entry };
     },
 
     subscribe(listener) {
       listeners.add(listener);
+
+      /** Whether realtime is carrying this row at the moment. */
+      let connected = false;
+      let timer = null;
+      let wait = RECOVERY_MS;
+      let polling = false;
+
+      const hidden = () => globalThis.document?.hidden === true;
+
+      const poll = async () => {
+        if (polling) return;
+        polling = true;
+        const seenBefore = lastVersion;
+        try {
+          const row = await readRow();
+          if (row) publish(listener, { entry: row.entry, updated_at: row.version }, seenBefore);
+        } finally {
+          polling = false;
+        }
+      };
+
+      const rest = () => {
+        clearTimeout(timer);
+        timer = null;
+        wait = RECOVERY_MS;
+      };
+
+      /** Keep reading while the channel is down, more slowly as it stays down. */
+      const recover = () => {
+        if (timer || connected || hidden()) return;
+        timer = setTimeout(async () => {
+          timer = null;
+          await poll();
+          wait = Math.min(wait * 2, RECOVERY_MAX_MS);
+          recover();
+        }, wait);
+      };
 
       const channel = client
         .channel(`leagues:${entryId}:${kind}`)
@@ -148,63 +232,122 @@ export async function createSupabaseStore(code, kind, { client: given } = {}) {
           },
         )
         .subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            connected = true;
+            rest();
+            // Once, now: whatever committed while the socket was down was
+            // never pushed to anybody.
+            poll();
+            return;
+          }
           // A dropped websocket should not leave an open board stale until its
-          // next reload. Poll immediately while the normal fallback continues.
-          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") poll();
+          // next reload. Read it now, then keep reading until it is back.
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+            connected = false;
+            poll();
+            recover();
+          }
         });
 
-      let polling = false;
-      const poll = async () => {
-        if (polling) return;
-        polling = true;
-        const seenBefore = lastVersion;
-        try {
-          const { data, error } = await client
-            .from(table)
-            .select("entry, updated_at")
-            .eq("code", entryId)
-            .eq("sport", sport)
-            .eq("objective", objective)
-            .maybeSingle();
-          if (!error && data) publish(listener, data, seenBefore);
-        } finally {
-          polling = false;
+      /**
+       * A tab nobody is looking at is not worth a query, and a socket the
+       * platform suspended while it was away is not worth trusting either - so
+       * coming back is a read, whatever the channel says about itself.
+       */
+      const onVisibility = () => {
+        if (hidden()) {
+          rest();
+          return;
         }
+        poll();
+        recover();
       };
-      const pollTimer = setInterval(poll, POLL_MS);
+      globalThis.document?.addEventListener?.("visibilitychange", onVisibility);
 
       return () => {
         listeners.delete(listener);
-        clearInterval(pollTimer);
+        rest();
+        globalThis.document?.removeEventListener?.("visibilitychange", onVisibility);
         client.removeChannel(channel);
       };
     },
 
+    /**
+     * Write the entry, over the row we believe we are writing over.
+     *
+     * The update carries the version the entry was built from as a filter, so
+     * the database itself decides whether it still applies. Nothing matched
+     * means somebody committed between our last read and this write: their row
+     * is read back, our own changes are merged onto it (store/merge.js), and
+     * the write goes again against the version they left behind.
+     *
+     * Bounded, because the alternative is a save that never returns while a
+     * league is busy. Three rounds is enough for any real contention - a save
+     * is a tap, and the retry is a millisecond of merging - and giving up says
+     * so on screen rather than silently dropping the change.
+     */
     async save(entry) {
-      const previousVersion = lastVersion;
-      const version = new Date().toISOString();
-
-      // Mark this version before sending it. Supabase can deliver our own
-      // realtime event before the upsert promise resolves, and remembering
-      // the version is what lets that echo be recognised whenever it arrives.
-      lastVersion = version;
-      ownVersions.push(versionKey(version));
-      if (ownVersions.length > OWN_VERSIONS_KEPT) ownVersions.shift();
-
       saving += 1;
       try {
-        // An update rather than an upsert: the row is created when the
-        // league is (see store/directory.js), and a save that could insert one
-        // would quietly make a league out of a mistyped code.
-        const { error } = await client
-          .from(table)
-          .update({ entry, updated_at: version })
-          .eq("code", entryId)
-          .eq("sport", sport)
-          .eq("objective", objective);
-        if (error) {
+        let mine = entry;
+        let base = lastEntry;
+        let expected = lastVersion;
+        let merged = false;
+
+        for (let attempt = 1; ; attempt += 1) {
+          // Nothing to write over, as far as this device knows: a board that
+          // opened offline, or a save whose last attempt was beaten. Read the
+          // row and merge onto what it actually holds.
+          if (!expected) {
+            const row = await readRow();
+            if (!row) throw new Error("That pool could not be found to save to.");
+            const next = mergeEntries(base, mine, row.entry);
+            merged = merged || !sameDocument(next, mine);
+            mine = next;
+            base = row.entry;
+            expected = row.version;
+          }
+
+          const previousVersion = lastVersion;
+          const version = new Date().toISOString();
+          // Mark this version before sending it. Supabase can deliver our own
+          // realtime event before the update promise resolves, and remembering
+          // the version is what lets that echo be recognised whenever it
+          // arrives.
+          lastVersion = version;
+          ownVersions.push(versionKey(version));
+          if (ownVersions.length > OWN_VERSIONS_KEPT) ownVersions.shift();
+
+          // An update rather than an upsert: the row is created when the league
+          // is (see store/directory.js), and a save that could insert one would
+          // quietly make a league out of a mistyped code. The select is how
+          // many rows it actually changed, which is the whole answer here.
+          const { data, error } = await onPool(
+            client.from(table).update({ entry: mine, updated_at: version }),
+          )
+            .eq("updated_at", expected)
+            .select("updated_at");
+
+          if (error) {
+            lastVersion = previousVersion;
+            throw error;
+          }
+          if (data?.length) {
+            lastEntry = structuredClone(mine);
+            // A merge means the row now holds somebody else's change as well
+            // as ours - and the realtime event for this write is our own echo,
+            // which is dropped. So the board is told here, or it goes on
+            // showing a pool that is missing a lock somebody else made.
+            if (merged) for (const each of listeners) each({ ...emptyEntry(), ...mine });
+            return;
+          }
+
           lastVersion = previousVersion;
-          throw error;
+          if (attempt >= SAVE_ATTEMPTS) {
+            throw new Error("Somebody else is saving to this pool. Try that again.");
+          }
+          // Read it again and merge onto whatever they left.
+          expected = null;
         }
       } finally {
         saving -= 1;

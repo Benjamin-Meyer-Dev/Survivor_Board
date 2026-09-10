@@ -7,8 +7,9 @@
  * it holds - solid chalk for a lock, the flag for a pick, dashed flag for the
  * coach's plan, the outcome's chalk once the game is played - and names the
  * pick under it, so the whole season reads off one strip. Under it, the drive
- * line: where the ball is, what the pool forgives, what a pick being weighed
- * would do, and how far the season is from the end zone on today's numbers.
+ * line: how fresh the lines are, what the pool forgives, what a pick being
+ * weighed would do, and how far the season is from the end zone on today's
+ * numbers.
  *
  * On a phone the field is wider than the screen and scrolls sideways under
  * end zones held at either edge, so a week gets a column wide enough to read;
@@ -17,7 +18,16 @@
  *
  * Rendered once per board; a week change moves the bracket in place
  * (markViewing) and brings the week into view rather than rebuilding the
- * strip. Handlers are injected; this module knows nothing about the store.
+ * strip. The bracket is one element that slides between yard lines, so the
+ * move is a transform on the compositor rather than two paints on the columns
+ * either side of it - and it reads as travel rather than as one box going out
+ * and another coming on.
+ *
+ * A tap does not move the bracket itself: it asks for the week and app.js's
+ * lookAt moves it, which is the same path a row of the drive takes. Both
+ * layers doing it restarted the same smooth scroll and read the layout twice
+ * for one tap. Handlers are injected; this module knows nothing about the
+ * store.
  */
 
 import { formatPercent, timeAgo, escapeHtml } from "../core/format.js";
@@ -76,6 +86,7 @@ export function renderPitch(root, board, viewWeek, handlers) {
         <div class="pitch__zone pitch__zone--kickoff" aria-hidden="true"><span>Kickoff</span></div>
         <div class="pitch__track" style="--weeks:${board.weeks.length}">
           ${board.weeks.map((week) => yardMarkup(week, board, viewWeek)).join("")}
+          <span class="pitch__bracket pitch__bracket--placing" data-bracket aria-hidden="true"></span>
         </div>
         <div class="pitch__zone pitch__zone--end" aria-hidden="true"><span>Survive</span></div>
       </div>
@@ -90,39 +101,65 @@ export function renderPitch(root, board, viewWeek, handlers) {
     </div>`;
 
   const field = root.querySelector(".pitch__field");
-  // By place in the field, not by week number: a pool starting after week one
-  // has its first yard line somewhere other than week 1.
-  const jumpTo = (index) => {
-    const at = Math.min(Math.max(index, 0), board.weeks.length - 1);
-    const week = board.weeks[at].week;
-    markViewing(root, week);
-    handlers.onWeekChange(week);
-  };
-
+  // The week's own number, which is what the yard line carries: a pool
+  // starting after week one has its first yard line somewhere other than week
+  // 1, and reading the attribute as a place in the list looked at week 9 for a
+  // tap on week 5.
   field.addEventListener("click", (event) => {
     const yard = event.target.closest("[data-yard]");
-    if (yard) jumpTo(Number(yard.dataset.yard) - 1);
+    if (yard) handlers.onWeekChange(Number(yard.dataset.yard));
   });
 
-  // Keyboard equivalent of the tap, for anyone not on a touchscreen.
+  // Keyboard equivalent of the tap, for anyone not on a touchscreen. This one
+  // IS by place in the field: an arrow key means the next yard line along,
+  // whatever week it happens to be.
+  const weeks = board.weeks.map((entry) => entry.week);
   field.addEventListener("keydown", (event) => {
     const step = { ArrowRight: 1, ArrowLeft: -1, Home: -Infinity, End: Infinity }[event.key];
     if (step === undefined) return;
     event.preventDefault();
-    const current = viewingIndex(root);
-    jumpTo(Number.isFinite(step) ? current + step : step < 0 ? 0 : board.weeks.length - 1);
+    const at = weeks.indexOf(viewingWeek(root));
+    const to = Number.isFinite(step) ? at + step : step < 0 ? 0 : weeks.length - 1;
+    const week = weeks[Math.min(Math.max(to, 0), weeks.length - 1)];
+    if (week !== undefined) handlers.onWeekChange(week);
   });
 
-  bringIntoView(root, viewWeek, "auto");
+  // Placed rather than moved: the strip has just been rebuilt, so there is no
+  // previous position for the bracket to travel from.
+  markViewing(root, viewWeek, { behavior: "auto" });
+  requestAnimationFrame(() =>
+    root.querySelector("[data-bracket]")?.classList.remove("pitch__bracket--placing"),
+  );
   markChange(root, board.league, before, season.probability);
 }
 
-/** Move the chalk bracket to a week without rebuilding the field. */
-export function markViewing(root, week) {
-  for (const yard of root.querySelectorAll("[data-yard]")) {
-    yard.classList.toggle("pitch__yard--viewing", Number(yard.dataset.yard) === week);
-  }
-  bringIntoView(root, week, "smooth");
+/**
+ * Move the chalk bracket to a week without rebuilding the field.
+ *
+ * The bracket is positioned by index off the track's own `--weeks`, so nothing
+ * here measures anything: one custom property carries the move, the transform
+ * is a percentage of the bracket's own width, and a rotation that changes every
+ * column's width needs no repositioning.
+ */
+export function markViewing(root, week, { behavior = "smooth" } = {}) {
+  const field = root.querySelector(".pitch__field");
+  const track = root.querySelector(".pitch__track");
+  if (!field || !track) return;
+
+  let index = -1;
+  const yards = [...root.querySelectorAll("[data-yard]")];
+  yards.forEach((yard, at) => {
+    const viewing = Number(yard.dataset.yard) === week;
+    if (viewing) index = at;
+    yard.classList.toggle("pitch__yard--viewing", viewing);
+  });
+
+  // A week the pool does not play has no yard line to sit on, so the bracket
+  // waits rather than parking itself on the wrong one.
+  track.style.setProperty("--yard", String(Math.max(index, 0)));
+  track.classList.toggle("pitch__track--off-field", index === -1);
+  field.dataset.week = String(week);
+  bringIntoView(root, week, behavior);
 }
 
 /**
@@ -141,10 +178,9 @@ function bringIntoView(root, week, behavior) {
   field.scrollTo({ left: Math.max(0, target), behavior });
 }
 
-function viewingIndex(root) {
-  return [...root.querySelectorAll("[data-yard]")].findIndex((yard) =>
-    yard.classList.contains("pitch__yard--viewing"),
-  );
+/** The week the bracket is on, as the field records it. */
+function viewingWeek(root) {
+  return Number(root.querySelector(".pitch__field")?.dataset.week ?? NaN);
 }
 
 /**
@@ -196,23 +232,35 @@ function weekMark(week) {
 }
 
 /**
- * The drive's readouts: where the ball is, what the pool forgives, and either
- * what a pick being weighed would do to the season or when the lines next
- * refresh. The countdown is ticked in place by app.js rather than re-rendered.
+ * The drive's readouts: where the lines stand, what the pool forgives, and
+ * what a pick being weighed would do to the season.
  */
 function stats(board) {
   const items = [];
+
+  // The lines the board is priced off: how long until they are pulled again,
+  // and how old the ones showing are. It holds the slot the week used to -
+  // the field above already says which week the ball is on - and it holds it
+  // through a preview too, because a pick being weighed is exactly when the
+  // age of the numbers behind it is worth knowing. The countdown is ticked in
+  // place by app.js rather than re-rendered.
+  items.push(
+    stat(
+      "Lines",
+      `<span id="countdown">${escapeHtml(formatDuration(board.nextRefreshAt - Date.now()))}</span> · ${escapeHtml(timeAgo(board.updatedAt))}`,
+      "",
+      true,
+    ),
+  );
+
   if (board.eliminated) {
     items.push(stat("Eliminated", `Wk ${board.eliminatedWeek}`));
     items.push(stat("Final record", `${board.record.won}-${board.record.lost}`));
-  } else {
-    items.push(stat("Week", `${board.currentWeek} of ${board.weeks.at(-1)?.week ?? 0}`));
-    if (board.buyBack) {
-      const left = board.buyBack.left;
-      items.push(
-        stat("Buy backs", left === 0 ? "Spent" : `${left} in hand`, left === 0 ? "spent" : ""),
-      );
-    }
+  } else if (board.buyBack) {
+    const left = board.buyBack.left;
+    items.push(
+      stat("Buy backs", left === 0 ? "Spent" : `${left} in hand`, left === 0 ? "spent" : ""),
+    );
   }
 
   if (!board.eliminated && board.previewPathProbability !== null) {
@@ -229,15 +277,6 @@ function stats(board) {
         "If locked",
         `${PREVIEW_ARROW}${escapeHtml(formatPercent(board.previewPathProbability))}`,
         `preview-${change}`,
-        true,
-      ),
-    );
-  } else {
-    items.push(
-      stat(
-        "Lines",
-        `<span id="countdown">${escapeHtml(formatDuration(board.nextRefreshAt - Date.now()))}</span> · ${escapeHtml(timeAgo(board.updatedAt))}`,
-        "",
         true,
       ),
     );

@@ -76,6 +76,61 @@ assert.ok(
   "the coach's call is badged in the team list",
 );
 
+// The coach names twice what a week needs, ranked: the calls that fill the
+// slots, then a fallback behind each of them. What the slots show is the top of
+// that list, the team list badges every name in it with its rank, and nothing
+// in it is a team the board would refuse.
+for (const week of empty.weeks.filter((entry) => entry.week >= empty.currentWeek)) {
+  const open = week.picks.filter((pick) => !pick.status.locked).length;
+  const ranked = week.coachRanked;
+  assert.equal(ranked.length, open * 2, `week ${week.week}: twice what the week needs, ranked`);
+  assert.deepEqual(
+    ranked.map((option) => option.rank),
+    ranked.map((_option, index) => index + 1),
+    `week ${week.week}: the ranks run from one`,
+  );
+  assert.equal(
+    new Set(ranked.map((option) => option.team)).size,
+    ranked.length,
+    `week ${week.week}: no team is ranked twice`,
+  );
+  assert.deepEqual(
+    ranked.slice(0, open).map((option) => option.team),
+    week.recommended.map((option) => option.team),
+    `week ${week.week}: the calls in the slots are the top of the list`,
+  );
+  assert.deepEqual(
+    week.coachNext.map((option) => option.team),
+    ranked.slice(open).map((option) => option.team),
+    `week ${week.week}: what is next is the list behind the calls`,
+  );
+  assert.ok(
+    week.coachNext.every((option) => !option.result && !option.disabled),
+    `week ${week.week}: the coach never falls back on a game that cannot be taken`,
+  );
+  // The team list is the other place the ranking shows, and the two must agree
+  // to the number: a rank on a row the card does not name would be advice from
+  // a plan the board is no longer showing.
+  for (const pick of week.picks) {
+    const badged = pick.options.filter((option) => option.coachRank !== null);
+    assert.deepEqual(
+      badged.map((option) => option.coachRank).sort((a, b) => a - b),
+      ranked.map((option) => option.rank),
+      `week ${week.week}: every rank is badged once in the team list`,
+    );
+    for (const option of badged) {
+      const listed = ranked.find((entry) => entry.team === option.team);
+      assert.ok(listed, `week ${week.week}: ${option.team} is badged with a rank it holds`);
+      assert.equal(option.coachRank, listed.rank);
+      assert.equal(
+        option.isCoach,
+        listed.rank <= open,
+        `week ${week.week}: ${option.team} is a call or a fallback, never read as both`,
+      );
+    }
+  }
+}
+
 const key = slotKey(first.week, first.slot);
 const coachTeam = first.suggestion.team;
 // Two teams the coach did NOT suggest, so advice and choice can be told apart
@@ -139,6 +194,25 @@ assert.ok(
   pickedSlot.options.some((option) => option.isCoach && option.team === coachTeam),
   "the coach's call stays badged while a different team is picked",
 );
+// The row under the slots is whatever the coach ranks that the slots are not
+// showing. With a team of your own in the only slot, that is the call you
+// passed over - the same question as a fallback, asked from the other side -
+// and never the team already sitting in the slot.
+assert.deepEqual(
+  picked.weeks[0].coachNext.map((option) => option.rank),
+  [1],
+  "a pick of your own brings the coach's own call into the row, at its rank",
+);
+assert.equal(picked.weeks[0].coachNext[0].team, coachTeam);
+assert.ok(
+  picked.weeks[0].coachNext.every((option) => option.team !== pending),
+  "and never offers back the team the slot is holding",
+);
+assert.deepEqual(
+  empty.weeks[0].coachNext.map((option) => option.team),
+  empty.weeks[0].coachRanked.slice(1).map((option) => option.team),
+  "with the slot on the coach's own call, the row is the fallbacks behind it",
+);
 
 // The preview says what locking would do. The rest of the season is re-solved
 // around the pick, so the picked team is not also spent in a later week, and
@@ -178,6 +252,25 @@ assert.equal(lockedSlot.onPath.kind, "locked");
 assert.equal(locked.spentCount, 1, "a locked pick spends its team");
 assert.equal(locked.spentTeams[other], first.week);
 assert.equal(lockedSlot.status.result, "W", "locked picks receive feed results");
+// One pick a week, and it is committed: there is no call left to make, so the
+// coach ranks nothing for the week. A fallback behind a decision already taken
+// is not advice.
+assert.deepEqual(locked.weeks[0].coachRanked, [], "a fully locked week is ranked no calls");
+assert.deepEqual(locked.weeks[0].coachNext, [], "and has nothing behind them");
+assert.ok(
+  locked.weeks[0].picks[0].options.every((option) => option.coachRank === null),
+  "and no row of its list wears a rank",
+);
+assert.ok(
+  locked.weeks
+    .filter((week) => week.week > first.week)
+    .every((week) => week.coachRanked.length === week.picks.length * 2),
+  "the weeks still open keep their full ranking",
+);
+assert.ok(
+  locked.weeks.every((week) => week.coachRanked.every((option) => option.team !== other)),
+  "and none of them falls back on the team the lock spent",
+);
 
 // The spread saved with a lock lets the board say which way the line has moved
 // since, signed so a positive number is the pick's way in either pool; a lock
@@ -399,6 +492,10 @@ assert.equal(out.pathProbability, 0);
 assert.equal(out.recommendationPending, false, "review waits on no search");
 assert.deepEqual(out.recommendation.picks, {}, "the coach stands down in review");
 assert.equal(out.weeks[fatal].picks[0].suggestion, null, "no suggestion for a week never played");
+assert.ok(
+  out.weeks.every((week) => week.coachRanked.length === 0 && week.coachNext.length === 0),
+  "and nothing ranked either: in review the coach has stood down",
+);
 assert.equal(out.weeks[fatal - 1].picks[0].status.result, "L");
 
 // A week can run out of games before it runs out of slots. Two picks a week is
@@ -643,5 +740,6 @@ console.log(
   "Board state OK: slots are user-picked, coach plans stay advisory, locks own burns and results, " +
     "a played game leaves its week's menu and any unlocked pick on it, a week short of games " +
     "holds one pick, the other slot's lock shows in the list, a pending pick previews the season its lock would give, " +
+    "the coach ranks twice what a week needs and the team list agrees to the number, " +
     "a fatal loss puts the board in review, and the losers pool mirrors every number and every final.",
 );

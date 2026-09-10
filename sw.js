@@ -15,12 +15,21 @@
  * The data files under data/ are different. The odds bot rewrites them daily
  * and the board must not show yesterday's lines when today's are a fetch away,
  * so they go network-first with a time limit, then fall back to the last copy.
- * The app cache-busts them with a query string, so they are stored under the
- * bare URL; stored as requested, the fallback could never find them and the
- * cache grew by five files a launch.
+ * They are stored under the URL with any query stripped off: whatever a caller
+ * asks for, the fallback has to be able to find it, and a copy stored under a
+ * one-off query string is a copy nothing will ever match again.
  *
  * There is still no precache list: whatever the app fetches while online is
  * what is available offline.
+ *
+ * Both strategies keep a copy for next time, and both hand back a response
+ * before that copy has been written. So the write is handed to
+ * `event.waitUntil` rather than left running on its own: a service worker is
+ * killed as soon as the events it is handling are done with, and a detached
+ * `fetch().then(cache.put)` is not one of them - which made "the next launch
+ * opens with it" a hope rather than a promise, most often exactly when it
+ * mattered, on the launch where the worker had just been started to serve one
+ * navigation and had nothing else to keep it up.
  */
 
 /* Bumped when the shell changes shape: v3 is the home page, the start screen
@@ -57,9 +66,9 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin === self.location.origin) {
-    event.respondWith(isData(url) ? freshFirst(request) : cachedFirst(request));
+    event.respondWith(isData(url) ? freshFirst(event) : cachedFirst(event));
   } else if (SHELL_HOSTS.includes(url.hostname)) {
-    event.respondWith(cachedFirst(request));
+    event.respondWith(cachedFirst(event));
   }
   // Anything else goes straight to the network.
 });
@@ -75,21 +84,20 @@ function keepable(response) {
  * The cached copy at once when there is one, the network otherwise, and in
  * either case the network's answer becomes the copy for next time.
  */
-async function cachedFirst(request) {
+async function cachedFirst(event) {
+  const { request } = event;
   const cache = await caches.open(CACHE);
   // ignoreVary: Google's font stylesheet varies on Sec-Fetch headers, which no
   // stored request carries, and a copy that cannot be matched is no copy.
   const cached = await cache.match(request.url, { ignoreVary: true });
 
-  const refresh = fetch(request).then((response) => {
-    if (keepable(response)) cache.put(request.url, response.clone());
-    return response;
-  });
+  const refresh = fetch(request);
+  // Attached before the response is handed anywhere, so the copy is taken
+  // while the body is certainly still unread - and held by the event, so the
+  // worker is not free to stop before it has been written.
+  event.waitUntil(keep(cache, request.url, refresh));
 
-  if (cached) {
-    refresh.catch(() => {});
-    return cached;
-  }
+  if (cached) return cached;
   try {
     return await refresh;
   } catch (error) {
@@ -105,17 +113,18 @@ async function cachedFirst(request) {
 
 /**
  * The network's answer when it comes in time, the last copy when it does not
- * or cannot. A late answer is still kept, so the next launch opens with it.
+ * or cannot. A late answer is still kept, so the next launch opens with it -
+ * which is what waitUntil is for: the answer this event is waiting for has
+ * already been given by then, and without it the worker would be free to stop
+ * before the file it just fetched had been written anywhere.
  */
-async function freshFirst(request) {
+async function freshFirst(event) {
+  const { request } = event;
   const cache = await caches.open(CACHE);
   const key = bareUrl(request.url);
 
-  const network = fetch(request).then((response) => {
-    if (response.ok) cache.put(key, response.clone());
-    return response;
-  });
-  network.catch(() => {});
+  const network = fetch(request);
+  event.waitUntil(keep(cache, key, network));
 
   try {
     return await withinTime(network, DATA_TIMEOUT_MS);
@@ -124,6 +133,21 @@ async function freshFirst(request) {
     // Nothing to fall back on: the network is the only hope, however slow.
     return cached ?? network;
   }
+}
+
+/**
+ * Keep a response as the copy to open with next time, under `key`.
+ *
+ * The clone is taken in the first handler attached to the fetch, before the
+ * response reaches respondWith and its body starts being read - a body can only
+ * be read once, and the copy has to be made from the untouched one. Resolves
+ * when the write is done, so a caller can hold the worker up for it; a failure
+ * is not one, since there was simply nothing to keep.
+ */
+function keep(cache, key, response) {
+  return response
+    .then((answer) => (keepable(answer) ? cache.put(key, answer.clone()) : undefined))
+    .catch(() => undefined);
 }
 
 /** The URL without its query, the key the data files are kept under. */

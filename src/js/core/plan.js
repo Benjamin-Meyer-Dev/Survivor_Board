@@ -12,6 +12,12 @@
  * Locking a pick is what commits it, and the coach re-plans the rest of the
  * season around whatever is locked.
  *
+ * The coach names twice what a week needs, ranked (`week.coachRanked`, and
+ * `week.coachNext` for the fallbacks behind the calls): one pick a week gets a
+ * first and a second choice, two picks a week get four. The order is the
+ * engine's (core/recommend.js) - each fallback is the whole season re-planned
+ * without the calls above it, not the next name down the week's own list.
+ *
  * Everything the UI renders is derived from `buildBoard`, including how many
  * picks a week holds and whether a loss can be bought back. No module below
  * src/js/ui/ should reach into the raw JSON directly, and none of them should
@@ -26,7 +32,8 @@ import {
   resolveModel,
   DEFAULT_TIERS,
 } from "./probability.js";
-import { recommendForBoard } from "./recommend.js";
+import { recommendForBoard, searchRequestFor } from "./recommend.js";
+import { announceSearchSettled, searchRunner } from "./search.js";
 import { advanceProb, advanceResult, bySpread, dangerSign } from "./objective.js";
 import { mergeRules, sameRules } from "./rules.js";
 import { nextRefreshAt } from "./refresh.js";
@@ -79,17 +86,23 @@ export function emptyEntry() {
  * a thing, and the board should not repaint for that.
  */
 export function sameEntry(a, b) {
-  return canonical(a) === canonical(b);
+  return stableJson(a) === stableJson(b);
 }
 
-/** JSON with object keys sorted, so equal values serialise identically. */
-function canonical(value) {
-  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+/**
+ * JSON with object keys sorted, so equal values serialise identically.
+ *
+ * Exported for the merge a save does when two devices write at once
+ * (store/merge.js), which has to know whether one of them touched a slot at
+ * all - and cannot ask that of jsonb's own key order.
+ */
+export function stableJson(value) {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
   if (value && typeof value === "object") {
     const keys = Object.keys(value)
       .filter((key) => value[key] !== undefined)
       .sort();
-    return `{${keys.map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`;
+    return `{${keys.map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(",")}}`;
   }
   return JSON.stringify(value) ?? "null";
 }
@@ -124,7 +137,7 @@ function resolvePick({
   weekPlan,
   odds,
   entry,
-  teams,
+  eligible,
   options,
   week,
   slot,
@@ -207,7 +220,7 @@ function resolvePick({
     team: base.team,
     opponent: base.opponent,
     site: base.site,
-    conference: conferenceOf(teams, base.team),
+    conference: eligible[base.team]?.conference ?? "",
     spread,
     source,
     winProb,
@@ -254,7 +267,7 @@ function resolvePick({
 function weekOptions({
   schedule,
   ratings,
-  teams,
+  eligible,
   odds,
   form,
   week,
@@ -264,7 +277,6 @@ function weekOptions({
   objective = "win",
 }) {
   const games = schedule.weeks?.[String(week)] ?? [];
-  const eligible = allTeams(teams);
   const home = ratings.homeFieldPoints ?? 2.5;
   const rating = (team) => ratingFor({ team, ratings, form, eligible });
   const weeksAhead = Math.max(0, week - currentWeek);
@@ -376,6 +388,20 @@ function weekOptions({
 }
 
 /**
+ * The teams in the roster, best first, as the bench draws them.
+ *
+ * Flattened once per build and handed over on the board, so the depth chart
+ * needs nothing but the board it is drawing - which is the rule for everything
+ * under src/js/ui and was the one place still reaching past it into the raw
+ * teams file.
+ */
+function rosterOf(eligible) {
+  return Object.entries(eligible)
+    .map(([team, { rating, conference }]) => ({ team, rating, conference }))
+    .sort((a, b) => b.rating - a.rating || a.team.localeCompare(b.team));
+}
+
+/**
  * The rating to price a team with.
  *
  * `form.json` is the refresh job's fit to the market lines and final margins
@@ -390,14 +416,6 @@ function weekOptions({
  */
 function ratingFor({ team, ratings, form, eligible }) {
   return form?.ratings?.[team] ?? eligible[team]?.rating ?? ratings.ratings?.[team];
-}
-
-/** Which conference a team belongs to, or "" if it is not eligible. */
-export function conferenceOf(teams, team) {
-  for (const [conference, roster] of Object.entries(teams.conferences)) {
-    if (team in roster) return conference;
-  }
-  return "";
 }
 
 /** Flat map of every eligible team to its power rating. */
@@ -477,6 +495,15 @@ export function buildBoard({
   const rules = rulesOf(plan, entry?.rules);
   const slots = Array.from({ length: rules.picksPerWeek }, (_, index) => index);
   const model = resolveModel(calibration);
+  // The roster, flattened once. It was rebuilt for every week's option list,
+  // again for the total, and again by the bench - fifteen passes over the
+  // conferences for one college build, twenty for an NFL one - and it is the
+  // same map every time.
+  const eligible = allTeams(teams);
+  // The season calendar by week number, for the same reason: the authored plan
+  // for a week is looked up in three places, one of them inside a loop over
+  // every week there is.
+  const planByWeek = new Map(plan.weeks.map((weekPlan) => [weekPlan.week, weekPlan]));
   // The week the season is in, over the whole calendar rather than the pool's
   // slice of it: it is a fact about the sport, and the horizon the model
   // prices an unposted week at is measured from it. A pool whose run has not
@@ -494,7 +521,7 @@ export function buildBoard({
       const options = weekOptions({
         schedule,
         ratings,
-        teams,
+        eligible,
         odds,
         form,
         week: weekPlan.week,
@@ -508,7 +535,7 @@ export function buildBoard({
           weekPlan,
           odds,
           entry,
-          teams,
+          eligible,
           options,
           week: weekPlan.week,
           slot,
@@ -526,10 +553,17 @@ export function buildBoard({
         labelFull: `${weekPlan.label}, ${plan.season}`,
         kickoff: weekPlan.kickoff,
         options,
+        // The week's options by team. Naming a team - the coach's call, a
+        // ghost, the frontier's candidates - is a lookup rather than a scan
+        // over every game in the week.
+        optionByTeam: new Map(options.map((option) => [option.team, option])),
         picks,
         isBuyBack: rules.buyBackWeeks.includes(weekPlan.week),
       };
     });
+
+  /** The weeks the pool plays, by week number. */
+  const weekByNumber = new Map(weeks.map((week) => [week.week, week]));
 
   // Only locked picks spend teams. An unlocked pick is still being weighed and
   // the coach's advice is only advice, so neither can burn a team or create a
@@ -588,6 +622,8 @@ export function buildBoard({
             tier: confidenceTier(option.winProb, rules.tiers),
             isCurrent: option.team === pick.team,
             isCoach: false,
+            /** Where the coach ranks it this week, 1-based; null for unranked. */
+            coachRank: null,
             disabled: Boolean(settled) || takenBySibling || usedElsewhere,
             // The other slot has not just picked this team but locked it: a
             // firmer hold, and the list wears the padlock for it.
@@ -649,14 +685,18 @@ export function buildBoard({
     calibratedAt: calibration?.fittedAt ?? null,
     spentTeams,
     spentCount: Object.keys(spentTeams).length,
-    totalTeams: Object.keys(allTeams(teams)).length,
+    totalTeams: Object.keys(eligible).length,
+    // Every eligible team, best first, and what its rating is called. The
+    // bench draws these; nothing under src/js/ui reads the teams file itself.
+    roster: rosterOf(eligible),
+    ratingSource: teams.ratingSource ?? "rating",
     record: outcome.record,
     eliminated: outcome.eliminated,
     // The week of the loss that ended the run, and the loss itself. The UI
     // goes into review on these: nothing more to pick or lock, the deck opened
     // on that week, later weeks marked as never played.
     eliminatedWeek: outcome.eliminatedWeek,
-    elimination: eliminationOf(weeks, outcome),
+    elimination: eliminationOf(weekByNumber, outcome),
     pathProbability: outcome.probability,
     // Null when the pool grants none, so the UI can simply omit the cell.
     buyBack: rules.buyBacks
@@ -690,7 +730,8 @@ export function buildBoard({
     value: cached,
     fresh,
     constraints,
-  } = memoisedRecommendation(board, plan, odds, form, allowSearch, {
+    running: searchRunning = false,
+  } = memoisedRecommendation(board, plan, odds, form, allowSearch, planByWeek, {
     calibration,
     availability,
     pool,
@@ -700,15 +741,19 @@ export function buildBoard({
     pathProbability: 0,
     shortfalls: [],
     frontier: null,
+    ranked: {},
   };
   board.recommendation = recommendation;
   // This week's call across futures, with the pool's numbers laid over it
   // when there are any, and each candidate's teams described the way the
   // week's list describes them. Only for a fresh plan: a stand-in's frontier
   // belongs to the locks it was planned around.
-  board.frontier = fresh ? frontierOf(recommendation.frontier, board.weeks, rules) : null;
-  // A search is still owed; app.js schedules it once this board is painted.
+  board.frontier = fresh ? frontierOf(recommendation.frontier, weekByNumber, rules) : null;
+  // A search is still owed; app.js schedules it once this board is painted -
+  // unless one is already running somewhere else, in which case its landing is
+  // what asks for the next build.
   board.recommendationPending = !fresh;
+  board.recommendationRunning = Boolean(searchRunning);
 
   // While a pick is being weighed, the ghosts in the open slots and the "if
   // locked" number come from a preview: the rest of the season re-solved
@@ -771,7 +816,7 @@ export function buildBoard({
     // not because the coach chose them. Keep that path separate from the calls
     // displayed as advice.
     week.pathRecommendation = names.flatMap((team) => {
-      const option = week.options.find((o) => o.team === team);
+      const option = week.optionByTeam.get(team);
       return option ? [{ ...option, tier: confidenceTier(option.winProb, rules.tiers) }] : [];
     });
     if (
@@ -797,10 +842,10 @@ export function buildBoard({
           );
     const ghosts = ghostNames
       .filter((team) => !heldTeams.has(team))
-      .map((team) => week.options.find((option) => option.team === team))
+      .map((team) => week.optionByTeam.get(team))
       .filter(Boolean)
       .map((option) => ({ ...option, tier: confidenceTier(option.winProb, rules.tiers) }));
-    const weekPlan = plan.weeks.find((candidate) => candidate.week === week.week);
+    const weekPlan = planByWeek.get(week.week);
     let next = 0;
     let ghost = 0;
 
@@ -810,7 +855,7 @@ export function buildBoard({
         // authored call is a safe fallback for entries locked before snapshots
         // were introduced.
         const historicTeam = pick.status.coachTeam ?? weekPlan?.picks[pick.slot]?.team;
-        pick.coachCall = week.options.find((option) => option.team === historicTeam) ?? null;
+        pick.coachCall = week.optionByTeam.get(historicTeam) ?? null;
       } else {
         pick.coachCall = liveCalls[next] ?? null;
         next += 1;
@@ -825,12 +870,56 @@ export function buildBoard({
         coachCalls.findIndex((candidate) => candidate.team === option.team) === index,
     );
 
+    // The coach's board for the week, best first: the calls above, then the
+    // fallbacks behind them (see rankCalls in core/recommend.js). Filtered the
+    // way the plan's own names are - a team locked into another week since, a
+    // lock a stand-in obeyed, a game already played - because a fallback is
+    // still advice and cannot name a team the board will not take.
+    const rankedNames = (recommendation.ranked?.[week.week] ?? []).filter(
+      (team) =>
+        (spentTeams[team] === undefined || spentTeams[team] === week.week) &&
+        !constraints.has(`${week.week}:${team}`) &&
+        !settledTeams.has(team) &&
+        !lockedTeams.has(team),
+    );
+    week.coachRanked = rankedNames
+      .map((team) => week.optionByTeam.get(team))
+      .filter(Boolean)
+      .map((option, index) => ({
+        ...option,
+        tier: confidenceTier(option.winProb, rules.tiers),
+        rank: index + 1,
+      }));
+    const rankByTeam = new Map(week.coachRanked.map((option) => [option.team, option.rank]));
+
     for (const pick of week.picks) {
       pick.isRecommended =
         Boolean(pick.team) && !pick.status.locked && liveCoachTeams.has(pick.team);
       pick.suggestion = pick.team ? null : (ghosts[ghost++] ?? null);
-      for (const option of pick.options) option.isCoach = coachTeams.has(option.team);
+      for (const option of pick.options) {
+        option.isCoach = coachTeams.has(option.team);
+        option.coachRank = rankByTeam.get(option.team) ?? null;
+      }
     }
+
+    // What is left of the coach's board once the slots have had their say: one
+    // entry per slot still open, so the row never runs longer than the week is
+    // deep. Whatever a slot is showing comes out of it - the call pencilled
+    // into an open slot, and the team a user has put in one - because the row
+    // is what the card is not already saying. So an untouched week shows the
+    // fallbacks behind its calls, and a week holding a pick of your own shows
+    // the call you passed over, which is the same question answered from the
+    // other side.
+    const inSlots = new Set(
+      week.picks.flatMap((pick) => {
+        const shown = pick.team ?? pick.suggestion?.team;
+        return shown ? [shown] : [];
+      }),
+    );
+    const openSlots = week.picks.filter((pick) => !pick.status.locked).length;
+    week.coachNext = week.coachRanked
+      .filter((option) => !inSlots.has(option.team))
+      .slice(0, openSlots);
 
     // What the slot holds on the season path: the users' team if there is one,
     // else the coach's suggestion. `kind` tells the UI how solid to draw it.
@@ -1048,12 +1137,12 @@ function memoisedPreview(board, plan, odds, form, inputs) {
  *   that week is a lock it obeyed, not a call it made, and must not be shown
  *   as one.
  */
-function memoisedRecommendation(board, plan, odds, form, allowSearch, inputs = {}) {
+function memoisedRecommendation(board, plan, odds, form, allowSearch, planByWeek, inputs = {}) {
   // An eliminated entry has no season left to plan. The coach stands down and
   // the board goes into review: what happened, not what could.
   if (board.eliminated) {
     return {
-      value: { picks: {}, pathProbability: 0, shortfalls: [], frontier: null },
+      value: { picks: {}, pathProbability: 0, shortfalls: [], frontier: null, ranked: {} },
       fresh: true,
       constraints: NO_CONSTRAINTS,
     };
@@ -1093,10 +1182,21 @@ function memoisedRecommendation(board, plan, odds, form, allowSearch, inputs = {
   const seed = {};
   for (const week of board.weeks) {
     if (week.week < board.currentWeek) continue;
-    const weekPlan = plan.weeks.find((entry) => entry.week === week.week);
+    const weekPlan = planByWeek.get(week.week);
     seed[week.week] = week.picks.map((pick, slot) =>
       pick.status.locked ? pick.team : (weekPlan?.picks[slot]?.team ?? null),
     );
+  }
+
+  // Somewhere to run it that is not this thread (core/search.js). The board
+  // comes back with whatever plan it has - a recent one standing in, or none -
+  // exactly as it does when a caller cannot wait, and the answer arrives as a
+  // second build once the search lands. `running` is what tells the caller not
+  // to schedule its own retry: the search is already on its way.
+  const runner = searchRunner();
+  if (runner) {
+    handOff(runner, { signature, base, locks, board, seed });
+    return { ...standInFor(base, locks), running: true };
   }
 
   const value = recommendForBoard(board, seed);
@@ -1105,6 +1205,49 @@ function memoisedRecommendation(board, plan, odds, form, allowSearch, inputs = {
     CACHE_SIZE,
   );
   return { value, fresh: true, constraints: NO_CONSTRAINTS };
+}
+
+/** Searches on the wire, by signature, so one board's renders ask once. */
+const running = new Map();
+
+/**
+ * Send a search off and cache what comes back.
+ *
+ * A failure is not reported anywhere: whoever installed the runner takes it
+ * back out on the way past (see worker-search.js), so the build that follows
+ * this one finds no runner and searches inline. The board is never left without
+ * an answer, only ever without one yet.
+ */
+function handOff(runner, { signature, base, locks, board, seed }) {
+  if (running.has(signature)) return;
+
+  const pending = runner(searchRequestFor(board, seed))
+    .then((value) => {
+      if (!value) return;
+      recommendationCache = [{ signature, base, locks, value }, ...recommendationCache].slice(
+        0,
+        CACHE_SIZE,
+      );
+    })
+    .catch(() => {
+      /* inline next time round */
+    })
+    .finally(() => {
+      running.delete(signature);
+      announceSearchSettled();
+    });
+
+  running.set(signature, pending);
+}
+
+/**
+ * Every handed-off search that is still out, as one promise.
+ *
+ * For startup, which has a layer over the board and would rather hold it there
+ * than reveal a board with no plan on it and fill it in a moment later.
+ */
+export function searchesSettled() {
+  return Promise.allSettled([...running.values()]);
 }
 
 /**
@@ -1143,9 +1286,9 @@ function standInFor(base, locks) {
  * the field over the candidates before it names the call (core/recommend.js).
  * Null when there is nothing open to decide.
  */
-function frontierOf(frontier, weeks, rules) {
+function frontierOf(frontier, weekByNumber, rules) {
   if (!frontier) return null;
-  const week = weeks.find((entry) => entry.week === frontier.week);
+  const week = weekByNumber.get(frontier.week);
   if (!week) return null;
 
   return {
@@ -1154,7 +1297,7 @@ function frontierOf(frontier, weeks, rules) {
       ...candidate,
       preferred: candidate.preferred ?? candidate.chosen,
       options: candidate.teams
-        .map((team) => week.options.find((option) => option.team === team))
+        .map((team) => week.optionByTeam.get(team))
         .filter(Boolean)
         .map((option) => ({ ...option, tier: confidenceTier(option.winProb, rules.tiers) })),
     })),
@@ -1165,9 +1308,9 @@ function frontierOf(frontier, weeks, rules) {
  * What ended the run: the week, and the locked loss (or losses, in a two-pick
  * league) in it. Null while the entry is alive.
  */
-function eliminationOf(weeks, outcome) {
+function eliminationOf(weekByNumber, outcome) {
   if (!outcome.eliminated) return null;
-  const week = weeks.find((entry) => entry.week === outcome.eliminatedWeek);
+  const week = weekByNumber.get(outcome.eliminatedWeek);
   const losses = (week?.picks ?? [])
     .filter((pick) => pick.status.locked && pick.status.result === "L")
     .map((pick) => ({ team: pick.team, opponent: pick.opponent, site: pick.site }));

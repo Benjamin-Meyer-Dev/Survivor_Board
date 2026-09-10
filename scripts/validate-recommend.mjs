@@ -13,7 +13,12 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { recommendPath, continuationWeights, recommendForBoard } from "../src/js/core/recommend.js";
+import {
+  recommendPath,
+  continuationWeights,
+  recommendForBoard,
+  COACH_DEPTH,
+} from "../src/js/core/recommend.js";
 import { assignPath, maximumAssignment, FORBIDDEN } from "../src/js/core/assignment.js";
 import { survival } from "../src/js/core/survival.js";
 import { COVERED_FLOOR, COVERED_MARGIN } from "../src/js/core/equity.js";
@@ -235,6 +240,97 @@ function bruteForce(weeks, { picksPerWeek, buyBackWeeks, buyBacks }) {
   assert.equal(spent.frontier.pool.covered, false, "with the buy back spent, not covered");
 }
 
+// Twice what the week needs, ranked. The call comes first; behind it is what
+// the whole season would take instead, which on a league this size can be
+// checked against brute force. The week on the clock is deliberately left out
+// of that comparison: the frontier ranks that one across the futures, which is
+// a different and better question than the best path on today's numbers.
+for (const picksPerWeek of [1, 2]) {
+  const rules = { picksPerWeek, buyBackWeeks: [], buyBacks: 0 };
+  // Six teams cover three two-pick weeks exactly, and no more than three.
+  const weeks = picksPerWeek === 1 ? SMALL : SMALL.slice(0, 3);
+  const found = recommendPath({ weeks, burned: new Set(), ...rules, pool: PURE });
+
+  for (const week of weeks) {
+    const list = found.ranked[week.week];
+    const depth = COACH_DEPTH * picksPerWeek;
+    assert.equal(
+      list.length,
+      depth,
+      `${picksPerWeek}/wk, week ${week.week}: ${depth} calls ranked`,
+    );
+    assert.equal(new Set(list).size, list.length, "no team is ranked twice for one week");
+    assert.deepEqual(
+      list.slice(0, picksPerWeek).sort(),
+      [...found.picks[week.week]].sort(),
+      `week ${week.week}: the path's own picks are the top of the list`,
+    );
+    for (const team of list) {
+      assert.ok(
+        week.options.some((option) => option.team === team),
+        `week ${week.week}: ${team} plays that week`,
+      );
+    }
+  }
+
+  for (const week of weeks.slice(1)) {
+    const calls = found.ranked[week.week].slice(0, picksPerWeek);
+    // The same week with the calls struck off it, which is the question a
+    // fallback answers: barred here, and here only.
+    const barred = weeks.map((entry) =>
+      entry.week === week.week
+        ? { ...entry, options: entry.options.filter((option) => !calls.includes(option.team)) }
+        : entry,
+    );
+    const best = bruteForce(barred, rules);
+    const fallbacks = found.ranked[week.week].slice(picksPerWeek);
+    // Scored rather than named, so a genuine tie between two teams is not a
+    // failure: taking what the coach falls back on has to cost the season
+    // nothing against the best alternative there is.
+    const through = bruteForce(
+      barred.map((entry) =>
+        entry.week === week.week
+          ? { ...entry, options: entry.options.filter((option) => fallbacks.includes(option.team)) }
+          : entry,
+      ),
+      rules,
+    );
+    close(
+      through.probability,
+      best.probability,
+      1e-9,
+      `${picksPerWeek}/wk, week ${week.week}: the fallback is what the season would take instead`,
+    );
+  }
+}
+
+// A week the teams cannot cover is ranked nothing: with six teams there is no
+// eighth slot to fill, so there is no call in week 4 for a fallback to stand
+// behind.
+{
+  const short = recommendPath({
+    weeks: SMALL,
+    burned: new Set(),
+    picksPerWeek: 2,
+    pool: PURE,
+  });
+  assert.deepEqual(short.picks[4] ?? [], [], "the path cannot fill a fourth two-pick week");
+  assert.equal(short.ranked[4], undefined, "and the coach ranks no calls for it");
+  assert.ok(short.ranked[1].length > 0, "the weeks it can fill are ranked as usual");
+}
+
+// A preview is answering a tap, and pays for nothing it does not show.
+{
+  const quick = recommendPath({
+    weeks: SMALL,
+    burned: new Set(),
+    picksPerWeek: 1,
+    quick: true,
+  });
+  assert.deepEqual(quick.ranked, {}, "a quick answer ranks nothing");
+  assert.ok(Object.keys(quick.picks).length > 0, "but still comes back with a path");
+}
+
 // Two picks a week: never both sides of one game, and still the optimum. Six
 // teams cover three two-pick weeks exactly, which also makes every team's
 // slot forced by the others' - the tightest case the rule has.
@@ -435,6 +531,34 @@ for (const league of SPORT_IDS) {
     );
   }
 
+  // Every week the path fills carries twice its calls, ranked, and the calls
+  // themselves come first. On a real board that is a re-plan per week on top of
+  // the search, so the build time asserted above is the check that it stays
+  // affordable.
+  for (const week of board.weeks.filter((entry) => entry.week >= board.currentWeek)) {
+    const calls = recommendation.picks[week.week] ?? [];
+    const list = recommendation.ranked[week.week];
+    if (calls.length === 0) {
+      assert.equal(list, undefined, `${league}: a week with no call is ranked nothing`);
+      continue;
+    }
+    assert.equal(
+      list.length,
+      calls.length * COACH_DEPTH,
+      `${league}: week ${week.week} is ranked twice its calls`,
+    );
+    assert.equal(new Set(list).size, list.length, `${league}: no team is ranked twice`);
+    assert.deepEqual(
+      list.slice(0, calls.length).sort(),
+      [...calls].sort(),
+      `${league}: week ${week.week} opens its ranking with the path's own calls`,
+    );
+    assert.ok(
+      list.every((team) => week.optionByTeam.has(team)),
+      `${league}: week ${week.week} only ranks teams it plays`,
+    );
+  }
+
   assert.ok(frontier, `${league}: the week on the clock has a frontier`);
   assert.equal(frontier.week, board.currentWeek);
   assert.ok(frontier.candidates.length >= 2, `${league}: at least two openings are compared`);
@@ -528,5 +652,7 @@ console.log(
   "Recommend OK: the optimum on an enumerable league with and without a buy back, one side of a " +
     "game only, locks honoured, continuation weights exact, the assignment solver against brute " +
     "force, the call above a floor with a covered week spending the weaker team and leverage " +
-    "priced beside it, and on every board a deterministic frontier whose call is the path shown.",
+    "priced beside it, on every board a deterministic frontier whose call is the path shown, and " +
+    "twice each week's calls ranked behind it - a fallback being what the season would take " +
+    "instead, checked against brute force.",
 );

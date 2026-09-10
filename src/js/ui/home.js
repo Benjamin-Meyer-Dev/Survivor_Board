@@ -40,7 +40,7 @@ import { formatCode, normaliseCode, isCode } from "../core/code.js";
 import { escapeHtml } from "../core/format.js";
 
 /** Latest handlers, so the sheets wired on the first render stay current. */
-let handlers = {};
+let homeHandlers = {};
 /** Where the two sheets were built, so they can be shut from outside. */
 let sheetsRoot = null;
 
@@ -106,7 +106,7 @@ let me = "";
  */
 export function renderHome(root, state, given, sheets = null) {
   if (!root) return;
-  handlers = given;
+  homeHandlers = given;
   if (sheets) {
     sheetsRoot = sheets;
     if (!sheets.firstElementChild) {
@@ -333,7 +333,9 @@ function wire(root) {
     const code = node.dataset.league;
     // No pool named: the board opens on the league's first, and its bar has
     // the rest.
-    node.querySelector('[data-act="open"]').addEventListener("click", () => handlers.onOpen(code));
+    node
+      .querySelector('[data-act="open"]')
+      .addEventListener("click", () => homeHandlers.onOpen(code));
     node
       .querySelector('[data-act="leave"]')
       .addEventListener("click", () => askToLeave(code, node.dataset.name));
@@ -373,7 +375,7 @@ function wireSheets(sheets) {
       showProblem(create, "Tick at least one pool for the league to run.");
       return;
     }
-    attempt(create, () => handlers.onCreate({ name: create.elements.name.value, kinds }));
+    attempt(create, () => homeHandlers.onCreate({ name: create.elements.name.value, kinds }));
   });
 
   const join = sheets.querySelector('form[data-act="join"]');
@@ -386,7 +388,7 @@ function wireSheets(sheets) {
       showProblem(join, "That code is not twelve characters. Check it and try again.");
       return;
     }
-    attempt(join, () => handlers.onJoin(normaliseCode(typed)));
+    attempt(join, () => homeHandlers.onJoin(normaliseCode(typed)));
   });
 
   // The name: trimmed, never blank - it is how the others know whose picks
@@ -400,7 +402,7 @@ function wireSheets(sheets) {
       return;
     }
     rename.closest("dialog").close();
-    handlers.onRenameMe(typed);
+    homeHandlers.onRenameMe(typed);
   });
 
   // The leave question: the answer acts on whichever league asked it.
@@ -409,7 +411,7 @@ function wireSheets(sheets) {
     const code = leaving;
     leaving = null;
     leave.close();
-    if (code) handlers.onLeave(code);
+    if (code) homeHandlers.onLeave(code);
   });
   leave.querySelector('[data-act="leave-no"]').addEventListener("click", () => leave.close());
   leave.addEventListener("close", () => {

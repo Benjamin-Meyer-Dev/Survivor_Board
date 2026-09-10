@@ -26,7 +26,12 @@ src/js/app.js   the only module that wires the other three together
   point, and it is why those files must never touch `window` or `document`.
 - A `ui/` module never imports from `store/`. If a component needs to save
   something, it calls a handler passed in by `app.js`.
-- Nothing outside `core/plan.js` reads the raw JSON shapes.
+- Nothing outside `core/plan.js` reads the raw JSON shapes. A `ui/` module
+  takes the board `buildBoard` returns and nothing else; if it needs something
+  the board does not carry, the board learns to carry it.
+- A region rebuilt from `innerHTML` binds one delegated listener to its own
+  root (`ui/events.js`), not a listener per control. The root outlives every
+  render; the controls do not.
 
 ## Naming
 
@@ -58,6 +63,11 @@ src/js/app.js   the only module that wires the other three together
   drawer's minimum.
 - A chalk tag (`.chip`) is coloured by `--tag-fg` alone. A modifier sets that
   and nothing else, so every tag keeps the same chalk rectangle.
+- Every class a stylesheet styles is a class something writes, and
+  `npm test` fails on the ones that are not
+  (`scripts/validate-css.mjs`). A name composed in a template -
+  `chip--${tier}` - is found by its prefix, so compose names with a template
+  and never by gluing strings together.
 - Buttons are chalk rectangles: outlined for the quiet ones, and the flag
   (`--flag`) fills exactly one control per screen, the action that changes
   something for everyone in the pool. A second yellow button on a screen is a
@@ -66,6 +76,10 @@ src/js/app.js   the only module that wires the other three together
   (`field.css` draws the underlines). A lock is always painted on: solid
   chalk. Never mix the two vocabularies, and never colour a suggestion the way
   a pick is coloured.
+- Inside the coach's own vocabulary, a call the week would take is filled and a
+  fallback behind it is not: the numbered tag on a team list row and the rows
+  under the card both say it that way. A fallback drawn like a call reads as a
+  second pick the week is making, which is the one thing it is not.
 - The pitch (`.pitch__field`) scrolls sideways on a phone under end zones held
   at either edge, one column of `--yard-w` per week; from 900px every week
   fits and the columns share the width. A week owns its whole column, so
@@ -104,17 +118,25 @@ noise:
 Everything is switched off by the `prefers-reduced-motion` block in
 `base.css`, and nothing in the app depends on an animation completing.
 
-## Motion
-
-- A control whose position animates (the tab underline, the league marker) must
+- **A duration is written once, in the stylesheet that draws it.** Nothing in
+  `src/js/` counts milliseconds to know when a move is over: `ui/motion.js`
+  asks the browser (`getAnimations`, which reports transitions too) and
+  resolves when the last of them has finished, with a guard so a move that
+  never ends cannot strand the caller. The two used to be written twice and
+  drifted, in both directions.
+- A control whose position animates (the field's bracket, the tab marker, the
+  league marker) must
   be built once and updated in place. These render functions run on every board
   update, and an element rebuilt from markup has no previous position to move
   from, so it teleports. `renderTabs` and `renderLeagueBar` both take this
-  shape: `build*` on the first call, attribute updates after.
+  shape: `build*` on the first call, attribute updates after. Prefer a mark
+  that moves by `transform` over a state lit on each of several elements in
+  turn: one compositor-friendly move, and it says which way the thing went.
 - One-shot feedback is applied AFTER the render that produced the markup.
   `innerHTML` replaces the node, so a class set beforehand is thrown away.
 - Never start blocking work while an animation is running. It does not quietly
-  continue: it stalls and then jumps. Yield until the animation is done.
+  continue: it stalls and then jumps. Yield until the animation is done, or -
+  better - get the work off the main thread (see `core/search.js`).
 
 ## Safety
 

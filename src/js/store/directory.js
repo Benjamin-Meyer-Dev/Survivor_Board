@@ -189,7 +189,7 @@ function rowToPool(row) {
  * board applies (see core/rules.js). The objective is the kind's, whatever the
  * stored rules say: it was fixed when the league was made.
  */
-function rulesOf(pool) {
+function poolRules(pool) {
   const kind = POOL_KINDS[pool.kind];
   return { ...mergeRules(kind.rules, pool.entry?.rules), objective: kind.objective };
 }
@@ -227,7 +227,7 @@ function summary(league) {
     code: league.code,
     name: league.name,
     kinds: league.kinds,
-    rules: Object.fromEntries(league.kinds.map((kind) => [kind, rulesOf(league.pools[kind])])),
+    rules: Object.fromEntries(league.kinds.map((kind) => [kind, poolRules(league.pools[kind])])),
   };
 }
 
@@ -240,6 +240,72 @@ function memberCount(league) {
 function onPool(query, code, kind) {
   const { sport, objective } = POOL_KINDS[kind];
   return query.eq("code", code).eq("sport", sport).eq("objective", objective);
+}
+
+/** How many times a patch re-reads the row and tries again. */
+const PATCH_ATTEMPTS = 3;
+
+/**
+ * Change one pool's entry without overwriting anything else in it.
+ *
+ * A pool's whole shared state is one JSON document, so writing the members
+ * means writing the picks and the rules back too - and a copy of them fetched
+ * a moment ago is a copy that can already be wrong. Somebody joining a league
+ * while somebody else locks their week 1 pick from the board should not undo
+ * that lock, and with an unconditional write of the whole document that is
+ * exactly what happened.
+ *
+ * So the write carries the version it read as a filter and the database decides
+ * whether it still applies. Nothing matched means the row moved: it is read
+ * again and the change re-applied to what is actually there. Bounded, and
+ * false rather than a throw when it runs out - every caller here is best
+ * effort, because being in the members list is not what lets anyone open a
+ * board.
+ *
+ * @param {object} client
+ * @param {string} code
+ * @param {string} kind
+ * @param {(entry:object) => object|null} change The entry as the row holds it
+ *   in, what it should hold out - or null for "nothing to do".
+ * @param {{entry:object, version:string|null}|null} [known] The row as the
+ *   caller already read it, to save the first query.
+ * @returns {Promise<boolean>} Whether the change is in the row.
+ */
+async function patchPoolEntry(client, code, kind, change, known = null) {
+  const table = CONFIG.supabase.table;
+  let current = known;
+
+  for (let attempt = 1; attempt <= PATCH_ATTEMPTS; attempt += 1) {
+    if (!current) {
+      const { data, error } = await onPool(
+        client.from(table).select(COLUMNS),
+        code,
+        kind,
+      ).maybeSingle();
+      if (error || !data) return false;
+      current = { entry: data.entry ?? { picks: {}, swaps: {} }, version: data.updated_at ?? null };
+    }
+
+    const next = change(current.entry);
+    if (!next) return true;
+
+    let write = onPool(
+      client.from(table).update({ entry: next, updated_at: new Date().toISOString() }),
+      code,
+      kind,
+    );
+    // A row with no version to compare against - which the schema does not
+    // produce, but a table from before it did could - is written as it always
+    // was rather than never being written at all.
+    if (current.version) write = write.eq("updated_at", current.version);
+    const { data, error } = await write.select("updated_at");
+    if (error) return false;
+    if (data?.length) return true;
+
+    // Somebody got there first. Read what they left and re-apply.
+    current = null;
+  }
+  return false;
 }
 
 /**
@@ -352,9 +418,9 @@ export async function joinLeague(typed) {
  * not already.
  *
  * Best effort: the members list is who is here, not who may write, so failing
- * to add yourself must never stop you opening the board. Each write is a merge
- * of that row's own entry rather than of a local copy, so joining cannot roll
- * back a pick someone made a moment ago.
+ * to add yourself must never stop you opening the board. Each write is applied
+ * to that row's own entry, over the version it was read at, so joining cannot
+ * roll back a pick someone made a moment ago (see patchPoolEntry).
  */
 async function addMember(client, league) {
   const id = myId();
@@ -362,22 +428,23 @@ async function addMember(client, league) {
   await Promise.all(
     league.kinds.map(async (kind) => {
       const pool = league.pools[kind];
-      const members = membersOf(pool);
-      const mine = members.find((member) => member.id === id);
-      if (mine && mine.name === name) return;
-
-      const next = mine
-        ? members.map((member) => (member.id === id ? { ...member, name } : member))
-        : [...members, { id, name, joinedAt: new Date().toISOString() }];
-
       try {
-        await onPool(
-          client.from(CONFIG.supabase.table).update({
-            entry: { ...pool.entry, members: next },
-            updated_at: new Date().toISOString(),
-          }),
+        await patchPoolEntry(
+          client,
           pool.code,
           kind,
+          (entry) => {
+            const members = Array.isArray(entry.members) ? entry.members : [];
+            const mine = members.find((member) => member.id === id);
+            if (mine && mine.name === name) return null;
+            return {
+              ...entry,
+              members: mine
+                ? members.map((member) => (member.id === id ? { ...member, name } : member))
+                : [...members, { id, name, joinedAt: new Date().toISOString() }],
+            };
+          },
+          { entry: pool.entry, version: pool.updatedAt },
         );
       } catch {
         /* the board opens either way */
@@ -489,15 +556,21 @@ export async function leaveLeague(code) {
   if (client) {
     try {
       const league = await fetchLeague(client, clean);
+      const me = myId();
       for (const kind of league?.kinds ?? []) {
         const pool = league.pools[kind];
-        const members = membersOf(pool).filter((member) => member.id !== myId());
-        await onPool(
-          client
-            .from(CONFIG.supabase.table)
-            .update({ entry: { ...pool.entry, members }, updated_at: new Date().toISOString() }),
+        // Over the version the row was read at, so leaving cannot take
+        // somebody else's lock out with it (see patchPoolEntry).
+        await patchPoolEntry(
+          client,
           clean,
           kind,
+          (entry) => {
+            const members = Array.isArray(entry.members) ? entry.members : [];
+            if (!members.some((member) => member.id === me)) return null;
+            return { ...entry, members: members.filter((member) => member.id !== me) };
+          },
+          { entry: pool.entry, version: pool.updatedAt },
         );
       }
     } catch {

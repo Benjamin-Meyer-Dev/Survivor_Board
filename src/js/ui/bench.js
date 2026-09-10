@@ -11,24 +11,27 @@
  */
 
 import { escapeHtml } from "../core/format.js";
-import { allTeams } from "../core/plan.js";
 
-export function renderBench(root, legendEl, board, teams) {
-  const roster = allTeams(teams);
+/**
+ * @param {HTMLElement} root
+ * @param {HTMLElement} legendEl
+ * @param {object} board Result of buildBoard(), sorted roster and all. The
+ *   teams file is not read here: the board is the whole of what a UI module
+ *   sees, and flattening the conferences again for the depth chart was the one
+ *   place that broke the rule.
+ */
+export function renderBench(root, legendEl, board) {
   // SP+ for college, market power ratings for the NFL. The file says which.
-  const scale = teams.ratingSource ?? "rating";
+  const scale = board.ratingSource;
 
-  const sorted = Object.entries(roster).sort(
-    ([teamA, a], [teamB, b]) => b.rating - a.rating || teamA.localeCompare(teamB),
-  );
-
-  root.innerHTML = `<div class="bench">${sorted
-    .map(([team, { rating }], index) => {
+  root.innerHTML = `<div class="bench">${board.roster
+    .map(({ team, rating }, index) => {
       const mark = markFor(board, team);
       const rank = index + 1;
       return `
         <div class="bench__team${mark ? ` bench__team--${mark.state}` : ""}" style="--i:${index}"
              data-motion-key="bench-${escapeHtml(team)}"
+             data-motion-signature="${mark ? `${mark.state}-${mark.week}` : "open"}"
              title="${escapeHtml(team)} · power rank #${rank} · ${escapeHtml(scale)} ${rating}${mark ? ` · ${mark.title}` : ""}">
           <span class="bench__identity">
             <span class="bench__name">${escapeHtml(team)}</span>

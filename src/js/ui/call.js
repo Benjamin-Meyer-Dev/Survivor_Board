@@ -13,6 +13,15 @@
  * coach never fills a slot. In a two-pick week the slot the sideline is filling
  * wears the bracket, and tapping the other hands it the sideline.
  *
+ * Under the slots, the coach's next: whatever the coach ranks for the week that
+ * the slots are not already showing, one per slot still open and each numbered
+ * with its rank (core/plan.js, week.coachNext). On an untouched week that is
+ * the fallbacks behind the calls pencilled into the slots; on a week holding a
+ * pick of your own it is the call you passed over. Never what a slot is
+ * showing: a readout with no rows to spare must not spend one saying the same
+ * thing twice. Tapping one puts it in the slot the sideline is filling, exactly
+ * as taking the call does.
+ *
  * Every slot has the same rows in the same order - eyebrow, team, matchup,
  * tiles - so a pick or lock changes what the rows say without moving anything
  * under the thumb that just tapped it.
@@ -28,6 +37,7 @@ import {
   escapeHtml,
 } from "../core/format.js";
 import { TIER_LABEL } from "../core/probability.js";
+import { delegate } from "./events.js";
 
 /** What an open slot says while the optimiser has not reported yet. */
 const WORKING = "Working out the path…";
@@ -54,6 +64,28 @@ export function renderCall(root, board, viewWeek, activeSlot, handlers) {
   const active = Math.min(activeSlot, week.picks.length - 1);
   const two = week.picks.length > 1;
 
+  // Bound to the card's root, which no render replaces: the week's markup is
+  // rewritten on every pick and lock, and a listener per control meant a fresh
+  // closure for each of them every time (see ui/events.js).
+  delegate(root, "click", "[data-action]", (button) => {
+    handlers.onAction({
+      action: button.dataset.action,
+      week: Number(button.dataset.week),
+      slot: Number(button.dataset.slot),
+      team: button.dataset.team,
+    });
+  });
+
+  delegate(root, "click", "[data-activate]", (slot) => {
+    handlers.onSlot(Number(slot.dataset.activate));
+  });
+
+  delegate(root, "keydown", "[data-activate]", (slot, event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    handlers.onSlot(Number(slot.dataset.activate));
+  });
+
   root.innerHTML = `
     <div class="call">
       <div class="call__box">
@@ -65,30 +97,55 @@ export function renderCall(root, board, viewWeek, activeSlot, handlers) {
         <div class="call__slots${two ? " call__slots--two" : ""}">
           ${week.picks.map((pick, index) => slotMarkup(pick, board, two, index === active)).join("")}
         </div>
+        ${nextMarkup(week, active, handlers.canWrite)}
       </div>
     </div>`;
+}
 
-  for (const button of root.querySelectorAll("[data-action]")) {
-    button.addEventListener("click", () => {
-      handlers.onAction({
-        action: button.dataset.action,
-        week: Number(button.dataset.week),
-        slot: Number(button.dataset.slot),
-        team: button.dataset.team,
-      });
-    });
-  }
+/**
+ * The coach's next: what the coach ranks for this week that no slot is showing.
+ * A fallback is the whole rest of the season re-planned without the calls above
+ * it (core/recommend.js), so it is the team to take instead rather than the next
+ * name down the week's list - and it is drawn as advice, dashed and quiet, never
+ * the way a pick is drawn.
+ *
+ * Nothing at all when the slots are already showing all of it: a week whose
+ * slots are all locked, a week already played, a season in review, or a plan
+ * the coach has not made yet.
+ */
+function nextMarkup(week, active, canWrite) {
+  const next = week.coachNext ?? [];
+  if (next.length === 0) return "";
 
-  for (const slot of root.querySelectorAll("[data-activate]")) {
-    const choose = () => handlers.onSlot(Number(slot.dataset.activate));
-    slot.addEventListener("click", choose);
-    slot.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        choose();
-      }
-    });
-  }
+  const signature = next.map((option) => `${option.rank}:${option.team}`).join("|");
+  const alternates = next
+    .map(
+      (option) => `
+      <button type="button" class="call__alt"
+              data-action="pick" data-week="${week.week}" data-slot="${active}"
+              data-team="${escapeHtml(option.team)}"${canWrite ? "" : " disabled"}
+              aria-label="Take the ${escapeHtml(option.team)}, the coach's ${ordinal(option.rank)} choice"
+              title="The coach's ${ordinal(option.rank)} choice. Put it in this slot">
+        <span class="call__alt-rank" aria-hidden="true">${option.rank}</span>
+        <span class="call__alt-team">${escapeHtml(option.team)}</span>
+        <span class="call__alt-line confidence--${option.tier}">${escapeHtml(formatSpread(option.spread))} · ${escapeHtml(formatPercent(option.winProb, 0))}</span>
+      </button>`,
+    )
+    .join("");
+
+  return `
+    <div class="call__next" data-motion-key="next-${week.week}"
+         data-motion-signature="${escapeHtml(signature)}">
+      <span class="call__next-key">Coach’s next</span>
+      ${alternates}
+    </div>`;
+}
+
+/** "1st", "2nd", "3rd", "4th". */
+function ordinal(rank) {
+  const teens = rank % 100 >= 11 && rank % 100 <= 13;
+  const suffix = teens ? "th" : (["th", "st", "nd", "rd"][rank % 10] ?? "th");
+  return `${rank}${suffix}`;
 }
 
 function isNow(week, board) {
@@ -168,10 +225,24 @@ function slotMarkup(pick, board, two, active) {
         aria-label="Slot ${pick.slot + 1}${shown ? `, ${escapeHtml(shown.team)}` : ""}"`
     : "";
 
+  // What the slot is showing, for the settle that plays when it changes under
+  // no tap of yours (playDataUpdates in app.js). Which slot the sideline is
+  // filling is deliberately not in it: the bracket moving between two slots is
+  // not either of them changing.
+  const signature = [
+    state,
+    shown?.team ?? "",
+    shown?.tier ?? "",
+    shown?.spread ?? "",
+    status.result ?? "",
+    coached ? "coach" : "",
+  ].join("|");
+
   return `
     <div class="call__slot call__slot--${state}${two && active ? " call__slot--active" : ""}"
          data-week="${pick.week}" data-slot="${pick.slot}"${shown ? ` data-tier="${shown.tier}"` : ""}
-         data-motion-key="slot-${pick.week}-${pick.slot}"${attrs}>
+         data-motion-key="slot-${pick.week}-${pick.slot}"
+         data-motion-signature="${escapeHtml(signature)}"${attrs}>
       <div class="call__eyebrow${pick.suggestion && !pick.team ? " call__eyebrow--coach" : ""}">
         <span>${eyebrow}</span>
         <span class="call__tags">${marks}</span>
@@ -326,7 +397,7 @@ function button({
     on ? "call__lock--on" : "",
     go ? "call__lock--go" : "",
     take ? "call__lock--take" : "",
-    shift ? "call__lock--" + shift : "",
+    shift ? `call__lock--${shift}` : "",
   ]
     .filter(Boolean)
     .join(" ");

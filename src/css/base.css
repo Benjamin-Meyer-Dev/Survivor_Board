@@ -88,17 +88,6 @@ button {
 
 /* Typographic utilities -------------------------------------------------- */
 
-.u-display {
-  font-family: var(--font-display);
-  font-weight: 800;
-  letter-spacing: 0.02em;
-}
-
-.u-mono {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-}
-
 /* The small caption chalked over a name or a number. Wide tracking, small,
    and quieter than what it labels. */
 .u-eyebrow {

@@ -198,6 +198,27 @@ Two different things, deliberately kept apart:
   own. It shows as a badge on the team in the list, as a ghosted stand-in where
   a slot is empty, and as pencilled rows on the drive, and you decide.
 
+The coach names twice what a week needs, ranked (`COACH_DEPTH`): the NFL pool's
+one pick a week gets a first and a second choice, the college pool's two picks
+get four. The calls fill the slots; under them sits the coach's
+next, which is whatever the coach ranks that the slots are not showing - the
+fallbacks behind the calls on an untouched week, and the call you passed over
+on a week holding a pick of your own. The team list numbers every one of them:
+filled for a call, dashed for a fallback.
+
+A fallback is not "the next biggest favourite this week", which in a survivor
+pool is nearly meaningless. It is what the whole rest of the season does when
+the calls already ranked for that week are off the table: the remaining weeks
+are re-planned by the exact assignment with those teams barred from that week
+alone, and the plan is judged on the same survival maths that chose the path.
+So the second choice for week 5 is the team you would take instead given
+everything you would then spend the other weeks on, and it can be a team the
+plan currently uses elsewhere - taking it moves that week too, which is the
+honest answer rather than a tidier one. The week on the clock skips the re-plan
+and takes the frontier's own order, which has already ranked that week's
+openings across the futures. A week the path cannot fill is ranked nothing: a
+fallback stands behind a call, and there is no call there to stand behind.
+
 Locking is the boundary. The coach plans as if every unlocked slot were open,
 so picking a team and changing your mind cost nothing; the moment a pick is
 locked or unlocked, the rest of the season is re-planned around what is now
@@ -657,6 +678,24 @@ Three sources, merged in `core/plan.js` and nowhere else:
 the rule that keeps the UI honest: if a number is wrong, there is one place to
 look.
 
+## Where the search runs
+
+The recommendation is a beam search over the whole remaining season and it
+costs a couple of hundred milliseconds. On the main thread that is a freeze:
+whatever was animating stalls and then jumps to its end, which is why every
+motion timing in `app.js` used to be arranged around keeping the two apart.
+
+So the search is a job that can be handed elsewhere. `core/search.js` is the
+seam - a runner is installed there or not - and `core/plan.js` hands its
+searches over instead of running them. `worker-search.js` installs a module
+worker (`core/recommend.worker.js`) in the browser; nothing is installed in
+Node, so the scripts and the validators get the same search, inline and
+synchronous. A build that hands its search off comes back with the plan it
+already has (a recent one standing in, or none) and is painted like that, and
+the answer landing asks for one more build. Every failure path - no `Worker`,
+a module worker the browser will not build, the artifact build with no sibling
+file to load - takes the runner back out, and the next build searches inline.
+
 ## The screen: a field held sideways
 
 The board is one split screen, built for a phone in one hand. The top half is
@@ -664,11 +703,12 @@ the readout and does not scroll. First the pitch (`ui/pitch.js`), which draws
 the season as a football field laid sideways: kickoff on the left, the end
 zone on the right, a yard line per week naming its pick, the ball on the week
 on the clock, a chalk bracket on the week being looked at, and a mark on each
-week for what it holds. Under the field runs the drive line, saying where the
-ball is, what the pool forgives, what a pick being weighed would do, and how
-far the season is from the end zone. Then the call (`ui/call.js`): the week
+week for what it holds. Under the field runs the drive line, saying how fresh
+the lines are, what the pool forgives, what a pick being weighed would do, and
+how far the season is from the end zone. Then the call (`ui/call.js`): the week
 being looked at with the one action as a mark at the end of its first row, then
-its slot or slots. The bottom
+its slot or slots, and under them the coach's next - the fallbacks behind the
+calls in those slots, ranked. The bottom
 half is the drawer, which takes what is left and scrolls inside itself: the
 sideline (`ui/sideline.js`, every team the active slot could hold), the drive
 (`ui/drive.js`, the season week by week) and the bench (`ui/bench.js`, every
@@ -678,30 +718,47 @@ side from 900px.
 On a phone the field is wider than the screen and scrolls sideways under end
 zones pinned to either edge, so every week has room to name its pick; a
 desktop shows all of them at once. Looking at a week, by a tap on the field, a
-row of the drive or a swipe across the board, redraws only the call, the
-sideline and the drive's bracket, moves the field's bracket in place and
-scrolls that week into view, and never rebuilds the board.
+row of the drive or a drag across the board, redraws only the call and the
+sideline, moves the field's bracket and the drive's in place and scrolls that
+week into view, and never rebuilds the board. Which layer moves the field's
+bracket matters: `lookAt` in `app.js` is the only one that does, whatever the
+week came from, because two of them doing it restarted the same smooth scroll
+and read the layout twice for one tap.
 
-The swipe is `ui/swipe.js`, bound once to the board and told apart from a
-scroll by shape rather than by speed: far enough sideways, and enough more
-sideways than up. It listens on touch events rather than pointer events
-because the board scrolls vertically, and Chrome cancels a pointer stream the
-moment that scroller claims the gesture - even for a dead-horizontal drag. It
-does not fire where a sideways drag already means something: over the field,
-which pans its own yard lines, over a sheet or menu on top of the board, in a
-field being typed in, or on the bench, which is not about a week at all. The
-ends of the season hold rather than wrap.
+The drag is `ui/swipe.js`, and the week follows the finger: the card, the team
+list and the drive all move with it, and the release either finishes the turn
+from wherever it got to or springs it back. Told apart from a scroll by shape
+rather than by speed - far enough sideways, and enough more sideways than up -
+and decided once, so a drag that wandered is not read as a swipe at the end of
+it. The ends of the season pull against you rather than wrapping.
 
-A swipe slides: the card and the drawer's panel are pushed off the side the
-swipe went, the render happens behind them, and the week that arrives comes on
-from the other side, both regions moving together over a full width of travel
-while the field stays still for the movement to be read against. It is two
-one-shot keyframes rather than one, because the markup between them is
-replaced (`slideToWeek` in `app.js`, `week-slide-out`/`week-slide-in` in
-`motion.css`), and every class it sets is cleared again by the next full
-render - which adopts the week the swipe was turning to rather than dropping
-it, so a lock or another device's change arriving mid-slide keeps the gesture
-and puts the board flat.
+It listens on pointer events, which needs `touch-action: pan-y` on the
+surfaces it watches, and that is why the surfaces are the three regions a week
+is about rather than the whole board: the field pans its own yard lines and
+could not if an ancestor forbade it, and the bench is not about a week at all.
+A drag across the team list turns the week without picking the row it started
+on - the click that a release would otherwise produce is swallowed.
+
+The same gesture is the platform's. On Android a swipe in from the edge of the
+screen is the system's back, so a drag rightwards that starts near the left
+edge asks for the previous week and gets a navigation - away from the board,
+and out of the app where it was opened from an invite link. Two things hold it.
+`overscroll-behavior-x: contain` on the document and on the field turns off the
+navigation Chrome does on a horizontal overscroll, and `ui/back.js` holds the
+system gesture itself: while a board is open there is a `CloseWatcher` armed,
+and a close request offered to a watcher is not a navigation. It does nothing
+with the request and arms another, so the gesture does nothing and the way off
+a board stays the way back in the league bar. The home page arms none, so back
+there behaves as it always did, and an open sheet keeps its own close - the
+browser gives every modal `<dialog>` a watcher of its own, created later and so
+offered the request first. Where there is no `CloseWatcher` the gesture cannot
+be reached at all and nothing is held.
+
+The half going out is the drag itself; the half coming in is a keyframe, because
+the markup between them is replaced (`turnWeek` in `app.js`,
+`week-slide-in` in `motion.css`), and every class either sets is cleared again
+by the next full render, so a lock or another device's change arriving mid-turn
+cannot leave a card sitting off its own edge.
 
 Colour is the one thing that does not come off the board: `app.js` stamps
 `data-league` and `data-objective` on the root element and `src/css/leagues.css`
@@ -720,9 +777,26 @@ The Supabase store gates what reaches the board by version, because rows do
 not arrive in order: a poll can be answered with the row as it stood before a
 tap, and realtime can deliver the echo of one save after the next one has gone.
 It drops its own echoes (it remembers the versions it saved), applies nothing
-while one of its saves is on the wire, and discards a poll whose answer lands
-after the version has moved on. `scripts/validate-store-sync.mjs` replays those
-orderings against a fake client.
+while one of its saves is on the wire, and discards a read whose answer lands
+after the version has moved on.
+
+What reaches the row is a separate promise. A pool's whole shared state is one
+JSON document, so a save writes the lot, and two people locking their picks in
+the same second both sent a complete document - the second to land simply
+stood, and the first person's lock was overwritten by a copy of the row fetched
+before it existed. So the write carries the version it was built from as a
+filter and the database decides whether it still applies; nothing matched means
+our own changes are merged onto what is actually there and the write goes again
+(`store/merge.js`, per slot, per rule and per member, because one person
+locking week 3 while another picks week 9 is not a disagreement). The
+directory's member writes go the same way. `scripts/validate-store-sync.mjs`
+replays both the orderings and the races against a fake client.
+
+Realtime is what delivers a change; the direct read is a recovery, not a
+heartbeat. It runs while the channel is not connected, backs off while it stays
+that way, stops behind a hidden tab, and runs once on reconnecting or on coming
+back to the tab - because a socket the platform suspended while the tab was
+away cannot be trusted to have missed nothing.
 
 ## Deliberate omissions
 

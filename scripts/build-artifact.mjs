@@ -49,17 +49,22 @@ const JS = [
   "core/equity.js",
   "core/recommend.js",
   "core/refresh.js",
+  "core/search.js",
 
   "core/plan.js",
   "store/client.js",
   "store/artifact.js",
+  "store/merge.js",
   "store/supabase.js",
   "store/local.js",
   "store/index.js",
   "store/directory.js",
+  "ui/motion.js",
+  "ui/events.js",
   "ui/league-bar.js",
   "ui/settings.js",
   "ui/home.js",
+  "ui/stadium.js",
   "ui/name.js",
   "ui/tabs.js",
   "ui/pitch.js",
@@ -69,8 +74,22 @@ const JS = [
   "ui/bench.js",
   "ui/notices.js",
   "ui/swipe.js",
+  "ui/back.js",
+  "worker-search.js",
   "app.js",
 ];
+
+/**
+ * Modules that are entry points of their own rather than part of the page.
+ *
+ * A worker is loaded from its own file by URL, which an artifact - one document
+ * on a sandboxed origin, with no siblings to fetch - cannot do. So it is left
+ * out of the bundle, and the search runs on the main thread there, which is
+ * what worker-search.js falls back to. Flattening it in would be worse than
+ * useless: its `self.addEventListener("message", ...)` would be listening on
+ * the page's own window.
+ */
+const NOT_BUNDLED = /\.worker\.js$/;
 const DATA = ["plan.json", "teams.json", "odds.json", "schedule.json", "ratings.json"];
 
 /** Inlined when they are there. The board works without them; see openLeague. */
@@ -109,9 +128,10 @@ function flatten(source) {
 }
 
 /**
- * Fail if a module exists in src/js but is missing from JS above. Without this
- * a new module silently vanishes from the bundle and the artifact breaks at
- * runtime while the Pages build stays fine - the two are hard to tell apart.
+ * Fail if a module exists in src/js but is missing from JS above, bar the
+ * entry points that are deliberately not bundled. Without this a new module
+ * silently vanishes from the bundle and the artifact breaks at runtime while
+ * the Pages build stays fine - the two are hard to tell apart.
  */
 async function assertNoMissingModules() {
   const dir = join(ROOT, "src", "js");
@@ -123,7 +143,7 @@ async function assertNoMissingModules() {
         .join("/"),
     );
 
-  const missing = found.filter((file) => !JS.includes(file));
+  const missing = found.filter((file) => !JS.includes(file) && !NOT_BUNDLED.test(file));
   if (missing.length) {
     throw new Error(
       `Module(s) not listed in build-artifact.mjs: ${missing.join(", ")}. ` +

@@ -512,61 +512,74 @@
   animation: rise 0.36s var(--ease-out) 0.05s both;
 }
 
-/* --- the pitch ------------------------------------------------------------- */
+/* --- the pitch -------------------------------------------------------------
+   The bracket travels between yard lines instead of the columns either side of
+   it repainting: one transform, on the compositor, which is also the thing that
+   says which way the week moved. It slides while the field is smooth-scrolling
+   underneath it, so anything that needed painting would be painting twice.
 
-.pitch__yard {
+   The one time it does not travel is the frame it is created in: a rebuilt
+   field has no previous position, and a bracket easing in from the kickoff end
+   on every render is not a move anybody made (see renderPitch). */
+.pitch__bracket {
   transition:
-    background-color 0.18s ease,
-    box-shadow 0.18s ease;
+    transform 0.2s var(--ease-out),
+    opacity 0.18s ease;
 }
 
-/* Under the finger the bracket has to keep up with it, so a scrub cuts from
-   one week to the next where a tap eases across. */
-.pitch__field--scrubbing .pitch__yard {
+.pitch__bracket--placing {
   transition: none;
 }
 
+/* --- the drawer's tabs ----------------------------------------------------- */
+
+/* The indicator travels with the tab change, the same move the field's bracket
+   makes between weeks. */
+.tab-marker {
+  transition: transform 0.2s var(--ease-out);
+}
+
 /* --- turning the week -----------------------------------------------------
-   A swipe pushes the week off the side it was swiped towards and brings the
+   A drag pushes the week off the side it was dragged towards and brings the
    next one on behind it, in the readout's card and in the drawer's panel at
    once, so the board turns rather than one card of it. The field's bracket
    slides along the yard lines at the same time under its own smooth scroll,
    which is what the movement is read against.
 
-   Two halves, because the markup is replaced between them: what is on screen
-   animates out, the render happens, and what arrives animates in from the
-   other side (slideToWeek in app.js drives both). `--slide` is +1 for a swipe
-   to the left and -1 for one to the right, so a single pair of keyframes
-   serves both directions.
+   The half going out is the drag itself: ui/swipe.js writes the transform the
+   finger asks for, frame by frame, and the release hands it to the transition
+   below to finish from wherever it got to - the rest of the way off its own
+   edge, or back where it came from. There is no keyframe for it, because a
+   keyframe would have to start from somewhere and the whole point is that it
+   starts from the hand.
+
+   The half coming in is a keyframe, because the markup is replaced between the
+   two: the render happens while the old week is off screen, and what arrives
+   animates in from the other side. `--slide` is +1 for a drag to the left and
+   -1 for one to the right, so one pair of keyframes serves both directions.
 
    A full width of travel, which is why the parent clips - and clips only while
    this is running, so a focus ring or a shadow that overflows its box on
-   purpose is not clipped the rest of the time. Out is quicker than in and
-   accelerates away; in decelerates, so the week that arrives is the half of
-   the move the eye follows.
+   purpose is not clipped the rest of the time. The arriving week decelerates,
+   picking up where the hand left off.
 
-   Both stay solid through the part of the travel that is actually on screen
-   and only fade at the far end, where they are mostly behind the clip. The
-   fade is there to cover the one frame between the halves, where the same
-   element jumps from one edge to the other; a slide that faded the whole way
-   across would read as a dissolve rather than as a push. */
+   It stays solid through the part of the travel that is actually on screen and
+   only fades at the far end, where it is mostly behind the clip. The fade is
+   there to cover the one frame between the halves, where the same element jumps
+   from one edge to the other; a slide that faded the whole way across would
+   read as a dissolve rather than as a push. */
 
-.is-sliding {
+.is-dragging {
   overflow: hidden;
 }
 
-@keyframes week-slide-out {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  55% {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-    transform: translateX(calc(var(--slide, 1) * -100%));
-  }
+/* The release. Quick and accelerating away when the turn is being finished,
+   which is the same curve the exit keyframe used to have; the spring back rides
+   the same transition the other way. */
+.is-drag-settling {
+  transition:
+    transform 0.13s cubic-bezier(0.45, 0, 0.9, 0.5),
+    opacity 0.13s cubic-bezier(0.45, 0, 0.9, 0.5);
 }
 
 @keyframes week-slide-in {
@@ -581,10 +594,6 @@
     opacity: 1;
     transform: translateX(0);
   }
-}
-
-.is-slide-out {
-  animation: week-slide-out 0.13s cubic-bezier(0.45, 0, 0.9, 0.5) both;
 }
 
 .is-slide-in {

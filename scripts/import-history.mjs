@@ -16,7 +16,7 @@
  * archives are known to have back-filled something.
  */
 
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, mkdir } from "node:fs/promises";
 import { createWriteStream } from "node:fs";
 import { pipeline } from "node:stream/promises";
 import { createGunzip } from "node:zlib";
@@ -32,6 +32,7 @@ import {
   compactHistory,
   HISTORY_FIELDS,
 } from "./lib/history.mjs";
+import { writeJson } from "./lib/json.mjs";
 import { nflEfficiencyFromCsv, NFLVERSE_STATS } from "./lib/stats.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -77,7 +78,9 @@ const document = {
 };
 
 const target = join(ROOT, "data", league, "history.json");
-await writeFile(target, `${JSON.stringify(document)}\n`, "utf8");
+// One line per season, which is a file to be read by a program rather than
+// by a person: the seasons are long and there are a lot of them.
+await writeJson(target, document, { compact: true });
 console.log(
   `Wrote ${target}: ${games.length} games over ${document.seasons[0]}-${document.seasons.at(-1)}.`,
 );
