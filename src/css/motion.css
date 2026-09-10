@@ -105,13 +105,17 @@
   animation: startup-route var(--startup-cycle) linear infinite;
 }
 
-/* The play keeps running under this fade. */
+/* The handoff, once the play has landed: the layer lifts away over the board
+   rising in under it. Half a second rather than the four tenths it was - the
+   two are one movement and the board had been arriving before the eye had
+   finished with the play. app.js stops the play for the duration (HANDOFF_MS
+   there is this length) so a cycle cannot wrap round mid-fade. */
 .startup.is-ready {
   opacity: 0;
   transform: scale(1.025);
   transition:
-    opacity 0.4s ease,
-    transform 0.4s var(--ease-out);
+    opacity 0.5s ease,
+    transform 0.5s var(--ease-out);
 }
 
 .is-starting .shell {
@@ -121,8 +125,8 @@
 
 .shell {
   transition:
-    opacity 0.42s ease,
-    transform 0.42s var(--ease-out);
+    opacity 0.5s ease,
+    transform 0.5s var(--ease-out);
 }
 
 /* --- press and hover, the states that outlive a render ------------------- */

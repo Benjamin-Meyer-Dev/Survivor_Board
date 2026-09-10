@@ -1718,7 +1718,13 @@
   min-width: 0;
 }
 
-.sideline__name > span:first-child {
+/* The name is the one part of the row allowed to run out of room, and it is
+   cut with an ellipsis rather than wrapped: the badge beside it is centred on
+   the line, so a name on two lines left the badge floating in the gap between
+   them. Selected by its own class, not by being first in the row - a locked or
+   spoken-for team wears the padlock in front of the name, which took the
+   first-child rule off the name and let exactly that happen. */
+.sideline__team-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2064,12 +2070,18 @@
   color: var(--chalk-4);
 }
 
-/* The week a team is spoken for. */
+/* The week a team is spoken for. One width for every badge, wide enough for
+   the last week of the season: sized to its own text, W1 and W18 were three
+   pixels different and the ranks behind them stopped lining up down the
+   chart. The floor is the widest two-digit badge measured in the display face,
+   and the text is centred in it rather than pushed left. */
 .bench__week {
   height: 20px;
+  min-width: 34px;
   padding: 0 6px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   border-radius: 3px;
   font-family: var(--font-display);
   font-weight: 900;

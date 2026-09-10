@@ -22,6 +22,7 @@ export default [
         Worker: "readonly",
         CloseWatcher: "readonly",
         performance: "readonly",
+        PerformanceObserver: "readonly",
         navigator: "readonly",
         process: "readonly",
         URL: "readonly",

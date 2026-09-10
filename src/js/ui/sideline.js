@@ -186,7 +186,7 @@ function rowMarkup(pick, option, canPick) {
             ${canPick && (!option.disabled || option.isCurrent) ? "" : "disabled"}
             ${current}>
       <span class="sideline__team">
-        <span class="sideline__name">${locked || held ? LOCK_ICON : ""}<span>${escapeHtml(option.team)}</span>${coachMark(option)}</span>
+        <span class="sideline__name">${locked || held ? LOCK_ICON : ""}<span class="sideline__team-name">${escapeHtml(option.team)}</span>${coachMark(option)}</span>
         <span class="sideline__matchup">${escapeHtml(formatMatchup(option.site, option.opponent))}</span>
       </span>
       ${line(option)}

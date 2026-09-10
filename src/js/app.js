@@ -1496,22 +1496,137 @@ function callTheStartupLine() {
   el.startupStatus.textContent = STARTUP_LINES[Math.floor(Math.random() * STARTUP_LINES.length)];
 }
 
-/** Keep quick cached loads on screen long enough for the startup play to read. */
-function startupMinimum() {
-  const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 900;
-  return new Promise((resolve) => setTimeout(resolve, duration));
+/**
+ * Where in the play the layer is handed over, as a fraction of one cycle.
+ *
+ * The keyframes are in motion.css: the ball is at the far end at 68%, holds
+ * there, and everything begins to fade at 84%. That last beat is the one to
+ * leave on - the throw has been made and landed, and the fade the play was
+ * about to do is done by the layer instead.
+ */
+const PLAY_LANDED = 0.84;
+
+/** How long the handoff takes: the layer fading out over the board rising in. */
+const HANDOFF_MS = 500;
+
+/** Every animation the startup play is made of, the route's own included. */
+function startupPlays() {
+  if (!el.startup || !document.getAnimations) return [];
+  return document
+    .getAnimations()
+    .filter((play) => el.startup.contains(play.effect?.target ?? null));
+}
+
+/** How long one cycle of the play lasts, as the animation itself reports it. */
+function playCycle(play) {
+  return Number(play?.effect?.getComputedTiming?.().duration) || 0;
+}
+
+/** Whether the browser has reported putting anything on screen yet. */
+function hasPainted() {
+  return performance.getEntriesByType("paint").length > 0;
+}
+
+/**
+ * The first paint, or as near as the browser will admit to one.
+ *
+ * Chrome and Firefox report it, so the entry itself is what is waited on.
+ * Safari does not, and there two animation frames is the soonest the page can
+ * have drawn. Either way the wait is bounded: a launch straight into a
+ * background tab may never paint at all, and that must not leave the board
+ * behind a startup screen nobody is looking at.
+ */
+function firstPaint(ceiling) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ceiling);
+    const done = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    if (PerformanceObserver.supportedEntryTypes?.includes("paint")) {
+      const observer = new PerformanceObserver(() => {
+        observer.disconnect();
+        done();
+      });
+      observer.observe({ type: "paint", buffered: true });
+      return;
+    }
+    requestAnimationFrame(() => requestAnimationFrame(done));
+  });
+}
+
+/**
+ * Hold the pre-game play at its first frame until the page is on screen, and
+ * hand back the play itself, which is the clock everything after this is timed
+ * against.
+ *
+ * The play is a CSS animation, so its clock starts the moment the stylesheets
+ * apply - and that is well before anything is painted. The fonts arrive from
+ * Google, and a stylesheet still on the way blocks both the first paint and
+ * this module; an installed app opens behind the system's own splash screen on
+ * top of that. Measured on a warm launch, the throw was three hundred
+ * milliseconds in before the screen showed anything, and a slow one can spend
+ * the whole cycle behind a blank screen: what the launch then hands over is
+ * the tail of a play nobody saw, which is why it read as snapping to the end
+ * of the animation and putting the board up immediately after.
+ *
+ * So the play is paused at nought - where the ball has not been thrown yet -
+ * and released on the first paint. Nothing has been drawn when it is wound
+ * back, so there is nothing to see in the winding.
+ *
+ * Under reduced motion there is no animation to hold (base.css) and this finds
+ * none: the null it hands back is what turns the floor below off.
+ */
+async function startTheStartupPlay() {
+  const plays = startupPlays();
+  const play = plays.find((entry) => entry.animationName === "startup-throw") ?? plays[0] ?? null;
+  if (!play || hasPainted()) return play;
+  for (const entry of plays) {
+    entry.pause();
+    entry.currentTime = 0;
+  }
+  const cycle = playCycle(play);
+  await firstPaint(cycle || HANDOFF_MS);
+  for (const entry of plays) entry.play();
+  return play;
+}
+
+/**
+ * Keep the startup layer up until the first throw of the play has landed.
+ *
+ * The floor is read off the play's own clock rather than kept on a stopwatch
+ * beside it, so the handoff falls on the beat however long the loading took.
+ * The first throw is the only one worth holding the layer for: past that beat
+ * the play has already been watched - a slow launch, or a first run that
+ * stopped to ask for a name - and waiting on the next throw would be a wait of
+ * its own, so the board goes straight up.
+ */
+function playToTheBeat(play) {
+  const cycle = playCycle(play);
+  if (!cycle) return Promise.resolve();
+  const beat = cycle * PLAY_LANDED;
+  // The clock counts every cycle the play has run, not the one it is in.
+  const elapsed = Number(play.currentTime ?? 0);
+  if (elapsed >= beat) return Promise.resolve();
+  return new Promise((resolve) => setTimeout(resolve, beat - elapsed));
 }
 
 /** Hand the fully rendered board over from the startup layer. */
 async function finishStartup() {
   if (!el.startup) return;
   if (el.startupStatus) el.startupStatus.textContent = "Board ready";
+  // The play is stopped where it stands rather than left running under the
+  // fade. On the beat it is stopped on the ball is already still, at the far
+  // end; anywhere else - a launch slow enough to have looped - a cycle that
+  // wrapped round mid-fade threw the ball back to the near end and re-drew the
+  // route across a layer on its way out, which is a snap of its own.
+  for (const play of startupPlays()) play.pause();
   el.startup.classList.add("is-ready");
   // Reveal the board beneath the fading layer, making this one handoff rather
   // than a blank beat followed by a second entrance.
   document.body.classList.remove("is-starting");
 
-  const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 420;
+  const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : HANDOFF_MS;
   await new Promise((resolve) => setTimeout(resolve, duration));
   el.startup.hidden = true;
 }
@@ -1563,11 +1678,11 @@ async function openFromHash() {
 
 async function main() {
   callTheStartupLine();
-  // Started here, at the top, and awaited at the bottom. This is a floor under
-  // how long the startup play is on screen, and it used to be started after
-  // everything had loaded - which made it nine hundred milliseconds added to
-  // every launch rather than nine hundred the launch had to fill.
-  const minimum = startupMinimum();
+  // Started here, at the top, and awaited at the bottom: the play is held at
+  // its first frame until the page is on screen, and it is what says when the
+  // layer has been up long enough. Not awaited here - the loading below has no
+  // reason to wait on the first paint.
+  const play = startTheStartupPlay();
   // Every visit begins in the first sport's palette, which is what the start
   // screen and the home page wear before any league is open.
   applyTheme(null);
@@ -1598,7 +1713,7 @@ async function main() {
     renderHomeView();
   }
 
-  await minimum;
+  await playToTheBeat(await play);
   await finishStartup();
   startClock();
   registerServiceWorker();

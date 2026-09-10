@@ -30,7 +30,7 @@
  * store.
  */
 
-import { formatPercent, timeAgo, escapeHtml } from "../core/format.js";
+import { formatPercent, escapeHtml } from "../core/format.js";
 import { formatDuration } from "../core/refresh.js";
 
 /** How long the season number wears the colour of its change (see motion.css). */
@@ -238,16 +238,16 @@ function weekMark(week) {
 function stats(board) {
   const items = [];
 
-  // The lines the board is priced off: how long until they are pulled again,
-  // and how old the ones showing are. It holds the slot the week used to -
-  // the field above already says which week the ball is on - and it holds it
-  // through a preview too, because a pick being weighed is exactly when the
-  // age of the numbers behind it is worth knowing. The countdown is ticked in
-  // place by app.js rather than re-rendered.
+  // How long until the lines are pulled again. It holds the slot the week used
+  // to - the field above already says which week the ball is on - and it holds
+  // it through a preview too. The key says what the number is counting down to,
+  // so the number is left to be a number: how old the lines showing are used to
+  // sit beside it and was one reading too many for a readout this size. The
+  // countdown is ticked in place by app.js rather than re-rendered.
   items.push(
     stat(
-      "Lines",
-      `<span id="countdown">${escapeHtml(formatDuration(board.nextRefreshAt - Date.now()))}</span> · ${escapeHtml(timeAgo(board.updatedAt))}`,
+      "Lines pull in",
+      `<span id="countdown">${escapeHtml(formatDuration(board.nextRefreshAt - Date.now()))}</span>`,
       "",
       true,
     ),
