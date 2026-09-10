@@ -516,8 +516,14 @@
 .home__sheet {
   width: min(460px, calc(100vw - 32px));
   /* Dynamic viewport units, so the panel shrinks with the keyboard instead
-     of hiding under it; the form inside scrolls. */
-  max-height: min(86dvh, 760px);
+     of hiding under it; the form inside scrolls.
+
+     92dvh rather than 86: the rules sheet is as tall as its longest control,
+     the row of weeks a buy back can cover, and at 86 the last row of an
+     18-week season fell under the fold - a set of weeks you have to scroll to
+     see the end of is not a set you can read at a glance. What is left either
+     side is still enough to say the board is behind this. */
+  max-height: min(92dvh, 820px);
   padding: 0;
   border: 1.5px solid var(--line-strong);
   border-radius: var(--radius-lg);
@@ -569,7 +575,7 @@
    as three things rather than one list with a header. */
 .settings__head {
   position: relative;
-  padding: var(--sp-5) var(--sp-5) var(--sp-5);
+  padding: var(--sp-4) var(--sp-5);
   border-bottom: var(--dash);
 }
 
@@ -591,7 +597,7 @@
 
 .settings__label {
   display: block;
-  margin: var(--sp-4) 0 6px;
+  margin: var(--sp-3) 0 5px;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 11px;
@@ -670,10 +676,14 @@
   color: var(--danger);
 }
 
+/* The sides stay at --sp-5 while the rows close up: the width of this box is
+   what decides how many week pills fit on a line, and taking it in would
+   trade the row of weeks a shorter sheet was meant to fit for another line of
+   them. */
 .settings__body {
   display: grid;
-  gap: var(--sp-5);
-  padding: var(--sp-5);
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
   overflow-y: auto;
 }
 
@@ -788,7 +798,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  padding: var(--sp-4) var(--sp-5) calc(var(--sp-5) + env(safe-area-inset-bottom));
+  padding: var(--sp-3) var(--sp-5) calc(var(--sp-4) + env(safe-area-inset-bottom));
   border-top: var(--dash);
 }
 
@@ -807,7 +817,7 @@
 .settings__danger {
   display: grid;
   gap: 8px;
-  margin-top: var(--sp-5);
+  margin-top: var(--sp-4);
 }
 
 /* The two of them, halves of the row: the same size whatever they are called,
