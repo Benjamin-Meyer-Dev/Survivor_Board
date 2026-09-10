@@ -124,15 +124,33 @@ than drifts; the home page's own three follow the same beat. Tap to settled is
 under 400ms either way, and the first band is readable inside 200.
 
 Opening a league overlaps the halves - the home page leaves while the league's
-files load, so the wait is spent on the part of the move that can be shown. A
-whole board arriving is a page change and comes in as one; a switch between one
-league's pools is not, and there `playSwitch` moves only the readout and the
-drawer, because the picker that was just tapped is in the topline and should
-stay solid. `RECOMMEND_DELAY_MS` is the arrival's own length rather than a
-number of its own: the season search freezes the main thread, an animation
-caught half way through by that jumps rather than resumes, and a shorter
-arrival should mean a plan that lands sooner rather than two constants drifting
-apart.
+files load, so the wait is spent on the part of the move that can be shown -
+but the screens only change over once there is a board to put up. An open is
+`loadLeague` then `paintLeague`: the first waits on the season's files and the
+pool's row and touches nothing on screen, the second unhides the board, stamps
+the pool's colours and paints it, in one task. The board used to be unhidden
+before any of that, so every round trip of the load was spent looking at an
+empty one in the new league's colours, which is what made the step read as
+slow. What is left of the wait is mostly gone too: the home page reads the
+season files for the leagues it lists while it is the screen (`warmBoardData`),
+so the tap finds them answered.
+
+A whole board arriving is a page change and comes in as one; a switch between
+one league's pools is not, and there `playSwitch` moves only the readout and
+the drawer, because the picker that was just tapped is in the topline and
+should stay solid. Either way the plan is part of the arrival rather than a
+change on top of it: a board opens before its season search has landed, and
+until it does, `app.arriving` keeps the data settle off the board (the same
+rule that already held behind the startup layer). Settled a second time, the
+whole page read as playing its entrance twice a beat after it finished.
+
+Where the search has a worker to run on, the opening build hands it off
+itself, so the plan lands about a third of a second sooner and the board is
+built twice per open rather than three times. Without one it is deferred by
+`RECOMMEND_DELAY_MS`, which is the arrival's own length rather than a number of
+its own: the search freezes the main thread, an animation caught half way
+through by that jumps rather than resumes, and a shorter arrival should mean a
+plan that lands sooner rather than two constants drifting apart.
 
 Colour is the one thing that does not come off the board: `app.js` stamps
 `data-league` on the root element and `src/css/leagues.css` redefines the
@@ -200,11 +218,11 @@ Two different things, deliberately kept apart:
 
 The coach names twice what a week needs, ranked (`COACH_DEPTH`): the NFL pool's
 one pick a week gets a first and a second choice, the college pool's two picks
-get four. The calls fill the slots; under them sits the coach's
-next, which is whatever the coach ranks that the slots are not showing - the
-fallbacks behind the calls on an untouched week, and the call you passed over
-on a week holding a pick of your own. The team list numbers every one of them:
-filled for a call, dashed for a fallback.
+get four. The calls fill the slots, and the whole ranking - calls and fallbacks
+alike - is numbered on the team list, `COACH #1` down, each in the same tag.
+The list is the only place it shows: a row you can tap is the right place to
+put a name the coach is offering, and a second copy under the card cost the
+drawer a row to say the same thing twice.
 
 A fallback is not "the next biggest favourite this week", which in a survivor
 pool is nearly meaningless. It is what the whole rest of the season does when
@@ -707,8 +725,9 @@ week for what it holds. Under the field runs the drive line, saying how fresh
 the lines are, what the pool forgives, what a pick being weighed would do, and
 how far the season is from the end zone. Then the call (`ui/call.js`): the week
 being looked at with the one action as a mark at the end of its first row, then
-its slot or slots, and under them the coach's next - the fallbacks behind the
-calls in those slots, ranked. The bottom
+its slot or slots. The fallbacks behind those calls are not repeated under
+them - they are marked where they can be tapped, on the team list's own rows,
+each carrying the rank the coach gives it. The bottom
 half is the drawer, which takes what is left and scrolls inside itself: the
 sideline (`ui/sideline.js`, every team the active slot could hold), the drive
 (`ui/drive.js`, the season week by week) and the bench (`ui/bench.js`, every

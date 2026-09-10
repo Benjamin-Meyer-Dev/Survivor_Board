@@ -13,10 +13,10 @@
  * season around whatever is locked.
  *
  * The coach names twice what a week needs, ranked (`week.coachRanked`, and
- * `week.coachNext` for the fallbacks behind the calls): one pick a week gets a
- * first and a second choice, two picks a week get four. The order is the
- * engine's (core/recommend.js) - each fallback is the whole season re-planned
- * without the calls above it, not the next name down the week's own list.
+ * `option.coachRank` on each of the week's rows): one pick a week gets a first
+ * and a second choice, two picks a week get four. The order is the engine's
+ * (core/recommend.js) - each fallback is the whole season re-planned without
+ * the calls above it, not the next name down the week's own list.
  *
  * Everything the UI renders is derived from `buildBoard`, including how many
  * picks a week holds and whether a loss can be bought back. No module below
@@ -901,25 +901,6 @@ export function buildBoard({
         option.coachRank = rankByTeam.get(option.team) ?? null;
       }
     }
-
-    // What is left of the coach's board once the slots have had their say: one
-    // entry per slot still open, so the row never runs longer than the week is
-    // deep. Whatever a slot is showing comes out of it - the call pencilled
-    // into an open slot, and the team a user has put in one - because the row
-    // is what the card is not already saying. So an untouched week shows the
-    // fallbacks behind its calls, and a week holding a pick of your own shows
-    // the call you passed over, which is the same question answered from the
-    // other side.
-    const inSlots = new Set(
-      week.picks.flatMap((pick) => {
-        const shown = pick.team ?? pick.suggestion?.team;
-        return shown ? [shown] : [];
-      }),
-    );
-    const openSlots = week.picks.filter((pick) => !pick.status.locked).length;
-    week.coachNext = week.coachRanked
-      .filter((option) => !inSlots.has(option.team))
-      .slice(0, openSlots);
 
     // What the slot holds on the season path: the users' team if there is one,
     // else the coach's suggestion. `kind` tells the UI how solid to draw it.

@@ -99,13 +99,8 @@ for (const week of empty.weeks.filter((entry) => entry.week >= empty.currentWeek
     week.recommended.map((option) => option.team),
     `week ${week.week}: the calls in the slots are the top of the list`,
   );
-  assert.deepEqual(
-    week.coachNext.map((option) => option.team),
-    ranked.slice(open).map((option) => option.team),
-    `week ${week.week}: what is next is the list behind the calls`,
-  );
   assert.ok(
-    week.coachNext.every((option) => !option.result && !option.disabled),
+    ranked.slice(open).every((option) => !option.result && !option.disabled),
     `week ${week.week}: the coach never falls back on a game that cannot be taken`,
   );
   // The team list is the other place the ranking shows, and the two must agree
@@ -194,24 +189,18 @@ assert.ok(
   pickedSlot.options.some((option) => option.isCoach && option.team === coachTeam),
   "the coach's call stays badged while a different team is picked",
 );
-// The row under the slots is whatever the coach ranks that the slots are not
-// showing. With a team of your own in the only slot, that is the call you
-// passed over - the same question as a fallback, asked from the other side -
-// and never the team already sitting in the slot.
+// And the ranking behind it stands: a pick of your own is not a re-plan, so
+// the coach's board for the week is the one it was, rank for rank, and the
+// team list still badges the call that was passed over as the first of them.
 assert.deepEqual(
-  picked.weeks[0].coachNext.map((option) => option.rank),
-  [1],
-  "a pick of your own brings the coach's own call into the row, at its rank",
+  picked.weeks[0].coachRanked.map((option) => `${option.rank}:${option.team}`),
+  empty.weeks[0].coachRanked.map((option) => `${option.rank}:${option.team}`),
+  "a pick of your own leaves the coach's ranking where it was",
 );
-assert.equal(picked.weeks[0].coachNext[0].team, coachTeam);
-assert.ok(
-  picked.weeks[0].coachNext.every((option) => option.team !== pending),
-  "and never offers back the team the slot is holding",
-);
-assert.deepEqual(
-  empty.weeks[0].coachNext.map((option) => option.team),
-  empty.weeks[0].coachRanked.slice(1).map((option) => option.team),
-  "with the slot on the coach's own call, the row is the fallbacks behind it",
+assert.equal(
+  pickedSlot.options.find((option) => option.team === coachTeam)?.coachRank,
+  1,
+  "the call you passed over is still badged first in the team list",
 );
 
 // The preview says what locking would do. The rest of the season is re-solved
@@ -256,7 +245,6 @@ assert.equal(lockedSlot.status.result, "W", "locked picks receive feed results")
 // coach ranks nothing for the week. A fallback behind a decision already taken
 // is not advice.
 assert.deepEqual(locked.weeks[0].coachRanked, [], "a fully locked week is ranked no calls");
-assert.deepEqual(locked.weeks[0].coachNext, [], "and has nothing behind them");
 assert.ok(
   locked.weeks[0].picks[0].options.every((option) => option.coachRank === null),
   "and no row of its list wears a rank",
@@ -493,7 +481,7 @@ assert.equal(out.recommendationPending, false, "review waits on no search");
 assert.deepEqual(out.recommendation.picks, {}, "the coach stands down in review");
 assert.equal(out.weeks[fatal].picks[0].suggestion, null, "no suggestion for a week never played");
 assert.ok(
-  out.weeks.every((week) => week.coachRanked.length === 0 && week.coachNext.length === 0),
+  out.weeks.every((week) => week.coachRanked.length === 0),
   "and nothing ranked either: in review the coach has stood down",
 );
 assert.equal(out.weeks[fatal - 1].picks[0].status.result, "L");

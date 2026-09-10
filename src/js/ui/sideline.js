@@ -2,9 +2,10 @@
  * The sideline: every team the slot could hold this week.
  *
  * The drawer's first panel, for the week being looked at and the slot the
- * call has active. The coach's calls carry a tag numbered with where the coach
- * ranks them, the fallbacks behind them the same tag unfilled, and those tags
- * are the whole of how the coach steers a pick. A locked slot keeps its list
+ * call has active. Every team the coach ranks for the week carries a tag
+ * numbered with where it sits - the calls first, the fallbacks behind them -
+ * and those tags are the whole of how the coach steers a pick, here and
+ * nowhere else on the board. A locked slot keeps its list
  * to read - the week's other lines are still worth a look - but nothing in it
  * can be tapped until the slot is unlocked.
  *
@@ -28,15 +29,14 @@ const LOCK_ICON = `<span class="sideline__lock" role="img" aria-label="Locked in
 /**
  * The coach's mark on a row, carrying where the coach ranks the team this week
  * (core/plan.js, option.coachRank): the calls the week would take, then the
- * fallbacks behind them. A fallback is drawn dashed and unfilled - it is not
- * the call, and the two must never read alike - and the number is the whole of
- * what separates them, so a screen reader is told the rank in words.
+ * fallbacks behind them. The number is the whole of the ranking - every mark
+ * is the same flag-coloured tag, so the list reads as one ordered board rather
+ * than as two kinds of advice - and a screen reader is told the rank in words.
  */
 function coachMark(option) {
   if (!option.coachRank) return "";
-  const call = option.isCoach;
-  return `<span class="sideline__coach${call ? "" : " sideline__coach--next"}" aria-hidden="true">Coach ${option.coachRank}</span>
-    <span class="u-visually-hidden">${call ? "The coach's call" : `The coach's number ${option.coachRank} choice`}</span>`;
+  return `<span class="sideline__coach" aria-hidden="true">Coach #${option.coachRank}</span>
+    <span class="u-visually-hidden">${option.isCoach ? "The coach's call" : `The coach's number ${option.coachRank} choice`}</span>`;
 }
 
 /**

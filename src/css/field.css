@@ -97,12 +97,6 @@ body::after {
   text-decoration-thickness: 1.5px;
 }
 
-/* The fallbacks behind the calls are pencilled in too: the chalk dash the
-   rectangle ships with, taken over in the flag's colour. */
-.call__alt {
-  border-color: color-mix(in srgb, var(--flag) 55%, transparent);
-}
-
 /* --- the drawer as a chalkboard ------------------------------------------- */
 
 .drawer {

@@ -1428,87 +1428,6 @@
   color: var(--chalk-2);
 }
 
-/* The coach's next, under the slots: what the week would take behind the calls
-   in them, one per slot still open and numbered with its rank. Quiet chalk
-   rectangles - advice, not a pick - laid out on one row with the key, and
-   wrapping to a second only where a phone cannot hold both. */
-.call__next {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  gap: 6px 8px;
-}
-
-.call__next-key {
-  display: flex;
-  align-items: center;
-  flex: none;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--flag);
-}
-
-.call__alt {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1 1 130px;
-  min-width: 0;
-  padding: 4px 8px;
-  border: var(--dash);
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--chalk);
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
-  transition: background-color 0.16s ease;
-}
-
-.call__alt:hover:not(:disabled) {
-  background: var(--flag-soft);
-}
-
-.call__alt:disabled {
-  cursor: default;
-}
-
-/* Where the coach ranks it. A figure on its own, so the row needs no words to
-   say what it is once the key beside it has. */
-.call__alt-rank {
-  flex: none;
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-size: 15px;
-  line-height: 1;
-  color: var(--flag);
-}
-
-/* The name gives way before the numbers do: a spread nobody can read is worse
-   than a name cut short, and the whole point of the row is the comparison. */
-.call__alt-team {
-  flex: 1 1 auto;
-  min-width: 0;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 14px;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.call__alt-line {
-  flex: none;
-  font-family: var(--font-mono);
-  font-weight: 600;
-  font-size: 12px;
-}
-
 /* One confidence language everywhere a single game's number appears. */
 .confidence--safe {
   --confidence-color: var(--safe);
@@ -1805,6 +1724,9 @@
 }
 
 /* The coach's call, as a small flag on the name. */
+/* Where the coach ranks the row, filled in the flag's colour whatever the
+   rank: the number is the ranking, and a second style for the fallbacks only
+   made the list read as two boards instead of one. */
 .sideline__coach {
   display: inline-flex;
   align-items: center;
@@ -1818,16 +1740,8 @@
   font-weight: 900;
   font-size: 11px;
   letter-spacing: 0.1em;
+  text-transform: uppercase;
   flex: none;
-}
-
-/* A fallback the coach ranks behind its calls: the same tag, unfilled and
-   dashed. The week would take the filled ones; these are what it would take
-   instead, and the two must never read alike. */
-.sideline__coach--next {
-  border-style: dashed;
-  background: none;
-  color: var(--flag);
 }
 
 .sideline__lock {

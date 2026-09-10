@@ -15,7 +15,7 @@
 import { CONFIG } from "./config.js";
 import { POOL_KINDS, KIND_IDS, resolveSport, normaliseKinds } from "./sports.js";
 import { buildBoard, slotKey, sameEntry, searchesSettled } from "./core/plan.js";
-import { onSearchSettled } from "./core/search.js";
+import { onSearchSettled, searchRunner } from "./core/search.js";
 import { useWorkerForSearch } from "./worker-search.js";
 import { createStore } from "./store/index.js";
 import {
@@ -119,6 +119,13 @@ const app = {
   unsubscribe: null,
   switching: false,
   recommendTimer: null,
+  /**
+   * Whether the board on screen is still arriving: opened, but painted before
+   * its season plan landed. Until the plan is in, a render is the rest of the
+   * board turning up rather than the board changing, and must not be settled
+   * in a second time on top of the entrance (see playDataUpdates).
+   */
+  arriving: false,
 };
 
 /** Which keyframe an action should play on the slot it changed. */
@@ -270,6 +277,30 @@ function settlePages() {
 const ME = myId();
 
 /**
+ * Every file a board reads, in the order loadLeague unpacks them, and how many
+ * of them it cannot open without. The first five are the season itself; the
+ * rest each have a default (see loadLeague), and two of them do not exist for
+ * most pools.
+ *
+ * One list, because the home page warms the same files it will need a tap
+ * later (warmBoardData) and a second copy of it would drift.
+ */
+const BOARD_FILES = [
+  "plan.json",
+  "teams.json",
+  "odds.json",
+  "schedule.json",
+  "ratings.json",
+  "form.json",
+  "calibration.json",
+  "availability.json",
+  "pool.json",
+];
+
+/** How many of BOARD_FILES a board cannot open without. */
+const BOARD_FILES_REQUIRED = 5;
+
+/**
  * The files a season is described by, which do not change while the app is
  * open: the calendar, the roster, the fixtures, the ratings it shipped with and
  * the fitted model. Read once per sport and held for the session.
@@ -299,7 +330,7 @@ const files = new Map();
  * bundler inlines the JSON blobs on `globalThis.SURVIVOR_DATA` and this
  * short-circuits. On Pages it fetches, once.
  *
- * Every caller gets its own copy, because openLeague writes the pool's
+ * Every caller gets its own copy, because loadLeague writes the pool's
  * objective into the plan's rules and two pools of one league would otherwise
  * be reading each other's.
  */
@@ -342,6 +373,32 @@ function fetchJson(folder, name) {
     until: SETTLED_FILES.has(name) ? Infinity : Date.now() + FRESH_FOR_MS,
   });
   return request;
+}
+
+/**
+ * Start reading the season files for the sports this device's leagues play,
+ * while the home page is what is on screen.
+ *
+ * Opening a league used to be the first moment any of them was asked for, so
+ * the tap on Open paid for nine round trips before a board could be built -
+ * and the step from the list to the league was that wait with nothing in it.
+ * The home page has nothing else to do and already knows which seasons its
+ * leagues are on, so the fetches go out there and the tap finds them answered.
+ *
+ * Deliberately quiet: this is a head start, not a load. Every failure is the
+ * open's to report, and a file that would not come is asked for again there
+ * (fetchJson drops it from the cache).
+ */
+function warmBoardData() {
+  const sports = new Set(
+    app.leagues.flatMap((league) =>
+      normaliseKinds(league.kinds).map((kind) => POOL_KINDS[kind]?.sport),
+    ),
+  );
+  for (const sport of sports) {
+    if (!sport) continue;
+    for (const name of BOARD_FILES) loadJson(name, sport).catch(() => {});
+  }
 }
 
 let lastBoard = null;
@@ -398,9 +455,17 @@ function captureMotionState() {
  *   just decorated.
  */
 function playDataUpdates(previous, effect = null) {
-  // Nothing to settle while the startup layer still covers the board: the
-  // search filling in behind it is the board arriving, not the board changing.
-  if (previous.size === 0 || app.switching || document.body.classList.contains("is-starting"))
+  // Nothing to settle while the board is still arriving: behind the startup
+  // layer, mid-swap, or opened and waiting on the season plan that finishes
+  // it. In all three the search filling in is the board turning up, not the
+  // board changing - and settled a second time it read as the whole page
+  // playing its entrance twice, a beat after it had finished.
+  if (
+    previous.size === 0 ||
+    app.switching ||
+    app.arriving ||
+    document.body.classList.contains("is-starting")
+  )
     return;
 
   const skip = new Set(effect?.nodes ?? []);
@@ -474,6 +539,9 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = 
   // to it.
   const effect = playEffect();
   playDataUpdates(previousMotion, effect);
+  // This render is the plan the board opened without: the arrival is complete,
+  // and everything after it is the board changing again.
+  if (!board.recommendationPending) app.arriving = false;
 
   // A search that is already running somewhere else will say when it lands
   // (onSearchSettled in main), so there is nothing to schedule for it.
@@ -694,6 +762,10 @@ function renderHomeView() {
     },
     el.homeSheets,
   );
+
+  // The list is up and the season it is a list of is known: read the files a
+  // board will want, now, rather than on the tap that asks for one.
+  warmBoardData();
 }
 
 /** The home page's list, from this device first and the shared rows after. */
@@ -772,12 +844,17 @@ async function openBoard(code, kind = null, { league: have = null } = {}) {
     const known = have?.code === clean ? have : null;
     const league = known ?? (await leagueByCode(clean));
     if (!league) throw new Error("That league could not be found.");
-    // The rest of the fade, if the league arrived before it finished. A board
-    // that cut in over a half-faded home page would be the jump this is here
-    // to avoid.
-    await left;
-    // Before openLeague, because it ends in the first render of the new board
-    // and a render reads this to decide which screen it is painting.
+    // Both halves of the step, together: the fade out, and the season files
+    // and the pool's row behind it (the home page warms the files, so from a
+    // list that has been up for a moment this is the row alone). Only the
+    // load - nothing is painted yet, and nothing has moved.
+    //
+    // The screens used to change over here, before any of it: the board was
+    // unhidden empty in the new league's colours and filled in whenever the
+    // data arrived, which is the whole of why the step read as slow.
+    await Promise.all([left, loadLeague(league, kind)]);
+    // Before paintLeague, because a render reads this to decide which screen
+    // it is painting.
     app.view = "board";
     // From here a swipe in from the edge of the screen is the board's own
     // gesture rather than the platform's (ui/back.js).
@@ -786,7 +863,11 @@ async function openBoard(code, kind = null, { league: have = null } = {}) {
     el.board.hidden = false;
     el.board.classList.remove("is-page-leaving");
     if (el.leagueBar) el.leagueBar.hidden = false;
-    await openLeague(league, kind);
+    // The swap and the paint in one task, so the board is never on screen
+    // without a board on it. The field measures itself to scroll the open week
+    // into the middle (ui/pitch.js), which is why this follows the unhide
+    // rather than coming before it.
+    paintLeague();
     window.history.replaceState(null, "", leagueHash(league.code, app.kind));
     // The whole board arrives, topline and all: coming from the home page this
     // is a page change, so the thing that rises is the page. playSwitch is for
@@ -861,6 +942,12 @@ function scheduleRecommendation(delay = RECOMMEND_DELAY_MS) {
 function startClock() {
   clearInterval(app.tickTimer);
   app.tickTimer = setInterval(() => {
+    // Only while a board is the screen. The countdown's node outlives the
+    // board being put away - the home page hides the markup rather than
+    // clearing it - so without this the tick went on reading a board nobody
+    // was looking at, and once its refresh slot had passed it asked for a
+    // render a second, on the home page, in the middle of an open.
+    if (app.view !== "board" || app.switching) return;
     const countdown = document.getElementById("countdown");
     if (!countdown || !lastBoard) return;
 
@@ -1152,6 +1239,24 @@ function themeFor(kind) {
  * @param {string|null} [wanted] A kind id.
  */
 async function openLeague(league, wanted = null) {
+  await loadLeague(league, wanted);
+  paintLeague();
+}
+
+/**
+ * The half of an open that waits: the season's files and the pool's row.
+ *
+ * Nothing here touches the screen, which is what lets a caller coming from the
+ * home page hold both pages where they are until there is a board to put up.
+ * The board used to be unhidden before this ran, so every one of these round
+ * trips was spent looking at an empty one - the palette had changed, the
+ * league bar was blank, and the field arrived a moment later. Its own colours
+ * come with it now (paintLeague).
+ *
+ * @param {{code:string, name:string, kinds:string[]}} league
+ * @param {string|null} [wanted] A kind id.
+ */
+async function loadLeague(league, wanted = null) {
   const kinds = normaliseKinds(league.kinds);
   if (kinds.length === 0) kinds.push(KIND_IDS[0]);
   const kind = kinds.includes(wanted) ? wanted : kinds[0];
@@ -1176,25 +1281,20 @@ async function openLeague(league, wanted = null) {
   // failure would be unhandled while that error is on its way out.
   opening.catch(() => {});
 
+  // The five the board cannot open without throw; the four behind them each
+  // have a default and are allowed to be missing. The refresh job's fit to
+  // this season's pulls (form.json) does not exist until the first run that
+  // has something to fit, so a league whose season has not started prices the
+  // weeks ahead off ratings.json instead; then the league's calibrated model
+  // (defaults otherwise), player availability (nothing reported otherwise)
+  // and the pool's numbers (survival mode otherwise).
   const [plan, teams, odds, schedule, ratings, form, calibration, availability, pool] =
-    await Promise.all([
-      loadJson("plan.json", sport),
-      loadJson("teams.json", sport),
-      loadJson("odds.json", sport),
-      loadJson("schedule.json", sport),
-      loadJson("ratings.json", sport),
-      // The refresh job's fit to this season's pulls, and one of the data files
-      // the board can open without. It does not exist until the first run that
-      // has something to fit, so a league whose season has not started is not
-      // an error: the board prices the weeks ahead off ratings.json instead.
-      loadJson("form.json", sport).catch(() => null),
-      // Three more the board can open without: the league's calibrated model
-      // (defaults otherwise), player availability (nothing reported otherwise)
-      // and the pool's numbers (survival mode otherwise).
-      loadJson("calibration.json", sport).catch(() => null),
-      loadJson("availability.json", sport).catch(() => null),
-      loadJson("pool.json", sport).catch(() => null),
-    ]);
+    await Promise.all(
+      BOARD_FILES.map((name, index) => {
+        const request = loadJson(name, sport);
+        return index < BOARD_FILES_REQUIRED ? request : request.catch(() => null);
+      }),
+    );
 
   // The board's defaults are the season's plan played the way this pool was
   // made to be played: the objective is the pool's, fixed with the league, and
@@ -1220,7 +1320,6 @@ async function openLeague(league, wanted = null) {
   const { store, entry } = await opening;
   app.store = store;
   app.entry = entry;
-  themeFor(kind);
   app.unsubscribe = app.store.subscribe((entry) => {
     // A late push from the store we just replaced - another league, or this
     // league's other pool - must not land on this board.
@@ -1230,6 +1329,11 @@ async function openLeague(league, wanted = null) {
     // still playing for the tap that caused it, and play it a second time.
     if (sameEntry(entry, app.entry)) return;
     app.entry = entry;
+    // Held, not painted, when the board is not the screen: between this
+    // subscription and the first paint of the league it belongs to, and for
+    // as long as the person is back on the home page with the league still
+    // open behind it. The next build reads it either way.
+    if (app.view !== "board") return;
     // Paint another user's change immediately, then let the season optimiser
     // catch up after the interaction has settled. Running it inline here made
     // a realtime update feel just as heavy as the original lock/unlock tap.
@@ -1237,13 +1341,29 @@ async function openLeague(league, wanted = null) {
     app.recommendTimer = null;
     render({ search: false, settle: REPLAN_DELAY_MS });
   });
+}
 
-  // Built once and painted. An eliminated entry opens on the week it ended
-  // rather than the week the league is in: the board is a review now, and that
-  // is the page to review. The week it opens on has to be known before the
-  // render, and the render used to build the whole board a second time to
-  // find out.
-  const board = buildBoard({ ...boardInputs(), allowSearch: false });
+/**
+ * And the half that does not wait: the pool's colours and the first paint of
+ * its board, in one task, so nothing of the new league is ever on screen
+ * without the rest of it.
+ *
+ * Built once and painted. An eliminated entry opens on the week it ended
+ * rather than the week the league is in: the board is a review now, and that
+ * is the page to review. The week it opens on has to be known before the
+ * render, and the render used to build the whole board a second time to find
+ * out.
+ *
+ * The season search goes out with this build where there is a worker to run
+ * it on (core/search.js): off the main thread it costs the entrance nothing,
+ * and the board that used to be rebuilt a quarter of a second later purely to
+ * ask for it now asks on the way up. Without a worker the search would freeze
+ * the arrival, so it is deferred as before and this build stands in.
+ */
+function paintLeague() {
+  themeFor(app.kind);
+  app.arriving = true;
+  const board = buildBoard({ ...boardInputs(), allowSearch: Boolean(searchRunner()) });
   if (board.eliminated && board.eliminatedWeek) app.viewWeek = board.eliminatedWeek;
   render({ board });
 }
@@ -1298,9 +1418,9 @@ async function switchPool(kind) {
   renderLeagueBar(el.league, { league: app.league, kind }, BAR_HANDLERS);
   el.shell?.classList.add("is-swapping");
   await twoFrames();
-  // The colour tokens switch inside openLeague. Let the old board finish its
-  // 160ms exit first so borders and badges cannot flash the incoming palette
-  // while they are still visible.
+  // The colour tokens switch with the new board's first paint (paintLeague).
+  // Let the old board finish its 160ms exit first so borders and badges cannot
+  // flash the incoming palette while they are still visible.
   await new Promise((resolve) => setTimeout(resolve, 150));
 
   try {

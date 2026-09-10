@@ -13,14 +13,10 @@
  * coach never fills a slot. In a two-pick week the slot the sideline is filling
  * wears the bracket, and tapping the other hands it the sideline.
  *
- * Under the slots, the coach's next: whatever the coach ranks for the week that
- * the slots are not already showing, one per slot still open and each numbered
- * with its rank (core/plan.js, week.coachNext). On an untouched week that is
- * the fallbacks behind the calls pencilled into the slots; on a week holding a
- * pick of your own it is the call you passed over. Never what a slot is
- * showing: a readout with no rows to spare must not spend one saying the same
- * thing twice. Tapping one puts it in the slot the sideline is filling, exactly
- * as taking the call does.
+ * The fallbacks behind the calls are not repeated here. They are marked where
+ * they can be tapped - on the team list's own rows, each carrying the rank the
+ * coach gives it (ui/sideline.js) - and a readout with no rows to spare must
+ * not spend one saying the same thing twice.
  *
  * Every slot has the same rows in the same order - eyebrow, team, matchup,
  * tiles - so a pick or lock changes what the rows say without moving anything
@@ -97,55 +93,8 @@ export function renderCall(root, board, viewWeek, activeSlot, handlers) {
         <div class="call__slots${two ? " call__slots--two" : ""}">
           ${week.picks.map((pick, index) => slotMarkup(pick, board, two, index === active)).join("")}
         </div>
-        ${nextMarkup(week, active, handlers.canWrite)}
       </div>
     </div>`;
-}
-
-/**
- * The coach's next: what the coach ranks for this week that no slot is showing.
- * A fallback is the whole rest of the season re-planned without the calls above
- * it (core/recommend.js), so it is the team to take instead rather than the next
- * name down the week's list - and it is drawn as advice, dashed and quiet, never
- * the way a pick is drawn.
- *
- * Nothing at all when the slots are already showing all of it: a week whose
- * slots are all locked, a week already played, a season in review, or a plan
- * the coach has not made yet.
- */
-function nextMarkup(week, active, canWrite) {
-  const next = week.coachNext ?? [];
-  if (next.length === 0) return "";
-
-  const signature = next.map((option) => `${option.rank}:${option.team}`).join("|");
-  const alternates = next
-    .map(
-      (option) => `
-      <button type="button" class="call__alt"
-              data-action="pick" data-week="${week.week}" data-slot="${active}"
-              data-team="${escapeHtml(option.team)}"${canWrite ? "" : " disabled"}
-              aria-label="Take the ${escapeHtml(option.team)}, the coach's ${ordinal(option.rank)} choice"
-              title="The coach's ${ordinal(option.rank)} choice. Put it in this slot">
-        <span class="call__alt-rank" aria-hidden="true">${option.rank}</span>
-        <span class="call__alt-team">${escapeHtml(option.team)}</span>
-        <span class="call__alt-line confidence--${option.tier}">${escapeHtml(formatSpread(option.spread))} · ${escapeHtml(formatPercent(option.winProb, 0))}</span>
-      </button>`,
-    )
-    .join("");
-
-  return `
-    <div class="call__next" data-motion-key="next-${week.week}"
-         data-motion-signature="${escapeHtml(signature)}">
-      <span class="call__next-key">Coach’s next</span>
-      ${alternates}
-    </div>`;
-}
-
-/** "1st", "2nd", "3rd", "4th". */
-function ordinal(rank) {
-  const teens = rank % 100 >= 11 && rank % 100 <= 13;
-  const suffix = teens ? "th" : (["th", "st", "nd", "rd"][rank % 10] ?? "th");
-  return `${rank}${suffix}`;
 }
 
 function isNow(week, board) {
