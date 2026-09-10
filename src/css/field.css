@@ -94,7 +94,7 @@ body::after {
 .bench__team--planned .bench__name {
   text-decoration: underline dashed color-mix(in srgb, var(--flag) 70%, transparent);
   text-underline-offset: 0.16em;
-  text-decoration-thickness: 1.5px;
+  text-decoration-thickness: 1px;
 }
 
 /* --- the drawer as a chalkboard ------------------------------------------- */

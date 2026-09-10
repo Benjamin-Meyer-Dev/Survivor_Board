@@ -22,13 +22,13 @@
   gap: 6px;
   height: 22px;
   padding: 0 8px;
-  border: 1.5px solid color-mix(in srgb, var(--tag-fg) 65%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tag-fg) 65%, transparent);
   border-radius: 3px;
   background: color-mix(in srgb, var(--tag-fg) 10%, transparent);
   color: var(--tag-fg);
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -113,7 +113,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 1.5px solid var(--line-strong);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   background: transparent;
   color: var(--chalk);
@@ -220,7 +220,7 @@
 .sideline__filter,
 .gate__input {
   min-width: 0;
-  border: 1.5px solid var(--line);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   background: rgb(4 30 16 / 55%);
   color: var(--chalk);
@@ -312,7 +312,7 @@
   height: 30px;
   max-width: 100%;
   padding: 0 10px;
-  border: 1.5px solid var(--line-strong);
+  border: 1px solid var(--line-strong);
   border-radius: 999px;
   background: none;
   color: var(--chalk);
@@ -336,7 +336,7 @@
   height: 10px;
   border-radius: 50%;
   background: var(--stripes), var(--paint);
-  box-shadow: 0 0 0 1.5px var(--chalk-4);
+  box-shadow: 0 0 0 1px var(--chalk-4);
   flex: none;
   pointer-events: none;
 }
@@ -390,7 +390,7 @@
   margin: 0;
   padding: 6px;
   list-style: none;
-  border: 1.5px solid var(--line-strong);
+  border: 1px solid var(--line-strong);
   border-radius: 12px;
   background: var(--board);
   box-shadow: var(--shadow-lift);
@@ -460,7 +460,7 @@
   flex: none;
   border-radius: 50%;
   background: var(--mark);
-  box-shadow: 0 0 0 1.5px var(--chalk-4);
+  box-shadow: 0 0 0 1px var(--chalk-4);
 }
 
 .league-bar__option-label {
@@ -525,7 +525,7 @@
      side is still enough to say the board is behind this. */
   max-height: min(92dvh, 820px);
   padding: 0;
-  border: 1.5px solid var(--line-strong);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-lg);
   background: var(--board);
   color: var(--chalk);
@@ -591,8 +591,8 @@
 .settings__pool {
   margin-top: 8px;
   color: var(--chalk-3);
-  font-size: 12.5px;
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .settings__label {
@@ -722,7 +722,7 @@
   width: 40px;
   height: 40px;
   padding: 0;
-  border: 1.5px solid var(--line);
+  border: 1px solid var(--line);
   border-radius: 50%;
   background: none;
   color: var(--chalk);
@@ -762,7 +762,7 @@
 
 .settings__week {
   min-height: 38px;
-  border: 1.5px solid var(--line);
+  border: 1px solid var(--line);
   border-radius: 999px;
   background: none;
   color: var(--chalk-2);
@@ -838,8 +838,8 @@
 
 .settings__danger-ask {
   color: var(--chalk-2);
-  font-size: 12.5px;
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 /* the pitch (ui/pitch.js) --------------------------------------------------- */
@@ -1289,7 +1289,7 @@
 /* Two slots: each is a button that hands the sideline to itself. */
 .call__slots--two .call__slot {
   padding: 8px 10px 10px;
-  border: 1.5px solid transparent;
+  border: 1px solid transparent;
   cursor: pointer;
 }
 
@@ -1356,7 +1356,7 @@
 .call__matchup {
   font-size: 13px;
   color: var(--chalk-2);
-  min-height: 1.5em;
+  min-height: 20px;
 }
 
 .call__slots--two .call__matchup {
@@ -1530,7 +1530,7 @@
    lock - chalk for not at all, green for the pick's way, red against it. Tap
    to undo. */
 .call__lock--on {
-  outline: 2.5px solid var(--chalk);
+  outline: 2px solid var(--chalk);
   outline-offset: 2px;
 }
 
@@ -1674,13 +1674,13 @@
 /* The slot's own team, on the flag's tint with a chalk ring. */
 .sideline__row--current {
   background: var(--flag-soft);
-  box-shadow: inset 0 0 0 1.5px var(--flag);
+  box-shadow: inset 0 0 0 1px var(--flag);
 }
 
 /* The locked team's row is painted on, like the slot head. */
 .sideline__row--locked {
   background: var(--lock-bg);
-  box-shadow: inset 0 0 0 1.5px var(--chalk);
+  box-shadow: inset 0 0 0 1px var(--chalk);
 }
 
 .sideline__row--disabled {
@@ -1743,12 +1743,20 @@
 /* Where the coach ranks the row, filled in the flag's colour whatever the
    rank: the number is the ranking, and a second style for the fallbacks only
    made the list read as two boards instead of one. */
+/* The height is the cap height of the name beside it, measured: the display
+   face draws 16.75px of capital at the name's 21px, so 17 is the whole pixel
+   that frames it. A pixel taller and the tag hung a pixel under the name's
+   baseline while stopping level with the caps above - centred on the line by
+   arithmetic, but the baseline is the line the eye reads a row against, so it
+   sat low. Its own lettering is centred either way; it was the rectangle that
+   was too tall, which is why moving the tag up instead only pulled the
+   numbers out of line with the name's. */
 .sideline__coach {
   display: inline-flex;
   align-items: center;
-  height: 18px;
+  height: 17px;
   padding: 0 7px;
-  border: 1.5px solid var(--flag);
+  border: 1px solid var(--flag);
   border-radius: 3px;
   background: var(--flag);
   color: var(--on-flag);
@@ -1847,7 +1855,7 @@
   color: var(--chalk-3);
   font-family: var(--font-body);
   font-weight: 400;
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 /* the drive (ui/drive.js) --------------------------------------------------- */
@@ -2029,7 +2037,7 @@
   gap: 8px;
   height: 52px;
   padding: 8px 10px 8px 12px;
-  border: 1.5px solid var(--line-soft);
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius-sm);
   overflow: hidden;
   font-size: 14px;
@@ -2085,7 +2093,7 @@
   border-radius: 3px;
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: 11.5px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   background: var(--flag);
   color: var(--on-flag);
@@ -2124,7 +2132,7 @@
 .bench__team--planned .bench__week {
   background: transparent;
   color: var(--flag);
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--flag) 60%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--flag) 60%, transparent);
 }
 
 /* The key, across the foot: each swatch is a real card in the state it
@@ -2189,13 +2197,13 @@
   gap: 10px;
   min-height: 40px;
   padding: 9px 12px;
-  border: 1.5px solid var(--line);
+  border: 1px solid var(--line);
   border-left: 4px solid var(--chalk-3);
   border-radius: var(--radius-sm);
   background: rgb(10 47 28 / 70%);
   color: var(--chalk-2);
-  font-size: 12.5px;
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .notice--warn {
@@ -2220,7 +2228,7 @@
 .notice__eyebrow {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 11.5px;
+  font-size: 12px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--danger);
@@ -2237,7 +2245,7 @@
 .notice__text {
   margin-top: 5px;
   color: var(--chalk-2);
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 /* home page (ui/home.js) ------------------------------------------------------- */
@@ -2291,7 +2299,7 @@
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 40px;
-  line-height: 0.92;
+  line-height: 0.925;
   letter-spacing: 0.01em;
   text-transform: uppercase;
   overflow-wrap: anywhere;
@@ -2303,7 +2311,7 @@
   align-items: center;
   height: 38px;
   padding: 0 14px;
-  border: 1.5px solid var(--neutral-line);
+  border: 1px solid var(--neutral-line);
   border-radius: 999px;
   background: none;
   color: var(--neutral);
@@ -2345,7 +2353,7 @@
     var(--line-soft) 0 12.5%
   );
   color: var(--chalk-2);
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.5;
   text-align: center;
   text-wrap: balance;
@@ -2455,7 +2463,7 @@
 
 .home__card-people {
   color: var(--chalk-3);
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 .home__card-name {
@@ -2471,8 +2479,8 @@
 .home__card-warn {
   margin: 0;
   color: var(--close);
-  font-size: 12.5px;
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 /* The code, as the ticket stub: chalked in mono, spaced, selectable. */
@@ -2494,7 +2502,7 @@
 .home__code-label {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 10.5px;
+  font-size: 10px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--chalk-3);
@@ -2673,7 +2681,7 @@
   gap: 12px;
   min-height: 44px;
   padding: 0 12px;
-  border: 1.5px solid var(--line-soft);
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition:
@@ -2717,8 +2725,8 @@
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   background: var(--thin-bg);
   color: var(--thin);
-  font-size: 12.5px;
-  line-height: 1.4;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .home__form .home__btn--go {
@@ -2875,7 +2883,7 @@
 
 .startup__status {
   min-height: 1.5em;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 
@@ -3084,7 +3092,7 @@
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 22px;
-  line-height: 1.1;
+  line-height: 24px;
   text-transform: uppercase;
   color: var(--ink);
 }
@@ -3116,14 +3124,14 @@
 .gate__hint {
   margin: 0;
   color: var(--ink-3);
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
 .gate__error {
   margin: 0;
-  min-height: 1.3em;
-  font-size: 12.5px;
+  min-height: 16px;
+  font-size: 12px;
   color: var(--danger);
 }
 
@@ -3139,7 +3147,7 @@
   }
 
   .notice {
-    font-size: 13.5px;
+    font-size: 14px;
   }
 }
 

@@ -96,7 +96,7 @@ button {
   text-transform: uppercase;
   letter-spacing: 0.16em;
   font-size: 12px;
-  line-height: 1.2;
+  line-height: 1.25;
   color: var(--chalk-3);
 }
 
