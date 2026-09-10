@@ -18,9 +18,11 @@
 
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { buildBoard, lineKey, slotKey } from "../src/js/core/plan.js";
+import { buildBoard, lineKey, slotKey, searchesSettled } from "../src/js/core/plan.js";
 import { CONFIG } from "../src/js/config.js";
 import { confidenceTier, TIER_LABEL } from "../src/js/core/probability.js";
+import { recommendPath } from "../src/js/core/recommend.js";
+import { setSearchRunner } from "../src/js/core/search.js";
 
 const readJson = async (name) =>
   JSON.parse(await readFile(new URL(`../data/nfl/${name}`, import.meta.url), "utf8"));
@@ -29,7 +31,7 @@ const [plan, odds, teams, schedule, ratings] = await Promise.all(
   ["plan.json", "odds.json", "teams.json", "schedule.json", "ratings.json"].map(readJson),
 );
 
-const build = (entry, sourceOdds = odds) =>
+const build = (entry, sourceOdds = odds, allowSearch = true) =>
   buildBoard({
     plan,
     odds: sourceOdds,
@@ -38,6 +40,7 @@ const build = (entry, sourceOdds = odds) =>
     ratings,
     entry,
     refreshSchedule: CONFIG.refresh,
+    allowSearch,
   });
 
 const nothing = () => ({ picks: {}, swaps: {} });
@@ -227,6 +230,39 @@ assert.ok(
   lockedPending.pathProbability - picked.previewPathProbability < 0.002,
   `"if locked" (${picked.previewPathProbability}) says what the lock produces (${lockedPending.pathProbability})`,
 );
+assert.equal(
+  picked.previewPending,
+  false,
+  "with nowhere to hand a search, the assignment is the preview",
+);
+
+// Where there is somewhere to run a search off the main thread - the browser's
+// worker - the preview is the lock rehearsed: the full search, run around the
+// pick as if it were locked and kept under the key the locked board will have.
+// "If locked" is then the number the lock produces, to the digit, and the lock
+// is answered from the rehearsal with no search owed. The quick assignment
+// stands in until the rehearsal lands.
+const rehearsedTeam = notTheCoachs[2].team;
+const weighing = { picks: {}, swaps: { [key]: rehearsedTeam } };
+setSearchRunner((request) => Promise.resolve(recommendPath(request)));
+let rehearsing = build(weighing, withFeedResult);
+assert.equal(rehearsing.previewPending, true, "the rehearsal is out and the assignment stands in");
+assert.equal(typeof rehearsing.previewPathProbability, "number", "the stand-in has a number");
+await searchesSettled({ rehearsals: true });
+rehearsing = build(weighing, withFeedResult);
+assert.equal(rehearsing.previewPending, false, "the rehearsal has landed");
+setSearchRunner(null);
+const rehearsedLock = build(
+  { picks: { [key]: { locked: true } }, swaps: { [key]: rehearsedTeam } },
+  withFeedResult,
+  false,
+);
+assert.equal(rehearsedLock.recommendationPending, false, "the lock is answered from the rehearsal");
+assert.equal(
+  rehearsing.previewPathProbability,
+  rehearsedLock.pathProbability,
+  '"if locked" is the number the lock then shows',
+);
 
 // Locking commits: the team is spent, the final lands, and the coach plans the
 // rest of the season around it.
@@ -242,12 +278,52 @@ assert.equal(locked.spentCount, 1, "a locked pick spends its team");
 assert.equal(locked.spentTeams[other], first.week);
 assert.equal(lockedSlot.status.result, "W", "locked picks receive feed results");
 // One pick a week, and it is committed: there is no call left to make, so the
-// coach ranks nothing for the week. A fallback behind a decision already taken
-// is not advice.
-assert.deepEqual(locked.weeks[0].coachRanked, [], "a fully locked week is ranked no calls");
+// coach ranks nothing live for the week - a fallback behind a decision already
+// taken is not advice - and the list keeps the board the decision was taken on
+// instead. This lock saved the call alone (an entry from before the ranking was
+// kept with a lock), so the call is the one rank the week can vouch for.
+assert.deepEqual(
+  locked.weeks[0].coachRanked.map((option) => `${option.rank}:${option.team}`),
+  [`1:${coachTeam}`],
+  "a fully locked week keeps the coach's call as its first choice",
+);
+assert.equal(
+  locked.weeks[0].picks[0].options.find((option) => option.team === coachTeam)?.coachRank,
+  1,
+  "and the team list badges it",
+);
 assert.ok(
-  locked.weeks[0].picks[0].options.every((option) => option.coachRank === null),
-  "and no row of its list wears a rank",
+  locked.weeks[0].picks[0].options
+    .filter((option) => option.team !== coachTeam)
+    .every((option) => option.coachRank === null),
+  "and nothing else in it wears a rank",
+);
+// A lock made from the board carries the week's ranking as it stood (app.js),
+// and the list keeps it rank for rank: the badges a pick was weighed against
+// do not vanish when it is locked, and the lock itself keeps whatever rank the
+// coach gave it - none, if the coach never ranked it.
+const ranking = empty.weeks[0].coachRanked.map((option) => option.team);
+const kept = build(
+  {
+    picks: { [key]: { locked: true, coachTeam, coachRanked: ranking, at: 1 } },
+    swaps: { [key]: other },
+  },
+  withFeedResult,
+);
+assert.deepEqual(
+  kept.weeks[0].coachRanked.map((option) => `${option.rank}:${option.team}`),
+  empty.weeks[0].coachRanked.map((option) => `${option.rank}:${option.team}`),
+  "a locked week keeps the ranking it was locked on",
+);
+assert.equal(
+  kept.weeks[0].picks[0].options.find((option) => option.team === ranking[1])?.coachRank,
+  2,
+  "the coach's second choice is still badged second in the team list",
+);
+assert.equal(
+  kept.weeks[0].picks[0].options.find((option) => option.team === other)?.coachRank,
+  ranking.indexOf(other) + 1 || null,
+  "the lock wears the rank the coach gave it, or none",
 );
 assert.ok(
   locked.weeks
@@ -481,8 +557,13 @@ assert.equal(out.recommendationPending, false, "review waits on no search");
 assert.deepEqual(out.recommendation.picks, {}, "the coach stands down in review");
 assert.equal(out.weeks[fatal].picks[0].suggestion, null, "no suggestion for a week never played");
 assert.ok(
-  out.weeks.every((week) => week.coachRanked.length === 0),
+  out.weeks.filter((week) => week.week !== fatal).every((week) => week.coachRanked.length === 0),
   "and nothing ranked either: in review the coach has stood down",
+);
+assert.deepEqual(
+  out.weeks[fatal - 1].coachRanked.map((option) => option.team),
+  out.weeks[fatal - 1].recommended.map((option) => option.team),
+  "but the week the run ended on keeps the call it was decided against, as history",
 );
 assert.equal(out.weeks[fatal - 1].picks[0].status.result, "L");
 
@@ -728,6 +809,7 @@ console.log(
   "Board state OK: slots are user-picked, coach plans stay advisory, locks own burns and results, " +
     "a played game leaves its week's menu and any unlocked pick on it, a week short of games " +
     "holds one pick, the other slot's lock shows in the list, a pending pick previews the season its lock would give, " +
-    "the coach ranks twice what a week needs and the team list agrees to the number, " +
+    "the coach ranks twice what a week needs and the team list agrees to the number, a lock keeps the ranks it was made on, " +
+    "a rehearsed lock says its number ahead of time, " +
     "a fatal loss puts the board in review, and the losers pool mirrors every number and every final.",
 );

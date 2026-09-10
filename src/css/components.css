@@ -102,6 +102,7 @@
 .settings__open,
 .settings__btn,
 .settings__copy,
+.settings__close,
 .home__icon,
 .home__menu-btn,
 .home__btn,
@@ -131,10 +132,9 @@
 }
 
 .btn:hover:not(:disabled),
-.league-bar__back:hover,
-.settings__open:hover,
 .settings__btn:hover:not(:disabled),
 .settings__copy:hover:not(:disabled),
+.settings__close:hover,
 .home__icon:hover,
 .home__menu-btn:hover:not(:disabled),
 .home__btn:hover:not(:disabled) {
@@ -250,84 +250,124 @@
 
 /* topline: league bar (ui/league-bar.js) ----------------------------------- */
 
-/* The way back to every league: a round chalk button with an arrow. */
-.league-bar__back {
-  width: 36px;
-  height: 36px;
+/* The way back to every league, and the gear at the other end of the bar: two
+   chalk glyphs, one at each edge, drawn the same way. Bare rather than ringed
+   - with the pool's pill gone the bar has no outlines at all, so the name
+   between them is what you read and the field's own border below is the first
+   line. The 40px box is the target; the disc it presses into is the only shape
+   the buttons ever show. Hover only where there is a pointer to hover with. */
+.league-bar__back,
+.settings__open {
+  width: 40px;
+  height: 40px;
   padding: 0;
+  border: 0;
   border-radius: 50%;
   flex: none;
+  color: var(--chalk-2);
+}
+
+/* The negative margin sets the glyph itself, not its box, on the field's edge. */
+.league-bar__back {
+  margin-left: -11px;
   font-size: 0;
 }
 
+.league-bar__back:active,
+.settings__open:active {
+  color: var(--chalk);
+  background: rgb(243 247 241 / 10%);
+}
+
+@media (hover: hover) {
+  .league-bar__back:hover,
+  .settings__open:hover {
+    color: var(--chalk);
+    background: rgb(243 247 241 / 8%);
+  }
+}
+
 .league-bar__back svg {
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   fill: none;
   stroke: currentcolor;
-  stroke-width: 2.2;
+  stroke-width: 2.4;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
+/* The league as a title block: its name chalked large across the bar, and
+   under it which of its pools the board is showing. Stacked rather than side
+   by side so the name gets the whole width between the two buttons; the row
+   that held both cut "Sunday Night Degenerates" to twelve letters. */
 .league-bar__league {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   min-width: 0;
   flex: 1;
 }
 
-/* The league's name, chalked large. */
+/* The league's name, chalked large. One line: a name too long for the bar is
+   cut, and read in full in the rules sheet. */
 .league-bar__name {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 21px;
+  font-size: 24px;
   line-height: 1;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* The pool showing, as a chalk pill with the league's paint as a mark at its
-   start. Press it and the league's pools hang under it on a chalkboard, each
-   in its own paint, the one showing checked (ui/league-bar.js). Drawn here
-   rather than by the platform: Android's own picker is a radio dialog in the
-   system's face, floating over the middle of the field. */
+/* The pool showing, as a line under the name: the league's paint as a mark,
+   the pool's name, a chevron. No outline of its own - the bar had three, and
+   the name was what got squeezed between them. Press it and the league's pools
+   hang under it on a chalkboard, each in its own paint, the one showing
+   checked (ui/league-bar.js). Drawn here rather than by the platform:
+   Android's own picker is a radio dialog in the system's face, floating over
+   the middle of the field. */
 .league-bar__picker {
   position: relative;
   display: flex;
   min-width: 0;
-  max-width: min(100%, 240px);
-  flex: none;
+  max-width: 100%;
 }
 
+/* The line is 18px tall to look at and 28px to press: the target grows into
+   the room around it rather than pushing the field down. The side padding is
+   what the margin takes back, so the mark sits on the name's left edge. It
+   shrinks as a flex item (min-width) rather than by a max-width: a percentage
+   there resolves against the picker, which is sized from this very button
+   less its negative margin, and the label lost six pixels to the loop. */
 .league-bar__pool {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  height: 30px;
-  max-width: 100%;
-  padding: 0 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  gap: 7px;
+  min-height: 28px;
+  min-width: 0;
+  margin: -5px 0 -5px -6px;
+  padding: 0 6px;
+  border: 0;
   background: none;
-  color: var(--chalk);
+  color: var(--chalk-2);
   cursor: pointer;
 }
 
-/* Open, the pill is drawn in full chalk. Hover only where there is a pointer
+/* Open, the line is drawn in full chalk. Hover only where there is a pointer
    to hover with: on a phone the state would stick after every tap. */
 .league-bar__pool[aria-expanded="true"] {
-  border-color: var(--chalk);
+  color: var(--chalk);
 }
 
 @media (hover: hover) {
   .league-bar__pool:hover:not(:disabled) {
-    border-color: var(--chalk);
+    color: var(--chalk);
   }
 }
 
@@ -348,7 +388,7 @@
   white-space: nowrap;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -358,7 +398,7 @@
   height: 11px;
   flex: none;
   fill: none;
-  stroke: var(--chalk);
+  stroke: currentcolor;
   stroke-width: 2.6;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -369,7 +409,7 @@
   transform: rotate(180deg);
 }
 
-/* A league of one pool has nothing to pick: the pill just names it. */
+/* A league of one pool has nothing to pick: the line just names it. */
 .league-bar__pool--one {
   cursor: default;
   opacity: 1;
@@ -379,11 +419,11 @@
   display: none;
 }
 
-/* The menu, hung from the pill's left edge; --right when that would run off
+/* The menu, hung from the line's left edge; --right when that would run off
    the screen. Above the field, which stacks its own zones. */
 .league-bar__menu {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 8px);
   left: 0;
   z-index: 10;
   min-width: max(100%, 200px);
@@ -488,25 +528,22 @@
 
 /* pool rules sheet (ui/settings.js) ---------------------------------------- */
 
-/* The gear, at the end of the topline. */
+/* The gear, at the end of the topline: drawn with the way back (see the league
+   bar, above). The negative margin sets the glyph on the field's right edge. */
 .settings__open {
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border-radius: 50%;
-  color: var(--chalk-2);
+  margin-right: -10px;
 }
 
 .settings__open svg {
-  width: 17px;
-  height: 17px;
+  width: 20px;
+  height: 20px;
   fill: currentcolor;
   stroke: none;
 }
 
-/* A pool running rules of its own says so here: the flag on the gear. */
-.settings__open--custom {
-  border-color: var(--flag);
+/* A pool running rules of its own says so here: the gear in flag yellow,
+   hovered or not. */
+.settings__open.settings__open--custom {
   color: var(--flag);
 }
 
@@ -579,13 +616,49 @@
   border-bottom: var(--dash);
 }
 
+/* The title with the way out beside it, as on the home sheets: a cross in the
+   corner for a thumb still at the top, with Cancel at the foot for one that
+   has scrolled the rules. The title gives way first, so a long pool name wraps
+   rather than pushing the cross off the edge. */
+.settings__head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .settings__title {
+  min-width: 0;
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 26px;
   line-height: 1;
   letter-spacing: 0.03em;
   text-transform: uppercase;
+}
+
+/* The same round neutral as the home sheets' cross, pulled 4px into the side
+   padding so its curve sits where theirs does against the edge. */
+.settings__close {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  margin-right: -4px;
+  padding: 0;
+  border-radius: 50%;
+  border-color: var(--neutral-line);
+  color: var(--neutral);
+  font-size: 0;
+}
+
+.settings__close svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .settings__pool {
@@ -985,9 +1058,10 @@
   color: var(--chalk);
 }
 
-/* The mark at the top of the week: what it holds. Solid chalk for a lock,
-   the flag for a pick, dashed flag for the coach's plan, nothing for nothing,
-   and the outcome's coloured chalk once the game is played. */
+/* The mark at the top of the week: what it holds. The flag for a pick, dashed
+   flag for the coach's plan, a padlock in the flag once the pick is locked in -
+   the same colour, since it is the same pick; the shape says the rest - nothing
+   for nothing, and the outcome's coloured chalk once the game is played. */
 .pitch__mark {
   position: absolute;
   left: 50%;
@@ -998,8 +1072,23 @@
   border-radius: 1px;
 }
 
+/* Locked: the padlock stands where the line would, in the flag. The glyph is
+   the one the call card and the team list wear (ui/call.js, ui/sideline.js). */
 .pitch__mark--locked {
-  background: var(--chalk);
+  display: grid;
+  place-items: center;
+  width: 16px;
+  color: var(--flag);
+}
+
+.pitch__mark--locked svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .pitch__mark--picked {
@@ -1471,8 +1560,8 @@
 /* The actions, at the end of the head row: the other side of the game in
    chalk and the one action on the flag, both filled so a thumb finds them
    without reading the row. Marks, not words, so the drawer under the card
-   gets the room; the eyebrow says the state. Round, like the topline's own
-   buttons. */
+   gets the room; the eyebrow says the state. Round, like the discs the
+   topline's two glyphs press into. */
 .call__actions {
   display: flex;
   gap: 6px;
@@ -1671,16 +1760,21 @@
   cursor: default;
 }
 
-/* The slot's own team, on the flag's tint with a chalk ring. */
+/* The slot's own team while it is only picked: the neutral, the colour of the
+   second thing you can press, on its own tint with its own ring. A pick is a
+   choice still being weighed, not the one thing done on the board, so the flag
+   is kept back for the lock. */
 .sideline__row--current {
-  background: var(--flag-soft);
-  box-shadow: inset 0 0 0 1px var(--flag);
+  background: var(--neutral-bg);
+  box-shadow: inset 0 0 0 1px var(--neutral);
 }
 
-/* The locked team's row is painted on, like the slot head. */
+/* Locked: the row wears the flag, ring and padlock alike - the yellow of the
+   lock on the call card and of the padlock in the field's flag, because it is
+   the same lock wherever the board says it. */
 .sideline__row--locked {
-  background: var(--lock-bg);
-  box-shadow: inset 0 0 0 1px var(--chalk);
+  background: var(--flag-soft);
+  box-shadow: inset 0 0 0 1px var(--flag);
 }
 
 .sideline__row--disabled {
@@ -1745,16 +1839,21 @@
    made the list read as two boards instead of one. */
 /* The height is the cap height of the name beside it, measured: the display
    face draws 16.75px of capital at the name's 21px, so 17 is the whole pixel
-   that frames it. A pixel taller and the tag hung a pixel under the name's
-   baseline while stopping level with the caps above - centred on the line by
-   arithmetic, but the baseline is the line the eye reads a row against, so it
-   sat low. Its own lettering is centred either way; it was the rectangle that
-   was too tall, which is why moving the tag up instead only pulled the
-   numbers out of line with the name's. */
+   that frames it. That framing is exact - the rectangle starts level with the
+   caps and stops on the baseline - and the tag still read low, because what
+   the eye pairs with the name is the tag's lettering, not its rectangle, and
+   11px of capital left a 9px band of ink adrift in the middle of a 17px slab.
+   So the ink fills the slab instead: 12px of capital, which is as far as it
+   goes before the tag grows wide enough to cut a full-length name short
+   ("North Carolina State" survives at 12, ellipses at 13). The margin under
+   it rides the whole tag a pixel high - a flex line centres the margin box,
+   so 2px of margin is a 1px lift - because a slab this solid reads a shade
+   low sitting dead on the caps of type this tall. */
 .sideline__coach {
   display: inline-flex;
   align-items: center;
   height: 17px;
+  margin-bottom: 2px;
   padding: 0 7px;
   border: 1px solid var(--flag);
   border-radius: 3px;
@@ -1762,7 +1861,7 @@
   color: var(--on-flag);
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   flex: none;
@@ -1773,7 +1872,7 @@
   place-items: center;
   width: 16px;
   height: 16px;
-  color: var(--chalk);
+  color: var(--flag);
   flex: none;
 }
 
@@ -3175,7 +3274,7 @@
   }
 
   .league-bar__name {
-    font-size: 18px;
+    font-size: 22px;
   }
 }
 

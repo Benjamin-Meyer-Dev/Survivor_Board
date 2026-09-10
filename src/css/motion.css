@@ -28,10 +28,36 @@
    and an animation on `left` or `clip-path` stalls for that whole stretch and
    then jumps. Transform and opacity keep running on the compositor. */
 
+/* Two and a fifth seconds a cycle, from one and six tenths. The throw itself
+   is the 8%-to-68% of it that the eye actually watches, so the extra six
+   tenths goes almost entirely into the flight: a second and a third of it
+   rather than a second and a tenth. */
 .startup__scene {
-  --startup-cycle: 1.6s;
+  --startup-cycle: 2.2s;
 }
 
+/* The ball leaves the hand at speed, holds it across the field, and is
+   gathered in over the last few pixels rather than stopping where it is: the
+   flight is linear to 62% and 95% of the way, and the last twentieth of the
+   track settles over the six points that are left. Nine pixels and an eighth
+   of a second, against the eighteen the same stretch of time had been
+   covering - enough deceleration to read as a catch. It had been linear the
+   whole way to a dead stop, which at a hundred and fifty pixels a second is a
+   snap however well the rest of the play is paced.
+
+   The curve's opening slope is the speed the ball is already travelling at
+   (0.42/0.2, against the 1.0 of the linear stretch it follows), so the catch
+   starts without a kink where a plain ease-out dropped a third of the speed
+   in one frame.
+
+   The route mask below repeats that curve rather than sharing a custom
+   property with it: `animation-timing-function: var(--x)` inside a keyframe
+   does not resolve - the declaration is dropped and the segment silently
+   falls back to the animation's own linear, which is the dead stop this is
+   here to remove. The two literals have to stay identical.
+
+   The rotation rides the same keyframes, so the spin slows with the ball:
+   362 degrees over the flight, 332 of them by the time the settle starts. */
 @keyframes startup-throw {
   0% {
     opacity: 0;
@@ -40,6 +66,10 @@
   8% {
     opacity: 1;
     transform: translateX(0) rotate(-12deg);
+  }
+  62% {
+    transform: translateX(calc(var(--startup-track) * 0.95)) rotate(332deg);
+    animation-timing-function: cubic-bezier(0.2, 0.42, 0.4, 1);
   }
   68%,
   84% {
@@ -52,6 +82,12 @@
   }
 }
 
+/* The height, which is a function of how long the ball has been in the air
+   and of nothing else - so the top of the arc stays at 38%, the middle of the
+   flight in time, even though the settle means that is no longer the middle
+   of it in distance. Matching the apex to the halfway pixel instead would
+   have the ball climbing and falling at different rates, which is the one
+   thing a thrown ball does not do. */
 @keyframes startup-arc {
   0%,
   8% {
@@ -68,10 +104,19 @@
   }
 }
 
+/* The mask over the route, retracting from the right so the dashes appear
+   under the ball. Its keyframes are the throw's, because that is the whole
+   point of it: the route spans exactly the ball's track, so the mask is the
+   ball's own progress read backwards, 95% of the way covered at 62% and the
+   last twentieth settling off with it on the same curve. */
 @keyframes startup-route {
   0%,
   8% {
     transform: scaleX(1);
+  }
+  62% {
+    transform: scaleX(0.05);
+    animation-timing-function: cubic-bezier(0.2, 0.42, 0.4, 1);
   }
   68%,
   100% {
@@ -106,16 +151,18 @@
 }
 
 /* The handoff, once the play has landed: the layer lifts away over the board
-   rising in under it. Half a second rather than the four tenths it was - the
-   two are one movement and the board had been arriving before the eye had
-   finished with the play. app.js stops the play for the duration (HANDOFF_MS
+   rising in under it. Seven tenths of a second, from five - the two are one
+   movement, and the board had been arriving before the eye had finished with
+   the play. Both halves run the same length for that reason, and --ease-out
+   is front-loaded enough that the board still lands early in it rather than
+   drifting the whole way. app.js stops the play for the duration (HANDOFF_MS
    there is this length) so a cycle cannot wrap round mid-fade. */
 .startup.is-ready {
   opacity: 0;
-  transform: scale(1.025);
+  transform: scale(1.03);
   transition:
-    opacity 0.5s ease,
-    transform 0.5s var(--ease-out);
+    opacity 0.7s ease,
+    transform 0.7s var(--ease-out);
 }
 
 .is-starting .shell {
@@ -125,8 +172,8 @@
 
 .shell {
   transition:
-    opacity 0.5s ease,
-    transform 0.5s var(--ease-out);
+    opacity 0.7s ease,
+    transform 0.7s var(--ease-out);
 }
 
 /* --- press and hover, the states that outlive a render ------------------- */

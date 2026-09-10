@@ -3,17 +3,20 @@
  *
  * The open league, at the top of the board: the way back to every league, the
  * league's name, and which of its pools the board is showing, with the pool's
- * paint as a mark. The picker holds this one league's pools - "NFL winners",
- * "NFL losers" - and nothing else, because that is the choice a person on a
- * board actually makes; another league is a trip through the home page. A
- * league of one pool has nothing to pick, so its pill just names it.
+ * paint as a mark. The name and the pool stack as a title block - the name
+ * chalked large, the pool as a line under it - so the name gets the bar's
+ * whole width between the two buttons. The picker holds this one league's
+ * pools - "NFL winners", "NFL losers" - and nothing else, because that is the
+ * choice a person on a board actually makes; another league is a trip through
+ * the home page. A league of one pool has nothing to pick, so its line just
+ * names it.
  *
  * The picker is drawn here, not by the platform: a chalkboard hung under the
- * pill with a row per pool, the one showing checked. It used to be a native
+ * line with a row per pool, the one showing checked. It used to be a native
  * `select`, and on Android that opens the system's own radio dialog in the
  * middle of the field, in the system's face and colours - the one thing on the
  * board that is not chalk on turf. The price is that the keyboard and screen
- * reader behaviour is written out below: the pill is a button that opens a
+ * reader behaviour is written out below: the line is a button that opens a
  * listbox, arrows move through it, Enter or Space picks, Escape puts it away.
  *
  * Built ONCE and updated in place afterwards: this runs on every board render,
@@ -62,9 +65,9 @@ export function renderLeagueBar(root, { league, kind = null }, given) {
   }
 
   const one = kinds.length === 1;
-  const pill = root.querySelector(".league-bar__pool");
-  pill.classList.toggle("league-bar__pool--one", one);
-  pill.disabled = one;
+  const trigger = root.querySelector(".league-bar__pool");
+  trigger.classList.toggle("league-bar__pool--one", one);
+  trigger.disabled = one;
   if (one) closeMenu(root);
 
   root.querySelector(".league-bar__showing").textContent = POOL_KINDS[showing].label;
@@ -108,11 +111,11 @@ function build(root) {
 
   root.querySelector(".league-bar__back").addEventListener("click", () => handlers.onHome());
 
-  const pill = root.querySelector(".league-bar__pool");
+  const trigger = root.querySelector(".league-bar__pool");
   const menu = root.querySelector(".league-bar__menu");
 
-  pill.addEventListener("click", () => (menu.hidden ? openMenu(root) : closeMenu(root)));
-  pill.addEventListener("keydown", (event) => {
+  trigger.addEventListener("click", () => (menu.hidden ? openMenu(root) : closeMenu(root)));
+  trigger.addEventListener("keydown", (event) => {
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
     event.preventDefault();
     openMenu(root);
@@ -149,14 +152,14 @@ function build(root) {
 }
 
 function openMenu(root) {
-  const pill = root.querySelector(".league-bar__pool");
+  const trigger = root.querySelector(".league-bar__pool");
   const menu = root.querySelector(".league-bar__menu");
-  if (pill.disabled || !menu.hidden) return;
+  if (trigger.disabled || !menu.hidden) return;
 
   menu.classList.remove("league-bar__menu--right");
   menu.hidden = false;
-  pill.setAttribute("aria-expanded", "true");
-  // Hung from the pill's left edge unless that would run off the screen, in
+  trigger.setAttribute("aria-expanded", "true");
+  // Hung from the trigger's left edge unless that would run off the screen, in
   // which case from its right.
   if (menu.getBoundingClientRect().right > window.innerWidth - 8) {
     menu.classList.add("league-bar__menu--right");

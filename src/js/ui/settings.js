@@ -62,7 +62,9 @@ const COPY_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
   </svg>`;
 const DONE_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20 6-11 11-5-5" /></svg>`;
-const FAILED_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>`;
+/* The cross in the sheet's corner; a copy that failed wears the same one. */
+const CLOSE_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>`;
+const FAILED_ICON = CLOSE_ICON;
 
 /**
  * @param {HTMLElement} root
@@ -137,7 +139,10 @@ function buildSheet(root) {
     <dialog class="settings" aria-labelledby="settings-title" tabindex="-1" autofocus>
       <form class="settings__form" method="dialog">
         <div class="settings__head">
-          <h2 class="settings__title" id="settings-title">League</h2>
+          <div class="settings__head-row">
+            <h2 class="settings__title" id="settings-title">League</h2>
+            <button type="button" class="settings__close" aria-label="Close">${CLOSE_ICON}</button>
+          </div>
           <label class="settings__label" for="settings-name">Name</label>
           <input class="settings__input settings__name" id="settings-name" type="text" maxlength="60"
                  autocomplete="off" placeholder="Name the league"
@@ -214,10 +219,14 @@ function buildSheet(root) {
     dialog.focus();
   });
 
-  root.querySelector(".settings__cancel").addEventListener("click", () => {
-    draft = null;
-    dialog.close();
-  });
+  // Two ways out that keep nothing: the cross in the corner, for a thumb that
+  // is still at the top of the sheet, and Cancel at the foot beside Save.
+  for (const out of root.querySelectorAll(".settings__close, .settings__cancel")) {
+    out.addEventListener("click", () => {
+      draft = null;
+      dialog.close();
+    });
+  }
 
   root.querySelector(".settings__save").addEventListener("click", () => {
     const next = draft;
@@ -271,7 +280,7 @@ function buildSheet(root) {
     if (event.target === dialog) dialog.close();
   });
 
-  // Esc, the backdrop and Cancel all end up here.
+  // Esc, the backdrop, the cross and Cancel all end up here.
   dialog.addEventListener("close", () => {
     draft = null;
     danger = null;

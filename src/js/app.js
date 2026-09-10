@@ -982,8 +982,9 @@ function handleAction({ action, week, slot, team }) {
 
   const key = slotKey(week, slot);
   const current = app.entry.picks[key] ?? {};
-  // What the slot holds on the board that was tapped.
-  const held = lastBoard?.weeks.find((entry) => entry.week === week)?.picks[slot] ?? null;
+  // What the slot holds on the board that was tapped, and the week it is in.
+  const heldWeek = lastBoard?.weeks.find((entry) => entry.week === week) ?? null;
+  const held = heldWeek?.picks[slot] ?? null;
 
   switch (action) {
     case "pick":
@@ -1013,6 +1014,9 @@ function handleAction({ action, week, slot, team }) {
           ...current,
           locked: true,
           coachTeam: held.isRecommended ? held.team : (held.coachCall?.team ?? null),
+          // And the coach's board for the week as it stood, so the team list
+          // keeps its ranks once the decision is taken (plan.js, rankTeams).
+          coachRanked: heldWeek?.coachRanked.map((option) => option.team) ?? null,
           // The line as it stood, so the board can say which way it has moved
           // since (plan.js sinceLock).
           spread: Number.isFinite(held.spread) ? held.spread : null,
@@ -1499,15 +1503,21 @@ function callTheStartupLine() {
 /**
  * Where in the play the layer is handed over, as a fraction of one cycle.
  *
- * The keyframes are in motion.css: the ball is at the far end at 68%, holds
- * there, and everything begins to fade at 84%. That last beat is the one to
- * leave on - the throw has been made and landed, and the fade the play was
- * about to do is done by the layer instead.
+ * The keyframes are in motion.css: the ball is gathered in at 68%, holds
+ * there, and everything begins to fade at 84%. The beat to leave on is the
+ * one just past the catch, not the one before the fade - the fade the play
+ * was about to do is done by the layer instead, and waiting for it left the
+ * screen frozen for a fifth of a second between the ball stopping and the
+ * board arriving. Measured over CDP at the old 84%: the last frame the
+ * compositor drew was the catch, then nothing at all until the handoff. Six
+ * points past the catch is an eighth of a second - long enough for the eye to
+ * see the ball land, short enough that the layer lifting reads as the end of
+ * the same movement rather than as a cut.
  */
-const PLAY_LANDED = 0.84;
+const PLAY_LANDED = 0.74;
 
 /** How long the handoff takes: the layer fading out over the board rising in. */
-const HANDOFF_MS = 500;
+const HANDOFF_MS = 700;
 
 /** Every animation the startup play is made of, the route's own included. */
 function startupPlays() {
@@ -1690,9 +1700,11 @@ async function main() {
   // re-plan no longer freezes the board that is being re-planned.
   useWorkerForSearch();
   // A search handed off lands after the board that asked for it was painted.
-  // This is what paints it in.
+  // This is what paints it in - the plan, or the rehearsal of a lock behind
+  // the "if locked" number (memoisedPreview in core/plan.js).
   onSearchSettled(() => {
-    if (app.view !== "board" || !lastBoard?.recommendationPending) return;
+    if (app.view !== "board") return;
+    if (!lastBoard?.recommendationPending && !lastBoard?.previewPending) return;
     render({ search: false });
   });
   await requireIdentity();

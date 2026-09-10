@@ -760,16 +760,21 @@ export function buildBoard({
   // around the picks as if they were locked. Without it the plan went on
   // spending the picked team later - the Jaguars in week 1 and again in week
   // 12 - and the preview priced that path half a point above what the lock
-  // then produced. The exact assignment does the re-solve in a millisecond,
-  // so a tap stays a tap. The committed plan and its number are untouched:
-  // they still move only on a lock.
+  // then produced. The preview is the lock rehearsed: the search the lock will
+  // be answered with, run ahead of it (memoisedPreview), with the exact
+  // assignment standing in for the beat it takes - so a tap stays a tap, and
+  // "if locked" is the number the lock then shows, to the digit. The committed
+  // plan and its number are untouched: they still move only on a lock.
   const weighing = board.weeks.some((week) =>
     week.picks.some((pick) => pick.team && !pick.status.locked),
   );
-  const preview = weighing
-    ? (memoisedPreview(board, plan, odds, form, { calibration, availability, pool }) ??
-      recommendation)
-    : recommendation;
+  const rehearsal = weighing
+    ? memoisedPreview(board, plan, odds, form, planByWeek, { calibration, availability, pool })
+    : null;
+  const preview = rehearsal?.value ?? recommendation;
+  // The rehearsal is still out and the assignment stands in for it. app.js
+  // builds again when it lands, as it does for a plan (onSearchSettled).
+  board.previewPending = Boolean(rehearsal?.pending);
   // Meanwhile a recent plan is what is painted, not a blank (see
   // memoisedRecommendation). Its badges always show. Its numbers show only if
   // it still fills every open week: a team it planned for a later week may
@@ -875,22 +880,25 @@ export function buildBoard({
     // way the plan's own names are - a team locked into another week since, a
     // lock a stand-in obeyed, a game already played - because a fallback is
     // still advice and cannot name a team the board will not take.
-    const rankedNames = (recommendation.ranked?.[week.week] ?? []).filter(
+    const liveNames = (recommendation.ranked?.[week.week] ?? []).filter(
       (team) =>
         (spentTeams[team] === undefined || spentTeams[team] === week.week) &&
         !constraints.has(`${week.week}:${team}`) &&
         !settledTeams.has(team) &&
         !lockedTeams.has(team),
     );
-    week.coachRanked = rankedNames
-      .map((team) => week.optionByTeam.get(team))
-      .filter(Boolean)
-      .map((option, index) => ({
-        ...option,
-        tier: confidenceTier(option.winProb, rules.tiers),
-        rank: index + 1,
-      }));
-    const rankByTeam = new Map(week.coachRanked.map((option) => [option.team, option.rank]));
+    // A lock is ranked no calls - the decision is taken - but it does not take
+    // the coach's board off the wall. The lock keeps the rank it was made at,
+    // and a week whose every slot is locked keeps the whole board as it stood
+    // (see rankTeams): the same history the call card's badge is (coachCall),
+    // so the two never disagree about what the coach said.
+    const rankByTeam = rankTeams(week, liveNames, coachCalls);
+    week.coachRanked = [...rankByTeam]
+      .sort(([, a], [, b]) => a - b)
+      .map(([team, rank]) => {
+        const option = week.optionByTeam.get(team);
+        return { ...option, tier: confidenceTier(option.winProb, rules.tiers), rank };
+      });
 
     for (const pick of week.picks) {
       pick.isRecommended =
@@ -1048,6 +1056,89 @@ let recommendationCache = [];
 const NO_CONSTRAINTS = new Set();
 
 /**
+ * Locks rehearsed (memoisedPreview): the full search run around a board's
+ * picks as if they were locked. Kept apart from the plans, so that weighing a
+ * dozen teams cannot push the board's own plan out of its cache, and keyed as
+ * the plan for the board those locks would make, which is where the lock finds
+ * it when it comes (see rehearsed).
+ */
+let rehearsalCache = [];
+
+/** The slots a search plans around: the locks... */
+const isLocked = (pick) => Boolean(pick.status.locked);
+
+/** ...or, rehearsing a lock, the picks with them - what holdPicks holds (core/recommend.js). */
+const isHeld = (pick) => Boolean(pick.status.locked || pick.team);
+
+/**
+ * The slots a search is constrained by, as the caches key them: which slot
+ * holds which team, and how its game went, because a win or a loss changes the
+ * path too. `holds` says which slots count.
+ */
+function locksOf(board, holds) {
+  const locks = [];
+  for (const week of board.weeks) {
+    for (const pick of week.picks) {
+      if (!holds(pick)) continue;
+      locks.push({
+        key: `${week.week}:${pick.slot}:${pick.team}`,
+        week: week.week,
+        team: pick.team,
+        result: pick.status.result ?? "L",
+      });
+    }
+  }
+  return locks;
+}
+
+/** A plan's key: everything the search depends on but the locks, then the locks. */
+function signatureOf(base, locks) {
+  return `${base}|${locks.map((lock) => `${lock.key}:${lock.result}`).join(",")}`;
+}
+
+/**
+ * The authored plan as one more finalist, so the coach never comes back with a
+ * path worse than the one in plan.json. A held slot takes its own team instead:
+ * the plan is only a proposal for the slots still open.
+ */
+function seedFor(board, planByWeek, holds) {
+  const seed = {};
+  for (const week of board.weeks) {
+    if (week.week < board.currentWeek) continue;
+    const weekPlan = planByWeek.get(week.week);
+    seed[week.week] = week.picks.map((pick, slot) =>
+      holds(pick) ? pick.team : (weekPlan?.picks[slot]?.team ?? null),
+    );
+  }
+  return seed;
+}
+
+/** A plan to the front of its cache, the one it replaces (if any) taken out. */
+function rememberPlan(entry) {
+  recommendationCache = [
+    entry,
+    ...recommendationCache.filter((kept) => kept.signature !== entry.signature),
+  ].slice(0, CACHE_SIZE);
+}
+
+function rememberRehearsal(entry) {
+  rehearsalCache = [
+    entry,
+    ...rehearsalCache.filter((kept) => kept.signature !== entry.signature),
+  ].slice(0, CACHE_SIZE);
+}
+
+/**
+ * The rehearsal that answers a board, taken out of the rehearsals: its locks
+ * are the board's now, and the plan is the board's own.
+ */
+function rehearsed(signature) {
+  const hit = rehearsalCache.find((entry) => entry.signature === signature);
+  if (hit) rehearsalCache = rehearsalCache.filter((entry) => entry !== hit);
+  return hit ?? null;
+}
+
+/**
  * Everything a search depends on but the locks. Two plans with the same base
  * differ only in what is locked, which is what makes one a fair stand-in for
  * the other. The league is part of it: switching swaps every input at once,
@@ -1084,30 +1175,61 @@ function signatureBase(board, plan, odds, form, inputs) {
   ].join("|");
 }
 
-/** Previews lately solved, keyed on the locks and the picks they were solved around. */
+/** The quick previews standing in while a rehearsal is out, keyed as the rehearsals are. */
 let previewCache = [];
 
 /**
- * The season re-solved around the picks being weighed as if they were locked,
- * by the exact assignment alone (see recommendPath's `quick`). Null for an
- * eliminated entry, which has nothing left to preview.
+ * The season re-solved around the picks being weighed as if they were locked.
+ *
+ * This used to be the exact assignment alone, and the lock the full search,
+ * and the two could disagree: the assignment is exact on today's numbers, and
+ * the full search's frontier judges the week on the clock across futures
+ * instead, so a pick weighed a week or two out read 4.1% "if locked" and 3.9%
+ * once locked. So the preview is the lock rehearsed: the request the lock will
+ * make - the picks held as locks, the same seed, the whole search - handed to
+ * the worker as a plan is and kept under the signature that board will have,
+ * where memoisedRecommendation finds it. The number shown while weighing is
+ * the number the lock produces, to the digit, and the lock itself is answered
+ * from the rehearsal with no search owed.
+ *
+ * The exact assignment still answers in the millisecond a tap has (see
+ * recommendPath's `quick`), standing in until the rehearsal lands; `pending`
+ * says so, and app.js builds again when it does. Without a worker to hand the
+ * rehearsal to - the scripts, a browser that could not start one - the
+ * assignment is the whole of the preview, as it was: the full search run
+ * inline on every tap would be felt as one.
+ *
+ * Null for an eliminated entry, which has nothing left to preview.
+ *
+ * @returns {{value: object, pending: boolean}|null}
  */
-function memoisedPreview(board, plan, odds, form, inputs) {
+function memoisedPreview(board, plan, odds, form, planByWeek, inputs) {
   if (board.eliminated) return null;
-  const held = [];
-  for (const week of board.weeks) {
-    for (const pick of week.picks) {
-      if (!pick.team) continue;
-      const state = pick.status.locked ? (pick.status.result ?? "L") : "picked";
-      held.push(`${week.week}:${pick.slot}:${pick.team}:${state}`);
-    }
+  const base = signatureBase(board, plan, odds, form, inputs);
+  const locks = locksOf(board, isHeld);
+  const signature = signatureOf(base, locks);
+
+  // Rehearsed already - or planned already: a pick undone and made again finds
+  // the plan its lock made, which is the same answer.
+  const made =
+    recommendationCache.find((entry) => entry.signature === signature) ??
+    rehearsalCache.find((entry) => entry.signature === signature);
+  if (made) return { value: made.value, pending: false };
+
+  const runner = searchRunner();
+  if (runner) {
+    handOff(runner, {
+      signature,
+      request: searchRequestFor(board, seedFor(board, planByWeek, isHeld), { holdPicks: true }),
+      keep: (value) => rememberRehearsal({ signature, base, locks, value }),
+      rehearsal: true,
+    });
   }
-  const signature = `${signatureBase(board, plan, odds, form, inputs)}|${held.join(",")}`;
+
   const hit = previewCache.find((entry) => entry.signature === signature);
-  if (hit) return hit.value;
-  const value = recommendForBoard(board, null, { holdPicks: true, quick: true });
-  previewCache = [{ signature, value }, ...previewCache].slice(0, CACHE_SIZE);
-  return value;
+  const value = hit?.value ?? recommendForBoard(board, null, { holdPicks: true, quick: true });
+  if (!hit) previewCache = [{ signature, value }, ...previewCache].slice(0, CACHE_SIZE);
+  return { value, pending: running.has(signature) };
 }
 
 /**
@@ -1131,27 +1253,18 @@ function memoisedRecommendation(board, plan, odds, form, allowSearch, planByWeek
 
   // The locked slots are the search's constraints. The result rides along in
   // the key because a win or a loss changes the path too.
-  const locks = [];
-  for (const week of board.weeks) {
-    for (const pick of week.picks) {
-      if (pick.status.locked) {
-        locks.push({
-          key: `${week.week}:${pick.slot}:${pick.team}`,
-          week: week.week,
-          team: pick.team,
-          result: pick.status.result ?? "L",
-        });
-      }
-    }
-  }
-
+  const locks = locksOf(board, isLocked);
   const base = signatureBase(board, plan, odds, form, inputs);
-  const signature = `${base}|${locks.map((lock) => `${lock.key}:${lock.result}`).join(",")}`;
+  const signature = signatureOf(base, locks);
 
-  const hit = recommendationCache.find((entry) => entry.signature === signature);
+  // A plan made already - or a lock rehearsed while its pick was being weighed
+  // (memoisedPreview): the same search under the same key, and the board's own
+  // plan now, so the lock is answered from it and searches nothing.
+  const hit =
+    recommendationCache.find((entry) => entry.signature === signature) ?? rehearsed(signature);
   if (hit) {
     // To the front, so the two plans a toggle flips between outlive the rest.
-    recommendationCache = [hit, ...recommendationCache.filter((entry) => entry !== hit)];
+    rememberPlan(hit);
     return { value: hit.value, fresh: true, constraints: NO_CONSTRAINTS };
   }
 
@@ -1160,14 +1273,7 @@ function memoisedRecommendation(board, plan, odds, form, allowSearch, planByWeek
   // The authored plan competes as one more finalist, so the coach never comes
   // back with a path worse than the one in plan.json. A locked slot takes the
   // locked team instead: the plan is only a proposal for the slots still open.
-  const seed = {};
-  for (const week of board.weeks) {
-    if (week.week < board.currentWeek) continue;
-    const weekPlan = planByWeek.get(week.week);
-    seed[week.week] = week.picks.map((pick, slot) =>
-      pick.status.locked ? pick.team : (weekPlan?.picks[slot]?.team ?? null),
-    );
-  }
+  const seed = seedFor(board, planByWeek, isLocked);
 
   // Somewhere to run it that is not this thread (core/search.js). The board
   // comes back with whatever plan it has - a recent one standing in, or none -
@@ -1176,39 +1282,40 @@ function memoisedRecommendation(board, plan, odds, form, allowSearch, planByWeek
   // to schedule its own retry: the search is already on its way.
   const runner = searchRunner();
   if (runner) {
-    handOff(runner, { signature, base, locks, board, seed });
+    handOff(runner, {
+      signature,
+      request: searchRequestFor(board, seed),
+      keep: (value) => rememberPlan({ signature, base, locks, value }),
+    });
     return { ...standInFor(base, locks), running: true };
   }
 
   const value = recommendForBoard(board, seed);
-  recommendationCache = [{ signature, base, locks, value }, ...recommendationCache].slice(
-    0,
-    CACHE_SIZE,
-  );
+  rememberPlan({ signature, base, locks, value });
   return { value, fresh: true, constraints: NO_CONSTRAINTS };
 }
 
-/** Searches on the wire, by signature, so one board's renders ask once. */
+/**
+ * Searches on the wire, by signature, so one board's renders ask once. A
+ * rehearsal (memoisedPreview) is marked as one, so that startup can wait on
+ * the plan without waiting on it.
+ */
 const running = new Map();
 
 /**
- * Send a search off and cache what comes back.
+ * Send a search off and keep what comes back, where `keep` says.
  *
  * A failure is not reported anywhere: whoever installed the runner takes it
  * back out on the way past (see worker-search.js), so the build that follows
  * this one finds no runner and searches inline. The board is never left without
  * an answer, only ever without one yet.
  */
-function handOff(runner, { signature, base, locks, board, seed }) {
+function handOff(runner, { signature, request, keep, rehearsal = false }) {
   if (running.has(signature)) return;
 
-  const pending = runner(searchRequestFor(board, seed))
+  const pending = runner(request)
     .then((value) => {
-      if (!value) return;
-      recommendationCache = [{ signature, base, locks, value }, ...recommendationCache].slice(
-        0,
-        CACHE_SIZE,
-      );
+      if (value) keep(value);
     })
     .catch(() => {
       /* inline next time round */
@@ -1218,17 +1325,23 @@ function handOff(runner, { signature, base, locks, board, seed }) {
       announceSearchSettled();
     });
 
-  running.set(signature, pending);
+  running.set(signature, { pending, rehearsal });
 }
 
 /**
  * Every handed-off search that is still out, as one promise.
  *
  * For startup, which has a layer over the board and would rather hold it there
- * than reveal a board with no plan on it and fill it in a moment later.
+ * than reveal a board with no plan on it and fill it in a moment later. The
+ * rehearsal behind a saved pick's "if locked" number is not waited on unless
+ * asked for: the quick preview stands in for it there, as it does in play.
  */
-export function searchesSettled() {
-  return Promise.allSettled([...running.values()]);
+export function searchesSettled({ rehearsals = false } = {}) {
+  return Promise.allSettled(
+    [...running.values()]
+      .filter((search) => rehearsals || !search.rehearsal)
+      .map((search) => search.pending),
+  );
 }
 
 /**
@@ -1296,6 +1409,62 @@ function eliminationOf(weekByNumber, outcome) {
     .filter((pick) => pick.status.locked && pick.status.result === "L")
     .map((pick) => ({ team: pick.team, opponent: pick.opponent, site: pick.site }));
   return { week: outcome.eliminatedWeek, losses };
+}
+
+/**
+ * Where the coach ranks each team this week, by name: the live board for the
+ * open slots, with the locks holding the ranks they were locked at.
+ *
+ * app.js stores the week's ranking with a lock (status.coachRanked) the way it
+ * stores the call (status.coachTeam). The latest lock's snapshot is the week's
+ * board as it stood at that moment - in a two-pick week it already carries the
+ * first lock's rank - so once every slot is locked it is the whole of the
+ * ranking. While a slot is still open the live names are numbered around the
+ * ranks the locks hold: the coach's second choice stays the second whoever
+ * took the first. A lock saved before snapshots were kept falls back on the
+ * coach's calls, in slot order, the one rank the board can still vouch for;
+ * a lock the coach never ranked wears none.
+ *
+ * @param {object} week
+ * @param {string[]} liveNames The coach's live ranking for the week's open
+ *   slots, best first (rankCalls in core/recommend.js, filtered).
+ * @param {object[]} coachCalls The coach's calls for the week's slots.
+ * @returns {Map<string, number>} Team to 1-based rank, ranked teams only,
+ *   every one of them in the week's list.
+ */
+function rankTeams(week, liveNames, coachCalls) {
+  const ranks = new Map();
+  const listed = (team) => week.optionByTeam.has(team);
+  const locked = week.picks.filter((pick) => pick.status.locked);
+  const snapshotOf = (pick) =>
+    Array.isArray(pick.status.coachRanked) ? pick.status.coachRanked : null;
+
+  if (locked.length === week.picks.length) {
+    const latest = locked
+      .filter((pick) => snapshotOf(pick))
+      .sort((a, b) => (b.status.at ?? 0) - (a.status.at ?? 0))[0];
+    const names = latest ? snapshotOf(latest) : coachCalls.map((option) => option.team);
+    for (const team of names) {
+      if (listed(team) && !ranks.has(team)) ranks.set(team, ranks.size + 1);
+    }
+    return ranks;
+  }
+
+  const taken = new Set();
+  for (const pick of locked) {
+    const at = snapshotOf(pick)?.indexOf(pick.team) ?? -1;
+    if (at < 0 || taken.has(at + 1) || !listed(pick.team)) continue;
+    ranks.set(pick.team, at + 1);
+    taken.add(at + 1);
+  }
+  let next = 1;
+  for (const team of liveNames) {
+    if (!listed(team) || ranks.has(team)) continue;
+    while (taken.has(next)) next += 1;
+    ranks.set(team, next);
+    taken.add(next);
+  }
+  return ranks;
 }
 
 function clampWeek(week, total) {

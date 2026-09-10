@@ -4,12 +4,12 @@
  * Kickoff on the left, the end zone on the right, one yard line per week. The
  * ball stands on the week on the clock; a chalk bracket marks the week being
  * looked at, which need not be the same one. Each week carries a mark for what
- * it holds - solid chalk for a lock, the flag for a pick, dashed flag for the
- * coach's plan, the outcome's chalk once the game is played - and names the
- * pick under it, so the whole season reads off one strip. Under it, the drive
- * line: how fresh the lines are, what the pool forgives, what a pick being
- * weighed would do, and how far the season is from the end zone on today's
- * numbers.
+ * it holds - the flag for a pick, dashed flag for the coach's plan, a padlock
+ * in the flag once the pick is locked in, the outcome's chalk once the game is
+ * played - and names the pick under it, so the whole season reads off one
+ * strip. Under it, the drive line: how fresh the lines are, what the pool
+ * forgives, what a pick being weighed would do, and how far the season is from
+ * the end zone on today's numbers.
  *
  * On a phone the field is wider than the screen and scrolls sideways under
  * end zones held at either edge, so a week gets a column wide enough to read;
@@ -68,6 +68,13 @@ const BALL = `<svg class="pitch__ball" viewBox="0 0 34 21" aria-hidden="true">
  * which reads the number and the key above it and needs no glyph for "to".
  */
 const PREVIEW_ARROW = `<span class="pitch__stat-arrow" aria-hidden="true">→</span>`;
+
+/**
+ * The padlock on a locked week, standing where the line for a pick would. The
+ * shut lock the call card (ui/call.js) and the team list (ui/sideline.js) draw,
+ * so a lock looks the same wherever the board says it.
+ */
+const LOCK = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>`;
 
 /**
  * @param {HTMLElement} root
@@ -203,7 +210,7 @@ function yardMarkup(week, board, viewWeek) {
 
   return `<button type="button" class="${classes}" data-yard="${week.week}" tabindex="-1"
       aria-label="Week ${week.week}, ${escapeHtml(week.labelFull)}${says ? `, ${escapeHtml(says)}` : ""}">
-      ${mark ? `<span class="pitch__mark pitch__mark--${mark}"></span>` : ""}
+      ${mark ? `<span class="pitch__mark pitch__mark--${mark}">${mark === "locked" ? LOCK : ""}</span>` : ""}
       ${team ? `<span class="pitch__label">${escapeHtml(team)}</span>` : ""}
       <span class="pitch__num">${week.week}</span>
       ${now ? BALL : ""}
