@@ -11,7 +11,27 @@
 
 import { createArtifactStore } from "./artifact.js";
 import { createSupabaseStore } from "./supabase.js";
-import { createLocalStore } from "./local.js";
+import { createLocalStore, readLocalEntry } from "./local.js";
+import { knownRow } from "./rows.js";
+
+/**
+ * A pool's board as it can be had without asking anybody: the row this session
+ * already read (store/rows.js), or failing that this device's own copy.
+ *
+ * For work done ahead of a tap - planning every pool while the home page is
+ * idle (warmPools in app.js) - where opening a store would mean a round trip
+ * and a subscription for a board nobody has asked to see. It is a head start,
+ * not a read: the store is still what a board opens on, and this being a
+ * version behind only means the head start was for the wrong board and the
+ * open searches for itself.
+ *
+ * @param {string} code
+ * @param {string} kind
+ * @returns {object} An entry, empty where nothing is known.
+ */
+export function knownEntry(code, kind) {
+  return knownRow(code, kind)?.entry ?? readLocalEntry(code, kind);
+}
 
 /**
  * @param {string} code Which league's shared state to open.

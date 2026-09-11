@@ -93,8 +93,15 @@
   flex: none;
 }
 
+/* A column rather than a plain block, so the region's own height counts the
+   banners' margins instead of collapsing them through it. It is measured on
+   the way in and out of a change (renderNotices), and a height that jumped by
+   the top margin the moment the box was clipped would jump the board with
+   it. */
 .notices {
   flex: none;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Banners keep the gutter; the readout and the drawer set their own. */

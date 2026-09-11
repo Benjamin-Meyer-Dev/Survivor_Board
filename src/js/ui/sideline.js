@@ -188,10 +188,29 @@ function rowMarkup(pick, option, canPick) {
         ? 'title="Locked in the other slot this week"'
         : "";
 
+  // What the row is, for the settle that plays when it changes under no tap of
+  // yours (playDataUpdates in app.js): which of the six states it is in, and
+  // nothing of its numbers. The lines move on every pull and a settle on each
+  // of a hundred rows is the drawer flickering, where the six states are the
+  // things a row changes into. The key carries the week and the slot as well
+  // as the team, so handing the sideline to the other slot - or turning the
+  // week - is a new list rather than every row in the old one changing at once.
+  const signature = [
+    option.isCurrent ? "current" : "",
+    locked ? "locked" : "",
+    held ? "held" : "",
+    option.disabled ? "disabled" : "",
+    option.result ?? "",
+  ]
+    .filter(Boolean)
+    .join("|");
+
   return `
     <button type="button" class="${classes}"
             data-action="pick" data-week="${pick.week}" data-slot="${pick.slot}"
             data-team="${escapeHtml(option.team)}" data-key="${escapeHtml(option.team)}"
+            data-motion-key="sideline-${pick.week}-${pick.slot}-${escapeHtml(option.team)}"
+            data-motion-signature="${escapeHtml(signature)}"
             data-search="${escapeHtml((option.team + " " + option.opponent).toLowerCase())}"
             ${canPick && (!option.disabled || option.isCurrent) ? "" : "disabled"}
             ${current}>

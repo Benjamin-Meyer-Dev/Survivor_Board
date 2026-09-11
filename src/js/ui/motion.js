@@ -95,3 +95,172 @@ export function twoFrames() {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   });
 }
+
+/* --- higher-level moves -----------------------------------------------------
+   Everything below is built out of the two primitives above: add a class, ask
+   the browser when it is over, take it off. The durations stay in motion.css;
+   what these pass down is only ever a DISTANCE the stylesheet cannot know - a
+   measured height, or how far a node has to travel - as a custom property the
+   keyframe reads. A helper that took a millisecond count would put a second
+   copy of a timing in the repo, which is the thing this module exists to
+   stop. */
+
+/** Dialogs part way through their exit, so a re-open can call the close off. */
+const closing = new WeakSet();
+
+/**
+ * Shut a dialog on its own motion.
+ *
+ * `close()` is instant and takes the top layer with it, so the exit has to
+ * play first and the close follows it. Every way out of a sheet comes through
+ * here - the cross, Cancel, the backdrop, Esc, and the button that acts - so
+ * there is one exit rather than one per path, and the ones that cut used to be
+ * whichever path the CSS's discrete display transition did not cover.
+ *
+ * @param {HTMLDialogElement|null} dialog
+ * @param {{now?:boolean}} [options] `now` skips the exit, for a dialog being
+ *   shut because the thing it is about has gone.
+ */
+export async function closeDialog(dialog, { now = false } = {}) {
+  if (!dialog?.open || closing.has(dialog)) return;
+  if (now || prefersReducedMotion()) {
+    dialog.close();
+    return;
+  }
+  closing.add(dialog);
+  dialog.classList.add("is-closing");
+  await afterMotion(dialog, { subtree: false });
+  // A re-open while the exit was playing takes the sheet off this list, and
+  // then the close it was heading for is not ours to make.
+  if (closing.delete(dialog)) dialog.close();
+  dialog.classList.remove("is-closing");
+}
+
+/** Call off an exit in flight, for a sheet being opened again. */
+export function keepOpen(dialog) {
+  if (!dialog) return;
+  closing.delete(dialog);
+  dialog.classList.remove("is-closing");
+}
+
+/**
+ * A block arriving in place: nothing, to its own height.
+ *
+ * The height is measured here because only the DOM knows it; how long the
+ * growth takes is the stylesheet's (see `grow` in motion.css).
+ */
+export async function grow(node) {
+  if (!node || prefersReducedMotion()) return;
+  node.style.setProperty("--motion-to", `${node.offsetHeight}px`);
+  await playOnce(node, ["is-growing"], { subtree: false });
+  node.style.removeProperty("--motion-to");
+}
+
+/**
+ * And one leaving: its own height back to nothing, and then it goes. The node
+ * is removed here rather than by the caller, because until the shrink is over
+ * it still has to be on the page to shrink.
+ */
+export async function shrink(node) {
+  if (!node) return;
+  if (prefersReducedMotion()) {
+    node.remove();
+    return;
+  }
+  node.style.setProperty("--motion-from", `${node.offsetHeight}px`);
+  node.classList.add("is-shrinking");
+  await afterMotion(node, { subtree: false });
+  node.remove();
+}
+
+/**
+ * Replace a region's contents with the old going out over the new coming in,
+ * and the box travelling between the two heights.
+ *
+ * The old markup is lifted into a layer of its own and taken out of flow, so
+ * the new contents lay out at once and the box has a height to travel to. Both
+ * are measured here; both durations are in the stylesheet.
+ *
+ * @param {HTMLElement|null} box Its own positioning context (`position:
+ *   relative`) - the outgoing layer is absolute inside it.
+ * @param {string} html
+ * @returns {Promise<void>} Resolves when the box is its new size with only the
+ *   new contents in it.
+ */
+export async function swapContents(box, html) {
+  if (!box) return;
+  if (prefersReducedMotion()) {
+    box.innerHTML = html;
+    return;
+  }
+
+  const from = box.offsetHeight;
+  const leaving = document.createElement("div");
+  leaving.className = "motion-leaving";
+  leaving.setAttribute("aria-hidden", "true");
+  leaving.append(...box.childNodes);
+
+  box.innerHTML = html;
+  const arriving = [...box.children];
+  box.append(leaving);
+
+  const to = box.offsetHeight;
+  box.style.setProperty("--motion-from", `${from}px`);
+  box.style.setProperty("--motion-to", `${to}px`);
+  for (const node of arriving) node.classList.add("is-arriving");
+
+  await playOnce(box, ["is-resizing"], { subtree: false });
+  leaving.remove();
+  for (const node of arriving) node.classList.remove("is-arriving");
+  box.style.removeProperty("--motion-from");
+  box.style.removeProperty("--motion-to");
+}
+
+/**
+ * Where a set of keyed nodes are on screen, to move them from there once a
+ * render has put them somewhere else (`settleInto`).
+ *
+ * @param {Iterable<HTMLElement>} nodes Each carrying a `data-key`.
+ * @returns {Map<string,DOMRect>}
+ */
+export function capturePlaces(nodes) {
+  const places = new Map();
+  if (prefersReducedMotion()) return places;
+  for (const node of nodes) {
+    const key = node.dataset?.key;
+    if (key !== undefined) places.set(key, node.getBoundingClientRect());
+  }
+  return places;
+}
+
+/**
+ * Move nodes from where they were to where they now are.
+ *
+ * The page has already been laid out by the time this runs, so each node is
+ * put back at its old offset and released: the browser animates the gap it was
+ * never asked to jump. A node the render did not move is left alone, and one
+ * that was not on the page before has nowhere to come from and arrives on its
+ * own entrance instead.
+ *
+ * @param {Iterable<HTMLElement>} nodes
+ * @param {Map<string,DOMRect>} places From capturePlaces, before the render.
+ */
+export function settleInto(nodes, places) {
+  if (prefersReducedMotion() || places.size === 0) return;
+  for (const node of nodes) {
+    const was = places.get(node.dataset?.key);
+    if (!was) continue;
+    const now = node.getBoundingClientRect();
+    const dx = was.left - now.left;
+    const dy = was.top - now.top;
+    // Under a pixel is not a move anybody made; it is the rounding of a
+    // layout that did not change.
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+    node.style.setProperty("--motion-dx", `${dx}px`);
+    node.style.setProperty("--motion-dy", `${dy}px`);
+    playOnce(node, ["is-moving"], { subtree: false }).then(() => {
+      node.style.removeProperty("--motion-dx");
+      node.style.removeProperty("--motion-dy");
+    });
+  }
+}

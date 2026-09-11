@@ -72,6 +72,14 @@ export const CONFIG = Object.freeze({
    *             drawn before the network answers
    *   entry     one per pool - a league's code and one of its kinds - the
    *             offline copy of that pool's board
+   *   plans     the coach's last few season plans, so a launch opens on a
+   *             board that is already planned (store/plans.js)
+   *
+   * `plans` carries a version of its own because a plan is the output of the
+   * search and its key cannot describe the search itself: BUMP IT WHENEVER
+   * core/recommend.js CHANGES, the same ritual as CACHE in sw.js, or a deploy
+   * is answered out of the old version's plans until the next lock moves the
+   * board on. Nothing else here needs that - the rest is what people typed.
    */
   storage: Object.freeze({
     passcode: `${STORAGE_PREFIX}passcode`,
@@ -79,6 +87,7 @@ export const CONFIG = Object.freeze({
     who: `${STORAGE_PREFIX}who`,
     leagues: `${STORAGE_PREFIX}leagues/v1`,
     entryPrefix: `${STORAGE_PREFIX}entry/v2`,
+    plans: `${STORAGE_PREFIX}plans/v1`,
   }),
 
   /**

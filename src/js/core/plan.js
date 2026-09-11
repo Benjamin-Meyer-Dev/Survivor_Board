@@ -1216,6 +1216,52 @@ function seedFor(board, planByWeek, holds) {
   return seed;
 }
 
+/**
+ * The plans in hand, newest first, for whoever wants to keep them somewhere
+ * this session cannot reach - localStorage, so a cold launch opens on a board
+ * that is already planned (store/plans.js).
+ *
+ * Handed out whole: a plan is only ever reusable under the signature it was
+ * made for, and the base and the locks beside it are what let it stand in for
+ * a near neighbour (standInFor). The rehearsals are deliberately not here -
+ * they are a beat of a tap, not a board.
+ */
+export function exportPlans() {
+  return recommendationCache.map((entry) => ({ ...entry }));
+}
+
+/**
+ * Put plans back, behind whatever this session has worked out for itself.
+ *
+ * Behind, because a plan made here was made on the inputs in hand, and one
+ * read off a disk is only a plan for the signature it names - if the two
+ * collide, the live one is the one to keep. Anything malformed is dropped
+ * rather than trusted: this is the one place a cached search comes from
+ * somewhere that is not the search.
+ *
+ * @param {Array<{signature:string, base:string, locks:Array, value:object}>} entries
+ * @returns {number} How many were taken.
+ */
+export function importPlans(entries) {
+  if (!Array.isArray(entries)) return 0;
+  const known = new Set(recommendationCache.map((entry) => entry.signature));
+  const taken = [];
+  for (const entry of entries) {
+    if (typeof entry?.signature !== "string" || typeof entry?.base !== "string") continue;
+    if (!Array.isArray(entry.locks) || !entry.value || typeof entry.value !== "object") continue;
+    if (known.has(entry.signature)) continue;
+    known.add(entry.signature);
+    taken.push({
+      signature: entry.signature,
+      base: entry.base,
+      locks: entry.locks,
+      value: entry.value,
+    });
+  }
+  recommendationCache = [...recommendationCache, ...taken].slice(0, CACHE_SIZE);
+  return taken.length;
+}
+
 /** A plan to the front of its cache, the one it replaces (if any) taken out. */
 function rememberPlan(entry) {
   recommendationCache = [

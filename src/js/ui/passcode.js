@@ -17,6 +17,7 @@
 
 import { APP_NAME } from "../config.js";
 import { stadiumMarkup } from "./stadium.js";
+import { showGate, hideGate } from "./gate.js";
 
 /**
  * Render the door into `root` and resolve once a code has passed the check.
@@ -30,7 +31,7 @@ import { stadiumMarkup } from "./stadium.js";
 export function requirePasscode(root, { check }) {
   return new Promise((resolve) => {
     root.innerHTML = doorMarkup();
-    root.hidden = false;
+    showGate(root);
 
     const form = root.querySelector("form");
     const input = root.querySelector("input");
@@ -73,7 +74,10 @@ export function requirePasscode(root, { check }) {
         input.focus();
         return;
       }
-      root.hidden = true;
+      // The card leaves before the screen behind it changes: the door, the
+      // name and the board are one sequence, and it is nothing but first
+      // impressions.
+      await hideGate(root);
       resolve();
     });
   });

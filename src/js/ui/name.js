@@ -17,6 +17,7 @@
 
 import { APP_NAME } from "../config.js";
 import { stadiumMarkup } from "./stadium.js";
+import { showGate, hideGate } from "./gate.js";
 
 /**
  * Render the start screen into `root` and resolve with a trimmed name.
@@ -29,7 +30,7 @@ import { stadiumMarkup } from "./stadium.js";
 export function requireName(root, { name = "", heading, label, action } = {}) {
   return new Promise((resolve) => {
     root.innerHTML = startMarkup({ name, heading, label, action });
-    root.hidden = false;
+    showGate(root);
 
     const form = root.querySelector("form");
     const input = root.querySelector("input");
@@ -40,7 +41,7 @@ export function requireName(root, { name = "", heading, label, action } = {}) {
     // field, and the field is the only thing on screen to tap.
     if (!matchMedia("(hover: none)").matches) input.focus();
 
-    form.addEventListener("submit", (event) => {
+    form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const value = input.value.trim().slice(0, 40);
       if (!value) {
@@ -48,7 +49,9 @@ export function requireName(root, { name = "", heading, label, action } = {}) {
         input.focus();
         return;
       }
-      root.hidden = true;
+      // The card leaves before the screen behind it changes: the door, the
+      // name and the board are one sequence (ui/gate.js).
+      await hideGate(root);
       resolve(value);
     });
   });

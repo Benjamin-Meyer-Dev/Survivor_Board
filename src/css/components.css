@@ -124,10 +124,16 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   cursor: pointer;
+  /* Opacity and the shadow are in here for the one state change nobody taps:
+     a submit button going from unavailable to available as the field it is
+     waiting on is filled in. It used to switch between the two on the
+     keystroke that crossed the line. */
   transition:
     background-color 160ms ease,
     border-color 160ms ease,
     color 160ms ease,
+    opacity 160ms ease,
+    box-shadow 160ms ease,
     transform 120ms ease;
 }
 
@@ -753,11 +759,24 @@
    what decides how many week pills fit on a line, and taking it in would
    trade the row of weeks a shorter sheet was meant to fit for another line of
    them. */
+/* The space between the rules is each rule's own margin rather than a gap on
+   the column. The weeks group comes and goes with the pool's buy backs and
+   grows and shrinks on the way (paint in ui/settings.js), and a gap is kept
+   for a row of no height - so a group shrunk to nothing would leave its share
+   of the space behind and the sheet would jump by it at the end. */
 .settings__body {
   display: grid;
-  gap: var(--sp-4);
+  align-content: start;
   padding: var(--sp-4) var(--sp-5);
   overflow-y: auto;
+}
+
+.settings__body > * {
+  --motion-gap: var(--sp-4);
+}
+
+.settings__body > * + * {
+  margin-block-start: var(--sp-4);
 }
 
 /* One rule to a row: its name on the left and its control on the right. The
@@ -806,7 +825,8 @@
   cursor: pointer;
   transition:
     border-color 160ms ease,
-    color 160ms ease;
+    color 160ms ease,
+    opacity 160ms ease;
 }
 
 .settings__step:hover:not(:disabled) {
@@ -846,7 +866,8 @@
   transition:
     background-color 160ms ease,
     border-color 160ms ease,
-    color 160ms ease;
+    color 160ms ease,
+    opacity 160ms ease;
 }
 
 .settings__week:hover:not(:disabled):not([aria-pressed="true"]) {
@@ -887,10 +908,18 @@
 /* Taking the pool or the league down: in the head with the name and the code,
    set off from them by the gap rather than by a line, since the whole block is
    one section - what this league is, and how to end it. */
+/* The space above the pair belongs to the box that holds them, not to what is
+   in it: the question and the buttons swap places in here (swapContents in
+   ui/motion.js), and a margin on the contents would collapse through the box
+   and change its measured height the moment the swap clipped it. */
+.settings__take {
+  position: relative;
+  margin-top: var(--sp-4);
+}
+
 .settings__danger {
   display: grid;
   gap: 8px;
-  margin-top: var(--sp-4);
 }
 
 /* The two of them, halves of the row: the same size whatever they are called,
@@ -1389,7 +1418,31 @@
 }
 
 .call__slots--two {
+  position: relative;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* The bracket round the slot the sideline is filling: one box that slides
+   between the two rather than a border lit on one and put out on the other.
+   The travel is a whole column and the gap between them, as a share of its own
+   width; --active is the slot's index, written by ui/call.js. It sits under
+   the slots, which stand above it on z-index, so the chalk reads as being
+   drawn round the card rather than over it. */
+.call__marker {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: calc((100% - 8px) / 2);
+  border: 1px solid var(--chalk);
+  border-radius: var(--radius-sm);
+  background: rgb(255 255 255 / 6%);
+  pointer-events: none;
+  transform: translateX(calc(var(--active, 0) * (100% + 8px)));
+  transition: transform 0.22s var(--ease-out);
+}
+
+.call__slots--two .call__slot {
+  z-index: 1;
 }
 
 .call__slot {
@@ -1414,10 +1467,9 @@
   cursor: pointer;
 }
 
-.call__slots--two .call__slot--active {
-  border-color: var(--chalk);
-  background: rgb(255 255 255 / 6%);
-}
+/* The active slot's own paint is the marker above; the class stays because it
+   is what the markup says is active, and because with the marker gone - motion
+   reduced draws it still, so it never is - nothing else would say so. */
 
 .call__eyebrow {
   font-family: var(--font-display);
@@ -1433,13 +1485,18 @@
 
 /* The pick's marks on their own line under the eyebrow: how safe the coach
    rates it, whether it was the coach's call, the result once it is in. The row
-   stands a chip tall with nothing to show, so the team under it never moves. */
+   stands a chip tall with nothing to show, so the team under it never moves.
+   The margin under it is on top of the slot's own 4px gap: a chip is a boxed
+   mark and the name below it is 36px of capital, and at the gap alone the two
+   rules - the chip's border and the caps - stood close enough to read as one
+   block. */
 .call__marks {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   min-height: 22px;
+  margin-bottom: 6px;
 }
 
 .call__eyebrow--coach,
@@ -2095,6 +2152,22 @@
   min-width: 0;
 }
 
+/* Two picks a week: one per line, each with its own game beside it. The grid
+   sits on the cell rather than on each pair, so both lines share the two
+   columns and the games stand in a column of their own - which is the whole
+   point of splitting them up. The names are given whatever they need and the
+   games the rest, with a floor under the game column so a long pair of college
+   names can never squeeze it away. Both are cut with an ellipsis: in a column
+   this narrow something has to give, and a name cut one letter short still
+   says which team it is. */
+.drive__pick--pairs {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(56px, 1fr);
+  align-items: baseline;
+  column-gap: 8px;
+  row-gap: 3px;
+}
+
 .drive__team {
   font-family: var(--font-display);
   font-weight: 800;
@@ -2105,6 +2178,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Two names to a row rather than one, with a game beside each. */
+.drive__pick--pairs .drive__team {
+  font-size: 16px;
 }
 
 /* The coach's plan, faint and pencilled in (field.css draws the line). */
@@ -2125,7 +2203,8 @@
   opacity: 0.6;
 }
 
-.drive__sub {
+.drive__sub,
+.drive__game {
   font-size: 11px;
   color: var(--chalk-3);
   overflow: hidden;
@@ -2212,7 +2291,16 @@
   flex: none;
 }
 
+/* The rank holds the end of the card, and it holds one width whatever it
+   says. The display face draws its figures to their own widths - "#1" is
+   18px of ink where "#44" is 32 - and with the pair packed to the end of the
+   card that difference moved the badge in front of it: the same badge, the
+   same size, standing at a different place on every second card. So the rank
+   is given the widest it can be and its text pushed to the end of that, which
+   pins the badge's own edges to one line down the chart. */
 .bench__rank {
+  min-width: 32px;
+  text-align: right;
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 18px;
@@ -2391,9 +2479,21 @@
 
 /* home page (ui/home.js) ------------------------------------------------------- */
 
+/* The space between the page's bands is each band's own margin rather than a
+   gap on the page: a line above the list comes and goes with what there is to
+   say (playMessages in ui/home.js) and grows and shrinks on the way, and a gap
+   is kept for a row of no height - so a line shrunk to nothing would leave its
+   share of the space behind and the whole list would jump by it at the end. */
 .home {
   display: grid;
-  gap: var(--sp-5);
+}
+
+.home > * {
+  --motion-gap: var(--sp-5);
+}
+
+.home > * + * {
+  margin-block-start: var(--sp-5);
 }
 
 .home__head {
@@ -2721,7 +2821,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 4px;
 }
 
 .home__menu {
@@ -2779,9 +2878,15 @@
   text-transform: uppercase;
 }
 
+/* Nine pixels between the fields, carried by the fields rather than by a gap
+   on the form: the error line under a field grows and shrinks in place
+   (showProblem in ui/home.js), and a gap is kept for a row of no height, so a
+   line shrunk to nothing would still hold nine pixels open under the field it
+   was about. */
 .home__form {
+  --form-gap: 9px;
+
   display: grid;
-  gap: 9px;
   align-content: start;
   min-height: 0;
   padding: var(--sp-5) var(--sp-5) calc(var(--sp-5) + env(safe-area-inset-bottom));
@@ -2877,9 +2982,29 @@
   line-height: 1.5;
 }
 
+/* Nine pixels between one field and the next. Below the rules for the fields
+   themselves, because two of them set a margin of their own - a fieldset's
+   browser default has to be cleared, and the row of answers wants four pixels
+   more - and this has to be what wins where nothing more particular is said. */
+.home__form > * {
+  --motion-gap: var(--form-gap);
+}
+
+.home__form > * + * {
+  margin-block-start: var(--form-gap);
+}
+
+/* Four pixels clear of the row above, on top of the nine every field gets:
+   the form's own space plus the control's, as it was when the nine was a gap.
+   Two classes deep on purpose - it has to beat the form's own spacing above
+   whatever order the two end up in. */
 .home__form .home__btn--go {
-  margin-top: 4px;
+  margin-top: calc(var(--form-gap) + 4px);
   min-height: 48px;
+}
+
+.home__form .home__confirm-row {
+  margin-top: calc(var(--form-gap) + 4px);
 }
 
 /* Two under a field, level with each other. */

@@ -105,10 +105,19 @@ export function renderCall(root, board, viewWeek, activeSlot, handlers) {
     </div>
     <div class="call__slots${two ? " call__slots--two" : ""}" data-key="slots"></div>`,
   );
+  const slots = box.querySelector(".call__slots");
   reconcile(
-    box.querySelector(".call__slots"),
-    week.picks.map((pick, index) => slotMarkup(pick, board, two, index === active)).join(""),
+    slots,
+    week.picks.map((pick, index) => slotMarkup(pick, board, two, index === active)).join("") +
+      // The bracket round the active slot, as one element that travels rather
+      // than as a border lit on one slot and put out on the other: a slot's
+      // markup changes on every pick and lock, so a border carried in it is
+      // rebuilt - and a rebuilt border has nothing to move from. Which slot it
+      // stands on is written on the row below, not in the markup, for the same
+      // reason.
+      (two ? `<span class="call__marker" data-key="marker" aria-hidden="true"></span>` : ""),
   );
+  if (two) slots.style.setProperty("--active", String(active));
 }
 
 function isNow(week, board) {

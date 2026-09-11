@@ -274,7 +274,14 @@ function yardMarkup(week, board) {
     .filter(Boolean)
     .join(" ");
 
+  // What the yard line is holding, for the settle that plays when it changes
+  // under no tap of yours (playDataUpdates in app.js). The marks alone: which
+  // week the bracket is on is not in the markup, and the line itself is the
+  // ruler the field is read against - only the chalk on it moves.
+  const signature = lanes.map((lane) => `${lane.mark ?? ""}:${lane.team}`).join("|");
+
   return `<button type="button" class="${classes}" data-yard="${week.week}" data-key="${week.week}" tabindex="-1"
+      data-motion-key="yard-${week.week}" data-motion-signature="${escapeHtml(signature)}"
       aria-label="Week ${week.week}, ${escapeHtml(week.labelFull)}${says ? `, ${escapeHtml(says)}` : ""}">
       <span class="pitch__lanes">${lanes.map(laneMarkup).join("")}</span>
       <span class="pitch__num">${week.week}</span>

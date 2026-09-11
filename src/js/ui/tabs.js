@@ -56,10 +56,14 @@ export function renderTabs(root, activeId, onSelect) {
   root.style.setProperty("--tab", String(Math.max(at, 0)));
 
   // The entrance only plays when the tab actually changed - otherwise every
-  // lock and pick would re-flash the panel.
+  // lock and pick would re-flash the panel. Which way the drawer travelled is
+  // the two tabs' places in the bar, so a step right and a step back read
+  // differently rather than both being a rise.
+  const was = TABS.findIndex((tab) => tab.id === lastRendered);
   const changed = activeId !== lastRendered;
+  const direction = changed && was >= 0 && at >= 0 ? Math.sign(at - was) : 0;
   lastRendered = activeId;
-  applyPanels(activeId, changed);
+  applyPanels(activeId, changed, direction);
 }
 
 function buildTabBar(root) {
@@ -98,35 +102,100 @@ function buildTabBar(root) {
 
 /** The panel currently arriving, so a second tab change can cut its entrance. */
 let entering = null;
+/** The panel on its way out, and the change it belongs to. */
+let leaving = null;
+/** The latest tab change, so one overtaken part way through gives way to it. */
+let change = null;
 
 /**
- * Show the active panel and hide the rest; the new one rises into place.
+ * Show the active panel and hide the rest: the one being left goes the way the
+ * drawer is travelling, and the one asked for comes in behind it.
  *
- * How long the entrance takes is the stylesheet's business alone - the class
- * comes off when the keyframes it names have finished (see ui/motion.js), so
- * shortening panel-enter in motion.css cannot leave the class hanging on
- * afterwards.
+ * In two beats rather than one, because the panels stack: on a phone only one
+ * is in the layout at a time, and showing both to cross-fade them would push
+ * the drawer to twice its height for the length of the fade. So the exit is
+ * kept short - it is dead time in front of the thing somebody asked for - and
+ * the entrance follows it.
+ *
+ * How long either takes is the stylesheet's business alone - the classes come
+ * off when the keyframes they name have finished (see ui/motion.js), so
+ * shortening panel-enter in motion.css cannot leave one hanging on afterwards.
+ *
+ * @param {string} activeId
+ * @param {boolean} animate
+ * @param {number} direction -1 for a step towards the start of the bar, +1
+ *   towards the end, 0 where there is no direction to give - the first paint,
+ *   or a panel shown again by a render.
  */
-function applyPanels(activeId, animate) {
-  entering?.classList.remove("is-entering");
-  entering = null;
-
+function applyPanels(activeId, animate, direction = 0) {
   const panels = TABS.map((tab) => document.getElementById(tab.panel)).filter(Boolean);
   const to = document.getElementById(TABS.find((tab) => tab.id === activeId)?.panel);
   if (!to) return;
 
-  for (const panel of panels) panel.hidden = panel !== to;
-  if (!animate || prefersReducedMotion()) return;
+  // A change already in flight owns the panels until it has finished. Every
+  // render calls this, and a pick or a lock has nothing to say about which
+  // panel is showing - it used to strip the entrance off a panel that was
+  // still arriving.
+  if (!animate && (change || entering)) return;
 
-  // Shown and told to enter in the one task. A panel that was display:none
-  // has no animation on it to reset, so the class goes straight on: playOnce
-  // would first read offsetWidth to force the browser to drop a finished play,
-  // and that is a layout of the whole page for a panel that had nothing to
-  // drop. The class comes off when the entrance is over (ui/motion.js).
-  entering = to;
-  to.classList.add("is-entering");
-  afterMotion(to, { subtree: false }).then(() => {
-    to.classList.remove("is-entering");
-    if (entering === to) entering = null;
+  const from = panels.find((panel) => !panel.hidden && panel !== to);
+  const show = () => {
+    for (const panel of panels) panel.hidden = panel !== to;
+  };
+
+  // Whatever an earlier change was still playing is not what the drawer is
+  // doing now. Cleared before this one starts, so a panel cannot be left
+  // wearing an exit it will never finish.
+  settlePanels(panels);
+
+  if (!animate || prefersReducedMotion() || !from) {
+    change = null;
+    show();
+    if (animate && !prefersReducedMotion()) enter(to, direction);
+    return;
+  }
+
+  const mine = {};
+  change = mine;
+  leaving = from;
+  if (direction) from.style.setProperty("--slide", String(direction));
+  from.classList.add("is-leaving");
+  afterMotion(from, { subtree: false }).then(() => {
+    // Overtaken: a later tab change has already decided what is on screen.
+    if (change !== mine) return;
+    change = null;
+    leaving = null;
+    from.classList.remove("is-leaving");
+    from.style.removeProperty("--slide");
+    show();
+    enter(to, direction);
   });
+}
+
+/**
+ * The panel arriving. Shown and told to enter in the one task: a panel that
+ * was display:none has no animation on it to reset, so the class goes straight
+ * on rather than through playOnce, which would first read offsetWidth to force
+ * the browser to drop a finished play - a layout of the whole page for a panel
+ * that had nothing to drop.
+ */
+function enter(panel, direction) {
+  entering = panel;
+  if (direction) panel.style.setProperty("--slide", String(direction));
+  panel.classList.add("is-entering", ...(direction ? ["is-directed"] : []));
+  afterMotion(panel, { subtree: false }).then(() => {
+    panel.classList.remove("is-entering", "is-directed");
+    panel.style.removeProperty("--slide");
+    if (entering === panel) entering = null;
+  });
+}
+
+/** Whatever an earlier change left on the panels, off. */
+function settlePanels(panels) {
+  change = null;
+  entering?.classList.remove("is-entering", "is-directed");
+  leaving?.classList.remove("is-leaving");
+  entering = null;
+  leaving = null;
+  for (const panel of panels) panel.style.removeProperty("--slide");
 }

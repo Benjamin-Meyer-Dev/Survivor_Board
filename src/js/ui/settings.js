@@ -41,6 +41,16 @@ import {
 import { formatCode, joinLink } from "../core/code.js";
 import { escapeHtml } from "../core/format.js";
 import { POOL_KINDS } from "../sports.js";
+import { reconcile } from "./patch.js";
+import {
+  afterMotion,
+  closeDialog,
+  grow,
+  keepOpen,
+  prefersReducedMotion,
+  shrink,
+  swapContents,
+} from "./motion.js";
 
 /** Latest handlers and board, so the listeners bound on the first render stay current. */
 let onSaveRules = () => {};
@@ -50,6 +60,8 @@ let current = null;
 let draft = null;
 /** Which take-down - "remove" or "delete" - is waiting on its second tap. */
 let danger = null;
+/** The markup the take-down box is showing, so a paint that changed nothing does not swap it. */
+const takeShowing = new WeakMap();
 
 /* A cog with teeth, filled, so it reads as settings and not as a sun. */
 const GEAR_ICON = `
@@ -111,7 +123,9 @@ export function renderSettings(
   // gear there would open a sheet about nothing.
   button.hidden = !board;
   if (!board) {
-    if (dialog.open) dialog.close();
+    // No exit for this one: the sheet is being shut because the league it was
+    // about has gone, and the page under it is changing anyway.
+    closeDialog(dialog, { now: true });
     return;
   }
 
@@ -201,7 +215,10 @@ function buildSheet(root) {
       state = "failed";
     }
     button.innerHTML = state === "done" ? DONE_ICON : FAILED_ICON;
-    button.classList.add(`settings__copy--${state}`);
+    // The swap is the whole of the feedback, so it arrives rather than
+    // appears (icon-swap in motion.css). Left on for good: the icon changes
+    // back in a moment and that swap is the same news the other way.
+    button.classList.add(`settings__copy--${state}`, "is-swapped");
     button.title = state === "done" ? "Link copied" : "Copy failed";
     setTimeout(() => {
       button.innerHTML = COPY_ICON;
@@ -213,6 +230,7 @@ function buildSheet(root) {
   root.querySelector(".settings__open").addEventListener("click", () => {
     draft = onlyEditable(current.board.rules);
     danger = null;
+    keepOpen(dialog);
     paint(root);
     dialog.showModal();
     // The sheet itself takes focus, not the name field: a field focused on
@@ -225,14 +243,14 @@ function buildSheet(root) {
   for (const out of root.querySelectorAll(".settings__close, .settings__cancel")) {
     out.addEventListener("click", () => {
       draft = null;
-      dialog.close();
+      closeDialog(dialog);
     });
   }
 
   root.querySelector(".settings__save").addEventListener("click", () => {
     const next = draft;
     draft = null;
-    dialog.close();
+    closeDialog(dialog);
     if (!next) return;
     // Back to exactly what the plan ships: store nothing, so the pool follows
     // the file again and a later re-plan of it reaches this board.
@@ -288,7 +306,16 @@ function buildSheet(root) {
   // element itself rather than on anything inside it. Closing on that is what
   // every other sheet on a phone does.
   dialog.addEventListener("click", (event) => {
-    if (event.target === dialog) dialog.close();
+    if (event.target === dialog) closeDialog(dialog);
+  });
+
+  // Esc, which the platform answers by closing on the spot. Taken over so it
+  // leaves the same way the cross and the backdrop do; the close still
+  // happens, a fifth of a second later and with the sheet on its way out.
+  dialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    draft = null;
+    closeDialog(dialog);
   });
 
   // Esc, the backdrop, the cross and Cancel all end up here.
@@ -317,17 +344,19 @@ function takeDown(root, dialog, step) {
       danger = null;
       paint(root);
       break;
+    // The sheet leaves before the league does. Awaited rather than fired and
+    // forgotten: removing a pool rebuilds the board underneath, and a sheet
+    // still on screen while that happens is a sheet about a pool that is no
+    // longer there.
     case "confirm-remove":
       danger = null;
       draft = null;
-      dialog.close();
-      current.onRemovePool(kind);
+      closeDialog(dialog).then(() => current.onRemovePool(kind));
       break;
     case "confirm-delete":
       danger = null;
       draft = null;
-      dialog.close();
-      current.onDeleteLeague(league?.code);
+      closeDialog(dialog).then(() => current.onDeleteLeague(league?.code));
       break;
     default:
       break;
@@ -397,12 +426,18 @@ function takeDownMarkup() {
 /**
  * The sheet's fields, from the draft.
  *
- * The body is rebuilt rather than reconciled - three groups of controls is
- * not enough DOM to be worth diffing - so `keep` is the control that was just
- * used, and focus is put back on its replacement afterwards. Without it a
- * keyboard or switch user stepping picks a week up would find their focus
- * back at the top of the document, and every subsequent choice would need the
- * sheet navigated again from the start.
+ * The body is patched rather than rebuilt (ui/patch.js), but only just: a
+ * group whose number changed is replaced whole, because a stepper is four
+ * nodes and not worth diffing. What the keys buy is the two things that have
+ * to be watched rather than replaced - the weeks group, which comes and goes
+ * with the pool's buy backs, and its pills, which come and go with the run -
+ * so each can arrive and leave on its own motion instead of blinking in and
+ * out of the sheet.
+ *
+ * `keep` is the control that was just used, and focus is put back on its
+ * replacement afterwards. Without it a keyboard or switch user stepping picks
+ * a week up would find their focus back at the top of the document, and every
+ * subsequent choice would need the sheet navigated again from the start.
  */
 function paint(root, keep = null) {
   const { board, canWrite, league } = current;
@@ -429,62 +464,85 @@ function paint(root, keep = null) {
   // ceiling here the way they are in the model.
   const maxBuyBacks = Math.min(MAX_BUY_BACKS, weeks.length);
 
+  // Patched rather than rebuilt (ui/patch.js), so the one group that comes and
+  // goes can be seen to. A group whose number changed is replaced as it always
+  // was; the weeks group is kept while it is there, and its pills are keyed
+  // separately below - a week ticked used to rebuild every pill in the row.
+  const body = root.querySelector(".settings__body");
+  const open = Boolean(root.querySelector(".settings")?.open);
+  // Which weeks a buy back can cover is a question only once there is one: a
+  // pool that grants none has nothing to put in the row, and an empty row of
+  // pills reads as a rule left unset rather than as one that does not apply.
+  const wantsWeeks = rules.buyBacks > 0;
+  const hadWeeks = body.querySelector('[data-key="buyBackWeeks"]');
+
   // No control for what a pick has to do: that is the kind of pool this is,
   // fixed when the league was made and named in the title above.
-  root.querySelector(".settings__body").innerHTML = `
-    ${group({
+  reconcile(
+    body,
+    `${group({
+      key: "startWeek",
       legend: "Start week",
       controls: stepper("startWeek", rules.startWeek, {
         min: season[0] ?? rules.startWeek,
         max: rules.endWeek,
       }),
     })}
-
     ${group({
+      key: "endWeek",
       legend: "End week",
       controls: stepper("endWeek", rules.endWeek, {
         min: rules.startWeek,
         max: season.at(-1) ?? rules.endWeek,
       }),
     })}
-
     ${group({
+      key: "picksPerWeek",
       legend: "Picks a week",
       controls: stepper("picksPerWeek", rules.picksPerWeek, {
         min: 1,
         max: maxPicksPerWeek(weeks.length, board.totalTeams),
       }),
     })}
-
     ${group({
+      key: "buyBacks",
       legend: "Buy backs",
       controls: stepper("buyBacks", rules.buyBacks, { min: 0, max: maxBuyBacks }),
     })}
-
     ${
-      // Which weeks a buy back can cover is a question only once there is one:
-      // a pool that grants none has nothing to put in the row, and an empty
-      // row of pills reads as a rule left unset rather than as one that does
-      // not apply.
-      rules.buyBacks > 0
+      wantsWeeks
         ? group({
+            key: "buyBackWeeks",
             legend: "Buy Back Weeks",
             stack: true,
-            controls: `<div class="settings__weeks">
-        ${weeks
-          .map(
-            (week) => `
-          <button type="button" class="settings__week" data-rule="buyBackWeeks"
-                  data-value="${week}"
-                  aria-pressed="${rules.buyBackWeeks.includes(week)}">${week}</button>`,
-          )
-          .join("")}
-      </div>`,
+            // Empty in the markup so ticking a week does not count as a change
+            // to the group itself: the pills are put in underneath.
+            controls: `<div class="settings__weeks" data-weeks></div>`,
           })
         : ""
-    }`;
+    }`,
+  );
 
-  root.querySelector(".settings__take").innerHTML = takeDownMarkup();
+  const weeksBox = body.querySelector("[data-weeks]");
+  if (weeksBox) paintWeeks(weeksBox, weeks, rules, open && Boolean(hadWeeks));
+
+  // The group arriving with the pool's first buy back, and leaving with its
+  // last. Only in an open sheet: on the way in the whole sheet is arriving,
+  // and a group growing inside a sheet that is itself rising is two moves
+  // where the person made one.
+  if (open && !prefersReducedMotion()) {
+    if (wantsWeeks && !hadWeeks) grow(body.querySelector('[data-key="buyBackWeeks"]'));
+    // reconcile has already taken it off the page, so it goes back on to leave
+    // - at the foot of the body, which is where it was. Without its key: it is
+    // a group on its way out, and the next paint must build a new one rather
+    // than pick this one up half shrunk.
+    else if (!wantsWeeks && hadWeeks) {
+      delete hadWeeks.dataset.key;
+      shrink(body.appendChild(hadWeeks));
+    }
+  }
+
+  paintTake(root, open);
 
   for (const control of root.querySelectorAll(".settings__body [data-rule]")) {
     if (!canWrite) control.disabled = true;
@@ -527,13 +585,99 @@ function maxPicksPerWeek(weeks, totalTeams) {
 }
 
 /**
+ * The weeks a buy back can cover, as pills.
+ *
+ * Keyed by week, so narrowing the pool's run takes the weeks that fell off the
+ * end out and widening it puts them back, each settling in or out on its own
+ * rather than the whole row being repainted. A pill on its way out keeps its
+ * place in the row until it has gone, so the ones beside it do not shuffle
+ * under the thumb that is still stepping the run.
+ *
+ * @param {HTMLElement} box
+ * @param {number[]} weeks The run, in order.
+ * @param {object} rules The draft.
+ * @param {boolean} animate
+ */
+function paintWeeks(box, weeks, rules, animate) {
+  const before = new Set([...box.children].map((pill) => pill.dataset.key));
+  const gone = animate
+    ? [...box.children].filter((pill) => !weeks.some((week) => String(week) === pill.dataset.key))
+    : [];
+
+  reconcile(
+    box,
+    weeks
+      .map(
+        (week) => `
+      <button type="button" class="settings__week" data-rule="buyBackWeeks" data-key="${week}"
+              data-value="${week}"
+              aria-pressed="${rules.buyBackWeeks.includes(week)}">${week}</button>`,
+      )
+      .join(""),
+  );
+
+  if (!animate) return;
+
+  // Back where it was, to leave from there. Without its key, so the next paint
+  // builds a fresh pill for that week rather than reviving this one.
+  for (const pill of gone) {
+    const week = Number(pill.dataset.key);
+    delete pill.dataset.key;
+    const after = [...box.children].find((node) => Number(node.dataset.key) > week);
+    box.insertBefore(pill, after ?? null);
+    pill.classList.add("is-leaving");
+    afterMotion(pill, { subtree: false }).then(() => pill.remove());
+  }
+
+  [...box.children]
+    .filter((pill) => pill.dataset.key !== undefined && !before.has(pill.dataset.key))
+    .forEach((pill, index) => {
+      pill.style.setProperty("--i", String(index));
+      pill.classList.add("is-entering");
+      afterMotion(pill, { subtree: false }).then(() => pill.classList.remove("is-entering"));
+    });
+}
+
+/**
+ * The take-down pair, and the question either of them turns into.
+ *
+ * The words and the buttons swap in the same box: the old go out over the new
+ * coming in and the box travels between the two heights (swapContents in
+ * ui/motion.js), because the question is twice the height of the pair it
+ * replaces and everything under it used to jump by that much. Focus follows
+ * the swap - the button that asked the question has gone with it, and a
+ * keyboard user left on a node that is on its way out has nowhere to answer
+ * from.
+ *
+ * @param {HTMLElement} root
+ * @param {boolean} animate False while the sheet is being filled in to open,
+ *   where there is nothing on screen yet to swap out of.
+ */
+function paintTake(root, animate) {
+  const box = root.querySelector(".settings__take");
+  const html = takeDownMarkup();
+  if (takeShowing.get(box) === html) return;
+
+  const had = Boolean(box.firstElementChild);
+  const hadFocus = box.contains(document.activeElement);
+  takeShowing.set(box, html);
+
+  if (!animate || !had || prefersReducedMotion()) {
+    box.innerHTML = html;
+  } else {
+    swapContents(box, html);
+  }
+  if (hadFocus) box.querySelector("[data-danger]:not(:disabled)")?.focus();
+}
+
+/**
  * One rule: its name and its control beside it. A group that needs the width -
  * the weeks - stacks instead.
  */
-function group({ legend, controls, stack = false }) {
+function group({ legend, controls, key, stack = false }) {
   return `
     <div class="settings__group${stack ? " settings__group--stack" : ""}" role="group"
-         aria-label="${escapeHtml(legend)}">
+         data-key="${escapeHtml(key)}" aria-label="${escapeHtml(legend)}">
       <span class="settings__legend">${escapeHtml(legend)}</span>
       <div class="settings__control">${controls}</div>
     </div>`;

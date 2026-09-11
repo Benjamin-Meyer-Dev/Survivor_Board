@@ -29,6 +29,7 @@
 
 import { escapeHtml } from "../core/format.js";
 import { POOL_KINDS, KIND_IDS, normaliseKinds } from "../sports.js";
+import { afterMotion, prefersReducedMotion } from "./motion.js";
 
 /** Latest handlers, so the listeners bound on the first render stay current. */
 let handlers = { onPool: () => {}, onHome: () => {} };
@@ -58,8 +59,10 @@ export function renderLeagueBar(root, { league, kind = null }, given) {
   const signature = `${league?.code ?? ""}:${kinds.join(",")}`;
   if (signature !== painted) {
     // Another league, or a pool added or taken away: new rows, and a menu
-    // open on the old ones is put away rather than left showing them.
-    closeMenu(root);
+    // open on the old ones is put away rather than left showing them. On the
+    // spot, not on its own motion: the rows it would be fading are replaced on
+    // the next line, so there is nothing left to watch go.
+    closeMenu(root, { now: true });
     menu.innerHTML = kinds.map(row).join("");
     painted = signature;
   }
@@ -74,6 +77,31 @@ export function renderLeagueBar(root, { league, kind = null }, given) {
   for (const option of menu.children) {
     option.setAttribute("aria-selected", String(option.dataset.kind === showing));
   }
+}
+
+/**
+ * Say the pool named on the line is being got ready.
+ *
+ * A board is not swapped until the next one is built and planned (switchPool
+ * in app.js), so between the tap and the change there is a stretch where the
+ * board you are looking at is the old one and the picker already says the new
+ * one. That stretch is the whole of what a cold pool costs, and it used to
+ * happen behind a board faded to nothing, where there was nothing to say.
+ *
+ * The mark is on the line rather than beside it: no spinner, no word, just the
+ * pool's own name breathing in the chalk it is about to be drawn in. The line
+ * stops taking taps while it runs - the switch is already being made, and a
+ * second one cannot be.
+ *
+ * @param {HTMLElement|null} root
+ * @param {boolean} busy
+ */
+export function markPoolLoading(root, busy) {
+  const trigger = root?.querySelector(".league-bar__pool");
+  if (!trigger) return;
+  trigger.classList.toggle("is-loading", busy);
+  if (busy) trigger.setAttribute("aria-busy", "true");
+  else trigger.removeAttribute("aria-busy");
 }
 
 /** One pool, as a row: its paint, its name, and a check when it is the one showing. */
@@ -156,7 +184,10 @@ function openMenu(root) {
   const menu = root.querySelector(".league-bar__menu");
   if (trigger.disabled || !menu.hidden) return;
 
-  menu.classList.remove("league-bar__menu--right");
+  // A menu caught part way out is opened again rather than hidden behind its
+  // own exit: the tap that re-opened it is the newer instruction.
+  menu.classList.remove("league-bar__menu--right", "is-closing");
+  closing = null;
   menu.hidden = false;
   trigger.setAttribute("aria-expanded", "true");
   // Hung from the trigger's left edge unless that would run off the screen, in
@@ -168,14 +199,51 @@ function openMenu(root) {
   (menu.querySelector('[aria-selected="true"]') ?? menu.firstElementChild)?.focus();
 }
 
-function closeMenu(root, { refocus = false } = {}) {
+/** The exit in flight, so an open, or a second close, can call it off. */
+let closing = null;
+
+/**
+ * Put the menu away on its own motion.
+ *
+ * `hidden` is display:none, which is a cut: the CSS asks for the discrete
+ * display change to wait for the fade, and the paths that cut were the ones
+ * where the browser never got to run it. So the exit plays first and the hide
+ * follows it (menu-exit in motion.css), for every way out - the trigger, a
+ * press outside, Escape, Tab, and choosing a pool.
+ *
+ * @param {HTMLElement} root
+ * @param {{refocus?:boolean, now?:boolean}} [options] `now` hides it on the
+ *   spot, for a menu whose rows are about to be rebuilt under it.
+ */
+function closeMenu(root, { refocus = false, now = false } = {}) {
   const menu = root.querySelector(".league-bar__menu");
+  const trigger = root.querySelector(".league-bar__pool");
   if (menu.hidden) return;
 
-  menu.hidden = true;
-  root.querySelector(".league-bar__pool").setAttribute("aria-expanded", "false");
+  // Focus and the announcement go now, whatever the motion is doing: a menu
+  // that is on its way out is already shut as far as anything but the eye is
+  // concerned, and a listbox left holding focus while it fades is a trap.
+  trigger.setAttribute("aria-expanded", "false");
   document.removeEventListener("pointerdown", onOutside, true);
-  if (refocus) root.querySelector(".league-bar__pool").focus();
+  if (refocus) trigger.focus();
+
+  if (now || prefersReducedMotion()) {
+    menu.classList.remove("is-closing");
+    closing = null;
+    menu.hidden = true;
+    return;
+  }
+
+  const play = {};
+  closing = play;
+  menu.classList.add("is-closing");
+  afterMotion(menu, { subtree: false }).then(() => {
+    // Opened again while this was playing: the menu on screen is the new one.
+    if (closing !== play) return;
+    closing = null;
+    menu.hidden = true;
+    menu.classList.remove("is-closing");
+  });
 }
 
 /** A press anywhere but the picker puts the menu away; the press itself still lands. */

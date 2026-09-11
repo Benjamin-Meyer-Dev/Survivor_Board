@@ -5,10 +5,24 @@
  * Shown on both screens, so `board` and `store` are optional: on the home
  * page there is no league open and a message from app.js is all there is to
  * say.
+ *
+ * A banner appearing pushes everything under it down, and one going takes the
+ * room back, so neither is allowed to happen between one frame and the next:
+ * the region crossfades its contents and travels between the two heights
+ * (swapContents in ui/motion.js). The first paint is exempt - there was
+ * nothing there to change - and so is a page arriving or leaving, which has a
+ * move of its own going on.
  */
 
 import { escapeHtml } from "../core/format.js";
-import { paint } from "./patch.js";
+import { prefersReducedMotion, swapContents } from "./motion.js";
+
+/**
+ * The markup each notices region is showing. Its own rather than patch.js's,
+ * because the swap writes the region itself and a memo that did not know about
+ * it would skip the write that put a banner back.
+ */
+const shown = new WeakMap();
 
 export function renderNotices(root, { store = null, board = null, message = "" }) {
   const notices = [];
@@ -36,11 +50,25 @@ export function renderNotices(root, { store = null, board = null, message = "" }
     );
   }
 
-  paint(
-    root,
+  const html =
     banner +
-      notices.map((text) => `<div class="notice notice--warn">${escapeHtml(text)}</div>`).join(""),
-  );
+    notices.map((text) => `<div class="notice notice--warn">${escapeHtml(text)}</div>`).join("");
+
+  if (!root) return;
+  const before = shown.get(root);
+  if (before === html) return;
+  shown.set(root, html);
+
+  // Nothing to move from, or a page change already moving everything: write it
+  // and let the page's own entrance carry it in.
+  const busy =
+    root.closest(".shell")?.classList.contains("is-swapping") ||
+    document.body.classList.contains("is-starting");
+  if (before === undefined || busy || prefersReducedMotion()) {
+    root.innerHTML = html;
+    return;
+  }
+  swapContents(root, html);
 }
 
 /**

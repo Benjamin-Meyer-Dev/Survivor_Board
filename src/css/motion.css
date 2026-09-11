@@ -693,3 +693,446 @@
 .is-slide-in {
   animation: week-slide-in 0.28s var(--ease-out) both;
 }
+
+/* --- the shared moves ------------------------------------------------------
+   The keyframes behind ui/motion.js's helpers. Each reads a distance the
+   stylesheet cannot know - a measured height, a gap to travel - from a custom
+   property the helper sets, and owns the duration itself. Nothing here is
+   about one component: they are the moves a block makes when it arrives, when
+   it goes, when a box changes what is in it, and when a render puts something
+   somewhere else. */
+
+/* A block arriving in place (grow in ui/motion.js).
+
+   Its padding and the space above it go with its height, or the block would
+   still be as tall as its own padding with nothing in it. The space above is
+   the block's own margin and not a gap on the parent, because a gap is kept
+   for a row of no height: a group or a line shrunk to nothing would leave its
+   share of the space behind, and the sheet would jump by it at the end of a
+   move it had just watched. Both parents that use this say how much (see
+   --motion-gap in components.css). */
+@keyframes grow {
+  from {
+    height: 0;
+    padding-block: 0;
+    margin-block-start: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--motion-to);
+    margin-block-start: var(--motion-gap, 0px);
+    opacity: 1;
+  }
+}
+
+.is-growing {
+  overflow: hidden;
+  animation: grow 0.24s var(--ease-out) both;
+}
+
+/* And one leaving (shrink), which is the same move backwards and a shade
+   quicker: a thing going has already been read. */
+@keyframes shrink {
+  from {
+    height: var(--motion-from);
+    margin-block-start: var(--motion-gap, 0px);
+    opacity: 1;
+  }
+  to {
+    height: 0;
+    padding-block: 0;
+    margin-block-start: 0;
+    opacity: 0;
+  }
+}
+
+.is-shrinking {
+  overflow: hidden;
+  pointer-events: none;
+  animation: shrink 0.18s ease-in both;
+}
+
+/* A box changing what is in it (swapContents): the old contents lifted out of
+   flow and faded off, the new coming up under them, and the box itself
+   travelling between the two heights so nothing below it jumps. */
+.motion-leaving {
+  position: absolute;
+  inset: 0 0 auto;
+  width: 100%;
+  pointer-events: none;
+  animation: fade-out 0.16s ease-in both;
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes box-resize {
+  from {
+    height: var(--motion-from);
+  }
+  to {
+    height: var(--motion-to);
+  }
+}
+
+.is-resizing {
+  position: relative;
+  overflow: hidden;
+  animation: box-resize 0.24s var(--ease-out) both;
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.is-arriving {
+  animation: arrive 0.24s var(--ease-out) 0.06s both;
+}
+
+/* A node the render put somewhere else, moving there from where it was
+   (settleInto). Transform only: the layout is already final, and this is the
+   node catching up with it. */
+@keyframes move-into-place {
+  from {
+    transform: translate(var(--motion-dx, 0), var(--motion-dy, 0));
+  }
+  to {
+    transform: none;
+  }
+}
+
+.is-moving {
+  animation: move-into-place 0.3s var(--ease-out) both;
+}
+
+/* --- a sheet on its way out ------------------------------------------------
+   The open is a transition from @starting-style (above); the close cannot be,
+   because close() takes the dialog out of the top layer on the spot and there
+   is nothing left to transition. So ui/motion.js puts this on, waits for it,
+   and closes underneath it. `transition: none` while it plays keeps the
+   discrete display transition from starting a second fade on top of this one
+   the moment [open] comes off. */
+@keyframes sheet-exit {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+}
+
+@keyframes backdrop-exit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.settings.is-closing,
+.home__sheet.is-closing {
+  pointer-events: none;
+  transition: none;
+  animation: sheet-exit 0.2s ease-in both;
+}
+
+.settings.is-closing::backdrop,
+.home__sheet.is-closing::backdrop {
+  transition: none;
+  animation: backdrop-exit 0.2s ease both;
+}
+
+/* --- the pool menu on its way out ------------------------------------------
+   Same story as a sheet: `hidden` is display:none and the discrete transition
+   only covers the paths the browser gets to run. ui/league-bar.js plays this
+   and hides the menu under it. */
+@keyframes menu-exit {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.league-bar__menu.is-closing {
+  pointer-events: none;
+  transition: none;
+  animation: menu-exit 0.14s ease-in both;
+}
+
+/* --- the drawer's panels ---------------------------------------------------
+   The panel being left goes the way the tab bar is travelling and the one
+   asked for comes in behind it, so a tab change reads as the drawer moving
+   sideways rather than as one panel appearing. --slide is -1 for a step left
+   and +1 for a step right (ui/tabs.js). Short, because the exit is dead time
+   in front of the panel somebody actually asked for. */
+@keyframes panel-exit {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(calc(var(--slide, 1) * -14px));
+  }
+}
+
+.drawer__panel.is-leaving {
+  pointer-events: none;
+  animation: panel-exit 0.11s ease-in both;
+}
+
+/* The entrance takes the direction too, where one was given: the panel arrives
+   from the side the drawer is travelling from. A tab change with no direction
+   - the first paint, a panel shown again by a render - keeps the plain rise
+   above. */
+@keyframes panel-enter-sideways {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--slide, 1) * 16px));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.drawer__panel.is-entering.is-directed {
+  animation-name: panel-enter-sideways;
+}
+
+/* --- the home page's league cards ------------------------------------------
+   A card leaving is the one place on the home page where something the person
+   did makes a thing disappear, so it goes rather than vanishes: it dims and
+   falls back into the field while the cards after it move up into the space
+   (settleInto, above). A card arriving - made, joined, or found on another
+   device - comes the other way. */
+@keyframes card-leave {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.94) translateY(-4px);
+  }
+}
+
+.home__card.is-leaving {
+  pointer-events: none;
+  animation: card-leave 0.2s ease-in both;
+}
+
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.home__card.is-entering,
+.home__empty.is-entering {
+  animation: card-enter 0.3s var(--ease-out) both;
+}
+
+/* --- the settings sheet ----------------------------------------------------
+   The take-down question replacing the pair of buttons, and back again: the
+   swap is the shared crossfade (is-resizing above), and the weeks group
+   appearing when the first buy back is granted is the shared grow. The week
+   pills settle in and out where a narrowed run adds or drops them. */
+@keyframes pill-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.settings__week.is-entering {
+  animation: pill-enter 0.24s var(--ease-snap) both;
+  animation-delay: calc(var(--i, 0) * 12ms);
+}
+
+@keyframes pill-exit {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+.settings__week.is-leaving {
+  pointer-events: none;
+  animation: pill-exit 0.16s ease-in both;
+}
+
+/* --- the sideline changing slot --------------------------------------------
+   In a two-pick week the list under the call belongs to whichever slot is
+   active, and tapping the other slot replaces every row in it. The marker
+   travels between the slots (components.css) and the list dips with it, so the
+   two read as one change rather than as a jump and a repaint. */
+@keyframes list-swap {
+  from {
+    opacity: 0.25;
+    transform: translateX(calc(var(--slide, 1) * 10px));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sideline.is-slot-swap {
+  animation: list-swap 0.22s var(--ease-out) both;
+}
+
+/* --- marks on the board ----------------------------------------------------
+   The settle the call slots, the drive rows and the bench cards already get
+   (data-settle, above), for the two places that were left out: a yard line's
+   marks, and a row of the sideline whose state changed. The yard line settles
+   its marks alone - the line itself is the ruler the field is read against and
+   must not move - and a sideline row is a full-width row like the drive's, so
+   it takes the same settle they do. */
+@keyframes mark-settle {
+  from {
+    opacity: 0.25;
+    transform: scale(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.pitch__yard.is-data-updated .pitch__mark,
+.pitch__yard.is-data-updated .pitch__label {
+  animation: mark-settle 0.32s var(--ease-snap) both;
+}
+
+.sideline__row.is-data-updated {
+  animation: data-settle 0.3s var(--ease-out) both;
+}
+
+/* --- the first-run cards ---------------------------------------------------
+   The door, then the name, then the board behind them. All three used to
+   change over on `hidden`, which is a cut in the middle of the one sequence
+   that is nothing but first impressions. */
+@keyframes gate-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes gate-exit {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.99);
+  }
+}
+
+.gate__card.is-entering {
+  animation: gate-enter 0.34s var(--ease-out) both;
+}
+
+.gate__card.is-leaving {
+  pointer-events: none;
+  animation: gate-exit 0.2s ease-in both;
+}
+
+/* --- an icon saying something ----------------------------------------------
+   Copy, and what it turns into for a moment. The swap is the whole of the
+   feedback, so it arrives rather than appears. */
+@keyframes icon-swap {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.home__icon.is-swapped svg,
+.settings__copy.is-swapped svg {
+  animation: icon-swap 0.26s var(--ease-snap) both;
+}
+
+/* --- a pool being got ready ------------------------------------------------
+   The board is not swapped until the next one is built and planned, so the
+   picker says the pool you asked for a moment before the board does
+   (markPoolLoading in ui/league-bar.js). The line breathes between the chalk
+   it is and the chalk it is about to be - the pool's own colour, no spinner
+   and no word - and takes no taps while it does, because the switch is already
+   being made.
+
+   With motion switched off the reduced-motion block kills the keyframe and the
+   line simply sits at the colour below, which still reads as the one thing on
+   the topline that is not settled. */
+@keyframes pool-loading {
+  0%,
+  100% {
+    color: var(--chalk-3);
+  }
+  50% {
+    color: var(--chalk);
+  }
+}
+
+.league-bar__pool.is-loading {
+  color: var(--chalk-3);
+  pointer-events: none;
+  animation: pool-loading 1.1s ease-in-out infinite;
+}
+
+.league-bar__pool.is-loading .league-bar__mark {
+  animation: pool-loading-mark 1.1s ease-in-out infinite;
+}
+
+@keyframes pool-loading-mark {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}

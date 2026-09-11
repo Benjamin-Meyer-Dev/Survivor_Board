@@ -107,15 +107,34 @@ function weekRowMarkup(week, board) {
             aria-label="Week ${week.week}, ${escapeHtml(week.labelFull)}${teams ? `, ${escapeHtml(teams)}` : ""}"
             aria-pressed="false">
       <span class="drive__wk">${week.week}${week.week === board.currentWeek && !board.eliminated ? ROW_BALL : ""}</span>
-      <span class="drive__pick">
-        <span class="drive__team">${teams ? escapeHtml(teams) : moot ? "Not played" : pending ? PLANNING : "No pick"}</span>
-        <span class="drive__sub">${escapeHtml(games || week.labelFull)}</span>
+      <span class="drive__pick${shown.length > 1 ? " drive__pick--pairs" : ""}">
+        ${
+          shown.length > 1
+            ? shown.map(pairMarkup).join("")
+            : `<span class="drive__team">${teams ? escapeHtml(teams) : moot ? "Not played" : pending ? PLANNING : "No pick"}</span>
+        <span class="drive__sub">${escapeHtml(games || week.labelFull)}</span>`
+        }
       </span>
       <span class="drive__wide drive__win${shown[0] ? ` confidence--${shown[0].tier}` : ""}">${shown[0] ? formatSpread(shown[0].spread) : "—"}</span>
       <span class="drive__win${tier ? ` confidence--${tier}` : ""}">${win !== null ? formatPercent(win, 0) : "—"}</span>
       <span class="drive__alive">${week.seasonWinProb !== null ? formatPercent(week.seasonWinProb, 0) : ""}</span>
       <span class="drive__wide">${statusChip(week, kind, moot)}</span>
     </button>`;
+}
+
+/**
+ * One of a two-pick week's picks: the team, and the game it is in beside it.
+ *
+ * A week that takes two picks used to join them - "Michigan State & Texas A&M"
+ * on one line, "vs Toledo · vs Missouri State" under it - and in a column this
+ * narrow that cut all four short, with no telling which game belonged to which
+ * team. Each pick takes its own line instead, and the games stack in their own
+ * column beside the names (the grid is on the pick cell, so the two rows share
+ * their columns and the games line up).
+ */
+function pairMarkup(entry) {
+  return `<span class="drive__team">${escapeHtml(entry.team)}</span>
+        <span class="drive__game">${escapeHtml(formatMatchup(entry.site, entry.opponent))}</span>`;
 }
 
 /** The week's finals, in slot order. */
