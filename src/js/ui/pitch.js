@@ -270,13 +270,19 @@ function stats(board) {
     );
   }
 
-  if (!board.eliminated && board.previewPathProbability !== null) {
-    // The lock is still being rehearsed (memoisedPreview in core/plan.js) and
-    // the number in hand is the quick assignment standing in for it. It is
-    // near, not right - a Bills pick read 0.9% for the beat and 0.8% once the
-    // rehearsal landed - so the readout waits rather than saying a number it
-    // will take back. app.js builds again when the rehearsal lands.
-    if (board.previewPending) {
+  // What locking the slot in hand would do to the season. The readout keeps its
+  // place whatever the slot holds, so the row does not reflow as picks come and
+  // go: a dash when there is nothing in hand to lock - the slot is empty, or was
+  // locked a moment ago - and the number otherwise.
+  if (!board.eliminated) {
+    if (board.previewPathProbability === null) {
+      items.push(stat("If locked", "—", "preview-idle"));
+    } else if (board.previewPending) {
+      // The lock is still being rehearsed (memoisedPreview in core/plan.js)
+      // and the number in hand is the quick assignment standing in for it. It
+      // is near, not right - a Bills pick read 0.9% for the beat and 0.8% once
+      // the rehearsal landed - so the readout waits rather than saying a number
+      // it will take back. app.js builds again when the rehearsal lands.
       items.push(stat("If locked", `${PREVIEW_ARROW}…`, "preview-pending", true));
     } else {
       // Judged as shown: a preview that rounds to the same tenth of a percent

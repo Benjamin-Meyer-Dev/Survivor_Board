@@ -258,7 +258,10 @@ near and not right. The lock rehearsed is the lock the button would make: the
 slot in hand, when it holds one of the picks pending. A second pick pending in
 another week stays in its slot on screen, but the rehearsal plans past it the
 way the lock will, so with two picks on the board the number is still the
-number for locking this one and not for locking both. `plan.json` still
+number for locking this one and not for locking both. The readout keeps its
+place on the drive line whatever the slot holds, and shows a dash when there
+is nothing in hand to lock - a slot locked a moment ago, an empty one - rather
+than a number for some other week's pick. `plan.json` still
 carries an authored path, but only as the optimiser's seed and the season
 calendar. It never fills a slot.
 

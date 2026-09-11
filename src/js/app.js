@@ -451,10 +451,11 @@ const BRACKET_SETTLE_MS = 400;
  * The bracket has moved: rebuild the board if the move gives "if locked" a
  * different lock to rehearse.
  *
- * The number prices the lock the slot in hand would make (boardInputs), so
- * with two picks pending the bracket moving onto one of them changes what is
- * held. With one pending it never does, whatever slot is in hand, and the move
- * costs nothing here. `before` is what was held before the move (previewHolds).
+ * The number prices the lock the slot in hand would make (boardInputs), so the
+ * bracket moving onto a pending pick, or off one onto a slot with nothing to
+ * lock (where the readout shows a dash), changes what the readout says. A move
+ * between two slots with nothing pending in either costs nothing here.
+ * `before` is what the readout was for before the move (previewHolds).
  *
  * @param {string} before
  * @param {{settle?:boolean}} [options] `settle` waits for the field to finish

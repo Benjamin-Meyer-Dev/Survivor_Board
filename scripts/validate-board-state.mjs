@@ -327,10 +327,12 @@ assert.equal(
   lockedSecond.pathProbability,
   '"if locked" follows the slot in hand: the second lock priced as its lock then shows',
 );
-// With no slot in hand - a week whose slot holds nothing to lock - every pick
-// pending is held, as before: there is no lock button for the number to
-// disagree with, and the ghosts are a path that could actually be locked.
+// A slot in hand with nothing to lock - an open slot, with the picks pending in
+// other weeks - has no lock for "if locked" to price, and the readout shows a
+// dash there. Every pick pending is still held for the ghosts, so the path on
+// screen is one that could actually be locked.
 const noneInHand = build(twoPending, withFeedResult, true, { week: empty.weeks[2].week, slot: 0 });
+assert.equal(noneInHand.previewPathProbability, null, "nothing in hand to lock, so no number");
 assert.deepEqual(
   new Set(
     noneInHand.weeks.flatMap((week) => week.picks.map((pick) => pick.onPath?.team).filter(Boolean)),
@@ -338,6 +340,17 @@ assert.deepEqual(
   noneInHand.weeks.flatMap((week) => week.picks.filter((pick) => pick.onPath)).length,
   "with no lock in hand the path on screen spends no team twice",
 );
+// The same with the slot in hand locked a moment ago: the lock is made, and
+// the readout has nothing left to say about it.
+const justLocked = build(
+  { picks: { [key]: { locked: true } }, swaps: twoPending.swaps },
+  withFeedResult,
+  true,
+  { week: first.week, slot: first.slot },
+);
+assert.equal(justLocked.previewPathProbability, null, "a locked slot in hand shows no number");
+// And the scripts, which name no slot in hand, get the number for every pick
+// held, as they always did (see `picked` above).
 
 // Locking commits: the team is spent, the final lands, and the coach plans the
 // rest of the season around it.

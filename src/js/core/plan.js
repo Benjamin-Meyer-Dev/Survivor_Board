@@ -1056,7 +1056,13 @@ export function buildBoard({
     buyBacks: rules.buyBacks,
   });
   board.pathProbability = committedOutcome.probability;
-  board.previewPathProbability = previewOutcome ? previewOutcome.probability : null;
+  // The number is the slot in hand's. A slot in hand with nothing to lock - a
+  // lock made a moment ago, an open slot with a pick pending elsewhere - has no
+  // lock for it to price, and the readout shows a dash there (ui/pitch.js);
+  // the rehearsal still ran, for the ghosts. With no slot in hand at all (the
+  // scripts) every pick is held and that is the number, as it always was.
+  board.previewPathProbability =
+    previewOutcome && (target || !inHand) ? previewOutcome.probability : null;
 
   // The depth chart carries all three truths: crossed-out teams are locked,
   // outlined teams are picked but not yet locked, and ghosted teams are only
@@ -1150,10 +1156,11 @@ function targetOf(board, inHand) {
 }
 
 /**
- * The slots "if locked" holds for a slot in hand, as one key: the pending pick
- * in that slot, or every pending pick when it holds none (heldFor). app.js
- * compares this across a move of the bracket to know whether the move gives the
- * board a different lock to rehearse; with one pick pending it never does.
+ * What "if locked" shows for a slot in hand, as one key: the pending pick in
+ * that slot, or every pending pick held with no number shown when it holds
+ * none (heldFor, and previewPathProbability in buildBoard). app.js compares
+ * this across a move of the bracket to know whether the move changes the
+ * readout - onto a pending pick, or off it onto a dash.
  *
  * @param {object} board Result of buildBoard().
  * @param {{week:number, slot:number}|null} inHand
@@ -1161,7 +1168,9 @@ function targetOf(board, inHand) {
  */
 export function previewHolds(board, inHand) {
   const { weighed, target } = targetOf(board, inHand);
-  return (target ? [target] : weighed).map((pick) => slotKey(pick.week, pick.slot)).join(",");
+  if (weighed.length === 0) return "";
+  const held = (target ? [target] : weighed).map((pick) => slotKey(pick.week, pick.slot));
+  return `${target ? "hand" : "none"}:${held.join(",")}`;
 }
 
 /**
