@@ -8,12 +8,13 @@
  * Where it sits and how big it is are the caller's to say, with a class of
  * its own on the wrapper.
  */
+import { APP_NAME } from "../config.js";
 
 /**
  * @param {{top?:string, bottom?:string}} [words] What the end zones say.
  * @returns {string}
  */
-export function stadiumMarkup({ top = "Survivor", bottom = "Board" } = {}) {
+export function stadiumMarkup({ top = APP_NAME, bottom = APP_NAME } = {}) {
   return `
     <div class="stadium" aria-hidden="true">
       <span class="stadium__endzone stadium__endzone--top">${escape(top)}</span>

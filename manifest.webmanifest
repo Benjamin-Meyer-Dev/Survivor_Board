@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "Survivor Board",
-  "short_name": "Survivor",
+  "name": "Chalk",
+  "short_name": "Chalk",
   "description": "Shared college and NFL survivor pool tracker.",
   "start_url": "./",
   "scope": "./",

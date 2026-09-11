@@ -12,7 +12,7 @@
  *   ui action    -> mutate entry -> store.save() -> re-render
  */
 
-import { CONFIG } from "./config.js";
+import { APP_NAME, CONFIG } from "./config.js";
 import { POOL_KINDS, KIND_IDS, resolveSport, normaliseKinds } from "./sports.js";
 import { buildBoard, previewHolds, slotKey, sameEntry, searchesSettled } from "./core/plan.js";
 import { onSearchSettled, searchRunner } from "./core/search.js";
@@ -856,7 +856,7 @@ function renderHomeView() {
   // The league bar is a board's: on the home page there is no league for it to
   // name, so it is hidden whole - the way back, the picker and the gear.
   if (el.leagueBar) el.leagueBar.hidden = true;
-  document.title = "Survivor Board";
+  document.title = APP_NAME;
 
   renderSettings(el.settings, null, { canWrite: false, onSave: () => {} });
   renderNotices(el.notices, { store: app.store, board: null, message: app.message });
@@ -1396,7 +1396,7 @@ function sendSave() {
 /** The tab's title: the league, and which of its pools when it has several. */
 function titleFor(league, kind) {
   const pool = league.kinds.length > 1 ? ` · ${POOL_KINDS[kind].label}` : "";
-  return `${league.name}${pool} · Survivor Board`;
+  return `${league.name}${pool} · ${APP_NAME}`;
 }
 
 /** Repaint for a pool: its season's palette, turned warm when its picks have to lose. */

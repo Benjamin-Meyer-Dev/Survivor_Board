@@ -15,6 +15,7 @@
  * what to do with it.
  */
 
+import { APP_NAME } from "../config.js";
 import { stadiumMarkup } from "./stadium.js";
 
 /**
@@ -58,7 +59,7 @@ function startMarkup({ name, heading, label, action }) {
     ${stadiumMarkup()}
 
     <form class="gate__card" novalidate>
-      <p class="gate__brand">Survivor Board</p>
+      <p class="gate__brand">${APP_NAME}</p>
       <h1 class="gate__label" id="gate-label">${heading ?? "Who's picking?"}</h1>
       <p class="gate__hint">
         ${label ?? "Your name goes on the picks you make, so everyone in a league knows whose they are. It stays on this device."}

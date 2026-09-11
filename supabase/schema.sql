@@ -1,4 +1,4 @@
--- Survivor Board shared state.
+-- Chalk shared state.
 --
 -- One row per pool, keyed by a league's code, the season the pool plays and
 -- what its picks have to do (win or lose). A league is every row that shares a

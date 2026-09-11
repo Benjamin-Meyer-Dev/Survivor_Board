@@ -2395,10 +2395,6 @@
   color: var(--flag);
 }
 
-.home__brand span {
-  color: var(--flag);
-}
-
 .home__eyebrow {
   color: var(--chalk-3);
   margin: 0 0 4px;

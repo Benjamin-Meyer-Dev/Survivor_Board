@@ -15,6 +15,7 @@
  * and the salt are its to know - and what to do once one is right.
  */
 
+import { APP_NAME } from "../config.js";
 import { stadiumMarkup } from "./stadium.js";
 
 /**
@@ -83,7 +84,7 @@ function doorMarkup() {
     ${stadiumMarkup()}
 
     <form class="gate__card" novalidate>
-      <p class="gate__brand">Survivor Board</p>
+      <p class="gate__brand">${APP_NAME}</p>
       <h1 class="gate__label" id="gate-label">What's the code?</h1>
       <p class="gate__hint">
         This board is private. Enter the access code you were given; this device

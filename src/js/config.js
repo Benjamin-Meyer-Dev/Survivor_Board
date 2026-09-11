@@ -8,6 +8,13 @@
  * stay on the phone that made them, and the UI says so.
  */
 
+/**
+ * What the app is called, everywhere it names itself: the tab, the home
+ * screen, the wordmark and the end zones. Chalk is the favourite - the pick a
+ * survivor pool lives on - and the lines the field is drawn in.
+ */
+export const APP_NAME = "Chalk";
+
 export const CONFIG = Object.freeze({
   /** Where the data files live, relative to index.html. One folder per sport. */
   dataPath: "./data",

@@ -217,7 +217,7 @@ const script = [
   ...modules.map(([file, source]) => `/* ---- ${file} ---- */\n${source}`),
 ].join("\n\n");
 
-const out = `<title>Survivor Board</title>
+const out = `<title>Chalk</title>
 ${fontLink}
 <style>
 ${css}
