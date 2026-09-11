@@ -10,10 +10,23 @@
 
 /**
  * What the app is called, everywhere it names itself: the tab, the home
- * screen, the wordmark and the end zones. Chalk is the favourite - the pick a
- * survivor pool lives on - and the lines the field is drawn in.
+ * screen, the wordmark and the end zones. Two words, because the field has two
+ * end zones and each is painted with one of them (ui/stadium.js). Sudden
+ * death is what a survivor pool is - one loss and the season is over - and the
+ * overtime rule the game itself has always called it.
  */
-export const APP_NAME = "Chalk";
+export const APP_NAME_WORDS = Object.freeze(["Sudden", "Death"]);
+export const APP_NAME = APP_NAME_WORDS.join(" ");
+
+/**
+ * Every localStorage key starts with this, so nothing the app writes can
+ * collide with anything else on the origin. `OLD_STORAGE_PREFIXES` is what the
+ * keys began with under the app's earlier names: whatever a device still holds
+ * under one of them is brought across at launch (store/directory.js), so a
+ * rename never logs anyone out or loses a league list.
+ */
+export const STORAGE_PREFIX = "sudden-death/";
+export const OLD_STORAGE_PREFIXES = Object.freeze(["survivor-board/"]);
 
 export const CONFIG = Object.freeze({
   /** Where the data files live, relative to index.html. One folder per sport. */
@@ -61,11 +74,11 @@ export const CONFIG = Object.freeze({
    *             offline copy of that pool's board
    */
   storage: Object.freeze({
-    passcode: "survivor-board/passcode",
-    name: "survivor-board/name",
-    who: "survivor-board/who",
-    leagues: "survivor-board/leagues/v1",
-    entryPrefix: "survivor-board/entry/v2",
+    passcode: `${STORAGE_PREFIX}passcode`,
+    name: `${STORAGE_PREFIX}name`,
+    who: `${STORAGE_PREFIX}who`,
+    leagues: `${STORAGE_PREFIX}leagues/v1`,
+    entryPrefix: `${STORAGE_PREFIX}entry/v2`,
   }),
 
   /**

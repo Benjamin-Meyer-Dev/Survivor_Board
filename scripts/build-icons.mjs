@@ -223,7 +223,7 @@ function rasterise(chrome, workDir, svgPath, pngPath, size) {
 }
 
 const chrome = findChrome();
-const workDir = mkdtempSync(join(tmpdir(), "survivor-icons-"));
+const workDir = mkdtempSync(join(tmpdir(), "sudden-death-icons-"));
 try {
   for (const output of OUTPUTS) {
     const svgPath = join(workDir, output.file.replace(/\.png$/, ".svg"));

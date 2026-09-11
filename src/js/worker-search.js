@@ -14,9 +14,9 @@
  * failure takes the runner back out (core/search.js) rather than being
  * reported. It is not quiet in the console, though: what happened to the worker
  * - when it started, when it said it was ready, why it was given up on, how
- * long each search took - is kept on `globalThis.SURVIVOR_DIAGNOSTICS.search`
- * and marked on the performance timeline (`survivor:search-worker:*`,
- * `survivor:search`), so a trace taken on a phone can tell a search that ran
+ * long each search took - is kept on `globalThis.SUDDEN_DEATH_DIAGNOSTICS.search`
+ * and marked on the performance timeline (`sudden-death:search-worker:*`,
+ * `sudden-death:search`), so a trace taken on a phone can tell a search that ran
  * here from one that ran there.
  *
  * The worker says when it is ready (core/recommend.worker.js). Until it does,
@@ -35,7 +35,7 @@ const PATIENCE_MS = 20000;
 const STARTUP_MS = 8000;
 
 /** What happened to the worker, for a console and for tests. */
-const diagnostics = (globalThis.SURVIVOR_DIAGNOSTICS ??= {});
+const diagnostics = (globalThis.SUDDEN_DEATH_DIAGNOSTICS ??= {});
 const status = (diagnostics.search = {
   /** "worker" while searches are handed off, "inline" otherwise. */
   mode: "inline",
@@ -78,7 +78,7 @@ export function useWorkerForSearch() {
     status.fallbackReason = "this browser has no Worker";
     return false;
   }
-  if (globalThis.SURVIVOR_DATA) {
+  if (globalThis.SUDDEN_DEATH_DATA) {
     status.fallbackReason = "the artifact build has no worker file to load";
     return false;
   }
@@ -95,7 +95,7 @@ export function useWorkerForSearch() {
 
   status.mode = "worker";
   status.startedAt = now();
-  mark("survivor:search-worker:start");
+  mark("sudden-death:search-worker:start");
 
   /** Searches on the wire, by the id they went out with. */
   const waiting = new Map();
@@ -117,7 +117,7 @@ export function useWorkerForSearch() {
     clearTimeout(startup);
     status.mode = "inline";
     status.fallbackReason = reason;
-    mark("survivor:search-worker:abandoned");
+    mark("sudden-death:search-worker:abandoned");
     setSearchRunner(null);
     queued.length = 0;
     for (const id of [...waiting.keys()]) settle(id, (p) => p.reject(new Error(reason)));
@@ -145,15 +145,15 @@ export function useWorkerForSearch() {
       clearTimeout(startup);
       status.readyAt = now();
       status.startupMs = Math.round(status.readyAt - status.startedAt);
-      mark("survivor:search-worker:ready");
-      measure("survivor:search-worker:startup", status.startedAt);
+      mark("sudden-death:search-worker:ready");
+      measure("sudden-death:search-worker:startup", status.startedAt);
       for (const message of queued.splice(0)) post(message);
       return;
     }
     settle(id, (pending) => {
       status.searches += 1;
       status.lastSearchMs = Math.round(now() - pending.startedAt);
-      measure("survivor:search", pending.startedAt);
+      measure("sudden-death:search", pending.startedAt);
       if (error) pending.reject(new Error(error));
       else pending.resolve(value);
     });

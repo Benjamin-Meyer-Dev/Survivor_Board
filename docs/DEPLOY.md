@@ -25,7 +25,7 @@ If the folder is not a git repo yet:
 cd survivor-board
 git init -b main
 git add .
-git commit -m "feat: initial survivor board"
+git commit -m "feat: initial sudden death board"
 ```
 
 Create the remote at github.com/new: name `survivor-board`, **Public**, and

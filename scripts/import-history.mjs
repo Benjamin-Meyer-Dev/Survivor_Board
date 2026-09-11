@@ -162,7 +162,7 @@ async function text(name, url) {
 /** The per-book lines file, extracted to disk so it can be streamed. */
 async function linesFile() {
   if (localDir) return join(localDir, "cfb_line_odds.csv");
-  const dir = join(tmpdir(), "survivor-board-history");
+  const dir = join(tmpdir(), "sudden-death-history");
   await mkdir(dir, { recursive: true });
   const target = join(dir, "cfb_line_odds.csv");
   console.log(`  fetching ${SOURCES.cfb.lines} (7 MB, unpacks to 140 MB)`);

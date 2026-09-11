@@ -20,6 +20,7 @@ import { useWorkerForSearch } from "./worker-search.js";
 import { createStore } from "./store/index.js";
 import {
   accessGranted,
+  adoptOldStorage,
   createLeague,
   deleteLeague,
   grantAccess,
@@ -390,7 +391,7 @@ const files = new Map();
 
 /**
  * Read a data file. The artifact build has no sibling files to fetch, so the
- * bundler inlines the JSON blobs on `globalThis.SURVIVOR_DATA` and this
+ * bundler inlines the JSON blobs on `globalThis.SUDDEN_DEATH_DATA` and this
  * short-circuits. On Pages it fetches, once.
  *
  * Every caller gets its own copy, because loadLeague writes the pool's
@@ -401,7 +402,7 @@ async function loadJson(name, sport = POOL_KINDS[app.kind]?.sport) {
   // Per sport, not per league: every league on the NFL schedule is priced off
   // the one data/nfl pull, however many of them there are.
   const folder = resolveSport(sport);
-  const preloaded = globalThis.SURVIVOR_DATA?.[folder]?.[name];
+  const preloaded = globalThis.SUDDEN_DEATH_DATA?.[folder]?.[name];
   if (preloaded) return structuredClone(preloaded);
   return structuredClone(await fetchJson(folder, name));
 }
@@ -671,13 +672,13 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = 
   // A search that is already running somewhere else will say when it lands
   // (onSearchSettled in main), so there is nothing to schedule for it.
   if (board.recommendationPending && !board.recommendationRunning) scheduleRecommendation(settle);
-  measure("survivor:render", started);
+  measure("sudden-death:render", started);
   return board;
 }
 
 /**
  * A span on the performance timeline, so a trace taken on a phone can tell a
- * render from a search from a layout. Named `survivor:*`, alongside the
+ * render from a search from a layout. Named `sudden-death:*`, alongside the
  * worker's own (worker-search.js) and the store's (store/supabase.js).
  */
 function measure(name, started) {
@@ -1925,6 +1926,9 @@ async function main() {
   // the "if locked" number (memoisedPreview in core/plan.js) - once the board
   // is still, so a landing never cuts the tap's own feedback short.
   onSearchSettled(repaintAfterMotion);
+  // Whatever this device kept under the app's old name comes across before
+  // anything reads storage, so a rename is not a logout.
+  adoptOldStorage();
   // The door first, then the name: a device with neither sees two cards in a
   // row, and a link followed without the code goes no further than the door.
   await requireAccess();

@@ -1,20 +1,24 @@
 /**
- * The field, drawn in markup: painted end zones with the wordmark in them,
- * hash marks, yard numbers at both sidelines and the ball at midfield. The
- * lines themselves are the stylesheet's (`.stadium` in components.css).
+ * The field, drawn in markup: painted end zones with the app's name split
+ * across them - one word in each, the way a home team's is - hash marks, yard
+ * numbers at both sidelines and the ball at midfield. The lines themselves are
+ * the stylesheet's (`.stadium` in components.css).
  *
  * Decorative and inert - aria-hidden, no pointer events - so it can stand
  * behind whatever is on top of it: the start screen's card, or the home page.
  * Where it sits and how big it is are the caller's to say, with a class of
  * its own on the wrapper.
  */
-import { APP_NAME } from "../config.js";
+import { APP_NAME_WORDS } from "../config.js";
+
+const [FIRST_WORD, SECOND_WORD] = APP_NAME_WORDS;
 
 /**
- * @param {{top?:string, bottom?:string}} [words] What the end zones say.
+ * @param {{top?:string, bottom?:string}} [words] What the end zones say: by
+ *   default the first word of the name at the top and the second at the bottom.
  * @returns {string}
  */
-export function stadiumMarkup({ top = APP_NAME, bottom = APP_NAME } = {}) {
+export function stadiumMarkup({ top = FIRST_WORD, bottom = SECOND_WORD } = {}) {
   return `
     <div class="stadium" aria-hidden="true">
       <span class="stadium__endzone stadium__endzone--top">${escape(top)}</span>

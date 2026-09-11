@@ -92,11 +92,7 @@ assert.ok(
   Number.isInteger(passcode.iterations) && passcode.iterations >= 100000,
   "the count is at least a hundred thousand",
 );
-assert.equal(
-  CONFIG.storage.passcode,
-  "survivor-board/passcode",
-  "and the device remembers it here",
-);
+assert.equal(CONFIG.storage.passcode, "sudden-death/passcode", "and the device remembers it here");
 
 // The code itself must never land in the file: the block holds those three
 // keys and no other, and nothing in it reads as a code being spelled out.

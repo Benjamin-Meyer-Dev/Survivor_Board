@@ -234,7 +234,7 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
       const poll = async () => {
         if (polling) return;
         polling = true;
-        mark("survivor:store:poll");
+        mark("sudden-death:store:poll");
         const seenBefore = lastVersion;
         try {
           const row = await readRow();
@@ -285,7 +285,7 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
           "postgres_changes",
           { event: "*", schema: "public", table, filter: `code=eq.${entryId}` },
           (payload) => {
-            mark("survivor:store:realtime");
+            mark("sudden-death:store:realtime");
             publish(listener, payload.new);
           },
         )
@@ -294,7 +294,7 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
             connected = true;
             rest();
             checked();
-            mark("survivor:store:subscribed");
+            mark("sudden-death:store:subscribed");
             // Once, now: whatever committed while the socket was down was
             // never pushed to anybody - and the copy the board opened on, if
             // it did, is checked by the same read.

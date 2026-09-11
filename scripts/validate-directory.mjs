@@ -18,7 +18,7 @@ import assert from "node:assert/strict";
 
 /* --- a browser, enough of one -------------------------------------------- */
 
-/** localStorage, as the directory uses it: get, set, remove. */
+/** localStorage, as the directory uses it: get, set, remove, and a walk of the keys. */
 function fakeStorage() {
   const map = new Map();
   return {
@@ -26,6 +26,10 @@ function fakeStorage() {
     setItem: (key, value) => map.set(key, String(value)),
     removeItem: (key) => map.delete(key),
     clear: () => map.clear(),
+    key: (index) => [...map.keys()][index] ?? null,
+    get length() {
+      return map.size;
+    },
     get size() {
       return map.size;
     },
@@ -128,7 +132,8 @@ function fakeTable() {
 const { setSupabaseClient } = await import("../src/js/store/client.js");
 const directory = await import("../src/js/store/directory.js");
 const { isCode, normaliseCode, formatCode } = await import("../src/js/core/code.js");
-const { CONFIG, scopeFor } = await import("../src/js/config.js");
+const { CONFIG, OLD_STORAGE_PREFIXES, STORAGE_PREFIX, scopeFor } =
+  await import("../src/js/config.js");
 const { SPORTS, POOL_KINDS } = await import("../src/js/sports.js");
 const { mergeRules } = await import("../src/js/core/rules.js");
 
@@ -491,6 +496,50 @@ await assert.rejects(() => directory.removePool(local.code, "nfl-win"), /last po
 await directory.deleteLeague(local.code);
 assert.deepEqual(directory.myLeagues(), [], "and a league comes off it whole");
 
+/* --- a device from before the rename keeps everything -------------------- */
+
+// Every key the app has ever written starts with the current prefix, and the
+// old prefix is not it: otherwise there would be nothing to bring across.
+for (const key of Object.values(CONFIG.storage)) assert.ok(key.startsWith(STORAGE_PREFIX));
+assert.ok(OLD_STORAGE_PREFIXES.length > 0 && !OLD_STORAGE_PREFIXES.includes(STORAGE_PREFIX));
+
+storage.clear();
+const [oldPrefix] = OLD_STORAGE_PREFIXES;
+const oldKeys = {
+  [`${oldPrefix}passcode`]: "digest-from-before",
+  [`${oldPrefix}name`]: "Sam",
+  [`${oldPrefix}who`]: "d-old12345",
+  [`${oldPrefix}leagues/v1`]: JSON.stringify([{ code: "BXQK7HRTM4WD", kinds: ["nfl-win"] }]),
+  [`${oldPrefix}entry/v2/BXQK7HRTM4WD/nfl-win`]: JSON.stringify({ picks: {} }),
+};
+for (const [key, value] of Object.entries(oldKeys)) storage.setItem(key, value);
+storage.setItem(`${STORAGE_PREFIX}who`, "d-new67890");
+storage.setItem("someone-else/setting", "left alone");
+
+directory.adoptOldStorage();
+
+assert.equal(storage.getItem(CONFIG.storage.passcode), "digest-from-before", "the door stays open");
+assert.equal(directory.myName(), "Sam", "the name is still known");
+assert.equal(storage.getItem(CONFIG.storage.who), "d-new67890", "a key the new name holds wins");
+assert.equal(directory.myLeagues()[0]?.code, "BXQK7HRTM4WD", "the league list is intact");
+assert.equal(
+  storage.getItem(scopeFor("BXQK7HRTM4WD", "nfl-win").storageKey),
+  JSON.stringify({ picks: {} }),
+  "and so is the offline board",
+);
+assert.ok(
+  !storage.keys().some((key) => key.startsWith(oldPrefix)),
+  "nothing is left under the old name",
+);
+assert.equal(storage.getItem("someone-else/setting"), "left alone", "other keys are not touched");
+directory.adoptOldStorage();
+assert.equal(
+  storage.getItem(CONFIG.storage.who),
+  "d-new67890",
+  "and running again changes nothing",
+);
+storage.clear();
+
 /* --- codes are read as people type them ---------------------------------- */
 
 assert.equal(normaliseCode(" bxqk-7hrt m4wd "), "BXQK7HRTM4WD");
@@ -502,6 +551,7 @@ console.log(
     "the objective fixed, a code joins every pool of it and adds one member however often it " +
     "is used, leaving keeps the league and its other members, two leagues never share a board " +
     "and nor do a league's pools, a pool can be removed but never the last one, a league can " +
-    "be deleted whole, old rows and old lists read as the pools they were, and a build with " +
-    "no backend still makes leagues that work.",
+    "be deleted whole, old rows and old lists read as the pools they were, a device from " +
+    "before the rename keeps its code, name, leagues and boards, and a build with no backend " +
+    "still makes leagues that work.",
 );

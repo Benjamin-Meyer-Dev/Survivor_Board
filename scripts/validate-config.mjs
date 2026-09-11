@@ -45,7 +45,7 @@ assert.equal(CONFIG.supabase.table, "leagues", "one row per pool, in the leagues
 // anything else on the origin. No two leagues can share an entry, and nor can
 // two pools of one league - not even the same season played both ways.
 for (const [name, key] of Object.entries(CONFIG.storage)) {
-  assert.ok(key.startsWith("survivor-board/"), `storage.${name} must be namespaced`);
+  assert.ok(key.startsWith("sudden-death/"), `storage.${name} must be namespaced`);
 }
 const first = scopeFor("BXQK7HRTM4WD", "nfl-win");
 const second = scopeFor("M4WDBXQK7HRT", "nfl-win");

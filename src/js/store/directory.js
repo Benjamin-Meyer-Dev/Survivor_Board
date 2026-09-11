@@ -27,7 +27,7 @@
  * but only on the phone that made them, and the home page says so.
  */
 
-import { CONFIG, scopeFor } from "../config.js";
+import { CONFIG, OLD_STORAGE_PREFIXES, STORAGE_PREFIX, scopeFor } from "../config.js";
 import { newCode, normaliseCode, isCode } from "../core/code.js";
 import { SPORTS, POOL_KINDS, KIND_IDS, kindId, normaliseKinds, kindsLabel } from "../sports.js";
 import { mergeRules } from "../core/rules.js";
@@ -129,6 +129,34 @@ function remember(league) {
 /** Take a league off this device's list. The league itself stays where it is. */
 export function forget(code) {
   writeMyLeagues(myLeagues().filter((league) => league.code !== normaliseCode(code)));
+}
+
+/* --- the app's old names -------------------------------------------------- */
+
+/**
+ * Bring across whatever this device kept under one of the app's earlier names
+ * (OLD_STORAGE_PREFIXES in config.js): the access code, the name, the device
+ * id, the league list and every offline board move to the same key under the
+ * current prefix, and the old copies go. A key the new name already holds is
+ * kept as it is. Called once, first thing at launch, before anything reads
+ * storage; a device with nothing to move pays for the scan and no more.
+ */
+export function adoptOldStorage() {
+  try {
+    const moves = [];
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      const old = OLD_STORAGE_PREFIXES.find((prefix) => key?.startsWith(prefix));
+      if (old) moves.push([key, `${STORAGE_PREFIX}${key.slice(old.length)}`]);
+    }
+    for (const [from, to] of moves) {
+      const value = localStorage.getItem(from);
+      if (value !== null && localStorage.getItem(to) === null) localStorage.setItem(to, value);
+      localStorage.removeItem(from);
+    }
+  } catch {
+    /* private mode or blocked storage: nothing was kept, so there is nothing to move */
+  }
 }
 
 /* --- identity ------------------------------------------------------------- */

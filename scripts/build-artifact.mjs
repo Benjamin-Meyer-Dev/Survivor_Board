@@ -213,11 +213,11 @@ const data = Object.fromEntries(
 );
 
 const script = [
-  `globalThis.SURVIVOR_DATA = ${JSON.stringify(data)};`,
+  `globalThis.SUDDEN_DEATH_DATA = ${JSON.stringify(data)};`,
   ...modules.map(([file, source]) => `/* ---- ${file} ---- */\n${source}`),
 ].join("\n\n");
 
-const out = `<title>Chalk</title>
+const out = `<title>Sudden Death</title>
 ${fontLink}
 <style>
 ${css}

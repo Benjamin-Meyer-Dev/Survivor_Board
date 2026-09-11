@@ -1,4 +1,4 @@
-# Chalk
+# Sudden Death
 
 A tracker for as many survivor pools as you are in. Make a league, send its
 code to the people you are playing with, and everyone works the same board.

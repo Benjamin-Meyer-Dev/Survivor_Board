@@ -41,7 +41,7 @@
 /* Bumped when the shell changes shape: v3 is the home page, the start screen
    and the board as separate sections, which a device holding v2 must not keep
    half of. */
-const CACHE = "survivor-board-v3";
+const CACHE = "sudden-death-v3";
 
 /** How long to wait for fresh data before opening with the last copy. */
 const DATA_TIMEOUT_MS = 2500;
