@@ -35,8 +35,8 @@ export const CONFIG = Object.freeze({
    * a league's code is a separate thing and gets a person into one league.
    */
   passcode: Object.freeze({
-    digest: "74a85e5bd7e9e937205935af04e9dcc2257b0ba3e06445886d3b6c0675adad5c",
-    salt: "f6049e45decafc7bb2ef257c138205df",
+    digest: "3a536e376f971c25c95e0e4b8e4f1f3f760a744f0f79d500704043206ad9de1d",
+    salt: "aa6279db144f7db2489ee7093ca1d27a",
     iterations: 200000,
   }),
 
