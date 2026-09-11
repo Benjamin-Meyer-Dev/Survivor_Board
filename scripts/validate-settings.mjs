@@ -23,6 +23,7 @@ import {
   mergeRules,
   sameRules,
   onlyEditable,
+  coverWeeks,
   EDITABLE_RULES,
   MAX_PICKS_PER_WEEK,
   MAX_BUY_BACKS,
@@ -56,7 +57,7 @@ assert.deepEqual(mergeRules(nflRules, null, weeks18), {
 // An override wins, key by key, and says nothing about the keys it omits.
 assert.equal(mergeRules(nflRules, { objective: "lose" }, weeks18).objective, "lose");
 assert.equal(mergeRules(nflRules, { objective: "lose" }, weeks18).picksPerWeek, 1);
-assert.equal(mergeRules(nflRules, { picksPerWeek: 3 }, weeks18).picksPerWeek, 3);
+assert.equal(mergeRules(nflRules, { picksPerWeek: 2 }, weeks18).picksPerWeek, 2);
 assert.equal(mergeRules(nflRules, { objective: "sideways" }, weeks18).objective, "win");
 assert.equal(mergeRules({}, {}, weeks18).picksPerWeek, 2, "the default pool takes two a week");
 
@@ -66,7 +67,7 @@ assert.equal(mergeRules(nflRules, { picksPerWeek: 0 }, weeks18).picksPerWeek, 1)
 assert.equal(mergeRules(nflRules, { picksPerWeek: -4 }, weeks18).picksPerWeek, 1);
 assert.equal(mergeRules(nflRules, { picksPerWeek: 99 }, weeks18).picksPerWeek, MAX_PICKS_PER_WEEK);
 assert.equal(mergeRules(nflRules, { picksPerWeek: 2.7 }, weeks18).picksPerWeek, 2);
-assert.equal(mergeRules(nflRules, { picksPerWeek: "3" }, weeks18).picksPerWeek, 3);
+assert.equal(mergeRules(nflRules, { picksPerWeek: "2" }, weeks18).picksPerWeek, 2);
 assert.equal(mergeRules(nflRules, { picksPerWeek: "many" }, weeks18).picksPerWeek, 1);
 assert.equal(mergeRules(nflRules, { picksPerWeek: null }, weeks18).picksPerWeek, 1);
 
@@ -124,6 +125,50 @@ assert.equal(
   mergeRules(nflRules, { buyBacks: 99, buyBackWeeks: weeks18 }, weeks18).buyBacks,
   MAX_BUY_BACKS,
 );
+// And the other way round: a pool that grants no buy back covers no week, so
+// weeks left lit under a zero are dropped rather than carried as a rule nobody
+// can see - the sheet shows the weeks only once there is a count.
+assert.deepEqual(mergeRules(nflRules, { buyBacks: 0 }, weeks18).buyBackWeeks, []);
+assert.deepEqual(
+  mergeRules(nflRules, { buyBacks: 0, buyBackWeeks: [1, 2] }, weeks18).buyBackWeeks,
+  [],
+);
+assert.equal(MAX_PICKS_PER_WEEK, 2, "two picks a week is the most any pool here takes");
+
+// The sheet's own direction. It asks for the count first and shows the weeks
+// only once there is one, so a count stepped past the weeks chosen has to
+// light weeks to hold it - the earliest open weeks of the run - or the clamp
+// above would put every step straight back to zero.
+const run13 = { startWeek: 1, endWeek: 13 };
+assert.deepEqual(coverWeeks({ ...run13, buyBacks: 1, buyBackWeeks: [] }, weeks18), [1]);
+assert.deepEqual(coverWeeks({ ...run13, buyBacks: 2, buyBackWeeks: [] }, weeks18), [1, 2]);
+assert.deepEqual(
+  coverWeeks({ startWeek: 4, endWeek: 13, buyBacks: 2, buyBackWeeks: [] }, weeks18),
+  [4, 5],
+  "from the start of the run, not of the season",
+);
+assert.deepEqual(
+  coverWeeks({ ...run13, buyBacks: 2, buyBackWeeks: [5] }, weeks18),
+  [1, 5],
+  "a week already chosen stays, and the count fills in around it",
+);
+assert.deepEqual(
+  coverWeeks({ ...run13, buyBacks: 1, buyBackWeeks: [1, 2] }, weeks18),
+  [1, 2],
+  "a count that already fits lights nothing",
+);
+assert.deepEqual(
+  coverWeeks({ startWeek: 3, endWeek: 3, buyBacks: 2, buyBackWeeks: [] }, weeks18),
+  [3],
+  "a run too short to hold the count lights what it has, and the clamp takes the rest",
+);
+assert.deepEqual(coverWeeks({ ...run13, buyBacks: "two", buyBackWeeks: [] }, weeks18), []);
+// The pair agree: what the sheet lights is what the model keeps, so a count
+// stepped up from none survives the trip back through the clamp.
+const stepped = { ...run13, picksPerWeek: 2, buyBacks: 1, buyBackWeeks: [] };
+const lit = { ...stepped, buyBackWeeks: coverWeeks(stepped, weeks18) };
+assert.equal(mergeRules(lit, lit, weeks18).buyBacks, 1);
+assert.deepEqual(mergeRules(lit, lit, weeks18).buyBackWeeks, [1]);
 
 // Anything else in the document is not a rule and is ignored, so a future key
 // or a stray edit cannot arrive as one.
@@ -409,6 +454,8 @@ assert.ok(openWeek(junk).picks[0].suggestion?.team, "and the coach still has a c
 console.log(
   "Settings OK: pool rules merge over the plan and clamp to a coherent set, a pool's run " +
     "of weeks is the only season the board has, a buy back cannot outnumber the weeks it " +
-    "covers, junk in the shared entry cannot break a board, and the objective, the range, " +
+    "covers and a pool granting none covers no week, the sheet lights weeks to hold a count " +
+    "stepped past them, two picks a week is the ceiling, " +
+    "junk in the shared entry cannot break a board, and the objective, the range, " +
     "the slots and the buy backs all reach the model.",
 );

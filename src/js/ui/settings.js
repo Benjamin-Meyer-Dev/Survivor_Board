@@ -36,6 +36,7 @@ import {
   mergeRules,
   sameRules,
   onlyEditable,
+  coverWeeks,
 } from "../core/rules.js";
 import { formatCode, joinLink } from "../core/code.js";
 import { escapeHtml } from "../core/format.js";
@@ -263,11 +264,21 @@ function buildSheet(root) {
       draft[rule] = Number(value);
     }
 
+    // The count comes first and the weeks follow it: the weeks are only shown
+    // once there is a buy back to cover one, so a count stepped past the weeks
+    // chosen lights the earliest open weeks of the run to hold it, and the
+    // pills show which. Without this a pool granting none, with no weeks lit,
+    // could never be given one - the clamp below would put it straight back.
+    if (rule === "buyBacks") {
+      draft.buyBackWeeks = coverWeeks(draft, current.board.seasonWeeks);
+    }
+
     // One rule bounds the next - the run of weeks decides which of them a buy
     // back can cover, and those decide how many buy backs there can be - so
     // the draft goes back through the model's own clamps rather than through a
     // second set of them written out here. A week dropped by a narrowed run is
-    // dropped for good: the pills show what is left, so nothing is hidden.
+    // dropped for good, and so is a count left with no week to spend itself in:
+    // the pills and the number show what is left, so nothing is hidden.
     draft = onlyEditable(mergeRules(draft, draft, current.board.seasonWeeks));
 
     paint(root, control);
@@ -413,7 +424,10 @@ function paint(root, keep = null) {
   // and end being chosen instead of the ones last saved.
   const season = board.seasonWeeks;
   const weeks = season.filter((week) => week >= rules.startWeek && week <= rules.endWeek);
-  const maxBuyBacks = Math.min(MAX_BUY_BACKS, rules.buyBackWeeks.length);
+  // As many buy backs as the run has weeks to spend them in: stepping the
+  // count up lights weeks as it goes, so the weeks already chosen are not the
+  // ceiling here the way they are in the model.
+  const maxBuyBacks = Math.min(MAX_BUY_BACKS, weeks.length);
 
   // No control for what a pick has to do: that is the kind of pool this is,
   // fixed when the league was made and named in the title above.
@@ -444,13 +458,19 @@ function paint(root, keep = null) {
 
     ${group({
       legend: "Buy backs",
-      controls: stepper("buyBacks", rules.buyBacks, { min: 0, max: maxBuyBacks, none: "None" }),
+      controls: stepper("buyBacks", rules.buyBacks, { min: 0, max: maxBuyBacks }),
     })}
 
-    ${group({
-      legend: "Buy Back Weeks",
-      stack: true,
-      controls: `<div class="settings__weeks">
+    ${
+      // Which weeks a buy back can cover is a question only once there is one:
+      // a pool that grants none has nothing to put in the row, and an empty
+      // row of pills reads as a rule left unset rather than as one that does
+      // not apply.
+      rules.buyBacks > 0
+        ? group({
+            legend: "Buy Back Weeks",
+            stack: true,
+            controls: `<div class="settings__weeks">
         ${weeks
           .map(
             (week) => `
@@ -460,7 +480,9 @@ function paint(root, keep = null) {
           )
           .join("")}
       </div>`,
-    })}`;
+          })
+        : ""
+    }`;
 
   root.querySelector(".settings__take").innerHTML = takeDownMarkup();
 
@@ -519,11 +541,11 @@ function group({ legend, controls, stack = false }) {
 
 /**
  * A count with a step either side, like a scoreboard: the number, large, and
- * a minus and a plus that go grey at the ends of the range. `none` is what a
- * zero is called, where a zero means there are none.
+ * a minus and a plus that go grey at the ends of the range. A zero is shown
+ * as one, like every other count on a board.
  */
-function stepper(rule, value, { min, max, none = null }) {
-  const shown = value === 0 && none ? none : String(value);
+function stepper(rule, value, { min, max }) {
+  const shown = String(value);
   const step = (to, direction, words) => `
         <button type="button" class="settings__step" data-rule="${rule}" data-step="${direction}"
                 data-value="${to}" aria-label="${escapeHtml(words)}"

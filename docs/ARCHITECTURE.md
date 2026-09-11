@@ -65,7 +65,10 @@ hold it together:
   and falls back to the plan's own value - field by field, never to a constant -
   so no value in that document can produce a board that does not work. Buy
   backs cannot outnumber the weeks they cover, which is the one pair of fields
-  that can contradict each other.
+  that can contradict each other, and a pool granting none covers no week.
+  The sheet runs that pair the other way - the count first, and the weeks only
+  once there is one - so stepping the count past the weeks chosen lights the
+  earliest open weeks of the run (`coverWeeks`) before the clamp sees it.
 - **Part of the search's identity.** The recommendation is memoised on a
   signature (`signatureBase`), and the rules are in it. They have to be: a pool
   picking losers is a different search from one picking winners, and before the
@@ -183,7 +186,12 @@ through the home page. The hash records league and pool (`#/l/CODE/KIND`) so a
 reload comes back to the same board. On the home page the whole bar, gear
 included, is hidden: there is no board for it to be about. The gear's sheet can
 also remove a pool from the league or delete the league outright, each behind
-a second tap, since either is for everyone in it.
+a second tap, since either is for everyone in it. Leaving, from the home page,
+is for one person - except the last one out, whose leave takes the league's
+rows with it, since a league nobody is in is a board nobody can find. Every
+delete is checked gone rather than believed: a table without the delete policy
+refuses one silently, and the app says to run `supabase/schema.sql` when the
+rows are still there.
 
 ## Why the data is split so many ways
 
@@ -737,7 +745,9 @@ the readout and does not scroll. First the pitch (`ui/pitch.js`), which draws
 the season as a football field laid sideways: kickoff on the left, the end
 zone on the right, a yard line per week naming its pick, the ball on the week
 on the clock, a chalk bracket on the week being looked at, and a mark on each
-week for what it holds. Under the field runs the drive line, saying how fresh
+week for what it holds. A pool that takes two picks a week gets a lane per
+slot on the yard line, each pick's mark over its own name, so a week half
+locked reads as exactly that. Under the field runs the drive line, saying how fresh
 the lines are, what the pool forgives, what a pick being weighed would do, and
 how far the season is from the end zone. Then the call (`ui/call.js`): the week
 being looked at with the one action as a mark at the end of its first row, then

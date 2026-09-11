@@ -896,8 +896,15 @@ function renderHomeView() {
         openBoard(league.code, null, { league });
       },
       onLeave: async (code) => {
-        await leaveLeague(code);
+        const name = app.leagues.find((league) => league.code === code)?.name ?? "That league";
+        const { deleted, problem } = await leaveLeague(code);
         if (app.league?.code === code) app.league = null;
+        // Leaving says nothing - the card goes - except for the last one out,
+        // whose league went with them, or should have and could not.
+        if (deleted) app.homeMessage = `Nobody was left in ${name}, so it has been deleted.`;
+        else if (problem)
+          app.homeMessage = `You have left ${name}. Nobody else was in it, but it could not be deleted: ${problem}`;
+        else app.homeMessage = "";
         await reloadLeagues();
         renderHomeView();
       },

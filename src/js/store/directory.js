@@ -21,7 +21,9 @@
  * a league nobody on this device has joined is not lost, it is simply not
  * listed here, and pasting its code back in brings it back. Leaving a league
  * removes it from this list and takes this person out of the members; it never
- * deletes anyone else's league.
+ * deletes anyone else's league. The last person out is the exception: with
+ * nobody left, their leave takes the league's rows down too, since a league
+ * nobody is in is a board nobody can find.
  *
  * With no Supabase configured the shared half is absent: leagues still work,
  * but only on the phone that made them, and the home page says so.
@@ -323,7 +325,9 @@ const PATCH_ATTEMPTS = 3;
  *   in, what it should hold out - or null for "nothing to do".
  * @param {{entry:object, version:string|null}|null} [known] The row as the
  *   caller already read it, to save the first query.
- * @returns {Promise<boolean>} Whether the change is in the row.
+ * @returns {Promise<{version:string|null}|null>} The row's version with the
+ *   change in it - the one it was read at, when there was nothing to change -
+ *   or null when the change could not be made.
  */
 async function patchPoolEntry(client, code, kind, change, known = null) {
   const table = CONFIG.supabase.table;
@@ -336,12 +340,12 @@ async function patchPoolEntry(client, code, kind, change, known = null) {
         code,
         kind,
       ).maybeSingle();
-      if (error || !data) return false;
+      if (error || !data) return null;
       current = { entry: data.entry ?? { picks: {}, swaps: {} }, version: data.updated_at ?? null };
     }
 
     const next = change(current.entry);
-    if (!next) return true;
+    if (!next) return { version: current.version };
 
     let write = onPool(
       client.from(table).update({ entry: next, updated_at: new Date().toISOString() }),
@@ -353,13 +357,13 @@ async function patchPoolEntry(client, code, kind, change, known = null) {
     // was rather than never being written at all.
     if (current.version) write = write.eq("updated_at", current.version);
     const { data, error } = await write.select("updated_at");
-    if (error) return false;
-    if (data?.length) return true;
+    if (error) return null;
+    if (data?.length) return { version: data[0].updated_at ?? null };
 
     // Somebody got there first. Read what they left and re-apply.
     current = null;
   }
-  return false;
+  return null;
 }
 
 /**
@@ -374,9 +378,47 @@ async function patchPoolEntry(client, code, kind, change, known = null) {
 function explain(error) {
   const message = error?.message ?? String(error);
   if (/schema cache|does not exist/i.test(message)) {
-    return "the database is behind this version of the app. Run supabase/schema.sql in the Supabase SQL editor, then try again.";
+    return `the database is behind this version of the app. ${RUN_SCHEMA}`;
   }
   return message;
+}
+
+/** What to do about a database this version of the app has got ahead of. */
+const RUN_SCHEMA = "Run supabase/schema.sql in the Supabase SQL editor, then try again.";
+
+/**
+ * Delete rows, and make sure they went.
+ *
+ * A table whose policies do not allow a delete refuses it silently: no error,
+ * no rows, and the rows still there - which is what this app meets on a
+ * project that has not run supabase/schema.sql since the file grew its delete
+ * policy. A delete that reported nothing used to be taken for one that worked,
+ * and the row it was meant to take stayed in the table under a code this
+ * device had forgotten. So the delete asks for the rows it took, and when it
+ * took none looks again: rows still there mean it was refused, and that is
+ * said in words the person at the sheet can act on; none there means they
+ * were already gone, which is what was wanted.
+ *
+ * @param {object} client
+ * @param {(query:object) => object} narrow The filters that pick the rows,
+ *   applied to the delete and then to the look.
+ * @returns {Promise<number>} How many rows went.
+ * @throws When the rows are still there.
+ */
+async function deleteRows(client, narrow) {
+  const table = CONFIG.supabase.table;
+  const { data, error } = await narrow(client.from(table).delete()).select("code");
+  if (error) throw new Error(explain(error));
+  if (data?.length) return data.length;
+
+  const { data: kept, error: lookup } = await narrow(client.from(table).select("code"));
+  if (lookup) throw new Error(explain(lookup));
+  if (kept?.length) {
+    throw new Error(
+      `the database kept it, which means it is behind this version of the app. ${RUN_SCHEMA}`,
+    );
+  }
+  return 0;
 }
 
 /** Every pool under a code, as one league, or null when the code names none. */
@@ -599,33 +641,76 @@ export async function renameLeague(code, name) {
  * Leave a league: off this device's list, and out of the members on every one
  * of its pools.
  *
- * The league itself is left alone. With one shared board per pool, deleting
- * one would take everyone's season with it, and that is not a thing one member
- * should be able to do from a phone.
+ * Whoever is left keeps the league. With one shared board per pool, deleting
+ * it would take their season with it, and that is not a thing one member
+ * should be able to do from a phone. When nobody is left - this was the last
+ * person in it - there is no season to keep, and the rows go too, rather than
+ * sitting in the table under a code nobody holds. Only a leave that found this
+ * person in the members, and nobody else, takes that step: a row that never
+ * listed anyone says nothing about who is using it. And each row goes over the
+ * version this leave wrote it at, so somebody joining in the same moment keeps
+ * their league (the guard patchPoolEntry puts on a write, put on the delete).
+ *
+ * The shared half is best effort, as it always was: this device's list is the
+ * part that matters, and it is cleared whatever the table said. What the table
+ * said comes back, for the home page to pass on.
+ *
+ * @returns {Promise<{deleted:boolean, problem:string|null}>} Whether the league
+ *   went with this person, and - when it should have and did not - why.
  */
 export async function leaveLeague(code) {
   const clean = normaliseCode(code);
   const client = await supabase();
+  let deleted = false;
+  let problem = null;
 
   if (client) {
     try {
       const league = await fetchLeague(client, clean);
       const me = myId();
+      // Everyone but this person, seen on any pool at any attempt: a league is
+      // only empty when nobody else was ever there to see.
+      const others = new Set();
+      let wasIn = false;
+      const versions = {};
       for (const kind of league?.kinds ?? []) {
         const pool = league.pools[kind];
         // Over the version the row was read at, so leaving cannot take
         // somebody else's lock out with it (see patchPoolEntry).
-        await patchPoolEntry(
+        const written = await patchPoolEntry(
           client,
           clean,
           kind,
           (entry) => {
             const members = Array.isArray(entry.members) ? entry.members : [];
+            for (const member of members) {
+              if (member.id !== me) others.add(member.id);
+            }
             if (!members.some((member) => member.id === me)) return null;
+            wasIn = true;
             return { ...entry, members: members.filter((member) => member.id !== me) };
           },
           { entry: pool.entry, version: pool.updatedAt },
         );
+        if (written) versions[kind] = written.version;
+      }
+
+      const empty =
+        league && wasIn && others.size === 0 && league.kinds.every((kind) => kind in versions);
+      if (empty) {
+        try {
+          const gone = await Promise.all(
+            league.kinds.map((kind) =>
+              deleteRows(client, (query) => {
+                const row = onPool(query, clean, kind);
+                return versions[kind] ? row.eq("updated_at", versions[kind]) : row;
+              }),
+            ),
+          );
+          deleted = gone.every((count) => count > 0);
+        } catch (error) {
+          problem = error.message;
+        }
       }
     } catch {
       /* leaving this device's list is the part that matters */
@@ -634,20 +719,24 @@ export async function leaveLeague(code) {
 
   forget(clean);
   forgetBoards(clean, KIND_IDS, { everything: true });
+  return { deleted, problem };
 }
 
 /**
  * Delete a league, for everyone in it: every pool's row, and this device's
  * copies. The settings sheet asks twice before it gets here. Anyone holding
  * the code can do this, which is the same trust the code already carries - see
- * supabase/schema.sql.
+ * supabase/schema.sql. The rows are checked gone, not assumed (deleteRows).
  */
 export async function deleteLeague(code) {
   const clean = normaliseCode(code);
   const client = await supabase();
   if (client) {
-    const { error } = await client.from(CONFIG.supabase.table).delete().eq("code", clean);
-    if (error) throw new Error(`Could not delete the league: ${explain(error)}`);
+    try {
+      await deleteRows(client, (query) => query.eq("code", clean));
+    } catch (error) {
+      throw new Error(`Could not delete the league: ${error.message}`);
+    }
   }
   forget(clean);
   forgetBoards(clean, KIND_IDS, { everything: true });
@@ -670,8 +759,11 @@ export async function removePool(code, kind) {
     throw new Error("A league keeps its last pool. Delete the league instead.");
 
   if (client) {
-    const { error } = await onPool(client.from(CONFIG.supabase.table).delete(), clean, kind);
-    if (error) throw new Error(`Could not remove the pool: ${explain(error)}`);
+    try {
+      await deleteRows(client, (query) => onPool(query, clean, kind));
+    } catch (error) {
+      throw new Error(`Could not remove the pool: ${error.message}`);
+    }
   }
 
   if (cached) {

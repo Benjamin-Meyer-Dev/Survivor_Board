@@ -28,10 +28,11 @@
 import { objectiveOf } from "./objective.js";
 
 /**
- * The most picks a week can hold. Four is past any survivor pool anyone runs
- * and short of the point where a week's card stops fitting a phone.
+ * The most picks a week can hold. Two is as many as any pool here takes, and
+ * every week's card, every slot on the field and the coach's call are laid out
+ * for at most a pair.
  */
-export const MAX_PICKS_PER_WEEK = 4;
+export const MAX_PICKS_PER_WEEK = 2;
 
 /** The most buy backs a pool can grant. Also capped by the forgiving weeks. */
 export const MAX_BUY_BACKS = 4;
@@ -137,6 +138,7 @@ export function mergeRules(planRules = {}, overrides = null, weekNumbers = []) {
   // what stops "one buy back, no forgiving weeks" - a cushion that reads as
   // real on the strip and can never once apply.
   const ceiling = Math.min(MAX_BUY_BACKS, buyBackWeeks.length);
+  const buyBacks = bounded(saved.buyBacks, 0, ceiling, bounded(planRules.buyBacks, 0, ceiling, 0));
 
   return {
     objective:
@@ -151,9 +153,49 @@ export function mergeRules(planRules = {}, overrides = null, weekNumbers = []) {
       MAX_PICKS_PER_WEEK,
       bounded(planRules.picksPerWeek, 1, MAX_PICKS_PER_WEEK, 2),
     ),
-    buyBacks: bounded(saved.buyBacks, 0, ceiling, bounded(planRules.buyBacks, 0, ceiling, 0)),
-    buyBackWeeks,
+    buyBacks,
+    // And the other way: a pool that grants no buy back covers no week. The
+    // sheet shows the weeks only once there is a count to cover one, so weeks
+    // left lit under a zero would be a rule nobody can see - and the deck
+    // would badge them as forgiving all the same.
+    buyBackWeeks: buyBacks > 0 ? buyBackWeeks : [],
   };
+}
+
+/**
+ * The weeks a buy back can cover, with enough of them lit to hold the count.
+ *
+ * The weeks are the count's ceiling in mergeRules, and that is the right way
+ * round for a document nobody is looking at: a hand-edited "three buy backs,
+ * one week" quietly becomes one. But the settings sheet asks for the count
+ * first and shows the weeks only once there is one, so a pool that grants none
+ * has no weeks to step the count up against - and the clamp would put every
+ * step straight back to zero. This is the other direction, for the sheet: a
+ * count stepped past the weeks chosen lights the earliest open weeks of the
+ * run until it fits, and the pills show which. Earliest because that is where
+ * every pool that forgives a loss forgives it - the opening weeks, before the
+ * field has thinned - and because the person at the sheet can move them.
+ *
+ * Weeks already chosen are kept. A count that already fits changes nothing,
+ * and so does a run too short to hold it: the clamp takes the rest.
+ *
+ * @param {{startWeek:number, endWeek:number, buyBacks:number,
+ *          buyBackWeeks:number[]}} rules
+ * @param {number[]} seasonWeeks Every week the calendar has.
+ * @returns {number[]} The weeks, in order.
+ */
+export function coverWeeks(rules, seasonWeeks = []) {
+  const chosen = new Set(rules.buyBackWeeks ?? []);
+  const wanted = integer(rules.buyBacks, 0);
+  const run = seasonWeeks
+    .map(Number)
+    .filter((week) => week >= rules.startWeek && week <= rules.endWeek)
+    .sort((a, b) => a - b);
+  for (const week of run) {
+    if (chosen.size >= wanted) break;
+    chosen.add(week);
+  }
+  return [...chosen].sort((a, b) => a - b);
 }
 
 /**

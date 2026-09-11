@@ -44,20 +44,34 @@ globalThis.localStorage = storage;
 
 /**
  * The slice of supabase-js the directory calls: insert (one row or several),
- * select narrowed by eq and in, update narrowed by eq and reporting what it
- * changed through select, each awaited directly or through maybeSingle. Rows
- * are keyed by code, season and objective, as the table is. Every call is
- * synchronous here; the ordering the store depends on is validate-store-sync's
- * job, not this one.
+ * select narrowed by eq and in, update and delete narrowed by eq and reporting
+ * what they changed through select, each awaited directly or through
+ * maybeSingle. Rows are keyed by code, season and objective, as the table is.
+ * Every call is synchronous here; the ordering the store depends on is
+ * validate-store-sync's job, not this one.
+ *
+ * Two knobs stand in for what a real table can do to a delete: `refuse` makes
+ * every delete report nothing and keep the rows, the way a table without the
+ * delete policy does, and `beforeDelete` lands one change on the rows in the
+ * moment before the next delete is applied, the way another device's write can.
  */
 function fakeTable() {
   const rows = new Map();
   let clock = 0;
   const stamp = () => `t${(clock += 1)}`;
   const keyOf = (row) => `${row.code}/${row.sport}/${row.objective}`;
+  const rowOf = (code, kind) => {
+    const [sport, objective] = kind.split("-");
+    return rows.get(`${code}/${sport}/${objective}`);
+  };
+  let refusing = false;
+  let pending = null;
 
-  /** A query: filters chain, and the request goes out when the chain is read. */
-  const query = (apply) => {
+  /**
+   * A query: filters chain, and the request goes out when the chain is read.
+   * `before` runs at that moment, ahead of the filters.
+   */
+  const query = (apply, before = null) => {
     const filters = [];
     const matching = () => [...rows.values()].filter((row) => filters.every((keep) => keep(row)));
     const chain = {
@@ -78,6 +92,7 @@ function fakeTable() {
         return Promise.resolve({ data: matching()[0] ?? null, error: null });
       },
       then(resolve, reject) {
+        before?.();
         return Promise.resolve(apply(matching())).then(resolve, reject);
       },
     };
@@ -87,9 +102,19 @@ function fakeTable() {
   return {
     rows,
     /** One pool's row, by the league's code and the kind it is. */
-    row: (code, kind) => {
-      const [sport, objective] = kind.split("-");
-      return rows.get(`${code}/${sport}/${objective}`);
+    row: rowOf,
+    /** Whether deletes are refused: reported as nothing, and the rows kept. */
+    refuse(on) {
+      refusing = on;
+    },
+    /** A change to land on the rows just before the next delete is applied. */
+    beforeDelete(hook) {
+      pending = hook;
+    },
+    /** Change one row from outside the directory, with a new version, as another device would. */
+    touch(code, kind, change) {
+      const row = rowOf(code, kind);
+      rows.set(keyOf(row), { ...row, ...change(row), updated_at: stamp() });
     },
     from(name) {
       assert.equal(name, "leagues", "the directory reads one table");
@@ -117,10 +142,19 @@ function fakeTable() {
           });
         },
         delete() {
-          return query((found) => {
-            for (const row of found) rows.delete(keyOf(row));
-            return { error: null };
-          });
+          // The rows it took come back through select, as the table's do.
+          return query(
+            (found) => {
+              if (refusing) return { data: [], error: null };
+              for (const row of found) rows.delete(keyOf(row));
+              return { data: found.map(({ code }) => ({ code })), error: null };
+            },
+            () => {
+              const hook = pending;
+              pending = null;
+              hook?.();
+            },
+          );
         },
       };
     },
@@ -351,8 +385,13 @@ for (const kind of joined.kinds) {
 
 // Leaving takes this device off the list and out of the members on every
 // board, and leaves the league itself alone: shared boards mean leaving must
-// not delete them.
-await directory.leaveLeague(hostCode);
+// not delete them while anyone is still on them.
+const left = await directory.leaveLeague(hostCode);
+assert.deepEqual(
+  left,
+  { deleted: false, problem: null },
+  "leaving with others in it deletes nothing",
+);
 assert.deepEqual(directory.myLeagues(), [], "leaving clears this device's list");
 for (const kind of joined.kinds) {
   assert.ok(table.row(hostCode, kind), `${kind}: the league is still there`);
@@ -420,6 +459,73 @@ assert.equal(
   "and every copy of its boards is gone",
 );
 
+/* --- the last one out ----------------------------------------------------- */
+
+// A league one person made and nobody joined: leaving it leaves nothing to
+// keep, so its rows go with them, and this device is told so.
+const solo = await directory.createLeague({ name: "Solo", kinds: ["nfl-win", "cfb-win"] });
+storage.setItem(scopeFor(solo.code, "nfl-win").storageKey, "{}");
+const soloLeft = await directory.leaveLeague(solo.code);
+assert.deepEqual(soloLeft, { deleted: true, problem: null }, "the last one out takes the league");
+assert.equal(
+  [...table.rows.values()].some((row) => row.code === solo.code),
+  false,
+  "every row of it is gone",
+);
+assert.ok(table.row(made.code, "nfl-win"), "and no other league's");
+assert.deepEqual(directory.myLeagues(), [], "it is off this device's list");
+assert.equal(storage.getItem(scopeFor(solo.code, "nfl-win").storageKey), null, "and its copies");
+
+// Somebody joining in the same moment keeps their league: each row is deleted
+// over the version the leave wrote, and a join moves it on.
+const raced = await directory.createLeague({ name: "Raced", kinds: ["nfl-win", "nfl-lose"] });
+table.beforeDelete(() => {
+  for (const kind of raced.kinds) {
+    table.touch(raced.code, kind, (row) => ({
+      entry: { ...row.entry, members: [...row.entry.members, { id: "d-late", name: "Late" }] },
+    }));
+  }
+});
+const racedLeft = await directory.leaveLeague(raced.code);
+assert.deepEqual(racedLeft, { deleted: false, problem: null }, "a row that moved is not deleted");
+for (const kind of raced.kinds) {
+  assert.deepEqual(names(table.row(raced.code, kind)), ["Late"], `${kind}: the late joiner has it`);
+}
+assert.deepEqual(directory.myLeagues(), [], "and this device has still left");
+
+// A table that refuses deletes - one without the delete policy - reports
+// nothing and keeps the rows. That is caught rather than believed: the sheet
+// hears that it did not work and what to run, and the list keeps the league
+// until it does.
+const stuck = await directory.createLeague({ name: "Stuck", kinds: ["nfl-win", "cfb-win"] });
+table.refuse(true);
+await assert.rejects(
+  () => directory.removePool(stuck.code, "cfb-win"),
+  /Could not remove the pool: .*schema\.sql/,
+  "a refused pool removal says so, and what to do",
+);
+assert.ok(table.row(stuck.code, "cfb-win"), "the row is still there");
+assert.deepEqual(directory.myLeagues()[0].kinds, ["nfl-win", "cfb-win"], "and so is the list");
+await assert.rejects(
+  () => directory.deleteLeague(stuck.code),
+  /Could not delete the league: .*schema\.sql/,
+  "so does a refused league deletion",
+);
+assert.equal(directory.myLeagues().length, 1, "and the league stays on the list");
+const stuckLeft = await directory.leaveLeague(stuck.code);
+assert.equal(stuckLeft.deleted, false, "the last one out is told the league did not go");
+assert.match(stuckLeft.problem, /schema\.sql/, "and why");
+assert.ok(table.row(stuck.code, "nfl-win"), "the rows are still there");
+assert.deepEqual(names(table.row(stuck.code, "nfl-win")), [], "with nobody in them");
+assert.deepEqual(directory.myLeagues(), [], "but this device has left");
+table.refuse(false);
+await directory.deleteLeague(stuck.code);
+assert.equal(
+  [...table.rows.values()].some((row) => row.code === stuck.code),
+  false,
+  "a table that allows deletes again lets the league go",
+);
+
 /* --- what came before ----------------------------------------------------- */
 
 // A row from a table that has not been migrated carries the objective in its
@@ -466,6 +572,17 @@ assert.deepEqual(
   "and rewrites the list in the new shape",
 );
 
+// A row that never listed anyone says nothing about who is using it: leaving
+// it takes this device off the list, and no more.
+const olderLeft = await directory.leaveLeague("QWERTYASDFGH");
+assert.deepEqual(olderLeft, { deleted: false, problem: null });
+assert.ok(table.rows.get("QWERTYASDFGH/nfl/undefined"), "a row with no members is left alone");
+assert.deepEqual(
+  directory.myLeagues().map((league) => league.code),
+  [made.code],
+  "and is off the list",
+);
+
 /* --- with no table at all ------------------------------------------------- */
 
 reset(null);
@@ -495,6 +612,13 @@ assert.deepEqual(directory.myLeagues()[0].kinds, ["nfl-win"], "a pool comes off 
 await assert.rejects(() => directory.removePool(local.code, "nfl-win"), /last pool/);
 await directory.deleteLeague(local.code);
 assert.deepEqual(directory.myLeagues(), [], "and a league comes off it whole");
+const aloneToo = await directory.createLeague({ name: "Alone Too", kinds: ["nfl-win"] });
+assert.deepEqual(
+  await directory.leaveLeague(aloneToo.code),
+  { deleted: false, problem: null },
+  "with no table there is nothing shared to delete",
+);
+assert.deepEqual(directory.myLeagues(), [], "and leaving still clears the list");
 
 /* --- a device from before the rename keeps everything -------------------- */
 
@@ -549,9 +673,11 @@ assert.ok(POOL_KINDS["nfl-win"], "the registry the directory keys on is there");
 console.log(
   "Directory OK: a league is made with a code, a row per pool and each pool's own rules with " +
     "the objective fixed, a code joins every pool of it and adds one member however often it " +
-    "is used, leaving keeps the league and its other members, two leagues never share a board " +
-    "and nor do a league's pools, a pool can be removed but never the last one, a league can " +
-    "be deleted whole, old rows and old lists read as the pools they were, a device from " +
+    "is used, leaving keeps the league and its other members, the last one out takes the " +
+    "league's rows with them unless somebody joins in the same moment, two leagues never " +
+    "share a board and nor do a league's pools, a pool can be removed but never the last one, " +
+    "a league can be deleted whole, a delete the table refused is reported rather than " +
+    "believed, old rows and old lists read as the pools they were, a device from " +
     "before the rename keeps its code, name, leagues and boards, and a build with no backend " +
     "still makes leagues that work.",
 );

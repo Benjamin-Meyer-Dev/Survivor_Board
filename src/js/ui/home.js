@@ -262,9 +262,13 @@ function sheetsMarkup() {
                 aria-label="Close">${ICONS.close}</button>
       </div>
       <div class="home__form">
-        <p class="home__confirm-ask">
+        <p class="home__confirm-ask" data-leave-ask="others">
           Leave <strong data-leave-name></strong>? It stays for everyone else, and the code
           gets you back in.
+        </p>
+        <p class="home__confirm-ask" data-leave-ask="alone" hidden>
+          Nobody else is in <strong data-leave-name></strong>, so leaving deletes it. Every
+          pool and every pick goes with it.
         </p>
         <div class="home__confirm-row">
           <button type="button" class="home__btn home__btn--danger" data-act="leave-yes">Yes, leave</button>
@@ -284,7 +288,8 @@ function card(league) {
 
   return `
     <article class="home__card${league.missing ? " home__card--missing" : ""}"
-             data-league="${escapeHtml(league.code)}" data-name="${escapeHtml(league.name)}">
+             data-league="${escapeHtml(league.code)}" data-name="${escapeHtml(league.name)}"
+             data-members="${league.members ?? ""}">
       <div class="home__card-head">
         <h3 class="home__card-name">${escapeHtml(league.name)}</h3>
         <div class="home__card-tools">
@@ -359,7 +364,9 @@ function wire(root) {
       .addEventListener("click", () => homeHandlers.onOpen(code));
     node
       .querySelector('[data-act="leave"]')
-      .addEventListener("click", () => askToLeave(code, node.dataset.name));
+      .addEventListener("click", () =>
+        askToLeave(code, node.dataset.name, node.dataset.members === "1"),
+      );
     wireCopy(node.querySelector('[data-act="copy"]'), code);
   }
 }
@@ -461,12 +468,29 @@ function openSheet(id) {
  * answer acts. Leaving is easy to undo - the code gets you back in - but a
  * card's corner is an easy place for a thumb to land, and the sheet means
  * nothing can be opened by the tap that was meant to say no.
+ *
+ * Unless nobody else is in the league: then leaving takes it down, and the
+ * sheet becomes a delete question - title, words and buttons, in the terms
+ * the settings sheet's own delete uses - so nobody deletes a league thinking
+ * they only stepped out of it. `alone` is what the last refresh counted; a
+ * head count still loading, or others who joined since, is a league that
+ * stays, and the directory decides from the rows either way.
  */
-function askToLeave(code, name) {
+function askToLeave(code, name, alone) {
   const dialog = sheetsRoot?.querySelector("#home-leave");
   if (!dialog || dialog.open) return;
   leaving = code;
-  dialog.querySelector("[data-leave-name]").textContent = name;
+  for (const slot of dialog.querySelectorAll("[data-leave-name]")) slot.textContent = name;
+  for (const ask of dialog.querySelectorAll("[data-leave-ask]")) {
+    ask.hidden = (ask.dataset.leaveAsk === "alone") !== alone;
+  }
+  dialog.querySelector("#home-leave-title").textContent = alone
+    ? "Delete this league?"
+    : "Leave this league?";
+  dialog.querySelector('[data-act="leave-yes"]').textContent = alone
+    ? "Yes, delete the league"
+    : "Yes, leave";
+  dialog.querySelector('[data-act="leave-no"]').textContent = alone ? "Keep it" : "Stay";
   dialog.showModal();
   dialog.focus();
 }

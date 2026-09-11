@@ -1029,15 +1029,39 @@
   color: var(--chalk-2);
 }
 
-/* The pick's name, chalked down the yard line the way the end zones are
-   lettered. It runs between the mark and the ball; a name too long for the
-   column is cut with an ellipsis rather than spilling into the next week. */
-.pitch__label {
+/* The week's marks and names run in lanes, one a slot, between the top of the
+   column and the ball: one lane down the middle in a one-pick pool, two side
+   by side in a two-pick one, so each pick carries its own mark over its own
+   name and a week half locked reads as exactly that. A lane is the padlock's
+   width whatever its mark, so a lock does not nudge the name beside it, and an
+   empty slot keeps its lane so the other one stays where it was. */
+.pitch__lanes {
   position: absolute;
-  left: 50%;
-  top: 30px;
+  top: 8px;
+  right: 0;
   bottom: 42px;
-  transform: translateX(-50%);
+  left: 0;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+
+.pitch__lane {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 16px;
+  min-height: 0;
+}
+
+/* The pick's name, chalked down the yard line the way the end zones are
+   lettered. It runs from the mark towards the ball; a name too long for the
+   column is cut with an ellipsis rather than running into the number. */
+.pitch__label {
+  flex: 1 1 0;
+  min-height: 0;
   display: flex;
   align-items: center;
   font-family: var(--font-display);
@@ -1058,17 +1082,15 @@
   color: var(--chalk);
 }
 
-/* The mark at the top of the week: what it holds. The flag for a pick, dashed
-   flag for the coach's plan, a padlock in the flag once the pick is locked in -
-   the same colour, since it is the same pick; the shape says the rest - nothing
-   for nothing, and the outcome's coloured chalk once the game is played. */
+/* The mark at the top of a lane: what its slot holds. The flag for a pick,
+   dashed flag for the coach's plan, a padlock in the flag once the pick is
+   locked in - the same colour, since it is the same pick; the shape says the
+   rest - nothing for nothing, and the outcome's coloured chalk once the game
+   is played. */
 .pitch__mark {
-  position: absolute;
-  left: 50%;
-  top: 8px;
+  flex: none;
   width: 3px;
   height: 16px;
-  transform: translateX(-50%);
   border-radius: 1px;
 }
 
@@ -1398,21 +1420,26 @@
 }
 
 .call__eyebrow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 4px 8px;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 12px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--chalk-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.call__eyebrow > span:first-child {
-  white-space: nowrap;
+/* The pick's marks on their own line under the eyebrow: how safe the coach
+   rates it, whether it was the coach's call, the result once it is in. The row
+   stands a chip tall with nothing to show, so the team under it never moves. */
+.call__marks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
 }
 
 .call__eyebrow--coach,
@@ -1452,7 +1479,11 @@
   text-decoration: none;
 }
 
+/* The game and its numbers hold the foot of the slot. Two slots side by side
+   stand the same height, and whatever their marks and names wrap to above,
+   their games and tiles line up at the bottom. */
 .call__matchup {
+  margin-top: auto;
   font-size: 13px;
   color: var(--chalk-2);
   line-height: 18px;
@@ -2681,6 +2712,11 @@
   text-transform: uppercase;
 }
 
+/* One question is shown at a time: leave, or - for the last one out - delete. */
+.home__confirm-ask[hidden] {
+  display: none;
+}
+
 .home__confirm-row {
   display: flex;
   flex-wrap: wrap;
@@ -3329,9 +3365,16 @@
     bottom: 6px;
   }
 
-  .pitch__label {
-    top: 32px;
+  .pitch__lanes {
     bottom: 46px;
+    gap: 6px;
+  }
+
+  .pitch__lane {
+    gap: 8px;
+  }
+
+  .pitch__label {
     font-size: 12px;
   }
 
@@ -3384,6 +3427,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
       "eyebrow eyebrow"
+      "marks marks"
       "team tiles"
       "matchup tiles";
     align-items: end;
@@ -3392,6 +3436,10 @@
 
   .call__slots:not(.call__slots--two) .call__eyebrow {
     grid-area: eyebrow;
+  }
+
+  .call__slots:not(.call__slots--two) .call__marks {
+    grid-area: marks;
   }
 
   .call__slots:not(.call__slots--two) .call__team {

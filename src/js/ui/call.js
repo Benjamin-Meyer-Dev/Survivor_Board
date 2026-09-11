@@ -18,9 +18,14 @@
  * coach gives it (ui/sideline.js) - and a readout with no rows to spare must
  * not spend one saying the same thing twice.
  *
- * Every slot has the same rows in the same order - eyebrow, team, matchup,
- * tiles - so a pick or lock changes what the rows say without moving anything
- * under the thumb that just tapped it.
+ * Every slot has the same rows in the same order - eyebrow, marks, team,
+ * matchup, tiles - so a pick or lock changes what the rows say without moving
+ * anything under the thumb that just tapped it. The marks (how safe the coach
+ * rates the pick, whether it was the coach's call, the result) take their own
+ * line under the eyebrow rather than sharing it: in a two-pick week the slot
+ * is half a card wide and the row could not hold both. The game and its
+ * numbers hold the foot of the slot, so two slots side by side line up there
+ * whatever the rows above them come to.
  *
  * Handlers are injected; this module knows nothing about the store.
  */
@@ -201,10 +206,8 @@ function slotMarkup(pick, board, two, active) {
          data-week="${pick.week}" data-slot="${pick.slot}" data-key="${pick.week}-${pick.slot}"${shown ? ` data-tier="${shown.tier}"` : ""}
          data-motion-key="slot-${pick.week}-${pick.slot}"
          data-motion-signature="${escapeHtml(signature)}"${attrs}>
-      <div class="call__eyebrow${pick.suggestion && !pick.team ? " call__eyebrow--coach" : ""}">
-        <span>${eyebrow}</span>
-        <span class="call__tags">${marks}</span>
-      </div>
+      <div class="call__eyebrow${pick.suggestion && !pick.team ? " call__eyebrow--coach" : ""}">${eyebrow}</div>
+      <div class="call__marks">${marks}</div>
       ${
         shown
           ? `<div class="call__team">${escapeHtml(shown.team)}</div>

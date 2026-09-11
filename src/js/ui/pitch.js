@@ -7,7 +7,9 @@
  * it holds - the flag for a pick, dashed flag for the coach's plan, a padlock
  * in the flag once the pick is locked in, the outcome's chalk once the game is
  * played - and names the pick under it, so the whole season reads off one
- * strip. Under it, the drive line: how fresh the lines are, what the pool
+ * strip. A pool that takes two picks a week gets two of those side by side, a
+ * lane per slot, so each pick wears its own mark over its own name. Under it,
+ * the drive line: how fresh the lines are, what the pool
  * forgives, what a pick being weighed would do, and how far the season is from
  * the end zone on today's numbers.
  *
@@ -246,13 +248,20 @@ function viewingWeek(root) {
 }
 
 /**
- * One week's yard line. The mark at its top says what the week holds; the
- * label under the ball names the pick, whoever chose it.
+ * One week's yard line: a lane per slot, each with the mark for what it holds
+ * over the name of its pick, whoever chose it. A one-pick pool has one lane
+ * down the middle; a two-pick pool has two side by side, so a week with one
+ * team locked and the other still the coach's reads as exactly that rather
+ * than as whichever of the two ranked higher.
  */
 function yardMarkup(week, board) {
   const now = week.week === board.currentWeek && !board.eliminated;
   const moot = board.eliminated && week.week > board.eliminatedWeek;
-  const { mark, team, says } = weekMark(week);
+  const lanes = week.picks.map(slotMark);
+  const says = lanes
+    .map((lane) => lane.says)
+    .filter(Boolean)
+    .join(", ");
   // Which yard line the bracket is on is not in the markup: markViewing puts
   // it on, so a week change never rewrites a yard line and a render never
   // rewrites two of them for a week change it did not make.
@@ -267,31 +276,36 @@ function yardMarkup(week, board) {
 
   return `<button type="button" class="${classes}" data-yard="${week.week}" data-key="${week.week}" tabindex="-1"
       aria-label="Week ${week.week}, ${escapeHtml(week.labelFull)}${says ? `, ${escapeHtml(says)}` : ""}">
-      ${mark ? `<span class="pitch__mark pitch__mark--${mark}">${mark === "locked" ? LOCK : ""}</span>` : ""}
-      ${team ? `<span class="pitch__label">${escapeHtml(team)}</span>` : ""}
+      <span class="pitch__lanes">${lanes.map(laneMarkup).join("")}</span>
       <span class="pitch__num">${week.week}</span>
       ${now ? BALL : ""}
     </button>`;
 }
 
 /**
- * What a week holds, as one mark. A loss outranks everything (it is the
- * story of the season), then a win, then a lock, then a pick, then the
- * coach's plan. The label is the first slot's team, whoever chose it.
+ * One slot's lane. An empty slot still gets its lane, so the other slot's
+ * name stands where it always does whether or not this one is filled.
  */
-function weekMark(week) {
-  const picks = week.picks;
-  const first = picks[0];
-  const team = first?.team ?? first?.suggestion?.team ?? "";
-  if (picks.some((pick) => pick.status.result === "L")) return { mark: "lost", team, says: "lost" };
-  if (picks.some((pick) => pick.status.result === "W")) return { mark: "won", team, says: "won" };
-  if (picks.some((pick) => pick.status.locked)) {
-    return { mark: "locked", team, says: `${team} locked in` };
-  }
-  if (picks.some((pick) => pick.team)) return { mark: "picked", team, says: `${team} picked` };
-  if (picks.some((pick) => pick.suggestion)) {
-    return { mark: "coach", team, says: `coach suggests ${team}` };
-  }
+function laneMarkup({ mark, team }) {
+  return `<span class="pitch__lane">
+      ${mark ? `<span class="pitch__mark pitch__mark--${mark}">${mark === "locked" ? LOCK : ""}</span>` : ""}
+      ${team ? `<span class="pitch__label">${escapeHtml(team)}</span>` : ""}
+    </span>`;
+}
+
+/**
+ * What a slot holds, as one mark. A loss outranks everything (it is the
+ * story of the season), then a win, then a lock, then a pick, then the
+ * coach's plan. The label is the slot's team, whoever chose it.
+ */
+function slotMark(pick) {
+  const team = pick.team ?? pick.suggestion?.team ?? "";
+  const { result, locked } = pick.status;
+  if (result === "L") return { mark: "lost", team, says: `${team} lost` };
+  if (result === "W") return { mark: "won", team, says: `${team} won` };
+  if (locked) return { mark: "locked", team, says: `${team} locked in` };
+  if (pick.team) return { mark: "picked", team, says: `${team} picked` };
+  if (pick.suggestion) return { mark: "coach", team, says: `coach suggests ${team}` };
   return { mark: null, team: "", says: "" };
 }
 

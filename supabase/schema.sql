@@ -156,7 +156,12 @@ create policy "write leagues" on public.leagues for update using (true) with che
 -- sends one; but the trust is the same the code already carries - whoever can
 -- rewrite every pick on a board can take the board down - and a league whose
 -- season is over, or was made by mistake, should not need this editor to go.
--- Leaving a league is still a local act (see src/js/store/directory.js).
+-- Leaving a league is a write to its members, not a delete, except for the last
+-- person out: with nobody left, the app deletes the league's rows too, since a
+-- league nobody is in is a board nobody can find (leaveLeague in
+-- src/js/store/directory.js). The app checks that a delete took - a table
+-- without this policy refuses one silently - and says to run this file when it
+-- did not.
 drop policy if exists "delete leagues" on public.leagues;
 create policy "delete leagues" on public.leagues for delete using (true);
 
