@@ -889,9 +889,11 @@ function quantile(values, q) {
  *   options and locks.
  * @param {object|null} [seed] A path to compete as a finalist.
  * @param {object} [options]
- * @param {boolean} [options.holdPicks] Treat a picked slot the way a locked
- *   one is treated - its team placed and spent - to see what locking it would
- *   do. Off, only locks constrain the search.
+ * @param {boolean|((pick:object) => boolean)} [options.holdPicks] Treat a
+ *   picked slot the way a locked one is treated - its team placed and spent -
+ *   to see what locking it would do. True holds every picked slot; a function
+ *   says which slots are held, locks included, and is what a rehearsal of one
+ *   lock passes (core/plan.js). Off, only locks constrain the search.
  * @param {boolean} [options.quick] The assignment alone; see recommendPath.
  * @returns {object} The arguments recommendPath takes.
  */
@@ -899,7 +901,10 @@ export function searchRequestFor(board, seed = null, { holdPicks = false, quick 
   const burned = new Set();
   const upcoming = [];
   const { picksPerWeek, buyBackWeeks, buyBacks } = board.rules;
-  const held = (pick) => pick.status.locked || (holdPicks && Boolean(pick.team));
+  const held =
+    typeof holdPicks === "function"
+      ? holdPicks
+      : (pick) => pick.status.locked || (holdPicks && Boolean(pick.team));
 
   for (const week of board.weeks) {
     const isPast = week.week < board.currentWeek;

@@ -123,17 +123,24 @@ the drawer, each 180ms on the overshooting `--ease-snap` so it lands rather
 than drifts; the home page's own three follow the same beat. Tap to settled is
 under 400ms either way, and the first band is readable inside 200.
 
-Opening a league overlaps the halves - the home page leaves while the league's
-files load, so the wait is spent on the part of the move that can be shown -
-but the screens only change over once there is a board to put up. An open is
+Opening a league keeps the list on screen until there is a board to put up.
+The card that was tapped says it is opening (`markOpening`), the load runs
+behind the list, and only then does the page leave and the board go up behind
+it. The two halves used to overlap - the list left the moment it was tapped -
+but its fade is seventy milliseconds and the load is not always, and whatever
+the load ran past the fade was spent looking at nothing. An open is
 `loadLeague` then `paintLeague`: the first waits on the season's files and the
 pool's row and touches nothing on screen, the second unhides the board, stamps
 the pool's colours and paints it, in one task. The board used to be unhidden
 before any of that, so every round trip of the load was spent looking at an
 empty one in the new league's colours, which is what made the step read as
-slow. What is left of the wait is mostly gone too: the home page reads the
-season files for the leagues it lists while it is the screen (`warmBoardData`),
-so the tap finds them answered.
+slow. What is left of the wait is mostly gone too: the season files go out on
+the device's own list of leagues, before the directory has even answered
+(`warmBoardData`), the five that describe a season open from the service
+worker's cache (`sw.js`), a file a season does not have is remembered as
+missing rather than asked for again, and the pool's row is kept from the home
+page's refresh so the store opens on it and checks it behind the board
+(`store/rows.js`). The tap usually finds everything answered.
 
 A whole board arriving is a page change and comes in as one; a switch between
 one league's pools is not, and there `playSwitch` moves only the readout and
@@ -242,12 +249,18 @@ so picking a team and changing your mind cost nothing; the moment a pick is
 locked or unlocked, the rest of the season is re-planned around what is now
 committed. While a pick is only being weighed, what you see is a preview of
 that: the ghosts in the open slots and the "if locked" number come from the
-season re-solved around the pick by the exact assignment alone, which takes a
-millisecond and almost always lands where the full search would. So the
-preview never spends the picked team again in a later week, and the number it
-quotes is the one the lock then produces. `plan.json` still carries an
-authored path, but only as the optimiser's seed and the season calendar. It
-never fills a slot.
+lock rehearsed - the same search the lock will be answered with, run on the
+worker ahead of it and kept under the key the locked board will have, so the
+number quoted is the one the lock then produces to the digit and the lock
+itself searches nothing. The exact assignment stands in for the beat the
+rehearsal takes, and the readout says "…" rather than quoting it, since it is
+near and not right. The lock rehearsed is the lock the button would make: the
+slot in hand, when it holds one of the picks pending. A second pick pending in
+another week stays in its slot on screen, but the rehearsal plans past it the
+way the lock will, so with two picks on the board the number is still the
+number for locking this one and not for locking both. `plan.json` still
+carries an authored path, but only as the optimiser's seed and the season
+calendar. It never fills a slot.
 
 The coach only ever names a game still to be played, and what is left of a week
 is all it has to work with. That can be less than the pool asks for: with one
@@ -828,10 +841,13 @@ away cannot be trusted to have missed nothing.
   the repo. The shell (page, styles, modules, icons, fonts, the Supabase client)
   opens from the cache and refreshes behind the scenes, which is what makes a
   home-screen launch instant; a deploy is picked up on the launch after the one
-  that fetched it. The data files go network-first with a time limit, so an
-  odds commit still lands the moment it is published and a weak signal falls
-  back to the last copy rather than hanging. Offline shows the last board this
-  device loaded rather than a guaranteed-complete app.
+  that fetched it. The data files the refresh rewrites - the lines, the fit,
+  the availability report, the pool's numbers - go network-first with a time
+  limit, so an odds commit still lands the moment it is published and a weak
+  signal falls back to the last copy rather than hanging; the five that
+  describe the season and sit still all week open from the cache like the
+  shell. Offline shows the last board this device loaded rather than a
+  guaranteed-complete app.
 - **No auth.** A league's code is the credential: twelve characters from a
   31-letter alphabet, generated with `crypto.getRandomValues`, and holding one
   is what lets a device read and write that league. Nothing is verified and

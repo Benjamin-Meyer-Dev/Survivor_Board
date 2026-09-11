@@ -31,7 +31,7 @@ const [plan, odds, teams, schedule, ratings] = await Promise.all(
   ["plan.json", "odds.json", "teams.json", "schedule.json", "ratings.json"].map(readJson),
 );
 
-const build = (entry, sourceOdds = odds, allowSearch = true) =>
+const build = (entry, sourceOdds = odds, allowSearch = true, inHand = null) =>
   buildBoard({
     plan,
     odds: sourceOdds,
@@ -41,6 +41,7 @@ const build = (entry, sourceOdds = odds, allowSearch = true) =>
     entry,
     refreshSchedule: CONFIG.refresh,
     allowSearch,
+    inHand,
   });
 
 const nothing = () => ({ picks: {}, swaps: {} });
@@ -264,6 +265,80 @@ assert.equal(
   '"if locked" is the number the lock then shows',
 );
 
+// Two picks pending in two weeks, and the lock button on one of them. The lock
+// locks the slot in hand and nothing else, so "if locked" has to price that
+// lock alone: the other pick stays unlocked, and the coach plans past it. A
+// rehearsal that held both priced a board no lock could produce - 0.8% against
+// the 1.0% the lock then showed - which is the regression this holds.
+const secondWeek = empty.weeks[1];
+const secondKey = slotKey(secondWeek.week, 0);
+const secondTeam = secondWeek.picks[0].options.find(
+  (option) =>
+    !option.disabled &&
+    !option.result &&
+    option.team !== rehearsedTeam &&
+    option.team !== secondWeek.picks[0].suggestion?.team,
+).team;
+const twoPending = { picks: {}, swaps: { [key]: rehearsedTeam, [secondKey]: secondTeam } };
+// The first slot in hand is the lock rehearsed above, and the second pick
+// pending is no part of it: the same search, so the plan its lock made
+// answers without another.
+const inHand = build(twoPending, withFeedResult, true, { week: first.week, slot: first.slot });
+assert.equal(inHand.previewPending, false, "the lock in hand was rehearsed before the second pick");
+assert.equal(
+  inHand.weeks[1].picks[0].team,
+  secondTeam,
+  "the other pick stays in its slot while the first is weighed",
+);
+assert.equal(inHand.weeks[1].picks[0].onPath.kind, "picked");
+const lockedInHand = build(
+  { picks: { [key]: { locked: true } }, swaps: twoPending.swaps },
+  withFeedResult,
+  false,
+);
+assert.equal(
+  lockedInHand.recommendationPending,
+  false,
+  "locking the slot in hand is answered from its rehearsal",
+);
+assert.equal(
+  inHand.previewPathProbability,
+  lockedInHand.pathProbability,
+  '"if locked" is the number locking the slot in hand then shows, another pick pending or not',
+);
+// The other slot in hand is a lock of its own, rehearsed as one: held alone,
+// with the first pick left to the coach, and priced as its lock then is.
+const secondInHand = { week: secondWeek.week, slot: 0 };
+setSearchRunner((request) => Promise.resolve(recommendPath(request)));
+let secondHeld = build(twoPending, withFeedResult, true, secondInHand);
+assert.equal(secondHeld.previewPending, true, "the other lock is rehearsed on its own");
+await searchesSettled({ rehearsals: true });
+secondHeld = build(twoPending, withFeedResult, true, secondInHand);
+assert.equal(secondHeld.previewPending, false, "and its rehearsal has landed");
+setSearchRunner(null);
+const lockedSecond = build(
+  { picks: { [secondKey]: { locked: true } }, swaps: twoPending.swaps },
+  withFeedResult,
+  false,
+);
+assert.equal(lockedSecond.recommendationPending, false, "the second lock is answered the same way");
+assert.equal(
+  secondHeld.previewPathProbability,
+  lockedSecond.pathProbability,
+  '"if locked" follows the slot in hand: the second lock priced as its lock then shows',
+);
+// With no slot in hand - a week whose slot holds nothing to lock - every pick
+// pending is held, as before: there is no lock button for the number to
+// disagree with, and the ghosts are a path that could actually be locked.
+const noneInHand = build(twoPending, withFeedResult, true, { week: empty.weeks[2].week, slot: 0 });
+assert.deepEqual(
+  new Set(
+    noneInHand.weeks.flatMap((week) => week.picks.map((pick) => pick.onPath?.team).filter(Boolean)),
+  ).size,
+  noneInHand.weeks.flatMap((week) => week.picks.filter((pick) => pick.onPath)).length,
+  "with no lock in hand the path on screen spends no team twice",
+);
+
 // Locking commits: the team is spent, the final lands, and the coach plans the
 // rest of the season around it.
 const locked = build(
@@ -461,17 +536,23 @@ assert.equal(laterRow.result, null, "the block is that week's game, not the team
 assert.equal(laterRow.disabled, false, "a played game leaves the team's other weeks alone");
 
 // A row nobody holds sinks once its game is played, so the top of the list
-// stays teams that can actually be taken.
+// stays teams that can actually be taken. The feed may already carry finals
+// for the week - it does once the season is under way - so the settled row is
+// checked against the games still to come rather than for last place.
 const rowsWhenFree = settled.weeks[0].picks[0].options;
-assert.equal(
-  rowsWhenFree.at(-1).team,
-  settledTeam,
-  "a played game nobody holds sinks to the bottom of the list",
+const firstPlayed = rowsWhenFree.findIndex((option) => option.result);
+assert.ok(
+  firstPlayed >= 0 && rowsWhenFree.slice(firstPlayed).every((option) => option.result),
+  "a played game nobody holds sinks below every game still to be played",
+);
+assert.ok(
+  rowsWhenFree.slice(firstPlayed).some((option) => option.team === settledTeam),
+  "and the settled fixture is among the played games at the bottom",
 );
 assert.equal(
   rowsWhenFree.filter((option) => option.result).length,
-  1,
-  "only the settled fixture is marked settled",
+  empty.weeks[0].picks[0].options.filter((option) => option.result).length + 1,
+  "only the settled fixture is newly marked settled",
 );
 
 // A locked slot's own team is the exception: it keeps the place the spread

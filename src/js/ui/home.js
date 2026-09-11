@@ -49,6 +49,26 @@ export function closeHomePanels() {
   for (const dialog of sheetsRoot?.querySelectorAll("dialog[open]") ?? []) dialog.close();
 }
 
+/**
+ * Say a league is opening: its card wears the state and its Open button says
+ * so, until the board is up or the list is drawn again. app.js calls it on
+ * the tap, ahead of the load it then waits on, so the page stays where it is
+ * and still answers the tap - the list used to leave at once, and a load that
+ * outran its fade was spent on a blank screen.
+ */
+export function markOpening(root, code) {
+  // A code is twelve letters and digits (core/code.js), so the selector needs
+  // no escaping; it gets it anyway where the browser offers it.
+  const safe = globalThis.CSS?.escape?.(code) ?? code;
+  const card = root?.querySelector(`.home__card[data-league="${safe}"]`);
+  if (!card) return;
+  card.classList.add("is-opening");
+  const button = card.querySelector('[data-act="open"]');
+  if (!button) return;
+  button.setAttribute("aria-busy", "true");
+  button.innerHTML = `Opening… ${ICONS.go}`;
+}
+
 /* Stroke icons: two sheets for copy, a door with an arrow out for leave, the
    tick and cross copy swaps to while it reports, an arrow for the way in, a
    plus for a new league, a key for joining with a code (a code is a key, and

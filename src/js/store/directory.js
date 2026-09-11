@@ -32,8 +32,10 @@ import { newCode, normaliseCode, isCode } from "../core/code.js";
 import { SPORTS, POOL_KINDS, KIND_IDS, kindId, normaliseKinds, kindsLabel } from "../sports.js";
 import { mergeRules } from "../core/rules.js";
 import { supabaseClient } from "./client.js";
+import { rememberRow, forgetRows } from "./rows.js";
 
 export { sharingAvailable } from "./client.js";
+export { knownRow } from "./rows.js";
 
 /** The one client the app loads, shared with a league's own store. */
 const supabase = supabaseClient;
@@ -211,6 +213,9 @@ function groupPools(rows) {
   for (const row of rows ?? []) {
     if (!(row?.sport in SPORTS)) continue;
     const pool = rowToPool(row);
+    // The whole row was read; the board it holds is kept for the store to open
+    // on (store/rows.js), rather than being read again a moment later.
+    rememberRow(pool.code, pool.kind, { entry: pool.entry, version: pool.updatedAt });
     const league = leagues.get(pool.code) ?? { code: pool.code, name: pool.name, pools: {} };
     league.pools[pool.kind] = pool;
     leagues.set(pool.code, league);
@@ -640,6 +645,7 @@ export async function removePool(code, kind) {
  * could hold more than one pool.
  */
 function forgetBoards(code, kinds, { everything = false } = {}) {
+  forgetRows(code, everything ? null : kinds);
   const keys = kinds.map((kind) => scopeFor(code, kind).storageKey);
   if (everything) keys.push(scopeFor(code, KIND_IDS[0]).legacyStorageKey);
   for (const key of keys) {

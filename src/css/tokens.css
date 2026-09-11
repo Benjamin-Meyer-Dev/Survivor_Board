@@ -12,8 +12,8 @@
   color-scheme: dark;
 
   /* turf ------------------------------------------------------------------
-     The field, mown in stripes. --turf-lit is the floodlit patch the week on
-     the clock stands in; --board is the chalkboard the drawer is drawn on. */
+     The field. --turf-lit is the floodlit patch the week on the clock stands
+     in; --board is the chalkboard the drawer is drawn on. */
   --turf: #0f4d2c;
   --turf-2: #0d4527;
   --turf-3: #115a33;
@@ -114,7 +114,6 @@
     rgb(255 255 255 / 14%),
     transparent 70%
   );
-  --mow: repeating-linear-gradient(180deg, rgb(0 0 0 / 5%) 0 48px, transparent 48px 96px);
   --stripes: repeating-linear-gradient(135deg, rgb(243 247 241 / 9%) 0 5px, transparent 5px 12px);
   --shadow: 0 14px 34px -18px rgb(0 0 0 / 70%);
   --shadow-lift: 0 24px 60px -20px rgb(0 0 0 / 85%);

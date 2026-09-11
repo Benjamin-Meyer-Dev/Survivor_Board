@@ -12,12 +12,18 @@
  * reflowed the startup screen under the play. The price is that a deploy is
  * picked up on the launch after the one that fetched it.
  *
- * The data files under data/ are different. The odds bot rewrites them daily
- * and the board must not show yesterday's lines when today's are a fetch away,
- * so they go network-first with a time limit, then fall back to the last copy.
- * They are stored under the URL with any query stripped off: whatever a caller
- * asks for, the fallback has to be able to find it, and a copy stored under a
- * one-off query string is a copy nothing will ever match again.
+ * The data files under data/ come in two kinds. The ones the odds bot rewrites
+ * daily - the lines, the fit to them, the availability report, the pool's
+ * numbers - go network-first with a time limit, then fall back to the last
+ * copy, because the board must not show yesterday's lines when today's are a
+ * fetch away. The ones that describe the season and sit still all week - the
+ * calendar, the roster, the fixtures, the shipped ratings, the fitted model -
+ * are served like the shell, from the cache first (isSettledData): they were
+ * two thirds of the requests an open made and every one of them waited on the
+ * network for bytes the cache already held. All of them are stored under the
+ * URL with any query stripped off: whatever a caller asks for, the fallback has
+ * to be able to find it, and a copy stored under a one-off query string is a
+ * copy nothing will ever match again.
  *
  * There is still no precache list: whatever the app fetches while online is
  * what is available offline.
@@ -45,6 +51,19 @@ const SHELL_HOSTS = ["fonts.googleapis.com", "fonts.gstatic.com", "cdn.jsdelivr.
 
 const isData = (url) => /\/data\/.+\.json$/.test(url.pathname);
 
+/**
+ * The data files a season is described by, which the daily refresh leaves
+ * alone: the calendar, the roster, the fixtures, the ratings it shipped with
+ * and the fitted model. The same five app.js holds for the session
+ * (SETTLED_FILES there). They open from the cache like the shell does, and a
+ * change to one is picked up on the launch after the one that fetched it -
+ * where the lines, the fit to them, the availability report and the pool's
+ * numbers still go to the network first, because those are what the refresh
+ * rewrites and a board must not show yesterday's when today's are a fetch away.
+ */
+const isSettledData = (url) =>
+  /\/data\/[^/]+\/(plan|teams|schedule|ratings|calibration)\.json$/.test(url.pathname);
+
 self.addEventListener("install", () => {
   // Nothing to precache; take over as soon as this version is ready.
   self.skipWaiting();
@@ -66,7 +85,11 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin === self.location.origin) {
-    event.respondWith(isData(url) ? freshFirst(event) : cachedFirst(event));
+    if (!isData(url)) event.respondWith(cachedFirst(event));
+    // Under the bare URL either way, so a copy freshFirst kept is one
+    // cachedFirst finds, and the other way round.
+    else if (isSettledData(url)) event.respondWith(cachedFirst(event, bareUrl(request.url)));
+    else event.respondWith(freshFirst(event));
   } else if (SHELL_HOSTS.includes(url.hostname)) {
     event.respondWith(cachedFirst(event));
   }
@@ -83,19 +106,23 @@ function keepable(response) {
 /**
  * The cached copy at once when there is one, the network otherwise, and in
  * either case the network's answer becomes the copy for next time.
+ *
+ * @param {FetchEvent} event
+ * @param {string} [key] What the copy is kept under; the request's own URL
+ *   unless a caller says otherwise.
  */
-async function cachedFirst(event) {
+async function cachedFirst(event, key = event.request.url) {
   const { request } = event;
   const cache = await caches.open(CACHE);
   // ignoreVary: Google's font stylesheet varies on Sec-Fetch headers, which no
   // stored request carries, and a copy that cannot be matched is no copy.
-  const cached = await cache.match(request.url, { ignoreVary: true });
+  const cached = await cache.match(key, { ignoreVary: true });
 
   const refresh = fetch(request);
   // Attached before the response is handed anywhere, so the copy is taken
   // while the body is certainly still unread - and held by the event, so the
   // worker is not free to stop before it has been written.
-  event.waitUntil(keep(cache, request.url, refresh));
+  event.waitUntil(keep(cache, key, refresh));
 
   if (cached) return cached;
   try {

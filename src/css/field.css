@@ -4,7 +4,7 @@
    The thematic layer, kept in its own file so the functional CSS underneath
    stays readable. Four ideas carry it:
 
-     1. Turf - mown in stripes, lit from above, the ground of every screen.
+     1. Turf - solid green, lit from above, the ground of every screen.
      2. Chalk - everything written on the field is chalk: solid where it is
         painted on, dashed where it is only pencilled in.
      3. Paint - the end zones and the league's mark wear the league's paint
@@ -25,7 +25,7 @@ body::before {
   z-index: 0;
   pointer-events: none;
   background:
-    var(--floodlight), var(--mow),
+    var(--floodlight),
     radial-gradient(ellipse 120% 90% at 50% 60%, transparent 55%, rgb(0 0 0 / 30%) 100%),
     var(--turf);
 }

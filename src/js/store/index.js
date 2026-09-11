@@ -19,11 +19,14 @@ import { createLocalStore } from "./local.js";
  *   src/js/sports.js). Every pool has its own document, row and storage key,
  *   keyed by the league's code and the kind, so opening one never mixes it
  *   with another league's board or with the same league's other pools.
+ * @param {{seed?:{entry:object, version:string|null}|null}} [options] The
+ *   row as the app last saw it (store/rows.js), for a store that can open on
+ *   it and check it behind the board; see createSupabaseStore.
  */
-export async function createStore(code, kind) {
+export async function createStore(code, kind, options = {}) {
   for (const create of [createArtifactStore, createSupabaseStore]) {
     try {
-      const store = await create(code, kind);
+      const store = await create(code, kind, options);
       if (store) return store;
     } catch {
       /* try the next one */

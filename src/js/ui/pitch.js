@@ -271,22 +271,31 @@ function stats(board) {
   }
 
   if (!board.eliminated && board.previewPathProbability !== null) {
-    // Judged as shown: a preview that rounds to the same tenth of a percent as
-    // the season number reads as even, however the unrounded pair fall.
-    const change =
-      formatPercent(board.previewPathProbability) === formatPercent(board.pathProbability)
-        ? "even"
-        : board.previewPathProbability > board.pathProbability
-          ? "better"
-          : "worse";
-    items.push(
-      stat(
-        "If locked",
-        `${PREVIEW_ARROW}${escapeHtml(formatPercent(board.previewPathProbability))}`,
-        `preview-${change}`,
-        true,
-      ),
-    );
+    // The lock is still being rehearsed (memoisedPreview in core/plan.js) and
+    // the number in hand is the quick assignment standing in for it. It is
+    // near, not right - a Bills pick read 0.9% for the beat and 0.8% once the
+    // rehearsal landed - so the readout waits rather than saying a number it
+    // will take back. app.js builds again when the rehearsal lands.
+    if (board.previewPending) {
+      items.push(stat("If locked", `${PREVIEW_ARROW}…`, "preview-pending", true));
+    } else {
+      // Judged as shown: a preview that rounds to the same tenth of a percent
+      // as the season number reads as even, however the unrounded pair fall.
+      const change =
+        formatPercent(board.previewPathProbability) === formatPercent(board.pathProbability)
+          ? "even"
+          : board.previewPathProbability > board.pathProbability
+            ? "better"
+            : "worse";
+      items.push(
+        stat(
+          "If locked",
+          `${PREVIEW_ARROW}${escapeHtml(formatPercent(board.previewPathProbability))}`,
+          `preview-${change}`,
+          true,
+        ),
+      );
+    }
   }
   return items.join("");
 }

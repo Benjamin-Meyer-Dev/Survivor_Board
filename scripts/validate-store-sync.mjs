@@ -386,8 +386,65 @@ await race(
   await refused;
 }
 
+/* --- opening on the row in hand ------------------------------------------
+   The home page's refresh reads every pool's row whole, so a board can open on
+   that copy (store/rows.js) and check it behind the screen: init() answers
+   without a read, and the first subscribe reads the row. A copy the row has
+   moved past reaches the board the way another device's change does; one that
+   has not is not news. */
+
+{
+  const client = fakeClient();
+  const seeded = await createSupabaseStore("BXQK7HRTM4WD", "nfl-win", {
+    client,
+    seed: { entry: LOCKED, version: "2026-09-04T10:00:00.000Z" },
+  });
+  const opened = await seeded.init();
+  assert.deepEqual(opened.picks, LOCKED.picks, "the board opens on the copy in hand");
+  assert.throws(() => client.answer("read"), /no pending read/, "and owes no read for it");
+  const heard = [];
+  const stop = seeded.subscribe((entry) => heard.push(entry));
+  await tick();
+  client.answer("read");
+  await tick();
+  assert.deepEqual(shown(heard), [], "a copy the row still matches is not news");
+  stop();
+}
+
+{
+  const client = fakeClient();
+  client.state.row = { entry: OPEN, updated_at: "2026-09-04T10:09:00.000Z" };
+  const seeded = await createSupabaseStore("BXQK7HRTM4WD", "nfl-win", {
+    client,
+    seed: { entry: LOCKED, version: "2026-09-04T10:00:00.000Z" },
+  });
+  await seeded.init();
+  const heard = [];
+  const stop = seeded.subscribe((entry) => heard.push(entry));
+  await tick();
+  client.answer("read");
+  await tick();
+  assert.deepEqual(
+    shown(heard),
+    ["open"],
+    "a copy the row has moved past is corrected behind the board",
+  );
+  // And a save from there carries the corrected version, not the copy's.
+  const save = seeded.save(LOCKED);
+  await tick();
+  client.answer("upsert");
+  await save;
+  assert.deepEqual(
+    client.state.row.entry.picks,
+    LOCKED.picks,
+    "the save lands on the row as it is",
+  );
+  stop();
+}
+
 console.log(
   "Store sync OK: own echoes and stale polls never reach the board, other devices' changes do, " +
-    "and a save that lost the race merges onto what won, keeps its own change, tells the board " +
-    "what it merged, and gives up rather than trying for ever.",
+    "a save that lost the race merges onto what won, keeps its own change, tells the board " +
+    "what it merged, and gives up rather than trying for ever, and a board opened on the row " +
+    "in hand is checked behind the screen.",
 );

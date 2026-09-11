@@ -150,6 +150,27 @@
   animation: startup-route var(--startup-cycle) linear infinite;
 }
 
+/* Held at the first frame - the ball not yet thrown, the route still covered
+   - until app.js has wound every one of these back to nought and says go
+   (startTheStartupPlay). The clock used to start the moment the stylesheet
+   applied, well before anything was painted and, on an installed launch,
+   behind the system's own splash; what the launch then showed was the tail
+   of a play nobody had seen, and the layer lifted on a ball that had already
+   landed. */
+.startup__ball,
+.startup__ball svg,
+.startup__route,
+.startup__route::after {
+  animation-play-state: paused;
+}
+
+.startup.is-playing .startup__ball,
+.startup.is-playing .startup__ball svg,
+.startup.is-playing .startup__route,
+.startup.is-playing .startup__route::after {
+  animation-play-state: running;
+}
+
 /* The handoff, once the play has landed: the layer lifts away over the board
    rising in under it. Seven tenths of a second, from five - the two are one
    movement, and the board had been arriving before the eye had finished with
@@ -331,6 +352,24 @@
   transition:
     opacity 0.16s ease,
     transform 0.16s ease;
+}
+
+/* The way in, while the league loads behind the list: the arrow on the card's
+   button keeps going, so a load that takes a moment reads as going rather
+   than as a tap that did nothing. Off with the class, which comes off with
+   the list's next render. */
+@keyframes open-nudge {
+  0%,
+  100% {
+    transform: none;
+  }
+  50% {
+    transform: translateX(4px);
+  }
+}
+
+.home__card.is-opening .home__open svg {
+  animation: open-nudge 0.8s ease-in-out infinite;
 }
 
 /* --- between the home page and a board ------------------------------------

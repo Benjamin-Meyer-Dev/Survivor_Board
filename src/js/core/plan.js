@@ -474,6 +474,10 @@ function lineOf(pick) {
  *   is one (`recommendationStale`), and the caller is expected to paint it and
  *   then build again. The search takes a few hundred milliseconds and blocks
  *   the main thread, so this is what stops a league switch freezing mid-fade.
+ * @param {{week:number, slot:number}|null} [args.inHand] The slot the lock
+ *   button would lock: the week being looked at and the slot the sideline is
+ *   filling. While that slot holds a pick, "if locked" prices that lock alone
+ *   (see heldFor). Null, and every pending pick is held.
  */
 export function buildBoard({
   plan,
@@ -488,6 +492,7 @@ export function buildBoard({
   entry,
   refreshSchedule,
   allowSearch = true,
+  inHand = null,
 }) {
   // The pool's own rules, and the plan's for comparison: the settings sheet
   // needs both, to show what a reset would go back to.
@@ -765,11 +770,24 @@ export function buildBoard({
   // assignment standing in for the beat it takes - so a tap stays a tap, and
   // "if locked" is the number the lock then shows, to the digit. The committed
   // plan and its number are untouched: they still move only on a lock.
-  const weighing = board.weeks.some((week) =>
-    week.picks.some((pick) => pick.team && !pick.status.locked),
-  );
+  //
+  // The lock rehearsed is the lock the button would make: the slot in hand,
+  // when it is one of the picks pending. The other pending picks stay in their
+  // slots on screen, but the rehearsal plans around them as the lock will, so
+  // the number is the lock's and not the number for locking everything at
+  // once (see heldFor).
+  const { weighed, target } = targetOf(board, inHand);
+  const weighing = weighed.length > 0;
   const rehearsal = weighing
-    ? memoisedPreview(board, plan, odds, form, planByWeek, { calibration, availability, pool })
+    ? memoisedPreview(
+        board,
+        plan,
+        odds,
+        form,
+        planByWeek,
+        { calibration, availability, pool },
+        target && { week: target.week, slot: target.slot },
+      )
     : null;
   const preview = rehearsal?.value ?? recommendation;
   // The rehearsal is still out and the assignment stands in for it. app.js
@@ -786,6 +804,11 @@ export function buildBoard({
   // pick is then the whole of what the week holds. Without this the week and
   // every week after it would drop their numbers, as if the path were unfinished.
   const shortWeeks = new Set(recommendation.shortfalls ?? []);
+  // The path the lock would leave: the locks, then what the rehearsal plans
+  // around them. Gathered week by week below and priced as "if locked". Not the
+  // path on screen: a second pick pending in another week is shown in its slot,
+  // but the lock leaves it unlocked, and the coach plans past it.
+  const rehearsalPicks = [];
 
   for (const week of board.weeks) {
     const lockedTeams = new Set(
@@ -850,6 +873,28 @@ export function buildBoard({
       .map((team) => week.optionByTeam.get(team))
       .filter(Boolean)
       .map((option) => ({ ...option, tier: confidenceTier(option.winProb, rules.tiers) }));
+    // The rehearsal's own week: its locks first and its plan behind them,
+    // built the way the committed path is (pathRecommendation), so the number
+    // it prices is the number the lock's plan will price.
+    if (rehearsal) {
+      const onRehearsal =
+        week.week < currentWeek
+          ? [...lockedTeams]
+          : [...lockedTeams, ...ghostNames.filter((team) => !lockedTeams.has(team))].slice(
+              0,
+              rules.picksPerWeek,
+            );
+      for (const team of onRehearsal) {
+        const option = week.optionByTeam.get(team);
+        if (!option) continue;
+        const lock = week.picks.find((pick) => pick.status.locked && pick.team === team);
+        rehearsalPicks.push({
+          week: week.week,
+          winProb: option.winProb,
+          result: lock?.status.result ?? null,
+        });
+      }
+    }
     const weekPlan = planByWeek.get(week.week);
     let next = 0;
     let ghost = 0;
@@ -966,19 +1011,17 @@ export function buildBoard({
       week.seasonWinProb === null ? null : confidenceTier(week.seasonWinProb, rules.tiers);
   }
 
-  // First price the visible path, including any unlocked picks. This is a
+  // Price the path the lock would leave (rehearsalPicks, above). This is a
   // preview only: trying a team must not move the committed headline number.
-  const previewOutcome = survival({
-    picks: board.weeks.flatMap((week) =>
-      week.picks.flatMap((pick) =>
-        pick.onPath
-          ? [{ week: week.week, winProb: pick.onPath.winProb, result: pick.status.result ?? null }]
-          : [],
-      ),
-    ),
-    buyBackWeeks: rules.buyBackWeeks,
-    buyBacks: rules.buyBacks,
-  });
+  // With one pick pending it is the path on screen; with two, it is the path
+  // the lock button in hand produces, which is the one thing the number is for.
+  const previewOutcome = rehearsal
+    ? survival({
+        picks: rehearsalPicks,
+        buyBackWeeks: rules.buyBackWeeks,
+        buyBacks: rules.buyBacks,
+      })
+    : null;
 
   // The committed number follows locked history plus the coach's current
   // recommendation. Since that recommendation ignores unlocked picks, this
@@ -1013,7 +1056,7 @@ export function buildBoard({
     buyBacks: rules.buyBacks,
   });
   board.pathProbability = committedOutcome.probability;
-  board.previewPathProbability = weighing ? previewOutcome.probability : null;
+  board.previewPathProbability = previewOutcome ? previewOutcome.probability : null;
 
   // The depth chart carries all three truths: crossed-out teams are locked,
   // outlined teams are picked but not yet locked, and ghosted teams are only
@@ -1069,6 +1112,57 @@ const isLocked = (pick) => Boolean(pick.status.locked);
 
 /** ...or, rehearsing a lock, the picks with them - what holdPicks holds (core/recommend.js). */
 const isHeld = (pick) => Boolean(pick.status.locked || pick.team);
+
+/**
+ * The slots a rehearsal holds: the locks, and the one pick a lock would take.
+ *
+ * The lock button locks the slot in hand and nothing else, so what "if locked"
+ * has to price is that slot held with the locks - the other picks on the board
+ * are still the coach's to plan around, exactly as the lock will leave them.
+ * Holding every pick priced a board with two picks pending at 0.8% "if locked"
+ * and 1.0% once the one in hand was locked. With no slot in hand (the scripts,
+ * a week whose slot holds nothing to lock) every pick is held, as before: there
+ * is no lock button on screen for the number to disagree with.
+ *
+ * @param {{week:number, slot:number}|null} target
+ */
+function heldFor(target) {
+  if (!target) return isHeld;
+  return (pick) =>
+    Boolean(pick.status.locked) ||
+    (Boolean(pick.team) && pick.week === target.week && pick.slot === target.slot);
+}
+
+/**
+ * The picks pending on a board, and the one of them in hand - the pick a lock
+ * would take - or null when the slot in hand holds none.
+ *
+ * @param {object} board Far enough along to carry weeks and picks.
+ * @param {{week:number, slot:number}|null} inHand
+ */
+function targetOf(board, inHand) {
+  const weighed = board.weeks.flatMap((week) =>
+    week.picks.filter((pick) => pick.team && !pick.status.locked),
+  );
+  const target =
+    weighed.find((pick) => pick.week === inHand?.week && pick.slot === inHand?.slot) ?? null;
+  return { weighed, target };
+}
+
+/**
+ * The slots "if locked" holds for a slot in hand, as one key: the pending pick
+ * in that slot, or every pending pick when it holds none (heldFor). app.js
+ * compares this across a move of the bracket to know whether the move gives the
+ * board a different lock to rehearse; with one pick pending it never does.
+ *
+ * @param {object} board Result of buildBoard().
+ * @param {{week:number, slot:number}|null} inHand
+ * @returns {string} Empty with nothing pending.
+ */
+export function previewHolds(board, inHand) {
+  const { weighed, target } = targetOf(board, inHand);
+  return (target ? [target] : weighed).map((pick) => slotKey(pick.week, pick.slot)).join(",");
+}
 
 /**
  * The slots a search is constrained by, as the caches key them: which slot
@@ -1201,12 +1295,15 @@ let previewCache = [];
  *
  * Null for an eliminated entry, which has nothing left to preview.
  *
+ * @param {{week:number, slot:number}|null} target The slot the lock would
+ *   take (see heldFor). Null holds every pick.
  * @returns {{value: object, pending: boolean}|null}
  */
-function memoisedPreview(board, plan, odds, form, planByWeek, inputs) {
+function memoisedPreview(board, plan, odds, form, planByWeek, inputs, target = null) {
   if (board.eliminated) return null;
+  const holds = heldFor(target);
   const base = signatureBase(board, plan, odds, form, inputs);
-  const locks = locksOf(board, isHeld);
+  const locks = locksOf(board, holds);
   const signature = signatureOf(base, locks);
 
   // Rehearsed already - or planned already: a pick undone and made again finds
@@ -1220,14 +1317,14 @@ function memoisedPreview(board, plan, odds, form, planByWeek, inputs) {
   if (runner) {
     handOff(runner, {
       signature,
-      request: searchRequestFor(board, seedFor(board, planByWeek, isHeld), { holdPicks: true }),
+      request: searchRequestFor(board, seedFor(board, planByWeek, holds), { holdPicks: holds }),
       keep: (value) => rememberRehearsal({ signature, base, locks, value }),
       rehearsal: true,
     });
   }
 
   const hit = previewCache.find((entry) => entry.signature === signature);
-  const value = hit?.value ?? recommendForBoard(board, null, { holdPicks: true, quick: true });
+  const value = hit?.value ?? recommendForBoard(board, null, { holdPicks: holds, quick: true });
   if (!hit) previewCache = [{ signature, value }, ...previewCache].slice(0, CACHE_SIZE);
   return { value, pending: running.has(signature) };
 }

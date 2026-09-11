@@ -46,6 +46,7 @@ import { emptyEntry, stableJson } from "../core/plan.js";
 import { POOL_KINDS } from "../sports.js";
 import { supabaseClient } from "./client.js";
 import { mergeEntries } from "./merge.js";
+import { rememberRow } from "./rows.js";
 
 /**
  * How often to read the row directly while realtime is not carrying it.
@@ -97,10 +98,14 @@ function sameDocument(a, b) {
  * @param {string} code Which league's row to open.
  * @param {string} kind Which of the league's pools, as a kind id (see
  *   src/js/sports.js): one row per pool.
- * @param {{client?: object}} [options] A ready client, for tests that cannot
- *   load the CDN. Production leaves this out and loads the library.
+ * @param {{client?: object, seed?: {entry:object, version:string|null}|null}}
+ *   [options] `client` is a ready client, for tests that cannot load the CDN;
+ *   production leaves it out and loads the library. `seed` is the row as the
+ *   app last saw it (store/rows.js): init() opens on it without a read, and
+ *   the first subscribe reads the row behind the board to catch anything it
+ *   missed. Without one, init() reads the row as it always did.
  */
-export async function createSupabaseStore(code, kind, { client: given } = {}) {
+export async function createSupabaseStore(code, kind, { client: given, seed = null } = {}) {
   const { table } = CONFIG.supabase;
 
   // One row per pool, keyed by the league's code, the season and what the
@@ -135,8 +140,13 @@ export async function createSupabaseStore(code, kind, { client: given } = {}) {
   const ownVersions = [];
   /** Saves on the wire right now. */
   let saving = 0;
+  /** Whether the board opened on a copy of the row that has yet to be checked (see init). */
+  let unchecked = false;
 
   const isOwn = (version) => ownVersions.includes(versionKey(version));
+
+  /** What the row holds, as far as this device knows: kept for the next open (store/rows.js). */
+  const learned = (entry, version) => rememberRow(code, kind, { entry, version });
 
   /**
    * Hand a row to a listener if it is news. `seenBefore` is the version that
@@ -154,6 +164,7 @@ export async function createSupabaseStore(code, kind, { client: given } = {}) {
     if (isOwn(row.updated_at) || sameVersion(row.updated_at, lastVersion)) return;
     lastVersion = row.updated_at ?? lastVersion;
     lastEntry = structuredClone(entry);
+    learned(entry, lastVersion);
     listener({ ...emptyEntry(), ...entry });
   }
 
@@ -175,10 +186,22 @@ export async function createSupabaseStore(code, kind, { client: given } = {}) {
     canWrite,
 
     async init() {
+      // The row as the app last saw it, when it has: the board opens on that
+      // and the read goes out behind it (subscribe), where a copy a rename or
+      // another device's lock has moved past is caught and pushed like any
+      // other change. A save in between carries this version, so it cannot
+      // write over what it has not seen (see save).
+      if (seed?.entry) {
+        lastVersion = seed.version ?? null;
+        lastEntry = structuredClone(seed.entry);
+        unchecked = true;
+        return { ...emptyEntry(), ...seed.entry };
+      }
       const row = await readRow();
       if (!row) return emptyEntry();
       lastVersion = row.version;
       lastEntry = structuredClone(row.entry);
+      learned(row.entry, row.version);
       return { ...emptyEntry(), ...row.entry };
     },
 
@@ -210,6 +233,13 @@ export async function createSupabaseStore(code, kind, { client: given } = {}) {
         timer = null;
         wait = RECOVERY_MS;
       };
+
+      // The board opened on a copy (init): read the row now, behind it, rather
+      // than waiting on the channel to come up and ask.
+      if (unchecked) {
+        unchecked = false;
+        poll();
+      }
 
       /** Keep reading while the channel is down, more slowly as it stays down. */
       const recover = () => {
@@ -334,6 +364,7 @@ export async function createSupabaseStore(code, kind, { client: given } = {}) {
           }
           if (data?.length) {
             lastEntry = structuredClone(mine);
+            learned(mine, version);
             // A merge means the row now holds somebody else's change as well
             // as ours - and the realtime event for this write is our own echo,
             // which is dropped. So the board is told here, or it goes on
