@@ -66,6 +66,21 @@ const RECOVERY_MAX_MS = 60000;
 /** How many times a save re-reads, merges and tries again before giving up. */
 const SAVE_ATTEMPTS = 3;
 
+/**
+ * How long a board opened on a copy of its row waits for the channel to come
+ * up and read the row for it, before reading it itself (see subscribe).
+ */
+const CHECK_WAIT_MS = 2500;
+
+/** A point on the performance timeline, for a trace taken on a phone. */
+function mark(name) {
+  try {
+    globalThis.performance?.mark?.(name);
+  } catch {
+    /* nothing lost but the mark */
+  }
+}
+
 /** How many of this device's own versions to remember for the echo check. */
 const OWN_VERSIONS_KEPT = 50;
 
@@ -219,6 +234,7 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
       const poll = async () => {
         if (polling) return;
         polling = true;
+        mark("survivor:store:poll");
         const seenBefore = lastVersion;
         try {
           const row = await readRow();
@@ -234,12 +250,23 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
         wait = RECOVERY_MS;
       };
 
-      // The board opened on a copy (init): read the row now, behind it, rather
-      // than waiting on the channel to come up and ask.
+      // The board opened on a copy (init) and owes the row one read behind it.
+      // The channel's own first read is that read - it comes with SUBSCRIBED,
+      // or with the first error - so the copy is checked once rather than
+      // twice on a launch that has enough else to do. Only a channel that says
+      // nothing for a while is not waited on.
+      let check = null;
       if (unchecked) {
         unchecked = false;
-        poll();
+        check = setTimeout(() => {
+          check = null;
+          poll();
+        }, CHECK_WAIT_MS);
       }
+      const checked = () => {
+        clearTimeout(check);
+        check = null;
+      };
 
       /** Keep reading while the channel is down, more slowly as it stays down. */
       const recover = () => {
@@ -258,6 +285,7 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
           "postgres_changes",
           { event: "*", schema: "public", table, filter: `code=eq.${entryId}` },
           (payload) => {
+            mark("survivor:store:realtime");
             publish(listener, payload.new);
           },
         )
@@ -265,8 +293,11 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
           if (status === "SUBSCRIBED") {
             connected = true;
             rest();
+            checked();
+            mark("survivor:store:subscribed");
             // Once, now: whatever committed while the socket was down was
-            // never pushed to anybody.
+            // never pushed to anybody - and the copy the board opened on, if
+            // it did, is checked by the same read.
             poll();
             return;
           }
@@ -274,6 +305,7 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
           // next reload. Read it now, then keep reading until it is back.
           if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
             connected = false;
+            checked();
             poll();
             recover();
           }
@@ -297,6 +329,7 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
       return () => {
         listeners.delete(listener);
         rest();
+        checked();
         globalThis.document?.removeEventListener?.("visibilitychange", onVisibility);
         client.removeChannel(channel);
       };

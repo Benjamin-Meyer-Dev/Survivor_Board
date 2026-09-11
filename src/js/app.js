@@ -19,8 +19,10 @@ import { onSearchSettled, searchRunner } from "./core/search.js";
 import { useWorkerForSearch } from "./worker-search.js";
 import { createStore } from "./store/index.js";
 import {
+  accessGranted,
   createLeague,
   deleteLeague,
+  grantAccess,
   joinLeague,
   knownRow,
   leaveLeague,
@@ -34,6 +36,7 @@ import {
   setMyName,
   sharingAvailable,
 } from "./store/directory.js";
+import { derivePasscodeDigest } from "./core/passcode.js";
 import { codeFromHash, leagueHash, normaliseCode } from "./core/code.js";
 import { renderLeagueBar } from "./ui/league-bar.js";
 import { renderSettings } from "./ui/settings.js";
@@ -48,6 +51,7 @@ import { renderBench } from "./ui/bench.js";
 import { renderNotices } from "./ui/notices.js";
 import { renderTabs, initialTab } from "./ui/tabs.js";
 import { requireName } from "./ui/name.js";
+import { requirePasscode } from "./ui/passcode.js";
 import { holdBack, releaseBack } from "./ui/back.js";
 import { formatDuration } from "./core/refresh.js";
 
@@ -123,6 +127,14 @@ const app = {
   /** A rebuild owed to the bracket moving onto, or off, a pick pending (see followTheBracket). */
   previewTimer: null,
   /**
+   * The motion an action is playing on the board, as a promise of its end
+   * (playEffect). Null while nothing is. What a search landing and an inline
+   * search wait on (stillness), so neither cuts a keyframe short.
+   */
+  motion: null,
+  /** A repaint owed to a search that landed while that motion ran (repaintAfterMotion). */
+  repaintOwed: false,
+  /**
    * Whether the board on screen is still arriving: opened, but painted before
    * its season plan landed. Until the plan is in, a render is the rest of the
    * board turning up rather than the board changing, and must not be settled
@@ -179,11 +191,59 @@ function playEffect() {
         ].filter(Boolean);
   if (slots.length === 0) return null;
 
-  for (const slot of slots) {
+  const plays = slots.map((slot) => {
     slot.classList.add(effect.className);
-    afterMotion(slot).then(() => slot.classList.remove(effect.className));
-  }
+    const play = afterMotion(slot);
+    play.then(() => slot.classList.remove(effect.className));
+    return play;
+  });
+  // The board's motion, for whatever has to wait on it (stillness). Cleared
+  // when it ends, unless a later action has put its own in its place.
+  const motion = Promise.all(plays).then(() => {
+    if (app.motion === motion) app.motion = null;
+  });
+  app.motion = motion;
   return { className: effect.className, nodes: slots };
+}
+
+/**
+ * Resolves once nothing an action started is still moving on the board.
+ *
+ * A render replaces the nodes whose markup changed, and a search on this
+ * thread stalls whatever is moving, so both wait here: the repaint for a
+ * search that landed (repaintAfterMotion) and the inline search itself
+ * (scheduleRecommendation). An action begun during the wait is waited on too.
+ * Read off the animations themselves (afterMotion in ui/motion.js), not off a
+ * clock beside them.
+ */
+async function stillness() {
+  let motion;
+  while ((motion = app.motion)) await motion;
+}
+
+/**
+ * A search has landed (onSearchSettled in main): paint it in, once the board
+ * is still.
+ *
+ * The result is in the cache the moment it lands; only the paint waits. The
+ * search behind a lock's "if locked" number used to land inside the lock's
+ * own keyframes and paint at once, and the paint replaced the slot the
+ * keyframes were on - which is what a stall on the first lock of a session
+ * was. Landings while the wait is on are one repaint, and a tap in the
+ * meantime takes it: the render the tap makes reads the same cache.
+ */
+function repaintAfterMotion() {
+  if (app.view !== "board") return;
+  if (!lastBoard?.recommendationPending && !lastBoard?.previewPending) return;
+  if (app.repaintOwed) return;
+  app.repaintOwed = true;
+  stillness().then(() => {
+    if (!app.repaintOwed) return;
+    app.repaintOwed = false;
+    if (app.view !== "board") return;
+    if (!lastBoard?.recommendationPending && !lastBoard?.previewPending) return;
+    render({ search: false });
+  });
 }
 
 /**
@@ -541,12 +601,15 @@ function playDataUpdates(previous, effect = null) {
 
 /**
  * @param {{search?:boolean, settle?:number, board?:object}} options Pass
- *   search:false to paint without waiting on the optimiser. Used when the board
+ *   search:false to paint without a search on this thread. Used when the board
  *   is new to this session (first load, a league switch) and after a lock or
  *   unlock, when the search would otherwise hold up the frame the user is
- *   waiting to see. A follow-up render fills it in once `settle` milliseconds
- *   have passed, or as soon as a handed-off search lands. Pass `board` to paint
- *   one that has already been built, so opening a league builds it once.
+ *   waiting to see. Where a worker runs the search it goes out regardless -
+ *   it costs this thread nothing - and lands as a repaint of its own once the
+ *   board is still (repaintAfterMotion); without one, a follow-up render runs
+ *   it here once `settle` milliseconds have passed and the board is still.
+ *   Pass `board` to paint one that has already been built, so opening a league
+ *   builds it once.
  * @returns {object|null} The board that was painted, or null on the home page.
  */
 function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = null } = {}) {
@@ -555,15 +618,19 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = 
     return null;
   }
 
+  const started = performance.now();
   // A full render is not a drag: the markup a half-finished turn is moving is
   // about to be replaced, so put the board flat first.
   settleTurn();
-  // And it is the rebuild a bracket move was waiting for, if one was.
+  // And it is the rebuild a bracket move was waiting for, if one was - and the
+  // repaint a landed search was waiting for, since it reads the same cache.
   clearTimeout(app.previewTimer);
   app.previewTimer = null;
+  app.repaintOwed = false;
 
   const previousMotion = captureMotionState();
-  const board = prepared ?? buildBoard({ ...boardInputs(), allowSearch: search });
+  const board =
+    prepared ?? buildBoard({ ...boardInputs(), allowSearch: search || Boolean(searchRunner()) });
   // The week being looked at has to be one the pool plays. Which weeks those
   // are is a rule now (core/rules.js), so a range narrowed here or on another
   // device can take the open week out from under the drawer.
@@ -604,7 +671,21 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = 
   // A search that is already running somewhere else will say when it lands
   // (onSearchSettled in main), so there is nothing to schedule for it.
   if (board.recommendationPending && !board.recommendationRunning) scheduleRecommendation(settle);
+  measure("survivor:render", started);
   return board;
+}
+
+/**
+ * A span on the performance timeline, so a trace taken on a phone can tell a
+ * render from a search from a layout. Named `survivor:*`, alongside the
+ * worker's own (worker-search.js) and the store's (store/supabase.js).
+ */
+function measure(name, started) {
+  try {
+    performance.measure(name, { start: started, end: performance.now() });
+  } catch {
+    /* an old browser without measures loses nothing but the measure */
+  }
 }
 
 /**
@@ -999,18 +1080,30 @@ const RECOMMEND_DELAY_MS = 260;
 
 /**
  * A lock or an unlock changes what the coach has to plan around, so the search
- * runs again. This is how long its feedback keyframes need to finish first: the
- * lock ring is the longest of them, 850 ms starting 80 ms in (see lock-pulse
- * in motion.css). The render that follows the search rebuilds the slot, and a
- * keyframe still running then is simply gone.
+ * runs again. Where it runs on this thread, this is how long to leave the
+ * board alone first - about the length of the lock's own feedback (the ring is
+ * 850 ms starting 80 ms in, see lock-pulse in motion.css). It is a floor, not
+ * the rule: the search then waits on the motion itself (stillness), so a
+ * keyframe still running when the timer fires is finished, not cut. Where a
+ * worker runs the search this is not used at all.
  */
 const REPLAN_DELAY_MS = 1000;
 
-/** Run the optimiser once the board the user asked for is on screen and settled. */
+/**
+ * Run the optimiser once the board the user asked for is on screen and
+ * settled. Only reached where there is no worker to hand the search to: with
+ * one, the search has already gone out with the render that painted the
+ * stand-in, and lands as its own repaint.
+ */
 function scheduleRecommendation(delay = RECOMMEND_DELAY_MS) {
   if (app.recommendTimer) return;
-  app.recommendTimer = setTimeout(() => {
+  app.recommendTimer = setTimeout(async () => {
     app.recommendTimer = null;
+    // Never under a keyframe: the search runs on this thread and stalls it
+    // (stillness). The delay is when to start looking; the motion is what
+    // says when it is safe to.
+    await stillness();
+    if (app.view !== "board" || app.recommendTimer) return;
     // The result is memoised, so this render is the only one that pays.
     render();
   }, delay);
@@ -1551,6 +1644,30 @@ async function switchPool(kind) {
 }
 
 /**
+ * The door: the app's access code, once per device.
+ *
+ * Ahead of the name and of everything else, so a league link sent to someone
+ * without the code opens nothing - not the join, not the home page. The check
+ * is the digest in config.js against the code typed (core/passcode.js), and a
+ * device that has passed keeps the digest, so it is asked once and asked again
+ * only when the code is changed. With no digest configured there is no door.
+ *
+ * This is the app's code. A league's code is a separate credential and gets a
+ * person into one league (store/directory.js); the two never meet.
+ */
+async function requireAccess() {
+  const { digest, salt, iterations } = CONFIG.passcode;
+  if (!digest || accessGranted(digest)) return;
+
+  document.body.classList.add("is-gated");
+  await requirePasscode(el.start, {
+    check: async (typed) => (await derivePasscodeDigest(typed, salt, iterations)) === digest,
+  });
+  grantAccess(digest);
+  document.body.classList.remove("is-gated");
+}
+
+/**
  * The name, once per device.
  *
  * This is the whole of the identity the app has: it goes on the picks and
@@ -1805,12 +1922,12 @@ async function main() {
   useWorkerForSearch();
   // A search handed off lands after the board that asked for it was painted.
   // This is what paints it in - the plan, or the rehearsal of a lock behind
-  // the "if locked" number (memoisedPreview in core/plan.js).
-  onSearchSettled(() => {
-    if (app.view !== "board") return;
-    if (!lastBoard?.recommendationPending && !lastBoard?.previewPending) return;
-    render({ search: false });
-  });
+  // the "if locked" number (memoisedPreview in core/plan.js) - once the board
+  // is still, so a landing never cuts the tap's own feedback short.
+  onSearchSettled(repaintAfterMotion);
+  // The door first, then the name: a device with neither sees two cards in a
+  // row, and a link followed without the code goes no further than the door.
+  await requireAccess();
   await requireIdentity();
 
   await reloadLeagues();

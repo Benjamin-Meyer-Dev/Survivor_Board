@@ -625,9 +625,9 @@ not yet resolved. A resolved win drops out of the product (it happened); a
 resolved loss makes it zero, unless a buy back covers that week. So it moves on
 its own in three situations:
 
-1. **You pick or change a team.** The board rebuilds, the new team's
-   probability replaces the old one, or the coach's suggestion where a slot is
-   left empty.
+1. **You pick or change a team.** The board re-renders - replacing only the
+   nodes whose markup changed (`ui/patch.js`) - and the new team's probability
+   replaces the old one, or the coach's suggestion where a slot is left empty.
 2. **A game finishes.** The refresh job reads the Odds API scores endpoint and
    writes `results` into `data/odds.json`, keyed `"<week>|<team>"`. The board
    applies those to locked picks automatically, so the number keeps up with
@@ -851,11 +851,18 @@ away cannot be trusted to have missed nothing.
   describe the season and sit still all week open from the cache like the
   shell. Offline shows the last board this device loaded rather than a
   guaranteed-complete app.
-- **No auth.** A league's code is the credential: twelve characters from a
-  31-letter alphabet, generated with `crypto.getRandomValues`, and holding one
-  is what lets a device read and write that league. Nothing is verified and
-  nobody signs in - a name is a label this device typed, not an identity. The
-  publishable key ships in the page, so the policies cannot check a code and
-  the obstacle is that codes are unguessable, which keeps out passers-by rather
-  than anyone determined. Supabase Auth plus a memberships table is the version
-  that holds; the trade is written up at the top of `supabase/schema.sql`.
+- **No auth.** Two codes, neither an account. The app's access code is a door
+  in front of everything (`requireAccess` in app.js, `ui/passcode.js`): a
+  device gives it once and keeps the digest, and `config.js` carries only the
+  salted PBKDF2 digest that `npm run passcode` wrote (`core/passcode.js`), so
+  the address alone opens nothing. A league's code is the credential for that
+  league: twelve characters from a 31-letter alphabet, generated with
+  `crypto.getRandomValues`, and holding one is what lets a device read and
+  write that league. Nothing is verified and nobody signs in - a name is a
+  label this device typed, not an identity. The publishable key ships in the
+  page, so the policies cannot check a code and the obstacle is that codes are
+  unguessable, which keeps out passers-by rather than anyone determined; the
+  door is the same kind of obstacle, since its digest is public and only its
+  cost per guess stands in the way. Supabase Auth plus a memberships table is
+  the version that holds; the trade is written up at the top of
+  `supabase/schema.sql`.

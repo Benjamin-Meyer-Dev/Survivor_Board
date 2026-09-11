@@ -28,8 +28,23 @@ export const CONFIG = Object.freeze({
   },
 
   /**
+   * The app's access code, as a device can check it without anyone to ask:
+   * the salted PBKDF2 digest of the code, never the code (core/passcode.js).
+   * Written by `npm run passcode`; an empty digest means there is no door and
+   * the app opens for anyone with the address. This is the app's own code -
+   * a league's code is a separate thing and gets a person into one league.
+   */
+  passcode: Object.freeze({
+    digest: "74a85e5bd7e9e937205935af04e9dcc2257b0ba3e06445886d3b6c0675adad5c",
+    salt: "f6049e45decafc7bb2ef257c138205df",
+    iterations: 200000,
+  }),
+
+  /**
    * localStorage keys.
    *
+   *   passcode  the digest of the access code this device has given, so it is
+   *             asked once - and asked again when the code changes
    *   name      what this person is called, asked for once on first run
    *   who       this device's id, saved against every lock and pick
    *   leagues   the codes this device has joined, with a cached name, the kinds
@@ -39,6 +54,7 @@ export const CONFIG = Object.freeze({
    *             offline copy of that pool's board
    */
   storage: Object.freeze({
+    passcode: "survivor-board/passcode",
     name: "survivor-board/name",
     who: "survivor-board/who",
     leagues: "survivor-board/leagues/v1",

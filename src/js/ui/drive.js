@@ -16,6 +16,7 @@
 
 import { formatSpread, formatPercent, formatMatchup, escapeHtml } from "../core/format.js";
 import { delegate } from "./events.js";
+import { frame, reconcile } from "./patch.js";
 
 /** What an open row says while the optimiser has not reported yet. */
 const PLANNING = "Working out the path…";
@@ -37,13 +38,16 @@ const ROW_BALL = `<svg viewBox="0 0 34 21" aria-hidden="true"><ellipse cx="17" c
 export function renderDrive(root, board, viewWeek, onSelectWeek) {
   delegate(root, "click", "[data-week]", (row) => onSelectWeek(Number(row.dataset.week)));
 
-  root.innerHTML = `
-    <div class="drive">
-      <div class="drive__head" aria-hidden="true">
-        <span>Wk</span><span>Pick</span><span class="drive__wide">Spread</span><span>Win %</span><span title="Chance of still being in the pool after this week">Survival</span><span class="drive__wide">Status</span>
-      </div>
-      ${board.weeks.map((week) => weekRowMarkup(week, board, viewWeek)).join("")}
-    </div>`;
+  // Row by row (ui/patch.js): a week whose line has not moved keeps its row,
+  // and a pick that changes one week rewrites one row rather than eighteen.
+  reconcile(
+    frame(root, `<div class="drive"></div>`),
+    `<div class="drive__head" aria-hidden="true" data-key="head">
+      <span>Wk</span><span>Pick</span><span class="drive__wide">Spread</span><span>Win %</span><span title="Chance of still being in the pool after this week">Survival</span><span class="drive__wide">Status</span>
+    </div>
+    ${board.weeks.map((week) => weekRowMarkup(week, board)).join("")}`,
+  );
+  markDriveViewing(root, viewWeek);
 }
 
 /** Move the bracket to a week's row without rebuilding the drive. */
@@ -55,7 +59,7 @@ export function markDriveViewing(root, week) {
   }
 }
 
-function weekRowMarkup(week, board, viewWeek) {
+function weekRowMarkup(week, board) {
   const shown = week.picks.map((pick) => pick.onPath).filter(Boolean);
   const kinds = new Set(shown.map((entry) => entry.kind));
   const pending =
@@ -74,7 +78,6 @@ function weekRowMarkup(week, board, viewWeek) {
     "drive__row",
     `drive__row--${kind}`,
     week.week === board.currentWeek && !board.eliminated ? "drive__row--now" : "",
-    week.week === viewWeek ? "drive__row--viewing" : "",
     moot ? "drive__row--moot" : "",
     resolved ? "drive__row--resolved" : "",
   ]
@@ -95,11 +98,14 @@ function weekRowMarkup(week, board, viewWeek) {
     "|",
   );
 
+  // Which row wears the bracket is markDriveViewing's to say, not the row's,
+  // so a week change never rewrites a row and a render never rewrites two.
   return `
-    <button type="button" class="${classes}" data-week="${week.week}" data-motion-key="drive-${week.week}"
+    <button type="button" class="${classes}" data-week="${week.week}" data-key="${week.week}"
+            data-motion-key="drive-${week.week}"
             data-motion-signature="${escapeHtml(signature)}"
             aria-label="Week ${week.week}, ${escapeHtml(week.labelFull)}${teams ? `, ${escapeHtml(teams)}` : ""}"
-            aria-pressed="${week.week === viewWeek}">
+            aria-pressed="false">
       <span class="drive__wk">${week.week}${week.week === board.currentWeek && !board.eliminated ? ROW_BALL : ""}</span>
       <span class="drive__pick">
         <span class="drive__team">${teams ? escapeHtml(teams) : moot ? "Not played" : pending ? PLANNING : "No pick"}</span>

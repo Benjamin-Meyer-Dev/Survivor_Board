@@ -18,6 +18,7 @@
 
 import { formatSpread, formatPercent, formatMatchup, escapeHtml } from "../core/format.js";
 import { delegate } from "./events.js";
+import { frame, reconcile } from "./patch.js";
 
 const LOCK_ICON = `<span class="sideline__lock" role="img" aria-label="Locked in">
   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -76,15 +77,24 @@ export function renderSideline(root, board, viewWeek, activeSlot, handlers) {
       ? "Unlock to change the team"
       : `${pick.team ? "Change the team" : "Pick a team"} · ${available} available`;
 
-  root.innerHTML = `
-    <div class="sideline${locked ? " sideline--locked" : ""}">
-      <label class="u-eyebrow sideline__label" for="filter-${id}">${escapeHtml(label)}</label>
-      <input class="sideline__filter" type="search" id="filter-${id}" placeholder="Find a team"
-             autocomplete="off" data-filter="${id}" ${handlers.canWrite ? "" : "disabled"}>
-      <div class="sideline__list" data-list="${id}">
-        ${pick.options.map((option) => rowMarkup(pick, option, canPick)).join("")}
-      </div>
-    </div>`;
+  // Patched rather than rebuilt (ui/patch.js): the label, the filter and the
+  // list are kept while the slot is the same slot, and inside the list each
+  // row is kept until its own markup changes. A pick touches two rows - the
+  // one taken and the one let go - and the other hundred stay where they
+  // were, scroll, focus and typed filter with them.
+  const panel = frame(root, `<div class="sideline"></div>`);
+  panel.classList.toggle("sideline--locked", locked);
+  reconcile(
+    panel,
+    `<label class="u-eyebrow sideline__label" for="filter-${id}" data-key="label">${escapeHtml(label)}</label>
+    <input class="sideline__filter" type="search" id="filter-${id}" placeholder="Find a team"
+           autocomplete="off" data-filter="${id}" data-key="filter" ${handlers.canWrite ? "" : "disabled"}>
+    <div class="sideline__list" data-list="${id}" data-key="list"></div>`,
+  );
+  reconcile(
+    panel.querySelector(".sideline__list"),
+    pick.options.map((option) => rowMarkup(pick, option, canPick)).join(""),
+  );
 
   restoreState(root, carried);
 }
@@ -181,7 +191,7 @@ function rowMarkup(pick, option, canPick) {
   return `
     <button type="button" class="${classes}"
             data-action="pick" data-week="${pick.week}" data-slot="${pick.slot}"
-            data-team="${escapeHtml(option.team)}"
+            data-team="${escapeHtml(option.team)}" data-key="${escapeHtml(option.team)}"
             data-search="${escapeHtml((option.team + " " + option.opponent).toLowerCase())}"
             ${canPick && (!option.disabled || option.isCurrent) ? "" : "disabled"}
             ${current}>

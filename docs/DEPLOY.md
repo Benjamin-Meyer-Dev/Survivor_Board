@@ -302,10 +302,27 @@ remembers which you used last.
 
 ## Keeping it private
 
-Pages cannot put a real login in front of a site, and a private repo (GitHub
-Pro, $4/mo) only hides the code: the Pages URL stays open to anyone who has it.
-League codes are unguessable, but the key that reads them is in the page, so
-they are a courtesy rather than a wall.
+The board has a door: an access code every device has to give once before it
+sees anything, the home page and join links included. Set it, commit
+`src/js/config.js` and deploy:
+
+```bash
+npm run passcode -- "the code you want"   # or --random to have one made up and printed once
+npm run passcode -- --clear               # take the door off
+```
+
+The file gets a salted PBKDF2 digest of the code and never the code itself;
+case and spaces do not matter when it is typed. Changing the code asks every
+device again. This is the app's code and has nothing to do with league codes:
+the door gets a phone into the app, a league's code gets a person into one
+league, and someone with a league link but not the code goes no further than
+the door.
+
+It is a door, not a lock. Pages cannot put a real login in front of a site, and
+a private repo (GitHub Pro, $4/mo) only hides the source: the Pages URL stays
+open to anyone who has it, and the digest is in the page, so a long code is
+what makes guessing slow. League codes are unguessable, but the key that reads
+them is in the page too, so they are a courtesy rather than a wall.
 
 The way to gate a Pages site properly is a domain you own, on Cloudflare. Add
 the domain to Cloudflare, CNAME it to `<you>.github.io`, set it as the custom

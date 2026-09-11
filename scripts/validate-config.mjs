@@ -4,10 +4,11 @@
  * app, and that the two places a season's starting rules are written down
  * still agree.
  *
- * There is no passcode any more - a league's code is the credential, and the
- * codes are generated rather than configured - so what is left to check here
- * is the shape of the configuration itself, the storage keys the app keys
- * every device's state on, and the refresh clock the board counts down to.
+ * A league's code is the credential for a league, and the codes are generated
+ * rather than configured; the app's own access code is checked by
+ * validate-passcode.mjs. What is checked here is the shape of the
+ * configuration itself, the storage keys the app keys every device's state
+ * on, and the refresh clock the board counts down to.
  */
 
 import assert from "node:assert/strict";
@@ -61,11 +62,6 @@ assert.equal(
   `${CONFIG.storage.entryPrefix}/BXQK7HRTM4WD`,
   "a board saved before leagues had pools is still where it was",
 );
-
-// The passcode is gone, and nothing should quietly bring it back: a digest in
-// config.js would be a second gate nobody maintains.
-const source = await readFile(new URL("../src/js/config.js", import.meta.url), "utf8");
-assert.ok(!/passcode/i.test(source), "config.js must not carry a passcode any more");
 
 /* --- league codes --------------------------------------------------------- */
 

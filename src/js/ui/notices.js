@@ -8,6 +8,7 @@
  */
 
 import { escapeHtml } from "../core/format.js";
+import { paint } from "./patch.js";
 
 export function renderNotices(root, { store = null, board = null, message = "" }) {
   const notices = [];
@@ -35,9 +36,11 @@ export function renderNotices(root, { store = null, board = null, message = "" }
     );
   }
 
-  root.innerHTML =
+  paint(
+    root,
     banner +
-    notices.map((text) => `<div class="notice notice--warn">${escapeHtml(text)}</div>`).join("");
+      notices.map((text) => `<div class="notice notice--warn">${escapeHtml(text)}</div>`).join(""),
+  );
 }
 
 /**

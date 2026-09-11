@@ -325,7 +325,11 @@
   animation: panel-enter 0.26s var(--ease-out) both;
 }
 
-/* Bench cards arrive in sequence, the order the chart is sorted in. */
+/* Bench cards arrive in sequence, the order the chart is sorted in - the
+   first dozen, which is what a phone shows above the fold. Every card used to
+   get its own play, fifty of them on a college board, and the first opening of
+   the bench started them all at once on top of the panel's own entrance. The
+   rest arrive with the panel. */
 @keyframes row-enter {
   from {
     opacity: 0;
@@ -337,7 +341,7 @@
   }
 }
 
-.drawer__panel.is-entering .bench__team {
+.drawer__panel.is-entering .bench__team:nth-child(-n + 12) {
   animation: row-enter 0.3s var(--ease-out) both;
   animation-delay: calc(var(--i, 0) * 5ms);
 }

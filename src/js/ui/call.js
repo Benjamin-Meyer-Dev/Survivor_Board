@@ -34,6 +34,7 @@ import {
 } from "../core/format.js";
 import { TIER_LABEL } from "../core/probability.js";
 import { delegate } from "./events.js";
+import { frame, reconcile } from "./patch.js";
 
 /** What an open slot says while the optimiser has not reported yet. */
 const WORKING = "Working out the path…";
@@ -82,19 +83,27 @@ export function renderCall(root, board, viewWeek, activeSlot, handlers) {
     handlers.onSlot(Number(slot.dataset.activate));
   });
 
-  root.innerHTML = `
-    <div class="call">
-      <div class="call__box">
-        <div class="call__head">
-          <span class="call__when${isNow(week, board) ? " call__when--now" : ""}">${escapeHtml(whenLine(week, board))}</span>
-          <span class="call__tags">${weekTags(week, board)}</span>
-          ${actionsMarkup(week.picks[active], board, handlers.canWrite)}
-        </div>
-        <div class="call__slots${two ? " call__slots--two" : ""}">
-          ${week.picks.map((pick, index) => slotMarkup(pick, board, two, index === active)).join("")}
-        </div>
-      </div>
-    </div>`;
+  // The card's frame is kept and its parts patched (ui/patch.js): the head
+  // when the week or its action changes, and each slot on its own. A lock
+  // rewrites the slot it locked and leaves the other where it is, and the
+  // search landing a moment later - which changes nothing about a slot - now
+  // leaves the slot's feedback playing rather than cutting it dead.
+  const box = frame(root, `<div class="call"><div class="call__box"></div></div>`).querySelector(
+    ".call__box",
+  );
+  reconcile(
+    box,
+    `<div class="call__head" data-key="head">
+      <span class="call__when${isNow(week, board) ? " call__when--now" : ""}">${escapeHtml(whenLine(week, board))}</span>
+      <span class="call__tags">${weekTags(week, board)}</span>
+      ${actionsMarkup(week.picks[active], board, handlers.canWrite)}
+    </div>
+    <div class="call__slots${two ? " call__slots--two" : ""}" data-key="slots"></div>`,
+  );
+  reconcile(
+    box.querySelector(".call__slots"),
+    week.picks.map((pick, index) => slotMarkup(pick, board, two, index === active)).join(""),
+  );
 }
 
 function isNow(week, board) {
@@ -189,7 +198,7 @@ function slotMarkup(pick, board, two, active) {
 
   return `
     <div class="call__slot call__slot--${state}${two && active ? " call__slot--active" : ""}"
-         data-week="${pick.week}" data-slot="${pick.slot}"${shown ? ` data-tier="${shown.tier}"` : ""}
+         data-week="${pick.week}" data-slot="${pick.slot}" data-key="${pick.week}-${pick.slot}"${shown ? ` data-tier="${shown.tier}"` : ""}
          data-motion-key="slot-${pick.week}-${pick.slot}"
          data-motion-signature="${escapeHtml(signature)}"${attrs}>
       <div class="call__eyebrow${pick.suggestion && !pick.team ? " call__eyebrow--coach" : ""}">

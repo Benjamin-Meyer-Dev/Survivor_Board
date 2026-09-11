@@ -32,6 +32,8 @@
 
 import { formatPercent, escapeHtml } from "../core/format.js";
 import { formatDuration } from "../core/refresh.js";
+import { delegate } from "./events.js";
+import { frame, paint, reconcile } from "./patch.js";
 
 /** How long the season number wears the colour of its change (see motion.css). */
 const PULSE_MS = 1400;
@@ -86,42 +88,43 @@ export function renderPitch(root, board, viewWeek, handlers) {
   const before = shown.get(board.league)?.probability;
   const season = seasonSurvival(board);
 
-  root.innerHTML = `
-    <div class="pitch">
+  // The frame is built once and kept: the field with its end zones and an
+  // empty track, the drive line with an empty readout row and the season tag.
+  // Everything inside it is patched (ui/patch.js), so a render that moves one
+  // yard line's mark replaces that yard line and nothing else - the field
+  // used to be rebuilt whole on every tap, which reset its scroll, measured
+  // it again to put the scroll back, and threw away the bracket mid-slide.
+  const pitch = frame(
+    root,
+    `<div class="pitch">
       <div class="pitch__field" role="group" tabindex="0"
            aria-label="Weeks. Tap a yard line to look at a week.">
         <div class="pitch__zone pitch__zone--kickoff" aria-hidden="true"><span>Kickoff</span></div>
-        <div class="pitch__track" style="--weeks:${board.weeks.length}">
-          ${board.weeks.map((week) => yardMarkup(week, board, viewWeek)).join("")}
-          <span class="pitch__bracket pitch__bracket--placing" data-bracket aria-hidden="true"></span>
-        </div>
+        <div class="pitch__track"></div>
         <div class="pitch__zone pitch__zone--end" aria-hidden="true"><span>Survive</span></div>
       </div>
       <div class="pitch__drive">
-        <div class="pitch__stats">${stats(board)}</div>
-        <span class="pitch__tag${season.out ? " pitch__tag--out" : ""}" data-cell="survival"
-              title="The chance of surviving the whole season on today's numbers, every buy back counted">
-          <span class="pitch__tag-key">${season.out ? "Season" : "Season survival"}</span>
-          <span class="pitch__tag-value">${escapeHtml(season.value)}</span>
-        </span>
+        <div class="pitch__stats"></div>
+        <span class="pitch__tag" data-cell="survival"
+              title="The chance of surviving the whole season on today's numbers, every buy back counted"></span>
       </div>
-    </div>`;
+    </div>`,
+  );
 
-  const field = root.querySelector(".pitch__field");
   // The week's own number, which is what the yard line carries: a pool
   // starting after week one has its first yard line somewhere other than week
   // 1, and reading the attribute as a place in the list looked at week 9 for a
-  // tap on week 5.
-  field.addEventListener("click", (event) => {
-    const yard = event.target.closest("[data-yard]");
-    if (yard) handlers.onWeekChange(Number(yard.dataset.yard));
+  // tap on week 5. Bound to the root once (ui/events.js): the field is kept
+  // across renders now, and a listener added on each would stack.
+  delegate(root, "click", "[data-yard]", (yard) => {
+    handlers.onWeekChange(Number(yard.dataset.yard));
   });
 
   // Keyboard equivalent of the tap, for anyone not on a touchscreen. This one
   // IS by place in the field: an arrow key means the next yard line along,
   // whatever week it happens to be.
   const weeks = board.weeks.map((entry) => entry.week);
-  field.addEventListener("keydown", (event) => {
+  delegate(root, "keydown", ".pitch__field", (_field, event) => {
     const step = { ArrowRight: 1, ArrowLeft: -1, Home: -Infinity, End: Infinity }[event.key];
     if (step === undefined) return;
     event.preventDefault();
@@ -131,14 +134,48 @@ export function renderPitch(root, board, viewWeek, handlers) {
     if (week !== undefined) handlers.onWeekChange(week);
   });
 
-  // Placed rather than moved: the strip has just been rebuilt, so there is no
-  // previous position for the bracket to travel from.
-  markViewing(root, viewWeek, { behavior: "auto" });
-  requestAnimationFrame(() =>
-    root.querySelector("[data-bracket]")?.classList.remove("pitch__bracket--placing"),
+  const track = pitch.querySelector(".pitch__track");
+  const first = track.children.length === 0;
+  track.style.setProperty("--weeks", String(board.weeks.length));
+  reconcile(
+    track,
+    `${board.weeks.map((week) => yardMarkup(week, board)).join("")}
+      <span class="pitch__bracket pitch__bracket--placing" data-key="bracket" data-bracket aria-hidden="true"></span>`,
   );
+
+  // The readouts, and the countdown set into them after: it changes every
+  // second, so carrying it in the markup made the readouts a change on every
+  // render, and the row was rebuilt for a number app.js ticks in place anyway.
+  paint(pitch.querySelector(".pitch__stats"), stats(board));
+  const countdown = pitch.querySelector("#countdown");
+  if (countdown) countdown.textContent = formatDuration(board.nextRefreshAt - Date.now());
+
+  const tag = pitch.querySelector(".pitch__tag");
+  tag.classList.toggle("pitch__tag--out", Boolean(season.out));
+  paint(
+    tag,
+    `<span class="pitch__tag-key">${season.out ? "Season" : "Season survival"}</span>
+     <span class="pitch__tag-value">${escapeHtml(season.value)}</span>`,
+  );
+
+  // Placed rather than moved where the strip is new, and moved only where the
+  // week being looked at has changed under a render (the settings sheet
+  // narrowing the pool's run, say). A pick or a lock leaves the field exactly
+  // where it was scrolled: recentring it on every tap was a measurement in
+  // the middle of the render's writes, and a field that moved on its own.
+  if (first || viewing.get(root) !== viewWeek) markViewing(root, viewWeek, { behavior: "auto" });
+  const bracket = track.querySelector("[data-bracket]");
+  if (bracket?.classList.contains("pitch__bracket--placing")) {
+    requestAnimationFrame(() => bracket.classList.remove("pitch__bracket--placing"));
+  }
   markChange(root, board.league, before, season.probability);
 }
+
+/** The week each field's bracket was last placed on. */
+const viewing = new WeakMap();
+
+/** The scroll each field owes its next frame (bringIntoView). */
+const scrolls = new WeakMap();
 
 /**
  * Move the chalk bracket to a week without rebuilding the field.
@@ -166,6 +203,7 @@ export function markViewing(root, week, { behavior = "smooth" } = {}) {
   track.style.setProperty("--yard", String(Math.max(index, 0)));
   track.classList.toggle("pitch__track--off-field", index === -1);
   field.dataset.week = String(week);
+  viewing.set(root, week);
   bringIntoView(root, week, behavior);
 }
 
@@ -173,16 +211,33 @@ export function markViewing(root, week, { behavior = "smooth" } = {}) {
  * Scroll the field so a week sits in the middle of it, where the field is
  * wider than the screen. Measured against the field itself rather than the
  * page, so the board does not move.
+ *
+ * Measured in the next frame rather than now. A render writes the field first
+ * and the drive, the call, the sideline and the bench after it, and measuring
+ * the field here made the browser lay the page out for the measurement and
+ * then again for everything written after - the mid-render layout the first
+ * tap on a cold board was paying for. An animation frame callback runs once
+ * every write of the task is in and before the frame is painted, so the field
+ * is centred in the first frame that shows it, on one layout. Asked twice in a
+ * frame, the last ask wins.
  */
 function bringIntoView(root, week, behavior) {
-  const field = root.querySelector(".pitch__field");
-  const yard = root.querySelector(`[data-yard="${week}"]`);
-  if (!field || !yard || field.scrollWidth <= field.clientWidth + 1) return;
-  const fieldBox = field.getBoundingClientRect();
-  const yardBox = yard.getBoundingClientRect();
-  const within = yardBox.left - fieldBox.left + field.scrollLeft;
-  const target = within - (field.clientWidth - yardBox.width) / 2;
-  field.scrollTo({ left: Math.max(0, target), behavior });
+  const owed = scrolls.get(root);
+  scrolls.set(root, { week, behavior });
+  if (owed) return;
+  requestAnimationFrame(() => {
+    const ask = scrolls.get(root);
+    scrolls.delete(root);
+    if (!ask) return;
+    const field = root.querySelector(".pitch__field");
+    const yard = root.querySelector(`[data-yard="${ask.week}"]`);
+    if (!field || !yard || field.scrollWidth <= field.clientWidth + 1) return;
+    const fieldBox = field.getBoundingClientRect();
+    const yardBox = yard.getBoundingClientRect();
+    const within = yardBox.left - fieldBox.left + field.scrollLeft;
+    const target = within - (field.clientWidth - yardBox.width) / 2;
+    field.scrollTo({ left: Math.max(0, target), behavior: ask.behavior });
+  });
 }
 
 /** The week the bracket is on, as the field records it. */
@@ -194,21 +249,23 @@ function viewingWeek(root) {
  * One week's yard line. The mark at its top says what the week holds; the
  * label under the ball names the pick, whoever chose it.
  */
-function yardMarkup(week, board, viewWeek) {
+function yardMarkup(week, board) {
   const now = week.week === board.currentWeek && !board.eliminated;
   const moot = board.eliminated && week.week > board.eliminatedWeek;
   const { mark, team, says } = weekMark(week);
+  // Which yard line the bracket is on is not in the markup: markViewing puts
+  // it on, so a week change never rewrites a yard line and a render never
+  // rewrites two of them for a week change it did not make.
   const classes = [
     "pitch__yard",
     week.week % 5 === 0 ? "pitch__yard--five" : "",
     now ? "pitch__yard--now" : "",
-    week.week === viewWeek ? "pitch__yard--viewing" : "",
     moot ? "pitch__yard--moot" : "",
   ]
     .filter(Boolean)
     .join(" ");
 
-  return `<button type="button" class="${classes}" data-yard="${week.week}" tabindex="-1"
+  return `<button type="button" class="${classes}" data-yard="${week.week}" data-key="${week.week}" tabindex="-1"
       aria-label="Week ${week.week}, ${escapeHtml(week.labelFull)}${says ? `, ${escapeHtml(says)}` : ""}">
       ${mark ? `<span class="pitch__mark pitch__mark--${mark}">${mark === "locked" ? LOCK : ""}</span>` : ""}
       ${team ? `<span class="pitch__label">${escapeHtml(team)}</span>` : ""}
@@ -251,14 +308,8 @@ function stats(board) {
   // so the number is left to be a number: how old the lines showing are used to
   // sit beside it and was one reading too many for a readout this size. The
   // countdown is ticked in place by app.js rather than re-rendered.
-  items.push(
-    stat(
-      "Lines pull in",
-      `<span id="countdown">${escapeHtml(formatDuration(board.nextRefreshAt - Date.now()))}</span>`,
-      "",
-      true,
-    ),
-  );
+  // The number itself is set after the paint (renderPitch), not carried here.
+  items.push(stat("Lines pull", `<span id="countdown"></span>`, "", true));
 
   if (board.eliminated) {
     items.push(stat("Eliminated", `Wk ${board.eliminatedWeek}`));

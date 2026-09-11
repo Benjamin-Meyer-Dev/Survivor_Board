@@ -47,9 +47,10 @@ npm install
 npm run serve     # http://localhost:4173
 ```
 
-The board runs immediately with per-device state. See
-[docs/DEPLOY.md](docs/DEPLOY.md) to put it on Pages and turn on shared state
-and automatic odds.
+The board runs immediately with per-device state. It opens behind an access
+code (`npm run passcode -- "the code"` sets it; `--clear` takes the door off).
+See [docs/DEPLOY.md](docs/DEPLOY.md) to put it on Pages and turn on shared
+state and automatic odds.
 
 ## Layout
 

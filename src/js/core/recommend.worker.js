@@ -18,6 +18,10 @@
 
 import { recommendPath } from "./recommend.js";
 
+// Said once the module is in: the main thread holds its searches until it hears
+// this, and knows a worker that never says it is a worker that never loaded
+// (worker-search.js). Posted after the listener is bound, so nothing can land
+// between the two.
 self.addEventListener("message", (event) => {
   const { id, request } = event.data ?? {};
   try {
@@ -29,3 +33,5 @@ self.addEventListener("message", (event) => {
     self.postMessage({ id, error: error?.message ?? String(error) });
   }
 });
+
+self.postMessage({ ready: true });

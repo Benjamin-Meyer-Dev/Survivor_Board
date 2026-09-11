@@ -17,7 +17,7 @@
  * says which way the drawer moved, where three fades only say that it did.
  */
 
-import { playOnce, prefersReducedMotion } from "./motion.js";
+import { afterMotion, prefersReducedMotion } from "./motion.js";
 
 export const TABS = Object.freeze([
   { id: "week", label: "Sideline", panel: "view-week" },
@@ -118,8 +118,15 @@ function applyPanels(activeId, animate) {
   for (const panel of panels) panel.hidden = panel !== to;
   if (!animate || prefersReducedMotion()) return;
 
+  // Shown and told to enter in the one task. A panel that was display:none
+  // has no animation on it to reset, so the class goes straight on: playOnce
+  // would first read offsetWidth to force the browser to drop a finished play,
+  // and that is a layout of the whole page for a panel that had nothing to
+  // drop. The class comes off when the entrance is over (ui/motion.js).
   entering = to;
-  playOnce(to, ["is-entering"]).then(() => {
+  to.classList.add("is-entering");
+  afterMotion(to, { subtree: false }).then(() => {
+    to.classList.remove("is-entering");
     if (entering === to) entering = null;
   });
 }

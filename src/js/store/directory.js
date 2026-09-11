@@ -151,6 +151,27 @@ export function setMyName(name) {
 }
 
 /**
+ * Whether this device has given the app's access code - this one, by its
+ * digest, so a changed code asks again (core/passcode.js).
+ */
+export function accessGranted(digest) {
+  try {
+    return Boolean(digest) && localStorage.getItem(CONFIG.storage.passcode) === digest;
+  } catch {
+    return false;
+  }
+}
+
+/** Remember that it has. What is kept is the digest, never the code. */
+export function grantAccess(digest) {
+  try {
+    localStorage.setItem(CONFIG.storage.passcode, digest);
+  } catch {
+    /* private mode or a full quota: the code is asked for again next launch */
+  }
+}
+
+/**
  * This device's id, saved against every lock and pick and used to tell one
  * member from another. Random and local: it identifies a phone, not a person,
  * which is the most an app with no accounts can honestly claim.

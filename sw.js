@@ -46,6 +46,17 @@ const CACHE = "survivor-board-v3";
 /** How long to wait for fresh data before opening with the last copy. */
 const DATA_TIMEOUT_MS = 2500;
 
+/**
+ * How long after serving a shell file from the cache its copy is refreshed
+ * from the network - past the launch, so the refresh does not compete with it.
+ */
+const SHELL_REFRESH_DELAY_MS = 4000;
+
+/** Shell files refreshed since this worker started: each is refreshed once. */
+const refreshed = new Set();
+
+const later = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 /** Cross-origin hosts whose files are part of the shell. Supabase itself is not. */
 const SHELL_HOSTS = ["fonts.googleapis.com", "fonts.gstatic.com", "cdn.jsdelivr.net"];
 
@@ -118,15 +129,29 @@ async function cachedFirst(event, key = event.request.url) {
   // stored request carries, and a copy that cannot be matched is no copy.
   const cached = await cache.match(key, { ignoreVary: true });
 
-  const refresh = fetch(request);
-  // Attached before the response is handed anywhere, so the copy is taken
-  // while the body is certainly still unread - and held by the event, so the
-  // worker is not free to stop before it has been written.
-  event.waitUntil(keep(cache, key, refresh));
+  if (cached) {
+    // Refreshed behind the answer - once per file while this worker is up, and
+    // not for a few seconds. Every cached file used to go back to the network
+    // the moment it was served, so a launch from the home screen was the
+    // whole shell being fetched and rewritten a second time while the board
+    // was building and its first tap was being answered, all of it competing
+    // for the same radio and the same storage. The copy for next launch is
+    // still taken; it is taken once the launch is over.
+    if (!refreshed.has(key)) {
+      refreshed.add(key);
+      event.waitUntil(later(SHELL_REFRESH_DELAY_MS).then(() => keep(cache, key, fetch(request))));
+    }
+    return cached;
+  }
 
-  if (cached) return cached;
+  // Nothing kept yet: the network is the answer, and the copy is taken from it
+  // - attached before the response is handed anywhere, so the body is
+  // certainly still unread, and held by the event, so the worker is not free
+  // to stop before it has been written.
+  const network = fetch(request);
+  event.waitUntil(keep(cache, key, network));
   try {
-    return await refresh;
+    return await network;
   } catch (error) {
     // An offline navigation with nothing cached for that exact URL still gets
     // the shell, which is the whole app.

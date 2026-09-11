@@ -3222,6 +3222,15 @@
   min-height: 48px;
 }
 
+/* The access code (ui/passcode.js): a code is a code, so it is set the way
+   the join sheet sets a league's - the mono face, spaced, in capitals, which
+   is also how it is compared. */
+.gate__input--code {
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .gate__field {
   position: relative;
 }

@@ -120,6 +120,10 @@ function fakeClient() {
     poll() {
       onStatus("CHANNEL_ERROR");
     },
+    /** The channel coming up, which is the store's cue for its first read. */
+    connect() {
+      onStatus("SUBSCRIBED");
+    },
     /** Answer the oldest pending request of a kind. */
     answer(label) {
       const index = pending.findIndex((request) => request.label === label);
@@ -389,9 +393,10 @@ await race(
 /* --- opening on the row in hand ------------------------------------------
    The home page's refresh reads every pool's row whole, so a board can open on
    that copy (store/rows.js) and check it behind the screen: init() answers
-   without a read, and the first subscribe reads the row. A copy the row has
-   moved past reaches the board the way another device's change does; one that
-   has not is not news. */
+   without a read, and the channel's first read - the one it makes on coming
+   up - is the check, so the launch owes one read and not two. A copy the row
+   has moved past reaches the board the way another device's change does; one
+   that has not is not news. */
 
 {
   const client = fakeClient();
@@ -405,8 +410,16 @@ await race(
   const heard = [];
   const stop = seeded.subscribe((entry) => heard.push(entry));
   await tick();
+  assert.throws(() => client.answer("read"), /no pending read/, "nor one on subscribing");
+  client.connect();
+  await tick();
   client.answer("read");
   await tick();
+  assert.throws(
+    () => client.answer("read"),
+    /no pending read/,
+    "the channel coming up is the one read the copy is checked by",
+  );
   assert.deepEqual(shown(heard), [], "a copy the row still matches is not news");
   stop();
 }
@@ -421,6 +434,7 @@ await race(
   await seeded.init();
   const heard = [];
   const stop = seeded.subscribe((entry) => heard.push(entry));
+  client.connect();
   await tick();
   client.answer("read");
   await tick();

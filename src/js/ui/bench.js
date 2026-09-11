@@ -11,6 +11,7 @@
  */
 
 import { escapeHtml } from "../core/format.js";
+import { frame, paint, reconcile } from "./patch.js";
 
 /**
  * @param {HTMLElement} root
@@ -24,13 +25,18 @@ export function renderBench(root, legendEl, board) {
   // SP+ for college, market power ratings for the NFL. The file says which.
   const scale = board.ratingSource;
 
-  root.innerHTML = `<div class="bench">${board.roster
-    .map(({ team, rating }, index) => {
-      const mark = markFor(board, team);
-      const rank = index + 1;
-      return `
+  // Card by card (ui/patch.js): a pick marks one card and clears another, and
+  // the other thirty to fifty stay as they were rather than being rebuilt for
+  // the tap and again when the search lands.
+  reconcile(
+    frame(root, `<div class="bench"></div>`),
+    board.roster
+      .map(({ team, rating }, index) => {
+        const mark = markFor(board, team);
+        const rank = index + 1;
+        return `
         <div class="bench__team${mark ? ` bench__team--${mark.state}` : ""}" style="--i:${index}"
-             data-motion-key="bench-${escapeHtml(team)}"
+             data-key="${escapeHtml(team)}" data-motion-key="bench-${escapeHtml(team)}"
              data-motion-signature="${mark ? `${mark.state}-${mark.week}` : "open"}"
              title="${escapeHtml(team)} · power rank #${rank} · ${escapeHtml(scale)} ${rating}${mark ? ` · ${mark.title}` : ""}">
           <span class="bench__identity">
@@ -41,10 +47,11 @@ export function renderBench(root, legendEl, board) {
             <span class="bench__rank" aria-label="Power rank ${rank}">#${rank}</span>
           </span>
         </div>`;
-    })
-    .join("")}</div>`;
+      })
+      .join(""),
+  );
 
-  legendEl.innerHTML = legendMarkup();
+  paint(legendEl, legendMarkup());
 }
 
 /** Locked beats picked beats planned, so a team shows its firmest commitment. */
