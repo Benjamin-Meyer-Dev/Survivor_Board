@@ -6,7 +6,10 @@
  * the path: a locked or picked team drawn solid, or the coach's suggestion
  * pencilled in, so the season reads as one line while staying clear about
  * which weeks are actually decided. The last column is how much of the season
- * is still alive by that week on today's numbers.
+ * is still alive by that week on today's numbers, in the same confidence chalk
+ * the week's own chance is drawn in (core/plan.js sets week.seasonTier off it):
+ * the column is a season draining away, and reading where it goes from green
+ * to red is the whole point of having it beside the week-by-week number.
  *
  * Nothing in a row depends on which week is being looked at except the bracket
  * around it, so a week change moves that in place (markDriveViewing) exactly as
@@ -117,7 +120,7 @@ function weekRowMarkup(week, board) {
       </span>
       <span class="drive__wide drive__win${shown[0] ? ` confidence--${shown[0].tier}` : ""}">${shown[0] ? formatSpread(shown[0].spread) : "—"}</span>
       <span class="drive__win${tier ? ` confidence--${tier}` : ""}">${win !== null ? formatPercent(win, 0) : "—"}</span>
-      <span class="drive__alive">${week.seasonWinProb !== null ? formatPercent(week.seasonWinProb, 0) : ""}</span>
+      <span class="drive__alive${week.seasonTier ? ` confidence--${week.seasonTier}` : ""}">${week.seasonWinProb !== null ? formatPercent(week.seasonWinProb, 0) : ""}</span>
       <span class="drive__wide">${statusChip(week, kind, moot)}</span>
     </button>`;
 }

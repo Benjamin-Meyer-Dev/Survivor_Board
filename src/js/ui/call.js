@@ -206,6 +206,7 @@ function slotMarkup(pick, board, two, active) {
     shown?.team ?? "",
     shown?.tier ?? "",
     shown?.spread ?? "",
+    shown?.source ?? "",
     status.result ?? "",
     coached ? "coach" : "",
   ].join("|");
@@ -220,7 +221,7 @@ function slotMarkup(pick, board, two, active) {
       ${
         shown
           ? `<div class="call__team">${escapeHtml(shown.team)}</div>
-             <div class="call__matchup">${escapeHtml(formatMatchup(shown.site, shown.opponent))} · ${escapeHtml(shown.conference)}${kickoffMarkup(shown)}</div>`
+             <div class="call__matchup">${escapeHtml(formatMatchup(shown.site, shown.opponent))} · ${escapeHtml(shown.conference)}${kickoffMarkup(shown)}${sourceMarkup(shown)}</div>`
           : `<div class="call__team call__team--blank">${escapeHtml(blank.team)}</div>
              <div class="call__matchup">${escapeHtml(blank.text)}</div>`
       }
@@ -237,10 +238,17 @@ function resultChip(status) {
 }
 
 /**
- * Spread, the chance the pick carries the week, and where the line came from.
- * With nothing to price the tiles still stand, blank, so the card keeps its
- * height. In a losers pool the middle number is the chance the team loses (see
- * core/objective.js), and its name says so.
+ * The two numbers: the spread, and the chance the pick carries the week. With
+ * nothing to price they still stand, blank, so the card keeps its height. In a
+ * losers pool the second is the chance the team loses (see core/objective.js),
+ * and its name says so.
+ *
+ * Where the line came from used to be a third tile here, and a pool that takes
+ * two picks a week - which is every college pool - could not fit it: half a
+ * card is a hundred and thirty pixels, and three keys in the display face do
+ * not go into it at any size worth reading. So it stands on the game line
+ * instead (sourceMarkup), which is the line it qualifies and has the width for
+ * it, and the numbers get the row to themselves in both layouts.
  */
 function tiles(line, board) {
   const probKey = board?.rules?.objective === "lose" ? "Loss prob" : "Win prob";
@@ -248,10 +256,6 @@ function tiles(line, board) {
     <div class="call__tiles">
       ${tile("Spread", line ? formatSpread(line.spread) : "—", line?.tier)}
       ${tile(probKey, line ? formatPercent(line.winProb) : "—", line?.tier)}
-      <div class="tile tile--line">
-        <span class="tile__key">Line</span>
-        <span class="tile__value tile__value--text">${line ? (line.source === "market" ? "Market" : "Projected") : "—"}</span>
-      </div>
     </div>`;
 }
 
@@ -419,4 +423,21 @@ function kickoffMarkup(line) {
   const when = formatKickoff(line.kickoff);
   if (!when) return "";
   return `<span class="call__sep"> · </span><span class="call__kickoff">${escapeHtml(when)}</span>`;
+}
+
+/**
+ * Where the number under the game came from: a line the books are making, or
+ * the model's own projection of one. Only the week on the clock is ever priced
+ * by the market, and in college not even all of that week is - about half the
+ * slate carries no line - so a card that does not say which it is showing is
+ * asking to be read as a market number that is not one.
+ *
+ * It rides the game line rather than the tiles because it is not a number: it
+ * is what the numbers are, and it says so in the quieter chalk. It wraps to
+ * its own line in a two-pick week exactly as the kickoff does, and for the
+ * same reason - see kickoffMarkup above.
+ */
+function sourceMarkup(line) {
+  const words = line.source === "market" ? "Market line" : "Projected line";
+  return `<span class="call__sep"> · </span><span class="call__source">${words}</span>`;
 }

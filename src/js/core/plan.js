@@ -1568,14 +1568,22 @@ function eliminationOf(weekByNumber, outcome) {
  * open slots, with the locks holding the ranks they were locked at.
  *
  * app.js stores the week's ranking with a lock (status.coachRanked) the way it
- * stores the call (status.coachTeam). The latest lock's snapshot is the week's
- * board as it stood at that moment - in a two-pick week it already carries the
- * first lock's rank - so once every slot is locked it is the whole of the
- * ranking. While a slot is still open the live names are numbered around the
- * ranks the locks hold: the coach's second choice stays the second whoever
- * took the first. A lock saved before snapshots were kept falls back on the
- * coach's calls, in slot order, the one rank the board can still vouch for;
- * a lock the coach never ranked wears none.
+ * stores the call (status.coachTeam), so a locked week reads back the board as
+ * it stood when each lock was made. While a slot is still open the live names
+ * are numbered around the ranks the locks hold: the coach's second choice
+ * stays the second whoever took the first. A lock saved before snapshots were
+ * kept falls back on the coach's calls, in slot order, the one rank the board
+ * can still vouch for; a lock the coach never ranked wears none.
+ *
+ * Once every slot is locked the snapshots are MERGED rather than the latest
+ * one taken whole. The latest is the most current reading, so it leads, and
+ * the earlier ones extend it. They have to: the coach's live board is twice
+ * what the week still has to call (rankCalls in core/recommend.js), so it
+ * shrinks as the slots fill, and the last lock of a two-pick week therefore
+ * saves a SHORTER board than the first. Taking the latest alone showed three
+ * names for a fully locked two-pick week where the first lock had recorded all
+ * four - the week read as though the coach had had less to say about it than
+ * about every week still open.
  *
  * @param {object} week
  * @param {string[]} liveNames The coach's live ranking for the week's open
@@ -1592,10 +1600,11 @@ function rankTeams(week, liveNames, coachCalls) {
     Array.isArray(pick.status.coachRanked) ? pick.status.coachRanked : null;
 
   if (locked.length === week.picks.length) {
-    const latest = locked
+    const snapshots = locked
       .filter((pick) => snapshotOf(pick))
-      .sort((a, b) => (b.status.at ?? 0) - (a.status.at ?? 0))[0];
-    const names = latest ? snapshotOf(latest) : coachCalls.map((option) => option.team);
+      .sort((a, b) => (b.status.at ?? 0) - (a.status.at ?? 0))
+      .map(snapshotOf);
+    const names = snapshots.length ? snapshots.flat() : coachCalls.map((option) => option.team);
     for (const team of names) {
       if (listed(team) && !ranks.has(team)) ranks.set(team, ranks.size + 1);
     }

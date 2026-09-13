@@ -74,6 +74,23 @@ const BALL = `<svg class="pitch__ball" viewBox="0 0 34 21" aria-hidden="true">
 const PREVIEW_ARROW = `<span class="pitch__stat-arrow" aria-hidden="true">→</span>`;
 
 /**
+ * What stands where the "if locked" number will land while the lock is still
+ * being rehearsed: a chalk rule the width of the figure it waits for, with the
+ * chalk travelling along it the way a yard line is laid down (see
+ * pitch__stat-rule in components.css).
+ *
+ * It used to be an ellipsis, which sat on the baseline well under the arrow
+ * and the figures either side of it, moved the row when the number replaced
+ * it, and read as text the readout was saying rather than as a number on its
+ * way. The rule is neither: it stands where the number stands, it is the same
+ * width whatever the number turns out to be, and it is plainly not a reading.
+ *
+ * Hidden from a screen reader, which is told in words instead - a rule being
+ * drawn is nothing to read out.
+ */
+const PREVIEW_RULE = `<span class="pitch__stat-rule" aria-hidden="true"></span><span class="u-visually-hidden">working it out</span>`;
+
+/**
  * The padlock on a locked week, standing where the line for a pick would. The
  * shut lock the call card (ui/call.js) and the team list (ui/sideline.js) draw,
  * so a lock looks the same wherever the board says it.
@@ -355,7 +372,7 @@ function stats(board) {
       // is near, not right - a Bills pick read 0.9% for the beat and 0.8% once
       // the rehearsal landed - so the readout waits rather than saying a number
       // it will take back. app.js builds again when the rehearsal lands.
-      items.push(stat("If locked", `${PREVIEW_ARROW}…`, "preview-pending", true));
+      items.push(stat("If locked", `${PREVIEW_ARROW}${PREVIEW_RULE}`, "preview-pending", true));
     } else {
       // Judged as shown: a preview that rounds to the same tenth of a percent
       // as the season number reads as even, however the unrounded pair fall.

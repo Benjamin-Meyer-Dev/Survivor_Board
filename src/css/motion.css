@@ -1136,3 +1136,51 @@
     opacity: 1;
   }
 }
+
+/* --- a lock being rehearsed ------------------------------------------------
+   The "if locked" number is the full search run ahead of the lock
+   (memoisedPreview in core/plan.js), and it takes about half a second on a
+   desktop and longer on a phone. While it is out, the readout stands a chalk
+   rule where the figure will land and the chalk is drawn along it: out from
+   the near end to the far one, held for a beat at full, then taken off from
+   the near end again, so the line is being laid down and wiped rather than
+   blinking.
+
+   Both halves are one transform on a pseudo element - the draw is scaleX from
+   the left edge, and the wipe is the same scale running back to nothing with
+   the collapsed edge translated to the far end, which pins the right edge
+   there while the left one sweeps across. So the whole of it runs on the
+   compositor: the search it is waiting on blocks the main thread in bursts,
+   and anything animating a layout property would stall for each of them and
+   then jump.
+
+   The 44px is the rule's own width (pitch__stat-rule in components.css) and
+   has to match it. It is written out rather than read from a custom property
+   because a keyframe that depends on a variable is one Chrome will not hand
+   to the compositor, which is the whole point of doing it this way.
+
+   One and a tenth of a second a pass, the beat the pool picker breathes at,
+   so the two things on the board that are not settled are not unsettled at
+   different speeds.
+
+   Killed by the reduced-motion block in base.css, which leaves the chalk at
+   the scaleX(0) it is declared at and the bare rule showing - still plainly a
+   number not arrived at. */
+@keyframes chalk-draw {
+  0% {
+    transform: translateX(0) scaleX(0);
+  }
+
+  45%,
+  55% {
+    transform: translateX(0) scaleX(1);
+  }
+
+  100% {
+    transform: translateX(44px) scaleX(0);
+  }
+}
+
+.pitch__stat-rule::after {
+  animation: chalk-draw 1.1s ease-in-out infinite;
+}

@@ -479,20 +479,45 @@
   --mark: var(--kind-lose);
 }
 
+/* The pool the board is showing. A check alone at the end of the row was the
+   whole of it, and at 14px on the far side of a wide menu it is the last thing
+   read and the easiest to miss - the two rows looked alike until you went
+   looking. The row is now lit the way the sideline lights the team a slot
+   holds: its own paint as a wash behind it, a ring of that paint round it, and
+   the label in full chalk. The check stays - it is what a screen reader's
+   `aria-selected` shows sighted readers - but it is no longer carrying the
+   news on its own.
+
+   The paint is the pool's, not one selected-colour for both, because that is
+   the colour the board is about to be drawn in: the mark on the left, the ring
+   here and the field itself are the one signal. */
 .league-bar__option[aria-selected="true"] {
+  background: color-mix(in srgb, var(--mark) 16%, transparent);
+  box-shadow: inset 0 0 0 1px var(--mark);
   color: var(--chalk);
 }
 
-.league-bar__option:focus-visible {
+.league-bar__option:focus-visible:not([aria-selected="true"]) {
   outline: none;
   background: rgb(243 247 241 / 10%);
   color: var(--chalk);
 }
 
+/* Focus on the row already lit brightens its own paint rather than replacing
+   it with the neutral wash, so the ring never reads as having moved. */
+.league-bar__option[aria-selected="true"]:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--mark) 26%, transparent);
+}
+
 @media (hover: hover) {
-  .league-bar__option:hover {
+  .league-bar__option:hover:not([aria-selected="true"]) {
     background: rgb(243 247 241 / 10%);
     color: var(--chalk);
+  }
+
+  .league-bar__option[aria-selected="true"]:hover {
+    background: color-mix(in srgb, var(--mark) 26%, transparent);
   }
 }
 
@@ -521,7 +546,7 @@
   height: 14px;
   flex: none;
   fill: none;
-  stroke: var(--chalk);
+  stroke: var(--mark);
   stroke-width: 2.6;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -896,12 +921,20 @@
   border-top: var(--dash);
 }
 
+/* A label with no room left wraps (the take-down pair, and the question they
+   ask before they do it), and a wrapped one is two lines of caps rather than
+   two lines of prose: the page's 1.5 put 21px between baselines that have no
+   descenders to clear, and the pair read as two labels stacked rather than as
+   one label on two lines. 16px is the caps set solid plus a chalk line's worth
+   of air. A button with one line is unmoved - the row is centred in 44px
+   either way. */
 .settings__btn,
 .home__btn,
 .home__menu-btn {
   min-height: 44px;
   padding: 0 16px;
   font-size: 14px;
+  line-height: 16px;
 }
 
 /* The foot of the body, set apart: taking a pool or the league down. */
@@ -1304,6 +1337,49 @@
   color: var(--chalk-3);
 }
 
+/* The rule that stands in for the number while the lock is being rehearsed
+   (PREVIEW_RULE in ui/pitch.js): the yard line the figure will be chalked on,
+   with the chalk laid along it and taken off again (chalk-draw in motion.css).
+
+   44px is what "100.0%" measures in this face at this size - the widest thing
+   the readout ever says - so the rule is the number's own width and the row
+   neither grows nor shrinks when the number lands on it. One width at every
+   breakpoint: it is a mark, not a reading, and the keyframe that draws it has
+   the same measurement written into it.
+
+   It is lifted off the baseline to the middle of the figures either side of
+   it, the same move the arrow makes for the same reason: the ink centre of a
+   lining figure is half its cap height up, which at 16px of this face is 6px.
+
+   The ends are rounded here and left square on the chalk, so the line has
+   chalk's own blunt edge as it is drawn and the rule's own cap where it is
+   full. With motion switched off the reduced-motion block in base.css kills
+   the keyframe and the chalk sits at nothing, leaving the bare rule - still
+   plainly a number not arrived at. */
+.pitch__stat-rule {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 3px;
+  margin-bottom: 6px;
+  border-radius: 2px;
+  background: var(--line-soft);
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+/* The chalk itself, drawn along the rule by chalk-draw in motion.css. */
+.pitch__stat-rule::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 44px;
+  transform-origin: left;
+  transform: scaleX(0);
+  background: var(--chalk-2);
+}
+
 /* The season number, on the flag: the same shape as the readouts beside it,
    a key over a value, so the row reads as one line of stats with the one that
    matters lit. */
@@ -1557,11 +1633,21 @@
   white-space: nowrap;
 }
 
-/* Two picks a week halve the slot, and the game and its kickoff have never fit
-   one line there: the kickoff wrapped whole and left the dot hanging at the end
-   of the line above. So it takes its own line instead and the break does the
-   separating - see kickoffMarkup in ui/call.js. */
-.call__slots--two .call__kickoff {
+/* Where the game's number came from, after the kickoff and in the quieter
+   chalk: it qualifies the numbers below rather than being one of them (see
+   sourceMarkup in ui/call.js). */
+.call__source {
+  color: var(--chalk-3);
+  white-space: nowrap;
+}
+
+/* Two picks a week halve the slot, and the game, its kickoff and where its
+   line came from have never fit one line there: each wrapped whole and left
+   the dot hanging at the end of the line above. So the kickoff and the source
+   take a line each instead and the break does the separating - see
+   kickoffMarkup in ui/call.js. */
+.call__slots--two .call__kickoff,
+.call__slots--two .call__source {
   display: block;
 }
 
@@ -1569,20 +1655,14 @@
   display: none;
 }
 
-/* The stat line, under the name where it has the width: spread, the chance
-   the pick carries the week, where the line came from. Chalk tiles. */
+/* The stat line, under the name where it has the width: the spread and the
+   chance the pick carries the week. Chalk tiles, two of them in every layout
+   - where the line came from was a third of them and could not be read at
+   half a card's width, so it moved up onto the game line. */
 .call__tiles {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.call__slots--two .call__tiles {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.call__slots--two .tile--line {
-  display: none;
+  gap: 6px;
 }
 
 .tile {
@@ -1613,17 +1693,6 @@
   line-height: 18px;
   color: var(--chalk);
   white-space: nowrap;
-}
-
-/* "Market" or "Projected": a word, in the display face. */
-.tile__value--text {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 15px;
-  line-height: 18px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--chalk-2);
 }
 
 /* One confidence language everywhere a single game's number appears. */
@@ -2048,8 +2117,16 @@
   color: var(--danger);
 }
 
-/* An unavailable row says why in place of its numbers. */
-.sideline__row--disabled .sideline__line {
+/* An unavailable row says why in place of its numbers - a sentence, not a
+   reading, so it is set in the body face and the quiet chalk.
+
+   Not a played one, though. A game that has been played is unavailable too,
+   and it was being caught by this and having its "Won" or "Lost" greyed out
+   with the rest - the one row in the list whose numbers had been replaced by
+   something worth seeing in colour. Every finished game now keeps the
+   outcome's chalk (sideline__line--won and --lost above), whichever week it
+   sits in and whoever took it. */
+.sideline__row--disabled:not(.sideline__row--settled) .sideline__line {
   color: var(--chalk-3);
   font-family: var(--font-body);
   font-weight: 400;
@@ -2224,12 +2301,25 @@
   font-weight: 600;
 }
 
+/* How much of the season is still alive by this week, in the week's own
+   confidence chalk (ui/drive.js hangs the tier on it) - a step smaller and
+   lighter than the week's own chance beside it, so the two colour columns read
+   as a headline and its running total rather than as two headlines.
+
+   The chalk below is only for a row with no tier to wear: a week the path
+   cannot reach yet has no survival to colour, and the bracketed row lifts to
+   full chalk for the same reason. Written as the tier's absence rather than
+   ahead of it because these rules come after the confidence scale in this
+   file and would otherwise simply beat it. */
 .drive__alive {
   font-size: 13px;
+}
+
+.drive__alive:not([class*="confidence--"]) {
   color: var(--chalk-2);
 }
 
-.drive__row--viewing .drive__alive {
+.drive__row--viewing .drive__alive:not([class*="confidence--"]) {
   color: var(--chalk);
 }
 
@@ -3577,7 +3667,7 @@
 
   .call__slots:not(.call__slots--two) .call__tiles {
     grid-area: tiles;
-    grid-template-columns: repeat(3, auto);
+    grid-template-columns: repeat(2, auto);
   }
 
   .call__slots--two .call__team {
