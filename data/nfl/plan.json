@@ -1,5 +1,5 @@
 {
-  "$comment": "The 18-week NFL survivor path. One pick a week, no team twice. A single buy back covers a loss in week 1 or week 2, which is why the opening weeks take on more risk than the rest of the path. Spreads are power-rating projections and act as the fallback when data/nfl/odds.json carries no market line.",
+  "$comment": "The 18-week NFL survivor path. One pick a week, no team twice, and no buy back - a pool that grants one turns it on in the settings sheet. The weeks 1 and 2 picks below were seeded when the plan did grant one and still carry that week's risk; the board does not run this path, it recomputes its own (core/recommend.js), so this is a stale seed rather than advice anyone is given. Spreads are power-rating projections and act as the fallback when data/nfl/odds.json carries no market line.",
   "league": "nfl",
   "season": 2026,
   "rules": {
@@ -8,8 +8,8 @@
     "reuseTeams": false,
     "opponentMustBeFbs": false,
     "winCondition": "straight-up",
-    "buyBackWeeks": [1, 2],
-    "buyBacks": 1,
+    "buyBackWeeks": [],
+    "buyBacks": 0,
     "weeks": 18
   },
   "dangerThreshold": -6,
@@ -30,7 +30,7 @@
           "site": "Home",
           "spread": -12,
           "source": "projected",
-          "rationale": "-12.0 at home against Cardinals. Week 1 is covered by the buy back, so the path can afford this one."
+          "rationale": "-12.0 at home against Cardinals. Seeded when week 1 was covered by a buy back, which the plan no longer grants."
         }
       ],
       "backups": [
@@ -61,7 +61,7 @@
           "site": "Away",
           "spread": -7,
           "source": "projected",
-          "rationale": "-7.0 away against Titans. Week 2 is covered by the buy back, so the path can afford this one."
+          "rationale": "-7.0 away against Titans. Seeded when week 2 was covered by a buy back, which the plan no longer grants."
         }
       ],
       "backups": [

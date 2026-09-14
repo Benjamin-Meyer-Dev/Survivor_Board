@@ -28,12 +28,27 @@
 
 /* home ---------------------------------------------------------------------- */
 
+/* The head and the two buttons hold still and the cards scroll under them, the
+   same shape the board has: the shell is the viewport, and the one thing
+   inside it long enough to need it does the scrolling. The wordmark, the name
+   and "New league" are how you leave this page, and a list long enough to
+   scroll used to carry them off the top of the screen. */
+.shell:has(#home:not([hidden])) {
+  height: 100dvh;
+  overflow: hidden;
+}
+
 #home {
-  padding: calc(var(--sp-4) + env(safe-area-inset-top)) var(--gutter)
-    calc(var(--sp-6) + env(safe-area-inset-bottom));
+  /* The foot is the list's, not the page's: it is what ends up against the
+     home indicator, and padding here would sit below the scroller instead. */
+  padding: calc(var(--sp-4) + env(safe-area-inset-top)) var(--gutter) 0;
   max-width: 1100px;
   width: 100%;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 #home[hidden] {

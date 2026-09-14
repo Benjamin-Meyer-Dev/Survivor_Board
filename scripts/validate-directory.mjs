@@ -200,8 +200,8 @@ assert.equal(row.sport, "nfl");
 assert.equal(row.objective, "win", "what the picks have to do is a column of its own");
 assert.deepEqual(
   row.entry.rules,
-  { ...SPORTS.nfl.defaultRules, buyBackWeeks: [1, 2] },
-  "a league starts on its season's rules, clamped",
+  { ...SPORTS.nfl.defaultRules },
+  "a league starts on its season's rules",
 );
 assert.deepEqual(names(row), ["Ben"], "and its maker is in it");
 assert.deepEqual(row.entry.picks, {}, "with an empty board");

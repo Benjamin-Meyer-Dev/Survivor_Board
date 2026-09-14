@@ -12,11 +12,27 @@
 html {
   height: 100%;
   background: var(--turf);
-  /* A swipe sideways turns the week (ui/swipe.js). Nothing here scrolls that
-     way, so without this the browser takes the same gesture as an overscroll
-     and goes back a page instead - which on a board opened from an invite
-     link means leaving it. */
-  overscroll-behavior-x: contain;
+  /* Neither axis overscrolls into a browser gesture. Sideways, a swipe turns
+     the week (ui/swipe.js) and nothing here scrolls that way, so without this
+     Chrome reads the same drag as an overscroll and goes back a page - which on
+     a board opened from an invite link means leaving it. Downwards, a pull at
+     the top of the home page or the board reloads the whole app, losing the
+     week you were on and the position you had scrolled to, to fetch what the
+     refresh clock (core/refresh.js) already keeps current. Contain rather than
+     none: the chaining is what reaches the gesture, and the local rubber band
+     is worth keeping as the answer to "this is the end of the list".
+     The used value on the root is what the viewport takes, so this is the one
+     place it counts - the same declaration on body does nothing. Scrollers
+     that must not chain into a *parent* still say so themselves, like the
+     drawer's panels (layout.css). */
+  overscroll-behavior: contain;
+  /* Panning both ways, and nothing else: the page scrolls up and down, the
+     field pans its yard lines sideways, and a pinch or a double tap zooms
+     nothing. Naming the two pans rather than `manipulation`, which still
+     allows the pinch. Descendants that want less - the swipe surfaces in
+     layout.css - still narrow it to pan-y; touch-action is intersected down
+     the chain, never inherited, so this forbids nothing they allow. */
+  touch-action: pan-x pan-y;
 }
 
 body {

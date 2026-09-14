@@ -2,7 +2,15 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- No zoom. The board is laid out for the hand holding it and every
+         target on it is already thumb-sized, so a pinch only ever knocked the
+         field off centre - and a double tap near a pick zoomed instead of
+         picking. Android and an installed iOS app honour user-scalable here;
+         Safari in a tab ignores it, and ui/zoom.js covers that. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
     <title>Sudden Death</title>
     <meta
       name="description"

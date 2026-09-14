@@ -47,6 +47,7 @@ import { POOL_KINDS, KIND_IDS, normaliseKinds } from "../sports.js";
 import { formatCode, normaliseCode, isCode } from "../core/code.js";
 import { escapeHtml } from "../core/format.js";
 import { delegate } from "./events.js";
+import { rosterMarkup } from "./roster.js";
 import { frame, reconcile } from "./patch.js";
 import {
   afterMotion,
@@ -277,8 +278,8 @@ function shellMarkup({ name, shared, message }) {
 }
 
 /** The cards, or the empty field where there are none. */
-function listMarkup({ leagues, loading }) {
-  if (leagues.length) return leagues.map(card).join("");
+function listMarkup({ leagues, loading, me }) {
+  if (leagues.length) return leagues.map((league) => card(league, me)).join("");
   return `<p class="home__empty" data-key="empty">
       ${loading ? "Looking for your leagues…" : "No leagues yet. Make one, or join one with a code someone sent you."}
     </p>`;
@@ -405,12 +406,14 @@ function sheetsMarkup() {
     </dialog>`;
 }
 
-function card(league) {
+function card(league, me) {
   const kinds = kindsOf(league);
 
   // The pools are the tags; the rules are read inside the board, from the
   // gear. The head count is the one line worth carrying here, once for the
-  // league: its members are the same people whichever board they are on.
+  // league: its members are the same people whichever board they are on. Who
+  // they are is behind the info button in the tools above (ui/roster.js),
+  // which is there only when the count is more than you.
   const people = league.members > 1 ? `${league.members} people` : "";
 
   return `
@@ -421,6 +424,7 @@ function card(league) {
       <div class="home__card-head">
         <h3 class="home__card-name">${escapeHtml(league.name)}</h3>
         <div class="home__card-tools">
+          ${rosterMarkup(league.people, me, { className: "home__icon", right: true })}
           <button type="button" class="home__icon home__icon--leave" data-act="leave"
                   aria-label="Leave this league" title="Leave">${ICONS.leave}</button>
         </div>

@@ -30,20 +30,26 @@
 import { escapeHtml } from "../core/format.js";
 import { POOL_KINDS, KIND_IDS, normaliseKinds } from "../sports.js";
 import { afterMotion, prefersReducedMotion } from "./motion.js";
+import { rosterMarkup } from "./roster.js";
 
 /** Latest handlers, so the listeners bound on the first render stay current. */
 let handlers = { onPool: () => {}, onHome: () => {} };
 /** The rows currently in the menu, to know when they need rebuilding. */
 let painted = "";
+/** And who was last in the roster panel, for the same reason. */
+let roster = "";
 /** The bar's root once built, for the outside-tap listener. */
 let bar = null;
 
 /**
  * @param {HTMLElement} root
- * @param {{league:{code:string,name:string,kinds:string[]}|null, kind?:string|null}} state
+ * @param {{league:{code:string,name:string,kinds:string[],
+ *   people?:Array<{id:string,name:string}>}|null, kind?:string|null,
+ *   me?:string}} state `me` is this device's member id, so the roster can say
+ *   which row is you.
  * @param {{onPool:(kind:string)=>void, onHome:()=>void}} given
  */
-export function renderLeagueBar(root, { league, kind = null }, given) {
+export function renderLeagueBar(root, { league, kind = null, me = "" }, given) {
   if (!root) return;
   handlers = given;
 
@@ -54,6 +60,18 @@ export function renderLeagueBar(root, { league, kind = null }, given) {
   const showing = kinds.includes(kind) ? kind : kinds[0];
 
   root.querySelector(".league-bar__name").textContent = league?.name ?? "";
+
+  // Who else is on this board. Rebuilt only when the people change: this runs
+  // on every render, and replacing the button under an open panel would shut
+  // it while somebody was reading it.
+  const people = Array.isArray(league?.people) ? league.people : [];
+  const named = people.map((person) => `${person.id}:${person.name}`).join("|");
+  if (named !== roster) {
+    root.querySelector(".league-bar__who").innerHTML = rosterMarkup(people, me, {
+      className: "league-bar__icon",
+    });
+    roster = named;
+  }
 
   const menu = root.querySelector(".league-bar__menu");
   const signature = `${league?.code ?? ""}:${kinds.join(",")}`;
@@ -123,7 +141,10 @@ function build(root) {
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
     </button>
     <div class="league-bar__league">
-      <h2 class="league-bar__name"></h2>
+      <div class="league-bar__title">
+        <h2 class="league-bar__name"></h2>
+        <div class="league-bar__who"></div>
+      </div>
       <div class="league-bar__picker">
         <button type="button" class="league-bar__pool" aria-haspopup="listbox"
                 aria-expanded="false" aria-controls="league-bar-menu" title="Pool">

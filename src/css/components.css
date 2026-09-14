@@ -2574,8 +2574,13 @@
    say (playMessages in ui/home.js) and grows and shrinks on the way, and a gap
    is kept for a row of no height - so a line shrunk to nothing would leave its
    share of the space behind and the whole list would jump by it at the end. */
+/* A column, so the list below can be the one row that scrolls. Was a grid,
+   which stacked these the same way but had no remainder to give the list. */
 .home {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .home > * {
@@ -2666,6 +2671,18 @@
   display: grid;
   gap: var(--sp-4);
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  /* The only part of the home page that moves. min-height so it can be smaller
+     than its cards - without it a flex item refuses to shrink below its
+     content and the scroll ends up back on the page. The foot clears the home
+     indicator, since the page above no longer carries it. */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding-bottom: calc(var(--sp-6) + env(safe-area-inset-bottom));
+  /* Cards start at the top of the box rather than stretching to fill it when
+     there are only one or two. */
+  align-content: start;
 }
 
 /* Nothing to show yet: an empty field, ruled and waiting. */
@@ -2716,6 +2733,148 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+}
+
+/* the roster ----------------------------------------------------------------- */
+
+/* Who is in this league: an info button with the names hung under it, on the
+   home card and in the topline both (ui/roster.js). The box is what the panel
+   is positioned against, so it has to be in the flow at the button's size. */
+.roster {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+/* The button takes the class of whatever it is standing next to - .home__icon
+   on a card, .league-bar__icon in the bar - so there is nothing to set here
+   beyond the pressed state its neighbours have no use for. */
+.roster__open[aria-expanded="true"] {
+  border-color: var(--chalk);
+  background: rgb(243 247 241 / 10%);
+}
+
+/* The same chalkboard the pool picker hangs (.league-bar__menu), at the size
+   of a few names. */
+.roster__panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 12;
+  min-width: 168px;
+  max-width: 240px;
+  padding: 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--board);
+  box-shadow: var(--shadow-lift);
+}
+
+/* Hung off the right edge instead, for a button sitting at the right of its
+   row: a card's tools are in the corner, and a panel opening rightwards from
+   there would go off the side of the screen. */
+.roster__panel--right {
+  left: auto;
+  right: 0;
+}
+
+/* Above the button instead, when under it is where the scroller ends
+   (ui/roster.js decides which). */
+.roster__panel--up {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
+.roster__panel[hidden] {
+  display: none;
+}
+
+.roster__list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.roster__person {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 16px;
+  color: var(--chalk);
+}
+
+.roster__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Your own row, marked the way the deck marks yours: the paint, and the word,
+   rather than a second style of row. */
+.roster__person--me {
+  background: rgb(243 247 241 / 6%);
+}
+
+.roster__you {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--chalk-3);
+}
+
+/* The bar's own info button: smaller than a card's, since it sits on the
+   name's line rather than in a row of tools. */
+.league-bar__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--chalk-2);
+}
+
+.league-bar__icon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.league-bar__icon:hover {
+  border-color: var(--chalk);
+  color: var(--chalk);
+}
+
+/* The name and the button on one line, with the name taking what is left: the
+   button is a fixed 28px and the name is what has to give when the league is
+   called something long. */
+.league-bar__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.league-bar__title .league-bar__name {
+  min-width: 0;
+  flex: 0 1 auto;
 }
 
 .home__card-tools {

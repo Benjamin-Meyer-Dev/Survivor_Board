@@ -96,6 +96,7 @@ function fromCache(entry) {
   return {
     ...league,
     kinds: known.length ? known : [KIND_IDS[0]],
+    people: peopleFromCache(league.people),
     rules: Object.fromEntries(
       Object.entries(byKind).filter(([id, value]) => id in POOL_KINDS && value),
     ),
@@ -283,13 +284,57 @@ function summary(league) {
     code: league.code,
     name: league.name,
     kinds: league.kinds,
+    people: peopleOf(league),
     rules: Object.fromEntries(league.kinds.map((kind) => [kind, poolRules(league.pools[kind])])),
   };
 }
 
-/** How many people a league has. Its members are kept on every one of its pools. */
+/**
+ * Everyone in a league, once each, oldest member first.
+ *
+ * A league's members are written to every one of its pools, so any single pool
+ * would usually answer this. The union, because a join that reached one pool
+ * and not another would otherwise leave somebody out of the list of who is
+ * here - and a person reads that list to check they are in the right league
+ * with the right people, which is exactly the moment a missing name matters.
+ *
+ * The id is what makes two entries the same person; the name is only what they
+ * are called. Kept because it is what the home card and the topline show, and
+ * because a device offline still has it from the last time it looked.
+ */
+function peopleOf(league) {
+  const seen = new Map();
+  for (const kind of league.kinds) {
+    for (const member of membersOf(league.pools[kind])) {
+      if (!member?.id || seen.has(member.id)) continue;
+      seen.set(member.id, person(member));
+    }
+  }
+  return [...seen.values()].sort((a, b) => a.joinedAt.localeCompare(b.joinedAt));
+}
+
+/** One member, as little of them as the app has any use for. */
+function person(member) {
+  return {
+    id: String(member.id),
+    name: typeof member.name === "string" ? member.name.trim().slice(0, 60) : "",
+    joinedAt: typeof member.joinedAt === "string" ? member.joinedAt : "",
+  };
+}
+
+/**
+ * A cached league's people, back from storage. Anything that is not a list of
+ * members reads as nobody, which the card and the bar both treat as a league
+ * of one - the same as a device that has never managed to look.
+ */
+function peopleFromCache(value) {
+  if (!Array.isArray(value)) return [];
+  return value.filter((member) => member && typeof member === "object" && member.id).map(person);
+}
+
+/** How many people a league has. */
 function memberCount(league) {
-  return Math.max(1, ...league.kinds.map((kind) => membersOf(league.pools[kind]).length));
+  return Math.max(1, peopleOf(league).length);
 }
 
 /** Narrow a query to one pool's row. */
@@ -566,7 +611,12 @@ export async function refreshMyLeagues() {
   const mine = myLeagues();
   if (mine.length === 0) return [];
 
-  const offline = () => mine.map((league) => ({ ...league, members: 1, missing: false }));
+  const offline = () =>
+    mine.map((league) => ({
+      ...league,
+      members: Math.max(1, league.people.length),
+      missing: false,
+    }));
   const client = await supabase();
   if (!client) return offline();
 
@@ -582,7 +632,7 @@ export async function refreshMyLeagues() {
   const found = new Map(groupPools(data).map((league) => [league.code, league]));
   return mine.map((league) => {
     const fresh = found.get(league.code);
-    if (!fresh) return { ...league, members: 1, missing: true };
+    if (!fresh) return { ...league, members: Math.max(1, league.people.length), missing: true };
     return { ...remember(summary(fresh)), members: memberCount(fresh), missing: false };
   });
 }

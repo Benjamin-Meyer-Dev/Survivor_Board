@@ -448,7 +448,10 @@ assert.equal(junk.rules.endWeek, 18);
 assert.equal(junk.rules.picksPerWeek, 1);
 assert.equal(junk.rules.buyBacks, 0);
 assert.deepEqual(junk.rules.buyBackWeeks, []);
-assert.equal(junk.rulesCustom, true, "it is still not the plan's rules");
+// And nothing survived to be its own rule: every value was refused back to the
+// plan's, so the pool is running the plan. That a changed rule does flag the
+// pool is what `flipped` above is for.
+assert.equal(junk.rulesCustom, false, "junk refused back to the plan is the plan's rules");
 assert.ok(openWeek(junk).picks[0].suggestion?.team, "and the coach still has a call");
 
 console.log(

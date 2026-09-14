@@ -607,8 +607,12 @@ assert.equal(
 );
 assert.equal(legacy.weeks[0].picks[0].status.locked, true);
 
-// A loss in a forgiving week costs the buy back, not the run.
-const forgiving = plan.rules.buyBackWeeks[0];
+// A loss in a forgiving week costs the buy back, not the run. The season ships
+// no buy back - a pool that grants one says so in its own rules - so the pool
+// under test grants itself one rather than reading the plan's default, which
+// is a number the repo is free to change without changing what a buy back does.
+const forgivingRules = { buyBacks: 1, buyBackWeeks: [1, 2] };
+const forgiving = forgivingRules.buyBackWeeks[0];
 const forgivingSlot = empty.weeks[forgiving - 1].picks[0];
 const forgivingTeam = forgivingSlot.options.find((option) => !option.disabled).team;
 const softLoss = structuredClone(odds);
@@ -618,6 +622,7 @@ const bought = build(
   {
     picks: { [slotKey(forgiving, 0)]: { locked: true } },
     swaps: { [slotKey(forgiving, 0)]: forgivingTeam },
+    rules: forgivingRules,
   },
   softLoss,
 );
@@ -629,14 +634,18 @@ assert.equal(bought.elimination, null);
 // A loss nothing covers ends the run, and the board goes into review: the week
 // is named, the coach stands down without a search, and later weeks are open
 // to nothing.
-const fatal = plan.weeks.find((week) => !plan.rules.buyBackWeeks.includes(week.week)).week;
+const fatal = plan.weeks.find((week) => !forgivingRules.buyBackWeeks.includes(week.week)).week;
 const fatalSlot = empty.weeks[fatal - 1].picks[0];
 const fatalTeam = fatalSlot.options.find((option) => !option.disabled).team;
 const hardLoss = structuredClone(odds);
 hardLoss.updatedAt = `${odds.updatedAt}-hard-loss`;
 hardLoss.results[lineKey(fatal, fatalTeam)] = "L";
 const out = build(
-  { picks: { [slotKey(fatal, 0)]: { locked: true } }, swaps: { [slotKey(fatal, 0)]: fatalTeam } },
+  {
+    picks: { [slotKey(fatal, 0)]: { locked: true } },
+    swaps: { [slotKey(fatal, 0)]: fatalTeam },
+    rules: forgivingRules,
+  },
   hardLoss,
 );
 assert.equal(out.eliminated, true, "an uncovered loss eliminates");

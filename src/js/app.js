@@ -63,6 +63,8 @@ import { renderTabs, initialTab } from "./ui/tabs.js";
 import { requireName } from "./ui/name.js";
 import { requirePasscode } from "./ui/passcode.js";
 import { holdBack, releaseBack } from "./ui/back.js";
+import { holdTheZoom } from "./ui/zoom.js";
+import { watchRosters } from "./ui/roster.js";
 import { formatDuration } from "./core/refresh.js";
 
 const el = {
@@ -840,7 +842,7 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = 
   app.viewWeek = weekOnBoard(board, app.viewWeek);
 
   lastBoard = board;
-  renderLeagueBar(el.league, { league: app.league, kind: app.kind }, BAR_HANDLERS);
+  renderLeagueBar(el.league, { league: app.league, kind: app.kind, me: ME }, BAR_HANDLERS);
   renderSettings(el.settings, board, {
     // The rules are the league's, so changing them is a write like any other.
     // Unlike the deck, an eliminated run does not close them: the rules are
@@ -1091,6 +1093,8 @@ function renderHomeView() {
     el.home,
     {
       name: app.name,
+      // Which row of a league's roster is this device (ui/roster.js).
+      me: ME,
       leagues: app.leagues,
       shared: sharingAvailable(),
       loading: app.leaguesLoading,
@@ -1966,7 +1970,7 @@ async function switchPool(kind) {
   if (app.switching || !app.league || kind === app.kind) return;
 
   app.switching = true;
-  renderLeagueBar(el.league, { league: app.league, kind }, BAR_HANDLERS);
+  renderLeagueBar(el.league, { league: app.league, kind, me: ME }, BAR_HANDLERS);
   markPoolLoading(el.league, true);
   let faded = false;
 
@@ -1998,7 +2002,7 @@ async function switchPool(kind) {
     // Put the picker back the way it was. The board under it never moved,
     // unless the failure came after the fade, in which case the render below
     // paints it again.
-    renderLeagueBar(el.league, { league: app.league, kind: app.kind }, BAR_HANDLERS);
+    renderLeagueBar(el.league, { league: app.league, kind: app.kind, me: ME }, BAR_HANDLERS);
     themeFor(app.kind);
     app.message = `Could not open that pool: ${error.message}`;
     render();
@@ -2279,6 +2283,11 @@ async function openFromHash() {
 }
 
 async function main() {
+  // Before the first frame, so a pinch at the startup layer is refused the
+  // same way a pinch on the board is.
+  holdTheZoom();
+  // Every "who is in this league" panel on the page, from one listener.
+  watchRosters();
   callTheStartupLine();
   // Started here, at the top, and awaited at the bottom: the play is held at
   // its first frame until the page is on screen, and it is what says when the

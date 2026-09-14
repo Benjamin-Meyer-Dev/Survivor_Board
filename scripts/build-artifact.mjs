@@ -75,6 +75,8 @@ const JS = [
   "ui/notices.js",
   "ui/swipe.js",
   "ui/back.js",
+  "ui/zoom.js",
+  "ui/roster.js",
   "worker-search.js",
   "app.js",
 ];
