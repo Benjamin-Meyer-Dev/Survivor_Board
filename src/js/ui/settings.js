@@ -129,7 +129,9 @@ export function renderSettings(
     return;
   }
 
-  button.classList.toggle("settings__open--custom", Boolean(board.rulesCustom));
+  // A pool running rules of its own used to say so by turning the gear flag
+  // yellow. The gear is one neutral now, in every state, so the title is where
+  // that is said and the sheet itself is where it is read.
   button.title = board.rulesCustom ? "Pool rules (changed from the plan)" : "Pool rules";
 
   // The name and the code are the league's; the rules in the sheet are one

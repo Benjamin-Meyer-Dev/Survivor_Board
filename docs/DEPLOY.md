@@ -203,9 +203,11 @@ rules writes them into the league's shared row, so they land on every device in
 it. Nothing in `data/` changes: the season's plan file stays the default, and
 saving rules that match it returns the pool to following it.
 
-Two consequences worth knowing. A league running its own rules shows a lit gear,
-because a week with one slot looks the same whether the pool takes one pick or
-takes two with a rule changed. And the daily job reads `plan.json` rather than
+Two consequences worth knowing. A league running its own rules says so on the
+gear's tooltip rather than in its colour, because a week with one slot looks the
+same whether the pool takes one pick or takes two with a rule changed - so if a
+pool is behaving oddly, open the sheet and read them. And the daily job reads
+`plan.json` rather than
 the shared entry, so its "pick flagged" issue is judged by the file's rules.
 
 ### The two files you keep by hand

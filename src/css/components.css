@@ -256,12 +256,11 @@
 
 /* topline: league bar (ui/league-bar.js) ----------------------------------- */
 
-/* The way back to every league, and the gear at the other end of the bar: two
-   chalk glyphs, one at each edge, drawn the same way. Bare rather than ringed
-   - with the pool's pill gone the bar has no outlines at all, so the name
-   between them is what you read and the field's own border below is the first
-   line. The 40px box is the target; the disc it presses into is the only shape
-   the buttons ever show. Hover only where there is a pointer to hover with. */
+/* The way back to every league, and the gear at the other end of the bar: one
+   glyph at each edge, on the same 40px disc. The way back stays bare - it is
+   the chevron every page has had, and the name beside it is what you read -
+   while the gear wears its ring (see the rules sheet, below). The 40px box is
+   the target. Hover only where there is a pointer to hover with. */
 .league-bar__back,
 .settings__open {
   width: 40px;
@@ -279,15 +278,13 @@
   font-size: 0;
 }
 
-.league-bar__back:active,
-.settings__open:active {
+.league-bar__back:active {
   color: var(--chalk);
   background: rgb(243 247 241 / 10%);
 }
 
 @media (hover: hover) {
-  .league-bar__back:hover,
-  .settings__open:hover {
+  .league-bar__back:hover {
     color: var(--chalk);
     background: rgb(243 247 241 / 8%);
   }
@@ -559,10 +556,16 @@
 
 /* pool rules sheet (ui/settings.js) ---------------------------------------- */
 
-/* The gear, at the end of the topline: drawn with the way back (see the league
-   bar, above). The negative margin sets the glyph on the field's right edge. */
+/* The gear, at the end of the topline: the 40px disc the way back is drawn on
+   (see the league bar, above), ringed, and in the neutral every other button
+   that is only a thing you can press wears (.home__icon). Ringed because a
+   settings glyph nobody has told you about is a mark until it has an outline
+   round it; neutral because opening a sheet about the rules is not an action
+   the board is asking for. No negative margin: the ring is the mark now, so it
+   sits on the field's right edge itself rather than being pulled past it. */
 .settings__open {
-  margin-right: -10px;
+  border: 1px solid var(--neutral-line);
+  color: var(--neutral);
 }
 
 .settings__open svg {
@@ -572,10 +575,18 @@
   stroke: none;
 }
 
-/* A pool running rules of its own says so here: the gear in flag yellow,
-   hovered or not. */
-.settings__open.settings__open--custom {
-  color: var(--flag);
+.settings__open:active {
+  border-color: var(--neutral);
+  background: var(--neutral-bg);
+  color: var(--neutral-2);
+}
+
+@media (hover: hover) {
+  .settings__open:hover {
+    border-color: var(--neutral);
+    background: var(--neutral-bg);
+    color: var(--neutral-2);
+  }
 }
 
 /* The sheet: a chalkboard, centred on a desktop, rising from the bottom edge
@@ -2833,7 +2844,9 @@
 }
 
 /* The bar's own info button: smaller than a card's, since it sits on the
-   name's line rather than in a row of tools. */
+   name's line rather than in a row of tools. A disc like the card's, though -
+   the same button asking the same question, and one drawn as a rounded square
+   read as a different control that happened to share a glyph. */
 .league-bar__icon {
   display: inline-flex;
   align-items: center;
@@ -2842,7 +2855,7 @@
   height: 28px;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 50%;
   background: transparent;
   color: var(--chalk-2);
 }
@@ -2877,10 +2890,20 @@
   flex: 0 1 auto;
 }
 
+/* The tools sit on the name's line, not level with the top of its box. A name
+   that runs to two lines still hangs them off the first, so the row is aligned
+   to the head's top and lifted from there rather than centred on a block whose
+   height the league's name decides.
+
+   The lift: the name's first line box is 27px and its caps are 22 of that, so
+   the ink centres 12.5px down, while a 36px disc centres 18px down. Six pixels
+   up puts the disc half a pixel high, which is where a round thing beside
+   uppercase wants to be. */
 .home__card-tools {
   display: flex;
   gap: 6px;
   flex: none;
+  margin-top: -6px;
 }
 
 .home__icon {
