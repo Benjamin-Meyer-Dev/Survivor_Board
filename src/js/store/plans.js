@@ -34,8 +34,13 @@ import { CONFIG } from "../config.js";
  * How many plans to keep. One per pool a device can open is the point of it -
  * four kinds of pool is the most a league runs - and a couple over so the
  * board somebody actually locked on last night is still here this morning.
+ *
+ * Twice that, because a pool with a lock in the week on the clock is two
+ * plans: the board's own, and the one that ranks that week as if its slots
+ * were open (memoisedAdvice in core/plan.js). They arrive interleaved, so the
+ * cut falls between pools rather than between a board and its advice.
  */
-const KEEP = 6;
+const KEEP = 12;
 
 /**
  * How much of the device's storage this may have, in characters of JSON.

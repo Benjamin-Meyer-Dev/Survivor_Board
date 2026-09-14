@@ -91,11 +91,14 @@ export const CONFIG = Object.freeze({
   }),
 
   /**
-   * When the odds bot runs. Must match the timezone-aware schedule in
-   * .github/workflows/refresh-odds.yml; the board only uses it to show when the
-   * next pull is due. Once a day keeps both pulls inside the free Odds API
-   * quota: 4 credits per sport per run against 500 a month. Leagues cost
-   * nothing to add - however many there are, they read the same two pulls.
+   * When the odds bot runs. The clock is scheduler/wrangler.toml, a
+   * Cloudflare Worker that dispatches .github/workflows/refresh-odds.yml at
+   * this hour and is refused by it at any other. The board only reads this to
+   * show when the next pull is due, so all three have to agree or the
+   * countdown promises a pull that is not coming. Once a day keeps both pulls
+   * inside the free Odds API quota: 4 credits per sport per run against 500 a
+   * month. Leagues cost nothing to add - however many there are, they read
+   * the same two pulls.
    */
   refresh: {
     hour: 9,

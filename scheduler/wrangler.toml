@@ -1,0 +1,30 @@
+name = "sudden-death-refresh"
+main = "src/worker.js"
+compatibility_date = "2026-09-14"
+
+# 9:00am Toronto, every day, and nothing else.
+#
+# Cloudflare's cron is UTC-only, so both UTC hours that 9am Toronto can fall in
+# are asked for - 13:00 on daylight time, 14:00 on standard - and the Worker
+# drops whichever one is not 9am locally today. Unlike GitHub's cron these fire
+# on time: seconds late, not hours, and they are not dropped under load.
+#
+# On the hour on purpose here: refresh-odds.yml only accepts a scheduled
+# dispatch between 9:00 and 9:14 local, so the slack is all on this side.
+[triggers]
+crons = ["0 13 * * *", "0 14 * * *"]
+
+[vars]
+GITHUB_OWNER = "Benjamin-Meyer-Dev"
+GITHUB_REPO = "Survivor_Board"
+GITHUB_REF = "main"
+WORKFLOW_FILE = "refresh-odds.yml"
+
+# Must match the window check in .github/workflows/refresh-odds.yml and
+# CONFIG.refresh in src/js/config.js, which is what the board counts down to.
+# Change the hour in all three or the board lies about when the next pull is.
+REFRESH_TIMEZONE = "America/Toronto"
+REFRESH_HOUR = "9"
+
+# GITHUB_TOKEN is a secret, not a var. See README.md here:
+#   npx wrangler secret put GITHUB_TOKEN

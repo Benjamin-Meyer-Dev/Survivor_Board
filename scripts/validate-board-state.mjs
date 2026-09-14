@@ -365,31 +365,35 @@ assert.equal(lockedSlot.onPath.kind, "locked");
 assert.equal(locked.spentCount, 1, "a locked pick spends its team");
 assert.equal(locked.spentTeams[other], first.week);
 assert.equal(lockedSlot.status.result, "W", "locked picks receive feed results");
-// One pick a week, and it is committed: there is no call left to make, so the
-// coach ranks nothing live for the week - a fallback behind a decision already
-// taken is not advice - and the list keeps the board the decision was taken on
-// instead. This lock saved the call alone (an entry from before the ranking was
-// kept with a lock), so the call is the one rank the week can vouch for.
+// The coach's board for a week does not move because a slot in it was locked.
+// A lock is a decision, and the rest of the season is planned around it, but
+// the week the decision was taken in keeps the board it had: the week is ranked
+// from a plan made as if its own slots were open (memoisedAdvice in
+// core/plan.js), so the calls and the fallbacks behind them answer to the odds
+// and the results and to nothing the user does. This lock saved the call alone -
+// an entry from before the ranking was kept with a lock - and needs no snapshot
+// to keep the board, because the board never moved.
+const board = empty.weeks[0].coachRanked.map((option) => `${option.rank}:${option.team}`);
+assert.ok(board.length > 1, "the coach ranks more than its own call for an open week");
 assert.deepEqual(
   locked.weeks[0].coachRanked.map((option) => `${option.rank}:${option.team}`),
-  [`1:${coachTeam}`],
-  "a fully locked week keeps the coach's call as its first choice",
+  board,
+  "a locked week keeps the whole board the coach gave it",
 );
 assert.equal(
   locked.weeks[0].picks[0].options.find((option) => option.team === coachTeam)?.coachRank,
   1,
-  "and the team list badges it",
+  "and the team list badges the call first",
 );
-assert.ok(
-  locked.weeks[0].picks[0].options
-    .filter((option) => option.team !== coachTeam)
-    .every((option) => option.coachRank === null),
-  "and nothing else in it wears a rank",
+assert.equal(
+  locked.weeks[0].picks[0].options.find((option) => option.team === other)?.coachRank,
+  empty.weeks[0].coachRanked.findIndex((option) => option.team === other) + 1 || null,
+  "and the lock wears the rank the coach gave it, or none",
 );
-// A lock made from the board carries the week's ranking as it stood (app.js),
-// and the list keeps it rank for rank: the badges a pick was weighed against
-// do not vanish when it is locked, and the lock itself keeps whatever rank the
-// coach gave it - none, if the coach never ranked it.
+// A lock made from the board carries the week's ranking as it stood (app.js).
+// It changes nothing while the week is still live - the board is the same
+// board - and is what the week reads back from once there is no plan left to
+// rank it, an eliminated entry or a week now in the past.
 const ranking = empty.weeks[0].coachRanked.map((option) => option.team);
 const kept = build(
   {
@@ -400,8 +404,8 @@ const kept = build(
 );
 assert.deepEqual(
   kept.weeks[0].coachRanked.map((option) => `${option.rank}:${option.team}`),
-  empty.weeks[0].coachRanked.map((option) => `${option.rank}:${option.team}`),
-  "a locked week keeps the ranking it was locked on",
+  board,
+  "a snapshot saved with a lock agrees with the board the week keeps",
 );
 assert.equal(
   kept.weeks[0].picks[0].options.find((option) => option.team === ranking[1])?.coachRank,
@@ -423,6 +427,51 @@ assert.ok(
   locked.weeks.every((week) => week.coachRanked.every((option) => option.team !== other)),
   "and none of them falls back on the team the lock spent",
 );
+
+// The same rule where it is felt most: a week that takes two picks, one of
+// them locked and one still open. This is where locking the coach's own first
+// call used to re-rank the week around a slot that was no longer open, so the
+// coach's third choice changed the moment you agreed with its first. Whatever
+// goes into the first slot - the call itself, the bottom of the board, a team
+// the coach never named - the week keeps the board it had, the open slot is
+// advised the best of it still going, and the lock sits at the rank the coach
+// gave it.
+const twoPerWeek = (picks, swaps) => build({ picks, swaps, rules: { picksPerWeek: 2 } });
+const pair = twoPerWeek({}, {});
+const pairWeek = pair.weeks[0];
+assert.equal(pairWeek.picks.length, 2, "the pool takes two picks a week");
+const pairBoard = pairWeek.coachRanked.map((option) => option.team);
+assert.equal(pairBoard.length, 4, "and the coach ranks four for it - twice what the week needs");
+const stranger = pairWeek.options.find(
+  (option) => !option.result && !pairBoard.includes(option.team),
+).team;
+for (const team of [...pairBoard, stranger]) {
+  const slot = slotKey(pairWeek.week, 0);
+  const after = twoPerWeek(
+    { [slot]: { locked: true, coachTeam: pairBoard[0], coachRanked: pairBoard, at: 1 } },
+    { [slot]: team },
+  );
+  const week = after.weeks[0];
+  const rival = pairWeek.optionByTeam.get(team)?.opponent;
+  // Everything the coach said about the week, except a call the lock has just
+  // made unplayable by taking the other side of its game. That name leaves the
+  // board; the ranks around it do not move.
+  assert.deepEqual(
+    week.coachRanked.map((option) => `${option.rank}:${option.team}`),
+    pairBoard.flatMap((name, index) => (name === rival ? [] : [`${index + 1}:${name}`])),
+    `locking ${team} leaves the week's board where it was`,
+  );
+  assert.equal(
+    week.picks.find((pick) => !pick.status.locked)?.coachCall?.team,
+    pairBoard.find((name) => name !== team && name !== rival),
+    `and the open slot is advised the best call still going`,
+  );
+  assert.equal(
+    week.picks[0].options.find((option) => option.team === team)?.coachRank,
+    pairBoard.indexOf(team) + 1 || null,
+    `and ${team} wears the rank the coach gave it, or none`,
+  );
+}
 
 // The spread saved with a lock lets the board say which way the line has moved
 // since, signed so a positive number is the pick's way in either pool; a lock

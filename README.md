@@ -113,6 +113,7 @@ src/js/
 
 scripts/
   refresh-odds.mjs            the daily odds job, every pool with games of its own
+                              (9am Toronto, started by scheduler/ - GitHub cron cannot keep time)
   rate-form.mjs               refit the ratings from the pulls on disk
   pull-stats.mjs              pull the efficiency statistics (nflverse; CFBD with a key)
   import-history.mjs          import past seasons from nflverse and cfbfastR-data
@@ -123,6 +124,7 @@ scripts/
   validate-*.mjs              the checks `npm test` runs
   lib/                        odds API client, season calendar, rating fit, calibration, backtest, JSON I/O
 
+scheduler/                    the 9am clock: a Cloudflare Worker that dispatches the odds job
 supabase/schema.sql           one table, RLS policies, realtime
 .github/workflows/            refresh-odds · pages · ci
 docs/                         architecture, code standards, deploy

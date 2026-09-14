@@ -163,13 +163,13 @@ policies are, and sketches the Auth-and-memberships version if you want it.
 
 ### The schedule
 
-The bot runs once a day at 9:00am Toronto time. The workflow schedules both UTC
-hours that Toronto can use and skips the alternate, so the local time stays at
-9:00am across daylight-saving changes. A run costs 4 credits per league (3 for
-the lines - spreads, moneylines and totals are a credit each - and 1 for
-scores), the free plan is 500 credits a month, and two pulls once a day is
-about 250 of them. Every six hours, the original cadence, would be about 960
-and run out in two weeks. Set `ODDS_MARKETS=spreads,h2h` on the workflow to
+The bot runs once a day at 9:00am Toronto time and at no other time. The clock
+is a Cloudflare Worker in `scheduler/`, not a GitHub cron - see **The clock**
+below for why, and for the ten minutes of setup it needs. A run costs 4 credits
+per league (3 for the lines - spreads, moneylines and totals are a credit each -
+and 1 for scores), the free plan is 500 credits a month, and two pulls once a
+day is about 250 of them. Every six hours, the original cadence, would be about
+960 and run out in two weeks. Set `ODDS_MARKETS=spreads,h2h` on the workflow to
 drop totals and save a credit per league; the model prices without them.
 
 Two more sources ride along at no cost to the quota. The NFL's efficiency
@@ -224,35 +224,58 @@ Once a day is enough for a survivor pool. Lines move most in the 24 hours before
 kickoff, and the 9am pull is the morning number on game day for both leagues.
 Results land through the same run, within three days of a game.
 
-That 9am is aimed at rather than guaranteed. GitHub queues scheduled runs on
-shared capacity, and this repo has seen them released three to five hours after
-their slot, so the workflow schedules the day's pull from many slots - some
-before 9am, on the theory that a delayed early slot lands near 9am, most in and
-after the 9am hour - and the first run that starts does the work. Two rules in
-the **Check the Toronto refresh window** step make that safe: nothing pulls
-before 9am local whatever fires, and nothing pulls twice on the same local
-calendar day. So the extra slots cost fifteen seconds each and no API credits.
+### The clock
 
-A pull at 9am on the dot is not something GitHub cron can promise. If you need
-one, trigger it from a clock you own: any scheduler that can make an HTTP call
-(Windows Task Scheduler, cron on a machine that is always up, a free cron
-service) firing this, with a fine-grained token that has actions:write on the
-repo, starts the run within seconds.
+GitHub's cron cannot keep 9am. It queues scheduled runs on shared capacity and
+releases them when there is room, which on this repo meant 27 minutes late on a
+good day, three to five hours on a bad one, most requested slots dropped
+outright, and on 14 September no morning run at all - which is how Sunday's NFL
+results came to be missing from Monday's board.
+
+A `workflow_dispatch` is a different path and is honoured within seconds, so the
+schedule lives outside GitHub. `scheduler/` is a Cloudflare Worker whose cron
+fires at 9:00am Toronto and dispatches the workflow; `refresh-odds.yml` has no
+`schedule:` at all any more. Setup is in `scheduler/README.md` and comes to
+three commands, plus a fine-grained token with **Actions: Read and write** on
+this repo:
+
+```bash
+cd scheduler
+npx wrangler login
+npx wrangler secret put GITHUB_TOKEN   # the fine-grained PAT
+npx wrangler deploy
+```
+
+The workflow then decides whether to accept what it is handed. A dispatch marked
+`scheduled` is pulled only between 9:00 and 9:14 local and only once per
+calendar day; one that arrives outside that window is a misfire or a retry, so
+the day is skipped rather than pulled at the wrong hour. A dispatch marked
+`manual` - which is what the **Run workflow** button sends - skips the window
+entirely, because a test button that only works at 9am is no test button.
+
+That is a deliberate trade: a missed 9am is a missed day, not a late pull. One
+missed day costs nothing, because the scores call looks back three days. Two in
+a row starts losing margins for good, so the Worker retries a failed dispatch
+three times before it gives up, and `scheduler/README.md` lists the two ways it
+can go quiet without an error anywhere obvious.
+
+Any scheduler that can make an HTTP call works the same way if you would rather
+not run a Worker - Windows Task Scheduler, cron on a machine that is always up,
+a free cron service - as long as it sends `reason: scheduled` and keeps time:
 
 ```bash
 curl -X POST -H "Authorization: Bearer <token>" \
   -H "Accept: application/vnd.github+json" \
   https://api.github.com/repos/<owner>/Survivor_Board/actions/workflows/refresh-odds.yml/dispatches \
-  -d '{"ref":"main"}'
+  -d '{"ref":"main","inputs":{"reason":"scheduled"}}'
 ```
-
-A dispatch skips the window check by design, so it pulls whenever you send it.
 
 If you ever want it more often, do the sum first: 8 credits per run for two
 leagues against 500 a month, or pay $30 a month for the 20K plan and forget
-about it. To change the hour or timezone, edit the crons and the local-time
-guard in `.github/workflows/refresh-odds.yml` together with `refresh` in
-`src/js/config.js`, so the countdown on the board matches.
+about it. The hour is written in three places - `scheduler/wrangler.toml` sends
+the dispatch, `.github/workflows/refresh-odds.yml` decides which to accept, and
+`refresh` in `src/js/config.js` is what the board counts down to. Change one and
+you change all three, or the board promises a pull that is not coming.
 
 The **Run workflow** button in the Actions tab is the only manual refresh, and it
 is there for testing. Each press costs the same 8 credits.
@@ -378,15 +401,18 @@ npm run lint && npm run format:check && npm test
 - **The odds quota, if you speed up the cron.** See step 4. When the quota runs
   out the failure is quiet: the workflow logs a quota error and the board keeps
   showing the last market lines as if they were fresh.
-- **Scheduled workflows pause after 60 days of repo inactivity.** The bot's own
-  commits count as activity, so a live season keeps it alive. Out of season it
-  will stop; re-enable from the Actions tab.
-- **Cron drift.** GitHub queues scheduled runs on shared capacity, and the
-  delay is not minutes: through the opening weekend of 2026 every slot on this
-  repo was released three to five hours late. The workflow now spreads the
-  day's pull across many slots and lets the first one that starts do the work,
-  which is as punctual as cron gets here. For a real deadline, dispatch it from
-  a scheduler you own - see step 4.
+- **The Worker is the only thing that starts a pull.** There is no `schedule:`
+  in the workflow now, so an undeployed Worker or a lapsed token means no odds
+  at all, silently - the board goes on counting down to a 9am nobody is going to
+  honour. `scheduler/README.md` covers both; the fallback either way is **Run
+  workflow** in the Actions tab.
+- **The token expires.** A fine-grained PAT lives at most a year, and when it
+  lapses the Worker gets a 401 that is visible only in its own log. Put the
+  expiry date in a calendar the day you make it.
+- **Cron drift, if you ever go back to `schedule:`.** GitHub queues scheduled
+  runs on shared capacity and this repo saw them released three to five hours
+  late, most slots dropped, and some mornings missed entirely. That is what the
+  Worker exists to avoid; do not reintroduce a cron trigger expecting 9am.
 - **Team-name matching.** The Odds API spells some schools differently
   ("Miami (FL)", "Texas A&amp;M Aggies"). `scripts/lib/odds-api.mjs` normalises
   aggressively, but check the workflow log after the first run for

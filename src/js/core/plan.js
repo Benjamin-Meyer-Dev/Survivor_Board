@@ -12,6 +12,14 @@
  * Locking a pick is what commits it, and the coach re-plans the rest of the
  * season around whatever is locked.
  *
+ * The rest of it, and not the week the lock was made in. That week keeps the
+ * board the coach gave it: the calls and the fallbacks behind them answer to
+ * the odds and the results, and to nothing the user does in the week itself.
+ * Lock the coach's own first call and its second is still its second and its
+ * third is still its third - you agreed with the coach, which is no reason for
+ * the coach to change its mind. A week holding a lock is therefore ranked from
+ * a plan of its own, made as if its slots were open (memoisedAdvice).
+ *
  * The coach names twice what a week needs, ranked (`week.coachRanked`, and
  * `option.coachRank` on each of the week's rows): one pick a week gets a first
  * and a second choice, two picks a week get four. The order is the engine's
@@ -754,11 +762,44 @@ export function buildBoard({
   // week's list describes them. Only for a fresh plan: a stand-in's frontier
   // belongs to the locks it was planned around.
   board.frontier = fresh ? frontierOf(recommendation.frontier, weekByNumber, rules) : null;
-  // A search is still owed; app.js schedules it once this board is painted -
-  // unless one is already running somewhere else, in which case its landing is
-  // what asks for the next build.
-  board.recommendationPending = !fresh;
-  board.recommendationRunning = Boolean(searchRunning);
+
+  // The coach's board for a week does not move because you locked one of its
+  // slots. You lock what the coach said, and a decision taken is no reason for
+  // it to change its mind about the week you took it in: the week's calls and
+  // the fallbacks behind them move on the odds and the results, and on nothing
+  // else you do. So a week holding a lock is ranked from a plan made as if its
+  // own slots were open. Every OTHER lock is still a constraint - spending a
+  // team is precisely what the rest of the season has to plan around, and the
+  // coach's job is to do that - but the week the lock was made in keeps the
+  // board it had.
+  //
+  // One search per upcoming week that holds a lock, which is normally the week
+  // on the clock and nothing else. For that week the search is the one made
+  // before the lock, still under its own key in the cache, so the ordinary
+  // case costs nothing at all (memoisedAdvice). A week with no lock is already
+  // ranked without reference to one, and the board's own plan answers for it.
+  const adviceByWeek = new Map();
+  for (const week of board.weeks) {
+    if (week.week < currentWeek) continue;
+    if (!week.picks.some((pick) => pick.status.locked)) continue;
+    const advice = memoisedAdvice(
+      board,
+      plan,
+      odds,
+      form,
+      allowSearch,
+      planByWeek,
+      { calibration, availability, pool },
+      week.week,
+    );
+    if (advice) adviceByWeek.set(week.week, advice);
+  }
+  // A search is still owed - the board's plan, a week's advice, or both; app.js
+  // schedules it once this board is painted, unless one is already running
+  // somewhere else, in which case its landing is what asks for the next build.
+  const owed = [...adviceByWeek.values()];
+  board.recommendationPending = !fresh || owed.some((advice) => !advice.fresh);
+  board.recommendationRunning = Boolean(searchRunning) || owed.some((advice) => advice.running);
 
   // While a pick is being weighed, the ghosts in the open slots and the "if
   // locked" number come from a preview: the rest of the season re-solved
@@ -820,17 +861,35 @@ export function buildBoard({
     const settledTeams = new Set(
       week.options.filter((option) => option.result).map((option) => option.team),
     );
-    // Three names a plan can carry that are not the coach's call for this week:
+    // Which plan speaks for this week. A week holding a lock is read off its
+    // own advice plan, made as if its slots were open (memoisedAdvice), so
+    // what the coach says about the week never depends on what you did in it.
+    // Every other week is the board's own plan, which is already ranked
+    // without reference to a lock of its own.
+    const advice = adviceByWeek.get(week.week) ?? null;
+    const source = advice?.value ?? recommendation;
+    const obeyed = advice ? advice.constraints : constraints;
+    // The one name the advice plan can produce that the week cannot take: the
+    // other side of a game a lock has already taken. It never saw the lock, so
+    // it had no reason not to name its opponent.
+    const lockedOpponents = new Set(
+      [...lockedTeams].map((team) => week.optionByTeam.get(team)?.opponent).filter(Boolean),
+    );
+    // Four names a plan can carry that are not the coach's call for this week:
     // a team locked into another week since the plan was made, a lock the plan
     // was made around that has since been undone (both only from a stand-in,
-    // which a fresh search never produces), and a game that has been played
-    // since - which a cached plan can carry even when it was fresh when made.
-    // None wears the badge.
-    const planned = (recommendation.picks[week.week] ?? []).filter(
+    // which a fresh search never produces), a game that has been played since -
+    // which a cached plan can carry even when it was fresh when made - and the
+    // opponent of a lock. None wears the badge.
+    const callable = (team) =>
+      (spentTeams[team] === undefined || spentTeams[team] === week.week) &&
+      !obeyed.has(`${week.week}:${team}`) &&
+      !settledTeams.has(team) &&
+      !lockedOpponents.has(team);
+    const planned = (source.picks[week.week] ?? []).filter(
       (team) =>
         (spentTeams[team] === undefined || spentTeams[team] === week.week) &&
-        (lockedTeams.has(team) ||
-          (!constraints.has(`${week.week}:${team}`) && !settledTeams.has(team))),
+        (lockedTeams.has(team) || callable(team)),
     );
     // And one name it can miss: a lock made since it was planned. On the path
     // a locked slot holds its team, so the locks go first and the plan's own
@@ -847,9 +906,14 @@ export function buildBoard({
       const option = week.optionByTeam.get(team);
       return option ? [{ ...option, tier: confidenceTier(option.winProb, rules.tiers) }] : [];
     });
+    // Short of fixtures rather than short of plan, as the plan speaking for
+    // the week reported it.
+    const shortOfGames = advice
+      ? (advice.value.shortfalls ?? []).includes(week.week)
+      : shortWeeks.has(week.week);
     if (
       week.week >= currentWeek &&
-      !shortWeeks.has(week.week) &&
+      !shortOfGames &&
       week.pathRecommendation.length < rules.picksPerWeek
     ) {
       standInComplete = false;
@@ -923,21 +987,39 @@ export function buildBoard({
     // The coach's board for the week, best first: the calls above, then the
     // fallbacks behind them (see rankCalls in core/recommend.js). Filtered the
     // way the plan's own names are - a team locked into another week since, a
-    // lock a stand-in obeyed, a game already played - because a fallback is
-    // still advice and cannot name a team the board will not take.
-    const liveNames = (recommendation.ranked?.[week.week] ?? []).filter(
-      (team) =>
-        (spentTeams[team] === undefined || spentTeams[team] === week.week) &&
-        !constraints.has(`${week.week}:${team}`) &&
-        !settledTeams.has(team) &&
-        !lockedTeams.has(team),
-    );
-    // A lock is ranked no calls - the decision is taken - but it does not take
-    // the coach's board off the wall. The lock keeps the rank it was made at,
-    // and a week whose every slot is locked keeps the whole board as it stood
-    // (see rankTeams): the same history the call card's badge is (coachCall),
-    // so the two never disagree about what the coach said.
-    const rankByTeam = rankTeams(week, liveNames, coachCalls);
+    // lock a stand-in obeyed, a game already played, the opponent of a lock -
+    // because a fallback is still advice and cannot name a team the board will
+    // not take.
+    //
+    // A week with its own advice plan (`advice`) ranks the whole week, locks
+    // included, at the ranks the coach gave them: that plan never saw the
+    // locks, so its board is the board the week had before you touched it. The
+    // numbers there are counted over the plan's whole list, so a name the week
+    // cannot take leaves the board without moving the ones around it - the
+    // coach's second choice is its second whatever you have ruled out.
+    //
+    // Everywhere else a lock is ranked no call - the decision is taken - and
+    // the board is numbered around the rank each lock was made at (rankTeams).
+    // A lock does not take the coach's board off the wall: it keeps the rank it
+    // was made at, and a week whose every slot is locked keeps the whole board
+    // as it stood - the same history the call card's badge is (coachCall), so
+    // the two never disagree about what the coach said.
+    const rankByTeam = advice
+      ? rankBoard(
+          week,
+          source.ranked?.[week.week] ?? [],
+          // A lock stays on its week's board once its game has been played.
+          // The result is the week's history now, and the board is the record
+          // of what the coach made of it.
+          (team) => lockedTeams.has(team) || callable(team),
+        )
+      : rankTeams(
+          week,
+          (source.ranked?.[week.week] ?? []).filter(
+            (team) => callable(team) && !lockedTeams.has(team),
+          ),
+          coachCalls,
+        );
     week.coachRanked = [...rankByTeam]
       .sort(([, a], [, b]) => a - b)
       .map(([team, rank]) => {
@@ -1225,9 +1307,23 @@ function seedFor(board, planByWeek, holds) {
  * made for, and the base and the locks beside it are what let it stand in for
  * a near neighbour (standInFor). The rehearsals are deliberately not here -
  * they are a beat of a tap, not a board.
+ *
+ * The advice plans are, though (memoisedAdvice): they are plans for this board
+ * under a lock set of their own, and without them a cold launch on a week with
+ * a lock in it opens on that week's board a name or two short and fills it in
+ * a moment later - the very shuffle the advice plan exists to prevent.
  */
 export function exportPlans() {
-  return recommendationCache.map((entry) => ({ ...entry }));
+  // Interleaved, newest of each first, because whoever keeps these keeps only
+  // the first few (store/plans.js): a board and the advice for the week it has
+  // a lock in are one board's worth of plan, and neither is much use alone.
+  const plans = [];
+  const depth = Math.max(recommendationCache.length, adviceCache.length);
+  for (let index = 0; index < depth; index += 1) {
+    if (recommendationCache[index]) plans.push({ ...recommendationCache[index] });
+    if (adviceCache[index]) plans.push({ ...adviceCache[index] });
+  }
+  return plans;
 }
 
 /**
@@ -1275,6 +1371,32 @@ function rememberRehearsal(entry) {
     entry,
     ...rehearsalCache.filter((kept) => kept.signature !== entry.signature),
   ].slice(0, CACHE_SIZE);
+}
+
+/**
+ * A week ranked as if its own slots were open (memoisedAdvice). Kept apart
+ * from the plans for the same reason the rehearsals are: a board with a lock
+ * in it asks for one of these on every build, and they must not push the
+ * board's own plan out of its cache.
+ *
+ * One per week that holds a lock, so it is kept deep enough for a whole
+ * season of them and then some. Anything shallower would thrash on a board
+ * locked a long way ahead - each build evicting the week before it and
+ * searching again for a plan it had a moment ago.
+ */
+const ADVICE_CACHE_SIZE = 24;
+let adviceCache = [];
+
+function rememberAdvice(entry) {
+  adviceCache = [entry, ...adviceCache.filter((kept) => kept.signature !== entry.signature)].slice(
+    0,
+    ADVICE_CACHE_SIZE,
+  );
+}
+
+/** The locks a week's own board is not planned around: every lock but its own. */
+function locksOutside(week) {
+  return (pick) => Boolean(pick.status.locked) && pick.week !== week;
 }
 
 /**
@@ -1382,6 +1504,75 @@ function memoisedPreview(board, plan, odds, form, planByWeek, inputs, target = n
   const value = hit?.value ?? recommendForBoard(board, null, { holdPicks: holds, quick: true });
   if (!hit) previewCache = [{ signature, value }, ...previewCache].slice(0, CACHE_SIZE);
   return { value, pending: running.has(signature) };
+}
+
+/**
+ * The coach's board for one week, planned as if that week's slots were open.
+ *
+ * A lock is a decision, and the coach works around the decisions you have
+ * taken - in every week but the one you took them in. There, the lock would be
+ * re-planning the very advice it was following: lock the coach's own first
+ * call in a two-pick week and the week's second call kept its place while the
+ * fallbacks behind it were re-ranked around a slot that was no longer open, so
+ * the coach's third choice for the week changed the moment you agreed with its
+ * first. Ranked from here instead, the week keeps its whole board - the locks
+ * sitting at the ranks the coach gave them - and only the odds and the results
+ * move it.
+ *
+ * The same search as a plan's, under its own key: every lock but this week's.
+ * For the week on the clock with nothing locked ahead, that key is the plan
+ * made before the lock, which the cache still has, so the common case searches
+ * nothing. Otherwise it is handed off like any other search, with the closest
+ * plan standing in until it lands (standInFor), and `fresh` says which.
+ *
+ * Null for an eliminated entry - the coach has stood down - and for a board
+ * with no plan to stand in either, where the caller keeps what it had.
+ *
+ * @param {number} week The week to rank.
+ * @returns {{value: object, fresh: boolean, running: boolean,
+ *            constraints: Set<string>}|null}
+ */
+function memoisedAdvice(board, plan, odds, form, allowSearch, planByWeek, inputs, week) {
+  if (board.eliminated) return null;
+  const holds = locksOutside(week);
+  const base = signatureBase(board, plan, odds, form, inputs);
+  const locks = locksOf(board, holds);
+  const signature = signatureOf(base, locks);
+
+  const made =
+    recommendationCache.find((entry) => entry.signature === signature) ??
+    adviceCache.find((entry) => entry.signature === signature);
+  if (made) {
+    return { value: made.value, fresh: true, running: false, constraints: NO_CONSTRAINTS };
+  }
+
+  const standIn = () => {
+    const { value, constraints } = standInFor(base, locks, [
+      ...recommendationCache,
+      ...adviceCache,
+    ]);
+    return value ? { value, fresh: false, running: running.has(signature), constraints } : null;
+  };
+
+  if (!allowSearch) return standIn();
+
+  const runner = searchRunner();
+  if (runner) {
+    handOff(runner, {
+      signature,
+      request: searchRequestFor(board, seedFor(board, planByWeek, holds), { holdPicks: holds }),
+      keep: (value) => rememberAdvice({ signature, base, locks, value }),
+      // Not what startup waits for: the board's own plan is, and a week's
+      // board stands in from the closest plan meanwhile, exactly as it does
+      // while the plan itself is out.
+      rehearsal: true,
+    });
+    return standIn();
+  }
+
+  const value = recommendForBoard(board, seedFor(board, planByWeek, holds), { holdPicks: holds });
+  rememberAdvice({ signature, base, locks, value });
+  return { value, fresh: true, running: false, constraints: NO_CONSTRAINTS };
 }
 
 /**
@@ -1507,10 +1698,14 @@ export function searchesSettled({ rehearsals = false } = {}) {
  * most recent plan for the same base stands in, and its former locks come back
  * as constraints so those weeks show no call rather than the wrong one. A plan
  * for another base - another league, other odds - never stands in.
+ *
+ * @param {Array} [pool] The plans to choose from. The board's own by default;
+ *   a week's advice adds the advice plans, which are plans for the same board
+ *   under a lock set of their own (memoisedAdvice).
  */
-function standInFor(base, locks) {
+function standInFor(base, locks, pool = recommendationCache) {
   const current = new Set(locks.map((lock) => lock.key));
-  const candidates = recommendationCache.filter((entry) => entry.base === base);
+  const candidates = pool.filter((entry) => entry.base === base);
   if (candidates.length === 0) return { value: null, fresh: false, constraints: NO_CONSTRAINTS };
 
   // Stable sort, so among equal sizes the more recent plan keeps its place.
@@ -1592,6 +1787,39 @@ function eliminationOf(weekByNumber, outcome) {
  * @returns {Map<string, number>} Team to 1-based rank, ranked teams only,
  *   every one of them in the week's list.
  */
+/**
+ * The week's board as one plan gave it, numbered from one.
+ *
+ * For a week with an advice plan of its own (memoisedAdvice), where the names
+ * arrive already ranked and already carry the locks at the ranks the coach
+ * gave them. Nothing is merged in: that is the whole point of the plan, and a
+ * lock's saved snapshot has nothing to add to a board the lock did not move.
+ *
+ * A name the week cannot take is counted and then dropped rather than skipped,
+ * so the ranks below it keep their numbers. Lock a team's opponent and the team
+ * leaves the board, but the coach's second choice is still numbered second: no
+ * rank on the board moves for anything the user does.
+ *
+ * @param {object} week
+ * @param {string[]} names The coach's ranking for the week, best first.
+ * @param {(team:string) => boolean} takeable Whether the week can still hold
+ *   the team, and so whether it belongs on the board at all.
+ * @returns {Map<string, number>} Team to 1-based rank, every one of them in
+ *   the week's list.
+ */
+function rankBoard(week, names, takeable) {
+  const ranks = new Map();
+  const seen = new Set();
+  let rank = 0;
+  for (const team of names) {
+    if (seen.has(team) || !week.optionByTeam.has(team)) continue;
+    seen.add(team);
+    rank += 1;
+    if (takeable(team)) ranks.set(team, rank);
+  }
+  return ranks;
+}
+
 function rankTeams(week, liveNames, coachCalls) {
   const ranks = new Map();
   const listed = (team) => week.optionByTeam.has(team);

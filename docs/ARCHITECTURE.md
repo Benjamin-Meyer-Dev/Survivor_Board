@@ -2,12 +2,22 @@
 
 ## The shape of it
 
-A static site with no build step, one scheduled job, and one tiny database.
+A static site with no build step, one daily job, and one tiny database. The
+job's clock lives outside GitHub, because GitHub's cron could not keep it.
 
 ```
                       ┌──────────────────────────┐
-   once a day ───────▶│ .github/workflows/       │
+  9am Toronto ───────▶│ scheduler/  a Cloudflare │
+                      │   Worker with the clock  │
+                      └────────────┬─────────────┘
+                                   │ workflow_dispatch, honoured
+                                   │ within seconds
+                                   ▼
+                      ┌──────────────────────────┐
+                      │ .github/workflows/       │
                       │   refresh-odds.yml       │
+                      │   9:00-9:14 local, or    │
+                      │   the day is skipped     │
                       └────────────┬─────────────┘
                                    │ node scripts/refresh-odds.mjs
                                    ▼
