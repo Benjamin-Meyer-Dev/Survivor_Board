@@ -10,9 +10,26 @@
  *
  * Nothing else runs here. There is no fetch handler on purpose: a public URL
  * that starts the job would let anyone spend the day's API credits. To try it
- * without waiting for 9am, run `npx wrangler dev --test-scheduled` and curl
- * the local `/__scheduled` endpoint, which exists only in dev.
+ * without waiting for 9am, see README.md here - there is a way that costs
+ * nothing.
  */
+
+/**
+ * Everything but the token, with defaults, so this file works pasted straight
+ * into the Cloudflare dashboard - which does not read wrangler.toml. A
+ * `wrangler deploy` overrides each of these from the toml's [vars]. Either
+ * way GITHUB_TOKEN is a secret and has no default.
+ */
+const DEFAULTS = {
+  GITHUB_OWNER: "Benjamin-Meyer-Dev",
+  GITHUB_REPO: "Survivor_Board",
+  GITHUB_REF: "main",
+  WORKFLOW_FILE: "refresh-odds.yml",
+  REFRESH_TIMEZONE: "America/Toronto",
+  REFRESH_HOUR: "9",
+};
+
+const setting = (env, key) => env[key] ?? DEFAULTS[key];
 
 export default {
   async scheduled(event, env, ctx) {
@@ -21,15 +38,15 @@ export default {
 };
 
 /**
- * Cloudflare's cron is UTC-only, so wrangler.toml asks for both UTC hours that
- * 9am Toronto can fall in and this drops the one that is not 9am today. That
- * is what holds the local hour steady across daylight saving, and it is the
- * same trick the workflow's own window check uses at the other end.
+ * Cloudflare's cron is UTC-only, so both UTC hours that 9am Toronto can fall
+ * in are asked for and this drops the one that is not 9am today. That is what
+ * holds the local hour steady across daylight saving, and it is the same trick
+ * the workflow's own window check uses at the other end.
  */
 async function dispatch(env) {
-  const timeZone = env.REFRESH_TIMEZONE;
+  const timeZone = setting(env, "REFRESH_TIMEZONE");
   const hour = localHour(timeZone);
-  const wanted = Number(env.REFRESH_HOUR);
+  const wanted = Number(setting(env, "REFRESH_HOUR"));
   if (hour !== wanted) {
     console.log(
       `${pad(hour)}:00 in ${timeZone}, not ${pad(wanted)}:00. ` +
@@ -38,9 +55,20 @@ async function dispatch(env) {
     return;
   }
 
+  const owner = setting(env, "GITHUB_OWNER");
+  const repo = setting(env, "GITHUB_REPO");
+  const workflow = setting(env, "WORKFLOW_FILE");
+  const ref = setting(env, "GITHUB_REF");
+
+  if (!env.GITHUB_TOKEN) {
+    throw new Error(
+      "GITHUB_TOKEN is not set. Add it as a secret - Settings, " +
+        "Variables and Secrets - or the dispatch cannot be authorised.",
+    );
+  }
+
   const url =
-    `https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}` +
-    `/actions/workflows/${env.WORKFLOW_FILE}/dispatches`;
+    `https://api.github.com/repos/${owner}/${repo}` + `/actions/workflows/${workflow}/dispatches`;
 
   // A transient 5xx at 9:00:00 would otherwise cost the day: Cloudflare does
   // not retry a failed cron, and the workflow skips a dispatch that arrives
@@ -58,10 +86,10 @@ async function dispatch(env) {
           "X-GitHub-Api-Version": "2022-11-28",
           "Content-Type": "application/json",
           // GitHub rejects an API call with no User-Agent.
-          "User-Agent": `${env.GITHUB_REPO}-refresh-scheduler`,
+          "User-Agent": `${repo}-refresh-scheduler`,
         },
         body: JSON.stringify({
-          ref: env.GITHUB_REF,
+          ref,
           // What tells refresh-odds.yml this is the 9am pull and not someone
           // testing from the Actions tab. Only this one is held to the window.
           inputs: { reason: "scheduled" },
@@ -70,7 +98,7 @@ async function dispatch(env) {
 
       // 204 No Content is the success case for a dispatch.
       if (response.ok) {
-        console.log(`Dispatched ${env.WORKFLOW_FILE} on ${env.GITHUB_REF}.`);
+        console.log(`Dispatched ${workflow} on ${ref}.`);
         return;
       }
 
