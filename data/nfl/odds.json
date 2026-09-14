@@ -1,6 +1,6 @@
 {
   "$comment": "Written by the refresh workflow. Line keys are \"<week>|<team>\", and the same keys carry W/L in `results` for the board and the signed margin in `scores` for the form.json rating fit.",
-  "updatedAt": "2026-09-13T13:44:40Z",
+  "updatedAt": "2026-09-14T15:49:20Z",
   "currentWeek": 1,
   "lines": {
     "1|Seahawks": {
@@ -424,33 +424,33 @@
       "kickoff": "2026-09-14T00:20:00Z"
     },
     "1|Chiefs": {
-      "spread": -2.5,
+      "spread": -2,
       "total": 43.5,
       "source": "market",
-      "winProb": 0.5822,
-      "moneyline": -135,
-      "moneylineProb": 0.5555,
+      "winProb": 0.5653,
+      "moneyline": -130,
+      "moneylineProb": 0.5409,
       "books": 9,
       "moneylineBooks": 9,
       "capped": 0,
       "opened": -2.5,
       "openedAt": "2026-09-04T21:10:12Z",
-      "updatedAt": "2026-09-13T13:44:40Z",
+      "updatedAt": "2026-09-14T15:49:20Z",
       "kickoff": "2026-09-15T00:15:00Z"
     },
     "1|Broncos": {
-      "spread": 2.5,
+      "spread": 2,
       "total": 43.5,
       "source": "market",
-      "winProb": 0.4178,
-      "moneyline": 115,
-      "moneylineProb": 0.4445,
+      "winProb": 0.4347,
+      "moneyline": 110,
+      "moneylineProb": 0.4591,
       "books": 9,
       "moneylineBooks": 9,
       "capped": 0,
       "opened": 2.5,
       "openedAt": "2026-09-04T21:10:12Z",
-      "updatedAt": "2026-09-13T13:44:40Z",
+      "updatedAt": "2026-09-14T15:49:20Z",
       "kickoff": "2026-09-15T00:15:00Z"
     },
     "1|Rams": {
@@ -488,22 +488,80 @@
     "1|Seahawks": "W",
     "1|Patriots": "L",
     "1|Rams": "L",
-    "1|49ers": "W"
+    "1|49ers": "W",
+    "1|Jaguars": "W",
+    "1|Browns": "L",
+    "1|Bengals": "W",
+    "1|Buccaneers": "L",
+    "1|Steelers": "W",
+    "1|Falcons": "L",
+    "1|Titans": "L",
+    "1|Jets": "W",
+    "1|Texans": "L",
+    "1|Bills": "W",
+    "1|Panthers": "L",
+    "1|Bears": "W",
+    "1|Colts": "L",
+    "1|Ravens": "W",
+    "1|Lions": "W",
+    "1|Saints": "L",
+    "1|Eagles": "W",
+    "1|Commanders": "L",
+    "1|Vikings": "W",
+    "1|Packers": "L",
+    "1|Raiders": "W",
+    "1|Dolphins": "L",
+    "1|Chargers": "L",
+    "1|Cardinals": "W",
+    "1|Giants": "W",
+    "1|Cowboys": "L"
   },
   "scores": {
     "1|Seahawks": 3,
     "1|Patriots": -3,
     "1|Rams": -20,
-    "1|49ers": 20
+    "1|49ers": 20,
+    "1|Jaguars": 24,
+    "1|Browns": -24,
+    "1|Bengals": 6,
+    "1|Buccaneers": -6,
+    "1|Steelers": 7,
+    "1|Falcons": -7,
+    "1|Titans": -13,
+    "1|Jets": 13,
+    "1|Texans": -5,
+    "1|Bills": 5,
+    "1|Panthers": -22,
+    "1|Bears": 22,
+    "1|Colts": -18,
+    "1|Ravens": 18,
+    "1|Lions": 1,
+    "1|Saints": -1,
+    "1|Eagles": 2,
+    "1|Commanders": -2,
+    "1|Vikings": 17,
+    "1|Packers": -17,
+    "1|Raiders": 14,
+    "1|Dolphins": -14,
+    "1|Chargers": -12,
+    "1|Cardinals": 12,
+    "1|Giants": 8,
+    "1|Cowboys": -8
   },
-  "flags": [],
+  "flags": [
+    {
+      "week": 1,
+      "kind": "recommendation",
+      "message": "Recommendation moved in 5 week(s): wk1 Chiefs; wk7 Vikings; wk11 Cowboys; wk17 Bills; wk18 Texans"
+    }
+  ],
   "recommendation": {
     "picks": {
       "1": [
-        "Steelers"
+        "Chiefs"
       ],
       "2": [
-        "Chargers"
+        "Eagles"
       ],
       "3": [
         "49ers"
@@ -518,7 +576,7 @@
         "Rams"
       ],
       "7": [
-        "Texans"
+        "Vikings"
       ],
       "8": [
         "Bengals"
@@ -530,7 +588,7 @@
         "Colts"
       ],
       "11": [
-        "Chiefs"
+        "Cowboys"
       ],
       "12": [
         "Jaguars"
@@ -548,78 +606,36 @@
         "Ravens"
       ],
       "17": [
-        "Vikings"
+        "Bills"
       ],
       "18": [
-        "Bills"
+        "Texans"
       ]
     },
-    "pathProbability": 0.04133,
+    "pathProbability": 0.015704,
     "frontier": {
       "week": 1,
       "scenarios": 32,
       "pool": {
         "mode": "safest",
         "source": "implied",
-        "floor": 0.6666666666666666,
-        "covered": true
+        "floor": 0.7,
+        "covered": false
       },
       "candidates": [
         {
           "teams": [
-            "Steelers"
+            "Chiefs"
           ],
-          "weekWinProb": 0.7204,
-          "season": 0.04133,
-          "scenarioMean": 0.041517,
-          "robust": 1,
-          "seasonCost": 0.01,
-          "scenarioCost": 0.0109,
-          "leverage": 1.063,
-          "equity": 0.044124,
-          "chosen": true
-        },
-        {
-          "teams": [
-            "Chargers"
-          ],
-          "weekWinProb": 0.8025,
-          "season": 0.041749,
-          "scenarioMean": 0.041974,
+          "weekWinProb": 0.5653,
+          "season": 0.015704,
+          "scenarioMean": 0.016555,
           "robust": 1,
           "seasonCost": 0,
           "scenarioCost": 0,
-          "leverage": 1.053,
-          "equity": 0.0442,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Raiders"
-          ],
-          "weekWinProb": 0.6049,
-          "season": 0.040205,
-          "scenarioMean": 0.040469,
-          "robust": 0.375,
-          "seasonCost": 0.037,
-          "scenarioCost": 0.0359,
-          "leverage": 1.069,
-          "equity": 0.043242,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Cowboys"
-          ],
-          "weekWinProb": 0.6049,
-          "season": 0.040205,
-          "scenarioMean": 0.040433,
-          "robust": 0.375,
-          "seasonCost": 0.037,
-          "scenarioCost": 0.0367,
-          "leverage": 1.069,
-          "equity": 0.043204,
-          "chosen": false
+          "leverage": 1.155,
+          "equity": 0.019117,
+          "chosen": true
         }
       ]
     }
