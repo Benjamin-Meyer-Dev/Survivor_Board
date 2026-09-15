@@ -133,7 +133,44 @@
   padding: 10px var(--gutter) 0;
 }
 
-/* The drawer fills the rest and scrolls inside itself. */
+/* The field's box is a grid of one row so that the row can be run down to
+   nothing and back - a height the stylesheet can travel between without
+   anything having to measure the field first, since a fraction in a track
+   whose container is sized by its content resolves to that content. The box
+   is the field's, not the readout's: a readout laid out in tracks would have
+   its own height to answer to sideways, where the column is a fixed one and a
+   fraction in it would take every pixel the call was not using. */
+.readout > #pitch {
+  display: grid;
+  grid-template-rows: 1fr;
+  /* clip rather than hidden, with the four pixels the field's focus ring
+     needs: hidden would take the ring off a field somebody had tabbed to, in
+     every state including the open one. */
+  overflow: clip;
+  overflow-clip-margin: 4px;
+}
+
+/* The field standing in that track. Its own floor is what is in it, so a
+   track told to be nothing would still be held open at the field's 152 pixels
+   unless the thing standing in it says it can be shorter - and the same floor
+   sideways would hold it open at the width of eighteen weeks. A grid item is
+   floored at its content on both axes, and the field's content is a field: it
+   grew to the full 856 of its yard lines, took the drive line's season tag out
+   past the edge with it, and the box clipped the pair of them. The field
+   scrolls because it is narrower than what is in it, so the one thing it
+   cannot be told is to be as wide as what is in it. */
+.readout > #pitch > * {
+  min-height: 0;
+  min-width: 0;
+}
+
+/* The drawer fills the rest and scrolls inside itself. Its grab - the handle
+   that raises it over the field - is a phone control and starts hidden; the
+   phone block below is where it is shown. */
+.drawer__grab {
+  display: none;
+}
+
 .drawer {
   flex: 1;
   display: flex;
@@ -160,12 +197,166 @@
   display: none;
 }
 
+/* raised ---------------------------------------------------------------------- */
+
+/* The drawer over the field (ui/drawer.js).
+
+   Below the wide layout the readout and the drawer share one screen, and the
+   readout has the better part of it: the field, the drive line and a call card
+   that is twice as tall again in a pool taking two picks a week. That is the
+   right split while you are reading the week and the wrong one while you are
+   working down a list of a hundred teams, so the drawer can be pulled up over
+   it. The field's row runs down to nothing, the call goes to a line a slot
+   (components.css), and the list takes what it leaves - four rows becomes
+   most of the screen.
+
+   The grab is a phone control: from 900px the panels stand side by side with
+   room to spare and there is nothing to raise. */
+@media (max-width: 899px) {
+  .drawer__grab {
+    display: flex;
+  }
+
+  /* The grab is the drawer's own top edge, and an edge is separation enough:
+     the turf between the call and the chalkboard comes down by half to pay
+     part of what the strip costs the list. */
+  .drawer {
+    margin-top: 6px;
+  }
+
+  /* The fold, and the gap under it: a field folded to nothing would otherwise
+     leave its 10px behind as a bar of nothing above the call. */
+  .readout {
+    transition: gap 280ms var(--ease-out);
+  }
+
+  .board.is-raised .readout {
+    gap: 0;
+  }
+
+  /* The field goes before the fold closes rather than squashing into it: a
+     yard line is a column of text set on its side, and the last frames of a
+     squash are unreadable. Coming back it is the other way round - the room
+     is made first, and the field is drawn into it. */
+  .readout > #pitch {
+    transition:
+      grid-template-rows 280ms var(--ease-out),
+      opacity 160ms ease 120ms;
+  }
+
+  .board.is-raised .readout > #pitch {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition-delay: 0ms, 0ms;
+  }
+}
+
+/* sideways ------------------------------------------------------------------- */
+
+/* The board turned on its side.
+
+   A phone held sideways has all of the field's width and almost none of its
+   height: stacked, the readout alone is taller than the whole screen and the
+   drawer falls off the bottom, so the one thing you touch is the one thing you
+   cannot reach. The split turns with the phone. The readout keeps the left,
+   the drawer takes the right - the same two halves as portrait, through a
+   quarter turn - and each scrolls inside itself. Sideways the thumbs rest at
+   the two side edges rather than along the bottom, so the drawer held against
+   the right edge is the nearer of the two to the hand.
+
+   Keyed on the height rather than on the orientation alone: what breaks the
+   stack is a viewport with no room in it, and a short desktop window is the
+   same screen. Every phone landscape is under this; a tablet sideways is 768
+   and up and keeps the wide layout below. */
+@media (orientation: landscape) and (max-height: 560px) {
+  .shell {
+    /* The gutter comes in a size. Sideways the screen is short of height, not
+       of width - but the notch is now on one of the sides, so the inset still
+       wins where there is one. */
+    --gutter: max(var(--sp-3), env(safe-area-inset-left));
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(272px, 40%, 380px);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+      "topline topline"
+      "readout drawer";
+    /* The columns scroll, not the board: the topline and the seam between them
+       hold still, the way the readout holds still in portrait. */
+    overflow: hidden;
+  }
+
+  .topline {
+    grid-area: topline;
+    padding-top: calc(6px + env(safe-area-inset-top));
+  }
+
+  .readout {
+    grid-area: readout;
+    min-height: 0;
+    gap: 8px;
+    padding-bottom: calc(var(--sp-3) + env(safe-area-inset-bottom));
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+  }
+
+  /* The column scrolls; nothing in it is squeezed to fit. The readout is a
+     flex column with a height to answer to now, and a flex item short of room
+     gives its own away first: the field came out of the turn 10px inside its
+     own box with the drive line ruled across it, and on the shortest screens
+     the call had climbed over both. */
+  .readout > * {
+    flex: none;
+  }
+
+  /* The raise is the same squeeze answered standing up: the field's row folded
+     to nothing and the drawer pulled over it (ui/drawer.js). Sideways the
+     field is not above the drawer, the grab is not on the board, and a raise
+     taken in portrait and carried round by a turn of the phone would fold the
+     field away with nothing left to bring it back. The board sideways is never
+     raised, whatever it was left holding. */
+  .board.is-raised .readout {
+    gap: 8px;
+  }
+
+  .board.is-raised .readout > #pitch {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+
+  .drawer {
+    grid-area: drawer;
+    min-height: 0;
+    margin-top: 0;
+    /* The seam. The drawer is a surface of its own and says so, the way its
+       chalkboard does across the foot in portrait. */
+    border-left: 1px solid var(--line);
+  }
+
+  /* The grab raises the drawer over the field to buy it height (ui/drawer.js).
+     Sideways there is nothing above it to fold away and no height to win: the
+     drawer already has the column, top to bottom. */
+  .drawer__grab {
+    display: none;
+  }
+
+  /* The right edge is where the notch lands when the phone is turned the other
+     way, and the panel is what runs up against it. */
+  .drawer__panel {
+    padding-right: max(var(--gutter), env(safe-area-inset-right));
+  }
+}
+
 /* wide ----------------------------------------------------------------------- */
 
 /* The desktop follows the phone: the same field across the top, the call under
    it, and the drawer's three panels open side by side rather than behind
-   tabs. */
-@media (min-width: 900px) {
+   tabs. The height is asked about as well as the width, because a phone turned
+   sideways is 900 across too - and a three-column board 430 tall is three
+   slivers, each scrolling a list five times its own height. */
+@media (min-width: 900px) and (min-height: 561px) {
   .shell {
     --gutter: var(--sp-6);
   }

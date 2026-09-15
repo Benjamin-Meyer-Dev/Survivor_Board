@@ -101,6 +101,13 @@
         </section>
 
         <section class="drawer" id="drawer" aria-label="The drawer">
+          <!-- The grab: raises the drawer over the field when the list needs
+               the screen (ui/drawer.js). -->
+          <button type="button" class="drawer__grab" id="grab" aria-pressed="false">
+            <span class="drawer__grab-bar" aria-hidden="true"></span>
+            <span class="u-visually-hidden drawer__grab-label"></span>
+          </button>
+
           <div class="drawer__tabs" role="tablist" aria-label="Drawer panels" id="tabs"></div>
 
           <div class="drawer__panels" id="views">

@@ -1586,6 +1586,21 @@
   margin-bottom: 6px;
 }
 
+/* Two picks a week put the row on half a card, where a locked winner the coach
+   called - a tier, a Coach and a Won, which is the ordinary end state of every
+   week that has been played - came to nine pixels more than the row had and
+   took a second line, and with it twenty-eight pixels off the list below. The
+   marks come in rather than wrap: the same chips, spaced the way a half-width
+   row can afford. The long tiers still wrap, and should - a close call is
+   worth a line. */
+.call__slots--two .call__marks {
+  gap: 4px;
+}
+
+.call__slots--two .call__marks .chip {
+  padding: 0 6px;
+}
+
 .call__eyebrow--coach,
 .call__slot--empty .call__eyebrow {
   color: var(--flag);
@@ -1810,7 +1825,79 @@
   outline-color: var(--danger);
 }
 
+/* The call with the drawer raised over the field (ui/drawer.js).
+
+   The head stays whole - the week, and the action, which is the reason the
+   card is on screen at all while you are picking out of the list. Under it
+   each slot keeps the two things that say what it is holding, on one line:
+   what the slot is, and the team in it. The marks, the game and its numbers
+   are the week being read rather than the week being filled, and they come
+   back with the field.
+
+   The two rows that stay keep the order they had, so the fold reads as the
+   card closing rather than as a different card: the eyebrow over the team, at
+   the size a slot half a card wide has always used. The name goes to one line
+   and ellipsises - a slot that is two lines tall folded is not folded. */
+.board.is-raised .call__marks,
+.board.is-raised .call__matchup,
+.board.is-raised .call__tiles {
+  display: none;
+}
+
+.board.is-raised .call__team,
+.board.is-raised .call__slots--two .call__team {
+  font-size: 22px;
+  line-height: 24px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.board.is-raised .call__slots--two .call__slot {
+  padding: 6px 8px 8px;
+}
+
 /* the drawer (ui/tabs.js) ---------------------------------------------------- */
+
+/* The grab: the drawer's top edge, as a thing to pull.
+
+   One chalk bar across the middle of a strip the full width of the drawer, so
+   the target is the edge rather than the mark on it - the mark says which edge
+   and the edge takes the tap. Raised, the bar takes the flag: it is the one
+   part of the board still saying the field is folded away under it.
+
+   Whether there is a field to raise the drawer over at all is a question about
+   the shape of the screen, so where it shows is layout.css's. */
+.drawer__grab {
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.drawer__grab-bar {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--chalk-3);
+  transition:
+    background-color 180ms ease,
+    width 220ms var(--ease-out);
+}
+
+.drawer__grab:hover .drawer__grab-bar {
+  background: var(--chalk-2);
+}
+
+.drawer__grab[aria-pressed="true"] .drawer__grab-bar {
+  width: 56px;
+  background: var(--flag);
+}
 
 /* A strip of tabs along the top of the chalkboard: the open one is chalked
    bright with the flag drawn under it. */
@@ -2739,11 +2826,19 @@
   opacity: 0.7;
 }
 
+/* The head's box is the name's cap line, not the tools' disc and not the
+   font's leading. The chips below answer to the ink they sit under, and two
+   things were pushing them off it: a 36px disc beside a 27px line, which set
+   the head's height at 30 rather than 27, and the 2-3px of leading the name's
+   own line box carries below its caps. Six pixels of the card's 12px gap were
+   going on neither of them, so the name stood further from its own chips than
+   the chips stand from the code. Both come back off the foot. */
 .home__card-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+  margin-bottom: -6px;
 }
 
 /* the roster ----------------------------------------------------------------- */
@@ -2898,12 +2993,14 @@
    The lift: the name's first line box is 27px and its caps are 22 of that, so
    the ink centres 12.5px down, while a 36px disc centres 18px down. Six pixels
    up puts the disc half a pixel high, which is where a round thing beside
-   uppercase wants to be. */
+   uppercase wants to be. The same six comes off the bottom so the disc cannot
+   set the head's height either: it is hung on the name's line, and a thing
+   hung on a line has no say in how far the next one sits. */
 .home__card-tools {
   display: flex;
   gap: 6px;
   flex: none;
-  margin-top: -6px;
+  margin-block: -6px;
 }
 
 .home__icon {
@@ -3733,9 +3830,225 @@
   }
 }
 
+/* sideways --------------------------------------------------------------------- */
+
+/* Turned sideways the board splits left and right instead of top and bottom
+   (layout.css). The readout has a column rather than the whole width, and a
+   screen 390 tall to stand in, so everything in it gives up the height it can
+   spare to land the call above the fold - and nothing gives up a target. The
+   type comes down a step, the padding comes in, and the field loses the air
+   above and below its lanes rather than the lanes. */
+@media (orientation: landscape) and (max-height: 560px) {
+  /* The title block goes back to one line's worth of weight: sideways the
+     league's name is a label on the board, not the headline of a page. */
+  .league-bar__name {
+    font-size: 19px;
+  }
+
+  .league-bar__showing {
+    font-size: 12px;
+  }
+
+  .pitch {
+    gap: 6px;
+  }
+
+  /* Shorter, and the weeks narrower with it: a column of 38 still holds a
+     lane, a name and a number, and four more weeks on the field is four fewer
+     worth panning for. The height is what a name can be read at and no more -
+     a yard line's name is set on its side, so the field's height is the length
+     of the word, and the 104 that fitted the column cut SEAHAWKS to SEAHAV. */
+  .pitch__field {
+    --zone-w: 26px;
+    --yard-w: 38px;
+    height: 124px;
+  }
+
+  /* A step down buys back most of what the shorter field costs: the name is
+     cut at a pixel length, so a smaller one fits more of the word into it. */
+  .pitch__label {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+  }
+
+  .pitch__zone span {
+    font-size: 10px;
+    letter-spacing: 0.22em;
+  }
+
+  .pitch__lanes {
+    top: 5px;
+    bottom: 34px;
+  }
+
+  .pitch__ball {
+    bottom: 17px;
+  }
+
+  .pitch__num {
+    bottom: 3px;
+  }
+
+  /* The drive line is read at a glance and never tapped, so it is the one row
+     here that can afford to be quiet and small. */
+  .pitch__drive {
+    gap: 8px;
+  }
+
+  .pitch__stat-value,
+  .pitch__stat-value #countdown,
+  .pitch__tag-value {
+    font-size: 14px;
+  }
+
+  .pitch__tag {
+    padding: 2px 8px;
+  }
+
+  .call {
+    gap: 8px;
+  }
+
+  .call__box {
+    gap: 6px;
+    padding: 7px 10px 8px;
+  }
+
+  /* The one line that was only ever this big because there was room for it.
+     The card's two controls keep every pixel of theirs. */
+  .call__team {
+    font-size: 30px;
+  }
+
+  /* A lone slot puts its numbers beside the name rather than under it, the
+     same move the desktop makes for the same reason: the readout's column is
+     short of height and has width going spare, and the tiles on their own row
+     were the last thing on the card and the first thing off the bottom of it.
+     Only the one-slot pool - two slots already split this width between them
+     and each is a portrait card again. */
+  .call__slots:not(.call__slots--two) .call__slot {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "eyebrow eyebrow"
+      "marks marks"
+      "team tiles"
+      "matchup tiles";
+    align-items: end;
+    column-gap: 16px;
+  }
+
+  .call__slots:not(.call__slots--two) .call__eyebrow {
+    grid-area: eyebrow;
+  }
+
+  .call__slots:not(.call__slots--two) .call__marks {
+    grid-area: marks;
+  }
+
+  .call__slots:not(.call__slots--two) .call__team {
+    grid-area: team;
+  }
+
+  .call__slots:not(.call__slots--two) .call__matchup {
+    grid-area: matchup;
+  }
+
+  .call__slots:not(.call__slots--two) .call__tiles {
+    grid-area: tiles;
+    grid-template-columns: repeat(2, auto);
+  }
+
+  .call__slots--two .call__team {
+    font-size: 22px;
+  }
+
+  /* The tabs are the drawer's own head and sit at the top of its column, where
+     in portrait they sit at the top of its band. Shorter, because the column
+     under them is all the drawer has. */
+  .tab {
+    height: 40px;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+  }
+
+  /* One card a row, the same answer the narrowest panel on the desktop gives,
+     and for the reason written there: a name broken mid-word is worse than a
+     longer list. The drawer's column leaves the bench 316 and two tracks of
+     155 - forty pixels under what portrait's 362 gives them, and the forty
+     that were holding SEAHAWKS and BRONCOS on one line each. */
+  .bench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The call card the raise trims down, back in full (layout.css says why the
+     board sideways is never raised). Restated rather than reverted: these are
+     the values the rules above set, and there is nothing in `revert` that
+     knows about an author's earlier rule. */
+  .board.is-raised .call__marks {
+    display: flex;
+  }
+
+  .board.is-raised .call__matchup {
+    display: block;
+  }
+
+  .board.is-raised .call__tiles {
+    display: grid;
+  }
+
+  .board.is-raised .call__team {
+    font-size: 30px;
+    line-height: 1;
+    white-space: normal;
+  }
+
+  .board.is-raised .call__slots--two .call__team {
+    font-size: 22px;
+  }
+
+  /* The home page loses its hero. Sideways the head is a masthead rather than
+     a headline: the wordmark and the name come down to a size that leaves the
+     cards - the only thing on this page anyone came for - on the screen. */
+  #home {
+    padding-top: calc(var(--sp-3) + env(safe-area-inset-top));
+  }
+
+  .home > * + * {
+    margin-block-start: var(--sp-3);
+  }
+
+  .home__brand {
+    margin-bottom: 6px;
+    font-size: 21px;
+  }
+
+  .home__brand svg {
+    width: 21px;
+    height: 13px;
+  }
+
+  .home__head {
+    padding-bottom: var(--sp-2);
+    border-bottom-width: 2px;
+  }
+
+  .home__title {
+    font-size: 26px;
+  }
+
+  .home__name {
+    height: 32px;
+  }
+
+  .home__menu-btn {
+    min-height: 42px;
+  }
+}
+
 /* wide ------------------------------------------------------------------------- */
 
-@media (min-width: 900px) {
+@media (min-width: 900px) and (min-height: 561px) {
   /* Every week fits, so the field stops scrolling and the weeks share it. */
   .pitch__field {
     --zone-w: 60px;

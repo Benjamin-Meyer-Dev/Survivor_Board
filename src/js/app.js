@@ -60,6 +60,7 @@ import { renderDrive, markDriveViewing } from "./ui/drive.js";
 import { renderBench } from "./ui/bench.js";
 import { renderNotices } from "./ui/notices.js";
 import { renderTabs, initialTab } from "./ui/tabs.js";
+import { renderGrab } from "./ui/drawer.js";
 import { requireName } from "./ui/name.js";
 import { requirePasscode } from "./ui/passcode.js";
 import { holdBack, releaseBack } from "./ui/back.js";
@@ -87,6 +88,8 @@ const el = {
   pathPanel: document.getElementById("view-path"),
   benchLegend: document.getElementById("bench-legend"),
   tabs: document.getElementById("tabs"),
+  /** The handle that raises the drawer over the field (ui/drawer.js). */
+  grab: document.getElementById("grab"),
   league: document.getElementById("league"),
   settings: document.getElementById("settings"),
   /** The league bar: the way back, the name, the pool picker and the gear. A board's, so hidden on the home page. */
@@ -129,6 +132,12 @@ const app = {
   /** Which of that week's slots the sideline is filling. */
   activeSlot: 0,
   activeTab: initialTab(),
+  /**
+   * Whether the drawer is raised over the field. A phone thing: it is what
+   * gives a hundred-team list more than four rows (see ui/drawer.js). Every
+   * board opens with it down, the way every visit opens on the sideline.
+   */
+  raised: false,
   effect: null,
   /** One line for the notices area, such as a league that failed to load. */
   message: "",
@@ -864,6 +873,7 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = 
   renderDrive(el.drive, board, app.viewWeek, lookAt);
   renderSelection(board);
   renderTabs(el.tabs, app.activeTab, selectTab);
+  renderGrab(el.grab, el.pitch, app.raised, toggleRaised);
   renderBench(el.bench, el.benchLegend, board);
   // The action's own feedback first, so the settle knows which slot to leave
   // to it.
@@ -1411,6 +1421,19 @@ function selectTab(id) {
   if (id === app.activeTab) return;
   app.activeTab = id;
   renderTabs(el.tabs, app.activeTab, selectTab);
+}
+
+/**
+ * Raise the drawer over the field, or lower it again.
+ *
+ * The handle and the class, and nothing else. What the raise does is the
+ * stylesheet's - the field folds, the call's slots go to a line each - and
+ * none of it is a reason to rebuild the board.
+ */
+function toggleRaised() {
+  app.raised = !app.raised;
+  el.board?.classList.toggle("is-raised", app.raised);
+  renderGrab(el.grab, el.pitch, app.raised, toggleRaised);
 }
 
 function handleAction({ action, week, slot, team }) {
