@@ -164,11 +164,16 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
   const learned = (entry, version) => rememberRow(code, kind, { entry, version });
 
   /**
-   * Hand a row to a listener if it is news. `seenBefore` is the version that
+   * Hand a row to the board if it is news. `seenBefore` is the version that
    * was current when a poll asked for the row; a poll whose answer lands after
    * the version has moved on is out of date, whatever it says.
+   *
+   * Every listener, not the one that asked: the socket, the recovery poll and
+   * the refresh button all read the same row, and a change is a change whoever
+   * went and got it. Each gets its own object, because the board edits the one
+   * it is handed in place (a lock writes into `entry.picks`).
    */
-  function publish(listener, row, seenBefore = lastVersion) {
+  function publish(row, seenBefore = lastVersion) {
     const entry = row?.entry;
     if (!entry || saving > 0) return;
     // Realtime takes one filter, the code, so the league's other pools come
@@ -180,20 +185,32 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
     lastVersion = row.updated_at ?? lastVersion;
     lastEntry = structuredClone(entry);
     learned(entry, lastVersion);
-    listener({ ...emptyEntry(), ...entry });
+    for (const listener of listeners) listener({ ...emptyEntry(), ...entry });
   }
 
   /** This pool's row, narrowed the way every query here is. */
   const onPool = (query) => query.eq("code", entryId).eq("sport", sport).eq("objective", objective);
 
-  /** Read the row as it stands. Null when it is not there, or cannot be read. */
-  async function readRow() {
+  /**
+   * Read the row as it stands. Null where it is not there; throws where it
+   * could not be read, for the one caller with somewhere to say so.
+   */
+  async function fetchRow() {
     const { data, error } = await onPool(
       client.from(table).select("entry, updated_at"),
     ).maybeSingle();
-    if (error || !data) return null;
+    if (error) throw new Error(error.message || "the board could not be read");
+    if (!data) return null;
     return { entry: data.entry ?? emptyEntry(), version: data.updated_at ?? null };
   }
+
+  /**
+   * The same read for everything that runs on its own - the recovery poll, the
+   * check behind a board opened on a copy, the re-read a contended save owes.
+   * None of them was asked for, so none of them has a failure worth a banner:
+   * the next one asks again.
+   */
+  const readRow = () => fetchRow().catch(() => null);
 
   return {
     kind: "supabase",
@@ -220,6 +237,27 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
       return { ...emptyEntry(), ...row.entry };
     },
 
+    /**
+     * Read the row now, whatever realtime thinks of itself.
+     *
+     * The refresh button in the topline (ui/league-bar.js): somebody has asked
+     * in so many words whether anything has changed, and the answer has to be
+     * this second's rather than the socket's opinion of it. What comes back
+     * goes out through the same publish the socket and the recovery poll use,
+     * so a lock made on another phone lands on the board the way it would have
+     * landed anyway - one repaint, with the same settle.
+     *
+     * Quiet where there is nothing to say: a row that has not moved publishes
+     * nothing, and the board is left exactly as it was. It throws where the
+     * read failed, because this one was asked for and the person who asked is
+     * owed the reason.
+     */
+    async refresh() {
+      const seenBefore = lastVersion;
+      const row = await fetchRow();
+      if (row) publish({ entry: row.entry, updated_at: row.version }, seenBefore);
+    },
+
     subscribe(listener) {
       listeners.add(listener);
 
@@ -238,7 +276,7 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
         const seenBefore = lastVersion;
         try {
           const row = await readRow();
-          if (row) publish(listener, { entry: row.entry, updated_at: row.version }, seenBefore);
+          if (row) publish({ entry: row.entry, updated_at: row.version }, seenBefore);
         } finally {
           polling = false;
         }
@@ -286,7 +324,7 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
           { event: "*", schema: "public", table, filter: `code=eq.${entryId}` },
           (payload) => {
             mark("sudden-death:store:realtime");
-            publish(listener, payload.new);
+            publish(payload.new);
           },
         )
         .subscribe((status) => {

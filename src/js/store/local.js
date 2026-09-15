@@ -53,6 +53,17 @@ export function createLocalStore(code, kind) {
       return () => listeners.delete(listener);
     },
 
+    /**
+     * Nothing shares this board, so a refresh has one thing to find: another
+     * tab of this app on this device, which writes to the same key. Read it
+     * out and hand it over; app.js drops an entry that has not moved, which is
+     * what this almost always is.
+     */
+    async refresh() {
+      const entry = read();
+      for (const listener of listeners) listener({ ...entry });
+    },
+
     // Nothing is announced to listeners: there is no other device to hear
     // from, and echoing a save back to the board that made it only ever let a
     // quick second tap be overwritten by the first one's echo for a moment.

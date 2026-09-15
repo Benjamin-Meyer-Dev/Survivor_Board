@@ -36,6 +36,9 @@ export async function createArtifactStore(code, kind) {
    */
   const ownStamps = new Set();
 
+  /** Who is watching, so the refresh button has somewhere to put what it reads. */
+  const listeners = new Set();
+
   return {
     kind: "artifact-db",
     shared: true,
@@ -50,15 +53,31 @@ export async function createArtifactStore(code, kind) {
     },
 
     subscribe(listener) {
+      listeners.add(listener);
       try {
-        return doc.onSnapshot((snapshot) => {
+        const off = doc.onSnapshot((snapshot) => {
           const value = unwrap(snapshot);
           if (!value?.picks || ownStamps.has(value.at)) return;
           listener({ ...emptyEntry(), ...value });
         });
+        return () => {
+          listeners.delete(listener);
+          off?.();
+        };
       } catch {
-        return () => {};
+        return () => listeners.delete(listener);
       }
+    },
+
+    /**
+     * Read the document now, for the refresh button. Snapshots carry this
+     * board anyway, so this is the same belt the socket already wears - and
+     * the one thing that answers when the socket is not there.
+     */
+    async refresh() {
+      const value = unwrap(await doc.get());
+      if (!value?.picks) return;
+      for (const listener of listeners) listener({ ...emptyEntry(), ...value });
     },
 
     async save(entry) {

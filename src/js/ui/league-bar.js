@@ -2,10 +2,21 @@
  * The topline's league bar.
  *
  * The open league, at the top of the board: the way back to every league, the
- * league's name, and which of its pools the board is showing, with the pool's
- * paint as a mark. The name and the pool stack as a title block - the name
- * chalked large, the pool as a line under it - so the name gets the bar's
- * whole width between the two buttons. The picker holds this one league's
+ * league's name, who else is on it, a way to ask whether anything has changed,
+ * and which of its pools the board is showing, with the pool's paint as a
+ * mark.
+ *
+ * The refresh button sits beside the info button because the two answer
+ * neighbouring questions about the same league - who is in it, and what they
+ * have done since you looked. It is here rather than left to a pull at the top
+ * of the page: the page does not reload on a pull (base.css stops it, and a
+ * reload would lose the week you were on), so the gesture people reach for had
+ * nothing behind it.
+ *
+ * The name and the pool stack as a title block - the name chalked large, the
+ * pool as a line under it - so the name gets the bar's whole width between the
+ * back arrow and the gear, minus the two tools it carries. The picker holds
+ * this one league's
  * pools - "NFL winners", "NFL losers" - and nothing else, because that is the
  * choice a person on a board actually makes; another league is a trip through
  * the home page. A league of one pool has nothing to pick, so its line just
@@ -32,8 +43,19 @@ import { POOL_KINDS, KIND_IDS, normaliseKinds } from "../sports.js";
 import { afterMotion, prefersReducedMotion } from "./motion.js";
 import { rosterMarkup } from "./roster.js";
 
+/**
+ * The refresh glyph: one turn of the wheel, with the head where the turn ends.
+ * Drawn on the same circle as the info button beside it (r=7.3 about the
+ * middle, near enough the roster's r=9 once its arrow is counted), so the two
+ * discs hold glyphs of the same weight rather than one large and one small.
+ */
+const REFRESH = `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M20 5v5h-5" />
+    <path d="M18.4 15.5A7.3 7.3 0 1 1 17.2 6.9L20 10" />
+  </svg>`;
+
 /** Latest handlers, so the listeners bound on the first render stay current. */
-let handlers = { onPool: () => {}, onHome: () => {} };
+let handlers = { onPool: () => {}, onHome: () => {}, onRefresh: () => {} };
 /** The rows currently in the menu, to know when they need rebuilding. */
 let painted = "";
 /** And who was last in the roster panel, for the same reason. */
@@ -47,7 +69,7 @@ let bar = null;
  *   people?:Array<{id:string,name:string}>}|null, kind?:string|null,
  *   me?:string}} state `me` is this device's member id, so the roster can say
  *   which row is you.
- * @param {{onPool:(kind:string)=>void, onHome:()=>void}} given
+ * @param {{onPool:(kind:string)=>void, onHome:()=>void, onRefresh:()=>void}} given
  */
 export function renderLeagueBar(root, { league, kind = null, me = "" }, given) {
   if (!root) return;
@@ -122,6 +144,26 @@ export function markPoolLoading(root, busy) {
   else trigger.removeAttribute("aria-busy");
 }
 
+/**
+ * Say the board is being checked.
+ *
+ * The glyph turns - the wheel it is drawn as, doing the thing it depicts -
+ * rather than a spinner arriving beside it, and it takes no second tap while
+ * it does, since the read is already out. What the refresh finds says itself:
+ * a change settles onto the board the way another phone's lock does, and a
+ * board that has not moved does not move.
+ *
+ * @param {HTMLElement|null} root
+ * @param {boolean} busy
+ */
+export function markRefreshing(root, busy) {
+  const button = root?.querySelector(".league-bar__refresh");
+  if (!button) return;
+  button.classList.toggle("is-refreshing", busy);
+  if (busy) button.setAttribute("aria-busy", "true");
+  else button.removeAttribute("aria-busy");
+}
+
 /** One pool, as a row: its paint, its name, and a check when it is the one showing. */
 function row(id) {
   return `
@@ -143,7 +185,11 @@ function build(root) {
     <div class="league-bar__league">
       <div class="league-bar__title">
         <h2 class="league-bar__name"></h2>
-        <div class="league-bar__who"></div>
+        <div class="league-bar__tools">
+          <div class="league-bar__who"></div>
+          <button type="button" class="league-bar__icon league-bar__refresh"
+                  aria-label="Check for changes" title="Check for changes">${REFRESH}</button>
+        </div>
       </div>
       <div class="league-bar__picker">
         <button type="button" class="league-bar__pool" aria-haspopup="listbox"
@@ -159,6 +205,7 @@ function build(root) {
     </div>`;
 
   root.querySelector(".league-bar__back").addEventListener("click", () => handlers.onHome());
+  root.querySelector(".league-bar__refresh").addEventListener("click", () => handlers.onRefresh());
 
   const trigger = root.querySelector(".league-bar__pool");
   const menu = root.querySelector(".league-bar__menu");

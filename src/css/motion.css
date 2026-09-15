@@ -1137,6 +1137,34 @@
   }
 }
 
+/* --- a board being checked -------------------------------------------------
+   The refresh button in the topline, gone to look (markRefreshing in
+   ui/league-bar.js). The glyph is a wheel, so the wheel turns: one turn a
+   beat, at the same 1.1s the pool picker breathes at and the "if locked" rule
+   is drawn at, so the things on the board that are not settled are not
+   unsettled at different speeds.
+
+   Eased rather than linear, which makes it a wheel turned by hand once a beat
+   rather than a spinner running. And held to a whole number of turns however
+   long the read takes (turned in app.js, whose REFRESH_TURN_MS is this
+   duration), so it comes to rest square instead of snapping back from wherever
+   the network left it.
+
+   Killed by the reduced-motion block in base.css, which leaves the glyph still
+   and the chalk dropped back - which is what says the button is busy. */
+@keyframes refresh-turn {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.league-bar__refresh.is-refreshing svg {
+  animation: refresh-turn 1.1s ease-in-out infinite;
+}
+
 /* --- a lock being rehearsed ------------------------------------------------
    The "if locked" number is the full search run ahead of the lock
    (memoisedPreview in core/plan.js), and it takes about half a second on a

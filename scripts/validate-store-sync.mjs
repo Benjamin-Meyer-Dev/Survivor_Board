@@ -52,6 +52,11 @@ function fakeClient() {
             maybeSingle: () => {
               // A read sees the row as it stands when the request is issued.
               const snapshot = { ...state.row, updated_at: pg(state.row.updated_at) };
+              // Unless the test has taken the network away: the reads that run
+              // on their own swallow that, and the one somebody asked for does
+              // not (see refresh).
+              if (state.readError)
+                return later("read", () => ({ data: null, error: state.readError }));
               return later("read", () => ({ data: snapshot, error: null }));
             },
           };
@@ -456,9 +461,58 @@ await race(
   stop();
 }
 
+/* --- the refresh button --------------------------------------------------
+   Somebody has tapped the topline's refresh (ui/league-bar.js) and is owed
+   this second's answer rather than the socket's opinion of it. So the read
+   goes out whatever the channel says about itself, what it finds reaches the
+   board through the same path a lock from another phone takes, and a row that
+   has not moved is not news. Unlike every read that runs on its own, this one
+   was asked for - so a read that would not go says so rather than passing for
+   "nothing has changed". */
+
+{
+  const client = fakeClient();
+  const store = await createSupabaseStore("BXQK7HRTM4WD", "nfl-win", { client });
+  const init = store.init();
+  client.answer("read");
+  await init;
+  const heard = [];
+  const stop = store.subscribe((entry) => heard.push(entry));
+  client.connect();
+  await tick();
+  client.answer("read");
+  await tick();
+
+  // Another device unlocks. Nothing is delivered - the socket is up, so no
+  // poll is running, and this one's event never arrives.
+  client.state.row = { entry: OPEN, updated_at: "2026-09-04T10:09:00.000Z" };
+  await tick();
+  assert.deepEqual(shown(heard), [], "a change nothing delivered is not on the board");
+
+  const asked = store.refresh();
+  await tick();
+  client.answer("read");
+  await asked;
+  assert.deepEqual(shown(heard), ["open"], "the refresh reads now and puts what it finds up");
+
+  const again = store.refresh();
+  await tick();
+  client.answer("read");
+  await again;
+  assert.deepEqual(shown(heard), ["open"], "and a row that has not moved is not a repaint");
+
+  client.state.readError = { message: "the network went" };
+  const failed = store.refresh();
+  await tick();
+  client.answer("read");
+  await assert.rejects(failed, /the network went/, "a read that would not go is reported");
+  stop();
+}
+
 console.log(
   "Store sync OK: own echoes and stale polls never reach the board, other devices' changes do, " +
     "a save that lost the race merges onto what won, keeps its own change, tells the board " +
-    "what it merged, and gives up rather than trying for ever, and a board opened on the row " +
-    "in hand is checked behind the screen.",
+    "what it merged, and gives up rather than trying for ever, a board opened on the row " +
+    "in hand is checked behind the screen, and the refresh button reads now, repaints only " +
+    "for news, and says so when it could not read at all.",
 );

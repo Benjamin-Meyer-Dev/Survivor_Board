@@ -48,7 +48,7 @@ import {
 } from "./store/directory.js";
 import { derivePasscodeDigest } from "./core/passcode.js";
 import { codeFromHash, leagueHash, normaliseCode } from "./core/code.js";
-import { renderLeagueBar, markPoolLoading } from "./ui/league-bar.js";
+import { renderLeagueBar, markPoolLoading, markRefreshing } from "./ui/league-bar.js";
 import { renderSettings } from "./ui/settings.js";
 import { watchDrags } from "./ui/swipe.js";
 import { afterMotion, playOnce, prefersReducedMotion, twoFrames } from "./ui/motion.js";
@@ -481,6 +481,25 @@ function fetchJson(folder, name) {
     until: SETTLED_FILES.has(name) ? Infinity : Date.now() + FRESH_FOR_MS,
   });
   return request;
+}
+
+/**
+ * Drop what a pool is allowed to have changed, so the next read goes out to
+ * the network for it.
+ *
+ * For the refresh button, which is somebody saying the five minutes are not
+ * the point - they want to know now. The season's own files are left where
+ * they are: the calendar, the roster, the fixtures and the model do not move
+ * while the app is open (SETTLED_FILES), and throwing them away would turn a
+ * check for a new line into a reload of the whole season.
+ *
+ * @param {string} kind
+ */
+function forgetPoolFiles(kind) {
+  const folder = resolveSport(POOL_KINDS[kind]?.sport);
+  for (const name of BOARD_FILES) {
+    if (!SETTLED_FILES.has(name)) files.delete(`${folder}/${name}`);
+  }
 }
 
 /**
@@ -1904,6 +1923,9 @@ function adoptLeague(ready) {
     // still playing for the tap that caused it, and play it a second time.
     if (sameEntry(entry, app.entry)) return;
     app.entry = entry;
+    // A check the person asked for paints once, when its files are in as well
+    // (refreshBoard). This would be that paint early and on half the news.
+    if (refreshing) return;
     // Held, not painted, when the board is not the screen: between this
     // subscription and the first paint of the league it belongs to, and for
     // as long as the person is back on the home page with the league still
@@ -1938,37 +1960,161 @@ function paintLeague(board) {
   render({ board });
 }
 
+/** A league's members as one string, to know when the list has actually moved. */
+const whoIsHere = (people) =>
+  (Array.isArray(people) ? people : []).map((person) => `${person.id}:${person.name}`).join("|");
+
+/**
+ * Take the directory's copy of the open league: its name, its pools, and who
+ * is in it.
+ *
+ * @returns {Promise<boolean>} Whether anything moved, so the caller can decide
+ *   when the board is redrawn for it. Nothing here paints.
+ */
+async function adoptFreshLeague(code) {
+  const fresh = await leagueByCode(code);
+  if (!fresh || app.league?.code !== code) return false;
+  const kinds = normaliseKinds(fresh.kinds);
+  // A pool that has gone is left alone. The board showing it is stale, but a
+  // league bar whose pools do not include the one on screen is broken, and the
+  // next open sorts it out either way.
+  const known = kinds.includes(app.kind) ? kinds : app.league.kinds;
+  const people = Array.isArray(fresh.people) ? fresh.people : (app.league.people ?? []);
+  if (
+    fresh.name === app.league.name &&
+    String(known) === String(app.league.kinds) &&
+    whoIsHere(people) === whoIsHere(app.league.people)
+  ) {
+    return false;
+  }
+  app.league = { ...app.league, name: fresh.name, kinds: known, people };
+  document.title = titleFor(app.league, app.kind);
+  return true;
+}
+
 /**
  * Check the directory's copy of the open league behind the board.
  *
- * A rename or a pool removed on somebody else's phone should be picked up, but
- * not in front of the board: opening a league this device is already in used to
- * wait on a query for a row it was holding, and so did every switch between one
- * league's pools. So the board goes up on what is known and this corrects it if
- * there is anything to correct.
- *
- * A pool that has gone is left alone here. The board showing it is stale, but a
- * league bar whose pools do not include the one on screen is broken, and the
- * next open sorts it out either way.
+ * A rename, a pool removed or somebody joining on another phone should be
+ * picked up, but not in front of the board: opening a league this device is
+ * already in used to wait on a query for a row it was holding, and so did
+ * every switch between one league's pools. So the board goes up on what is
+ * known and this corrects it if there is anything to correct.
  */
 function revalidateLeague(code) {
-  leagueByCode(code)
-    .then((fresh) => {
-      if (!fresh || app.league?.code !== code) return;
-      const kinds = normaliseKinds(fresh.kinds);
-      const known = kinds.includes(app.kind) ? kinds : app.league.kinds;
-      if (fresh.name === app.league.name && String(known) === String(app.league.kinds)) return;
-      app.league = { ...app.league, name: fresh.name, kinds: known };
-      document.title = titleFor(app.league, app.kind);
-      render({ search: false });
+  adoptFreshLeague(code)
+    .then((moved) => {
+      if (moved) render({ search: false });
     })
     .catch(() => {
       /* the copy in hand is the board that is open */
     });
 }
 
-/** What the league bar can ask for: another of the league's pools, or home. */
-const BAR_HANDLERS = { onPool: (kind) => switchPool(kind), onHome: () => goHome() };
+/**
+ * One turn of the refresh glyph. It has to match refresh-turn in motion.css:
+ * the wheel is held until it is square again, and a beat that disagreed with
+ * the keyframe would stop it part way round.
+ */
+const REFRESH_TURN_MS = 1100;
+
+/** The head of the line a refresh that would not go puts on the board. */
+const REFRESH_FAILED = "Could not check for changes";
+
+/** Whether a check asked for by hand is out, so a second tap is not a second one. */
+let refreshing = false;
+
+/**
+ * The refresh button in the topline: go and look now.
+ *
+ * Three things can have moved since the board was opened, and this asks about
+ * all three at once - the pool's row, which carries everyone's picks; the
+ * files the daily job rewrites, which carry the lines; and the directory,
+ * which carries the league's name and who is in it. The season's own files
+ * are not asked about, because they do not change (forgetPoolFiles).
+ *
+ * It exists because the gesture people reach for has nothing behind it: a pull
+ * at the top of the board does not reload the app (base.css stops it on
+ * purpose), and a reload would be the wrong answer anyway - it would lose the
+ * week you were on and the place you had scrolled to in order to fetch what
+ * one query and four files can bring without moving the board at all.
+ *
+ * ONE repaint, at the end, holding everything the check found. The store
+ * publishes what it reads through the same path a lock from another phone
+ * takes, and that path is muted while this runs (see adoptLeague) so the board
+ * is not redrawn once for the picks and again for the lines a moment later.
+ *
+ * And not before the wheel has come round. The read is usually quicker than a
+ * turn of the glyph, and a board that changed under a button still moving read
+ * as the change having nothing to do with the tap; held to the beat, the check
+ * goes out, comes back, and puts what it found up as the wheel lands square.
+ */
+async function refreshBoard() {
+  if (refreshing || app.switching || app.view !== "board" || !app.league || !app.store) return;
+  refreshing = true;
+  markRefreshing(el.league, true);
+
+  const started = performance.now();
+  const { code } = app.league;
+  const kind = app.kind;
+  const scope = openScope();
+
+  try {
+    forgetPoolFiles(kind);
+    const [fresh] = await Promise.all([
+      poolFiles(kind),
+      app.store.refresh?.(),
+      // The directory is the quiet one of the three: a league is renamed or
+      // joined far less often than a line moves, and neither answer is worth
+      // failing the check over.
+      adoptFreshLeague(code).catch(() => false),
+    ]);
+    await turned(started);
+    // A pool switch or a trip home while the check was out: that board is not
+    // this board, and none of this belongs on it.
+    if (openScope() !== scope) return;
+    // The week being looked at and the slot in hand are the person's, not the
+    // file's: this is the same board with newer numbers on it.
+    app.plan = fresh.plan;
+    app.odds = fresh.odds;
+    app.form = fresh.form;
+    app.availability = fresh.availability;
+    app.pool = fresh.pool;
+    if (app.message.startsWith(REFRESH_FAILED)) app.message = "";
+    render({ search: false });
+  } catch (error) {
+    await turned(started);
+    if (openScope() !== scope) return;
+    app.message = `${REFRESH_FAILED}: ${error.message}`;
+    render({ search: false });
+  } finally {
+    refreshing = false;
+    markRefreshing(el.league, false);
+  }
+}
+
+/**
+ * Hold until the refresh glyph is back where it started.
+ *
+ * A whole number of turns, however long the network took: stopped part way
+ * round, the wheel snaps back to square, which reads as the button being
+ * knocked rather than as a check that is over. With motion switched off there
+ * is no wheel and nothing to wait for - the answer is simply the board, as
+ * soon as there is one.
+ */
+function turned(started) {
+  if (prefersReducedMotion()) return Promise.resolve();
+  const spent = performance.now() - started;
+  const left = REFRESH_TURN_MS - (spent % REFRESH_TURN_MS);
+  return new Promise((resolve) => setTimeout(resolve, left));
+}
+
+/** What the league bar can ask for: another of the league's pools, a check, or home. */
+const BAR_HANDLERS = {
+  onPool: (kind) => switchPool(kind),
+  onHome: () => goHome(),
+  onRefresh: () => refreshBoard(),
+};
 
 /**
  * Handler for the league bar's picker: another of the open league's boards.

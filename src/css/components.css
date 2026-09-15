@@ -2970,14 +2970,52 @@
   color: var(--chalk);
 }
 
-/* The name and the button on one line, with the name taking what is left: the
-   button is a fixed 28px and the name is what has to give when the league is
-   called something long. */
+/* The two tools the name carries - who is here, and whether anything has
+   changed since you looked - as a pair. Six between them rather than the
+   title's eight: they are one group of buttons about the league, and the wider
+   gap is what holds them off its name. */
+.league-bar__tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+/* A league of one has nobody to list, so the info button is not drawn at all
+   (ui/roster.js). Its box has to go with it, or the gap it was holding stays
+   and the refresh stands fourteen pixels off the name instead of eight. */
+.league-bar__who:empty {
+  display: none;
+}
+
+/* Going to look. The glyph is a wheel, so it turns (refresh-turn in
+   motion.css) rather than growing a spinner beside it, and it takes no second
+   tap while it does - the read is already out. The chalk drops back the way
+   the pool picker's does while it is getting a board, which is also what says
+   the button is busy where motion is switched off and nothing turns. */
+.league-bar__refresh.is-refreshing {
+  color: var(--chalk-3);
+  pointer-events: none;
+}
+
+/* The name and its two tools on one line, with the name taking what is left:
+   the tools are a fixed 62px and the name is what has to give when the league
+   is called something long.
+
+   The max-width is what makes that true. This row is a flex item in a COLUMN -
+   the title block, name over pool - where the cross axis is the horizontal one
+   and `align-items: flex-start` sizes each row to its own content rather than
+   to the block. Nothing there caps the row at the bar's width, so before this
+   the row simply grew: the name never reached the ellipsis it is set up for
+   and the second tool ran out under the gear. Capped, the row is the bar's
+   width at most and the name shrinks inside it, which is the arrangement the
+   rule below was always describing. */
 .league-bar__title {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
+  max-width: 100%;
 }
 
 .league-bar__title .league-bar__name {
