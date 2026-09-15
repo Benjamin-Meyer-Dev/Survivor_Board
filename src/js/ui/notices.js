@@ -112,8 +112,15 @@ export function renderReview(root, board) {
 function reviewMarkup(board) {
   const { week, losses } = board.elimination;
   const label = board.weeks.find((entry) => entry.week === week)?.labelFull ?? `Week ${week}`;
+  // What the team did, not what the pick did. `status.result` is the entry's
+  // result, swapped for a losers pool (core/objective.js), so the pick that
+  // ended the run there is a team that WON its game - and "Seahawks lost to
+  // Patriots" was the one sentence on the board that had the score backwards.
+  const beat = board.rules?.objective === "lose";
   const what = losses.length
-    ? losses.map((loss) => `${loss.team} lost to ${loss.opponent}`).join(" and ")
+    ? losses
+        .map((loss) => `${loss.team} ${beat ? "beat" : "lost to"} ${loss.opponent}`)
+        .join(" and ")
     : "";
   const { won, lost } = board.record;
   const used = board.buyBack?.used ?? 0;
