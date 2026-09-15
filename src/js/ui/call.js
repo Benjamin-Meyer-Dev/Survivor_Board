@@ -128,7 +128,12 @@ function isNow(week, board) {
 function whenLine(week, board) {
   const stamp = `Wk ${String(week.week).padStart(2, "0")} · ${week.labelFull}`;
   if (board.eliminated) {
-    if (week.week === board.eliminatedWeek) return `${stamp} · eliminated`;
+    // The week it ended has the chip beside it saying so, in the paint it
+    // deserves. The line said it a second time in chalk, and the two together
+    // were longer than the row: the line gives way first, so what a person
+    // actually read was the date and half the word "eliminated", with the
+    // whole of it in a box to the right of the cut.
+    if (week.week === board.eliminatedWeek) return stamp;
     if (week.week > board.eliminatedWeek) return `${stamp} · not played`;
     return `${stamp} · played`;
   }

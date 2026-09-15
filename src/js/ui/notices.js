@@ -1,6 +1,6 @@
 /**
  * One-line banners: a message from app.js, storage mode, and any rule break
- * on the board.
+ * on the board. And, separately, how a run ended once it has.
  *
  * Shown on both screens, so `board` and `store` are optional: on the home
  * page there is no league open and a message from app.js is all there is to
@@ -12,6 +12,15 @@
  * (swapContents in ui/motion.js). The first paint is exempt - there was
  * nothing there to change - and so is a page arriving or leaving, which has a
  * move of its own going on.
+ *
+ * The season's end is not one of these. It used to be - the loudest banner of
+ * the lot, above everything - and it was in the wrong place twice over: at the
+ * top of the board it pushed the field, the strip and the card down by a
+ * hundred and forty pixels to report a season that is over, and it left the
+ * list of what actually happened with what was left. So renderReview draws it
+ * in the drawer instead, in the tab bar's place (see index.html), and the
+ * banners here are only ever things that are still true of a board you can
+ * still play.
  */
 
 import { escapeHtml } from "../core/format.js";
@@ -26,8 +35,6 @@ const shown = new WeakMap();
 
 export function renderNotices(root, { store = null, board = null, message = "" }) {
   const notices = [];
-  // Said once, above every view: the run is over and the board is in review.
-  const banner = board?.eliminated ? reviewBanner(board) : "";
 
   if (message) notices.push(message);
 
@@ -50,9 +57,9 @@ export function renderNotices(root, { store = null, board = null, message = "" }
     );
   }
 
-  const html =
-    banner +
-    notices.map((text) => `<div class="notice notice--warn">${escapeHtml(text)}</div>`).join("");
+  const html = notices
+    .map((text) => `<div class="notice notice--warn">${escapeHtml(text)}</div>`)
+    .join("");
 
   if (!root) return;
   const before = shown.get(root);
@@ -72,23 +79,53 @@ export function renderNotices(root, { store = null, board = null, message = "" }
 }
 
 /**
- * How the season ended. The board beneath it is in review from here on: the
- * run as it happened, with nothing left to pick or lock, opened on the week it
- * ended. There is no way back from this short of the result itself changing.
+ * How the season ended, in the drawer, where the tabs were.
+ *
+ * The board beneath it is in review from here on: the run as it happened, with
+ * nothing left to pick or lock, opened on the week it ended. There is no way
+ * back from this short of the result itself changing.
+ *
+ * It stands in the tab bar's place because the bar has nothing left to switch
+ * between: nothing can be picked, so the sideline is a list you cannot use and
+ * the bench is a list of teams you will not need, and the drive - the season
+ * week by week - IS the review. So the drive is what the drawer shows, and
+ * this says why (app.js hides the bar, ui/tabs.js names the panel).
+ *
+ * Shorter than the banner it replaces, because it is now spending the list's
+ * room rather than the board's: the sentence that said the board is in review
+ * is gone, which the disabled lock and the drive under it say for themselves,
+ * and what is left is the three facts - when it ended, what ended it, and what
+ * the run came to.
+ *
+ * @param {HTMLElement|null} root
+ * @param {object|null} board Null, or a board that is still alive: either way
+ *   the region is emptied.
  */
-function reviewBanner(board) {
+export function renderReview(root, board) {
+  if (!root) return;
+  const html = board?.eliminated ? reviewMarkup(board) : "";
+  if (shown.get(root) === html) return;
+  shown.set(root, html);
+  root.innerHTML = html;
+}
+
+function reviewMarkup(board) {
   const { week, losses } = board.elimination;
   const label = board.weeks.find((entry) => entry.week === week)?.labelFull ?? `Week ${week}`;
   const what = losses.length
-    ? losses.map((loss) => `${loss.team} lost to ${loss.opponent}`).join(" and ") + "."
+    ? losses.map((loss) => `${loss.team} lost to ${loss.opponent}`).join(" and ")
     : "";
   const { won, lost } = board.record;
   const used = board.buyBack?.used ?? 0;
-  const buyBacks = used ? `, ${used} buy back${used === 1 ? "" : "s"} used` : "";
+  const buyBacks = used ? ` · ${used} buy back${used === 1 ? "" : "s"} used` : "";
+  // The three facts on one line, in the order they are asked in: when, what,
+  // and what it came to. A week that ended with no loss on the board - a slot
+  // left empty past its kickoff - simply says nothing in the middle.
+  const line = [label, what, `Final ${won}-${lost}${buyBacks}`].filter(Boolean).join(" · ");
 
-  return `<div class="notice notice--out" role="status">
-    <span class="notice__eyebrow">Season over</span>
-    <strong class="notice__title">Eliminated in week ${week}</strong>
-    <span class="notice__text">${escapeHtml(`${label}. ${what} Final record ${won}-${lost}${buyBacks}. The board is in review: the run as it happened, with nothing left to pick or lock.`)}</span>
+  return `<div class="review" role="status">
+    <span class="review__eyebrow">Season over</span>
+    <strong class="review__title">Eliminated in week ${week}</strong>
+    <span class="review__line">${escapeHtml(line)}</span>
   </div>`;
 }

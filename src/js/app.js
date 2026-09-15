@@ -58,9 +58,9 @@ import { renderCall } from "./ui/call.js";
 import { renderSideline } from "./ui/sideline.js";
 import { renderDrive, markDriveViewing } from "./ui/drive.js";
 import { renderBench } from "./ui/bench.js";
-import { renderNotices } from "./ui/notices.js";
-import { renderTabs, initialTab } from "./ui/tabs.js";
-import { renderGrab } from "./ui/drawer.js";
+import { renderNotices, renderReview } from "./ui/notices.js";
+import { renderTabs, initialTab, REVIEW_TAB } from "./ui/tabs.js";
+import { renderGrab, watchRaise } from "./ui/drawer.js";
 import { requireName } from "./ui/name.js";
 import { requirePasscode } from "./ui/passcode.js";
 import { holdBack, releaseBack } from "./ui/back.js";
@@ -86,8 +86,11 @@ const el = {
   bench: document.getElementById("bench"),
   weekPanel: document.getElementById("view-week"),
   pathPanel: document.getElementById("view-path"),
+  burnPanel: document.getElementById("view-burn"),
   benchLegend: document.getElementById("bench-legend"),
   tabs: document.getElementById("tabs"),
+  /** Where how the run ended goes, once it has: the tab bar's place. */
+  review: document.getElementById("review"),
   /** The handle that raises the drawer over the field (ui/drawer.js). */
   grab: document.getElementById("grab"),
   league: document.getElementById("league"),
@@ -885,13 +888,20 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = 
     onDeleteLeague: deleteCurrentLeague,
   });
   renderNotices(el.notices, { store: app.store, board, message: app.message });
+  renderReview(el.review, board);
   renderPitch(el.pitch, board, app.viewWeek, { onWeekChange: lookAt });
   // The drive is a board's worth of rows and none of them says which week is
   // being looked at except the one wearing the bracket, so it is rebuilt here
   // rather than on every step of a scrub (see renderSelection).
   renderDrive(el.drive, board, app.viewWeek, lookAt);
   renderSelection(board);
-  renderTabs(el.tabs, app.activeTab, selectTab);
+  // A run that is over shows the drive and puts the bar away: there is nothing
+  // left to pick, so there is nothing to switch between, and how it ended
+  // stands where the bar was (renderReview above). The tab the person had is
+  // not overwritten - it is what the next live board opens on, and a pool
+  // switch out of a dead pool should not land them somewhere they never chose.
+  const review = Boolean(board.eliminated);
+  renderTabs(el.tabs, review ? REVIEW_TAB : app.activeTab, selectTab, { hidden: review });
   renderGrab(el.grab, el.pitch, app.raised, toggleRaised);
   renderBench(el.bench, el.benchLegend, board);
   // The action's own feedback first, so the settle knows which slot to leave
@@ -1117,6 +1127,9 @@ function renderHomeView() {
 
   renderSettings(el.settings, null, { canWrite: false, onSave: () => {} });
   renderNotices(el.notices, { store: app.store, board: null, message: app.message });
+  // The drawer is the board's, and hidden with it - but a dead league left in
+  // it would be the line the next one opens over.
+  renderReview(el.review, null);
 
   renderHome(
     el.home,
@@ -1453,6 +1466,20 @@ function toggleRaised() {
   app.raised = !app.raised;
   el.board?.classList.toggle("is-raised", app.raised);
   renderGrab(el.grab, el.pitch, app.raised, toggleRaised);
+}
+
+/**
+ * Whether this screen has a raise at all.
+ *
+ * Asked of the grab rather than of the viewport: where the handle shows is a
+ * question about the shape of the screen and the stylesheet already answers it
+ * in two places - not below 900px wide, and not on a phone held sideways,
+ * where the drawer already has a column of its own. A media query here would
+ * be a third copy of that, and the first one to drift would leave a gesture
+ * raising a drawer with nothing above it to fold.
+ */
+function canRaise() {
+  return Boolean(el.grab) && getComputedStyle(el.grab).display !== "none";
 }
 
 function handleAction({ action, week, slot, team }) {
@@ -2525,6 +2552,16 @@ async function main() {
       surfaces: [el.call, el.weekPanel, el.pathPanel],
       ignore: ["input", "textarea", "select", "dialog", ".league-bar__menu"],
     },
+  );
+
+  // And up and down on the same lists, which is the other thing a thumb does
+  // to them: raising the drawer over the field and putting it back
+  // (ui/drawer.js). The bench is watched too - it is the longest list of the
+  // three and has no week to turn - and the call is not: it is the thing the
+  // raise folds, not a list to drag.
+  watchRaise(
+    { raisable: canRaise, raised: () => app.raised, toggle: toggleRaised },
+    { surfaces: [el.weekPanel, el.pathPanel, el.burnPanel] },
   );
 
   // Back and forward, and a link tapped while the app is already open.

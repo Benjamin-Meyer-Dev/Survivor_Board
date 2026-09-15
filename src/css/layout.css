@@ -217,6 +217,28 @@
     display: flex;
   }
 
+  /* Lowered, the drawer's lists do not pan under the finger: a drag up raises
+     the drawer instead (watchRaise in ui/drawer.js), which is what a list
+     three rows tall means somebody wants. Panning nothing rather than reading
+     the drag against a scroll that has already begun - the browser commits to
+     one after about eight pixels, which is inside the slop a gesture needs to
+     be told apart from a touch, so the two could only ever be a race. There is
+     nothing to lose by it: three rows is the whole of what the scroll could
+     have reached, and the raise reaches nine.
+
+     Named by id because that is how the surfaces the week's drag reads are
+     named at the top of this file, and the two rules have to be able to
+     override each other in the order they are written.
+
+     Raised, this is gone and the panels scroll as they always did; the drag
+     that puts the drawer back is taken from the top of the list, where there
+     was nothing to scroll to. */
+  .board:not(.is-raised) #view-week,
+  .board:not(.is-raised) #view-path,
+  .board:not(.is-raised) #view-burn {
+    touch-action: none;
+  }
+
   /* The grab is the drawer's own top edge, and an edge is separation enough:
      the turf between the call and the chalkboard comes down by half to pay
      part of what the strip costs the list. */
@@ -342,6 +364,14 @@
     display: none;
   }
 
+  /* And with no raise to swipe for, the lists go back to scrolling: the rule
+     above is the price of a gesture this screen does not have. */
+  .board:not(.is-raised) #view-week,
+  .board:not(.is-raised) #view-path,
+  .board:not(.is-raised) #view-burn {
+    touch-action: pan-y;
+  }
+
   /* The right edge is where the notch lands when the phone is turned the other
      way, and the panel is what runs up against it. */
   .drawer__panel {
@@ -376,6 +406,18 @@
 
   .drawer__tabs {
     display: none;
+  }
+
+  /* How the run ended, lined up with the panels under it rather than with the
+     screen: on a phone it is a band the width of the drawer because it stands
+     where the tab bar stood, and here there is no tab bar and three columns
+     that start at 1240 centred. A line of text beginning twenty pixels to the
+     left of the column it introduces is a line that belongs to something
+     else. */
+  .review {
+    max-width: 1240px;
+    width: 100%;
+    margin: 0 auto;
   }
 
   .drawer__panels {

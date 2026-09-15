@@ -30,6 +30,17 @@ export function initialTab() {
   return TABS[0].id;
 }
 
+/**
+ * Where a board goes once the run is over.
+ *
+ * Nothing can be picked any more, so the sideline is a list you cannot use and
+ * the bench is a list of teams you will not need; the drive is the season week
+ * by week, which is the whole of what is left to look at. The bar goes with
+ * them - there is nothing to switch between - and how the run ended stands in
+ * its place (renderReview in ui/notices.js).
+ */
+export const REVIEW_TAB = "path";
+
 /** Latest handler, so the listeners bound on the first render stay current. */
 let onTab = () => {};
 let lastRendered = null;
@@ -38,11 +49,17 @@ let lastRendered = null;
  * @param {HTMLElement} root The element with role="tablist".
  * @param {string} activeId
  * @param {(id: string) => void} onSelect
+ * @param {{hidden?:boolean}} [options] `hidden` takes the bar off the board
+ *   without taking the panels with it: a run that is over has one panel worth
+ *   showing and nothing to switch between (see REVIEW_TAB). The caller passes
+ *   that panel as `activeId`, so the bar is put away holding the right tab and
+ *   is right again the moment it comes back.
  */
-export function renderTabs(root, activeId, onSelect) {
+export function renderTabs(root, activeId, onSelect, { hidden = false } = {}) {
   onTab = onSelect;
 
   if (!root.firstElementChild) buildTabBar(root);
+  root.hidden = hidden;
 
   for (const button of root.querySelectorAll("[data-tab]")) {
     const isActive = button.dataset.tab === activeId;

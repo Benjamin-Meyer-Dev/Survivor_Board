@@ -1441,10 +1441,24 @@
   gap: 10px;
 }
 
+/* No gap between the head and the slots under it.
+
+   The head is 36px tall because the action discs are, not because its line of
+   chalk is - that is 18. So nine pixels of the head already hang below the
+   week's line, and they are the disc's room rather than a space between the
+   week and what is picked for it. A gap on top of them stood the when-line
+   twenty pixels off the eyebrow below it, and the two are the same 12px caps
+   in the same colour: at that distance they read as two unrelated rows instead
+   of the week and its slot. Without it the ink lands twelve apart, which is
+   about one cap height, and the pair reads as one thing.
+
+   A slot with a box of its own still stands off the head - it is a box, and a
+   box against the head above it reads as a mistake. That is the two-pick
+   layout's own margin, below. */
 .call__box {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
   padding: 8px 12px 10px;
   border-radius: var(--radius);
 }
@@ -1504,8 +1518,14 @@
   gap: 8px;
 }
 
+/* Two slots are drawn as boxes - each takes the bracket, and the bracket is a
+   ruled edge - so they keep the distance from the head that the one-slot
+   layout gives back (see .call__box). Six, not the eight it was: the box's own
+   top padding is part of what stands between the head and the eyebrow inside
+   it, and was never counted. */
 .call__slots--two {
   position: relative;
+  margin-top: 6px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -1908,6 +1928,59 @@
   padding: 0 var(--gutter);
   border-bottom: 1px solid var(--line);
   flex: none;
+}
+
+.drawer__tabs[hidden] {
+  display: none;
+}
+
+/* How the run ended, standing where the tabs stood (ui/notices.js).
+
+   The same band across the top of the chalkboard the bar is - the gutter, the
+   rule along the bottom - so the drawer's top edge is in the same place
+   whether a season is being played or read back. What is inside it is the
+   painted end-of-season block rather than a row of tabs: three lines, in the
+   order they are asked in, and no border of its own, because the band IS the
+   border.
+
+   Painted, not chalked, because it is not a warning - the same danger it wore
+   as a banner, kept so a person who has seen one recognises the other. */
+.review {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px var(--gutter) 11px;
+  border-bottom: 1px solid var(--line);
+  background: var(--stripes), var(--danger-bg);
+}
+
+.review__eyebrow {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--danger);
+}
+
+.review__title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 22px;
+  line-height: 24px;
+  text-transform: uppercase;
+  color: var(--chalk);
+}
+
+/* The three facts on one line. It wraps rather than ellipsising: a run has one
+   ending and it is worth the second line, where a league's name in the topline
+   is worth none. */
+.review__line {
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--chalk-2);
 }
 
 /* The indicator: one mark that slides between the tabs. Every tab is an equal
@@ -2630,40 +2703,9 @@
   color: var(--thin);
 }
 
-/* The season's end: painted, not chalked, because it is not a warning. */
-.notice--out {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 12px 14px 13px;
-  background: var(--stripes), var(--danger-bg);
-  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
-  border-left-color: var(--danger);
-  color: var(--chalk);
-}
-
-.notice__eyebrow {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--danger);
-}
-
-.notice__title {
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-size: 24px;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.notice__text {
-  margin-top: 5px;
-  color: var(--chalk-2);
-  line-height: 1.5;
-}
+/* The season's end used to be a banner here, painted rather than chalked
+   because it is not a warning. It is drawn in the drawer now, in the tab bar's
+   place, and wears its own rules there (.review, below). */
 
 /* home page (ui/home.js) ------------------------------------------------------- */
 
