@@ -7,6 +7,12 @@
  * 900px wide the stylesheet shows all three panels side by side and hides
  * the bar; the state here still says which one a phone would be on.
  *
+ * On a phone the bar is also the shut drawer - the panels are away under it
+ * and this is what is left on the bottom edge - so a tab does two things at
+ * once: it says which list, and asking for a list opens the drawer on it
+ * (selectTab in app.js). Nothing here knows that; the bar reports the tap and
+ * the board decides what a tap on a tab is worth.
+ *
  * The bar is built ONCE and updated in place afterwards: renderTabs runs on
  * every board render, and rewriting the markup would drop the focus of a
  * keyboard user mid-arrow.

@@ -209,51 +209,159 @@
 
 /* raised ---------------------------------------------------------------------- */
 
-/* The drawer over the field (ui/drawer.js).
+/* The drawer shut to its own head, and opened over the field (ui/drawer.js).
 
-   Below the wide layout the readout and the drawer share one screen, and the
-   readout has the better part of it: the field, the drive line and a call card
-   that is twice as tall again in a pool taking two picks a week. That is the
-   right split while you are reading the week and the wrong one while you are
-   working down a list of a hundred teams, so the drawer can be pulled up over
-   it. The field's row runs down to nothing, the call goes to a line a slot
-   (components.css), and the list takes what it leaves - four rows becomes
-   most of the screen.
+   Below the wide layout the readout and the drawer share one screen, and there
+   is not enough of it for both: the field, the drive line and a call card that
+   is twice as tall again in a pool taking two picks a week leave the drawer
+   four rows of a hundred-team list - enough to see that there is a list and
+   not enough to work one. Four rows is not a split, it is a split that failed,
+   so the shut drawer keeps none at all. It comes down to the grab and the tab
+   bar, resting on the bottom edge as a bar of chalkboard under the turf, and
+   the readout has the screen it was already most of the way to having.
 
-   The grab is a phone control: from 900px the panels stand side by side with
-   room to spare and there is nothing to raise. */
+   Opened, it is the same raise it always was: the field's row runs down to
+   nothing, the call goes to a line a slot (components.css), and the panels
+   come up out of the bottom edge into what they leave.
+
+   A phone control: from 900px the panels stand side by side with room to spare
+   and there is nothing to open or shut. */
 @media (max-width: 899px) {
   .drawer__grab {
     display: flex;
   }
 
-  /* Lowered, the drawer's lists do not pan under the finger: a drag up raises
-     the drawer instead (watchRaise in ui/drawer.js), which is what a list
-     three rows tall means somebody wants. Panning nothing rather than reading
-     the drag against a scroll that has already begun - the browser commits to
-     one after about eight pixels, which is inside the slop a gesture needs to
-     be told apart from a touch, so the two could only ever be a race. There is
-     nothing to lose by it: three rows is the whole of what the scroll could
-     have reached, and the raise reaches nine.
+  /* The two tracks that trade. Whichever of the readout and the drawer is not
+     being looked at is floored, and the other takes every spare pixel.
 
-     Named by id because that is how the surfaces the week's drag reads are
-     named at the top of this file, and the two rules have to be able to
-     override each other in the order they are written.
+     The readout is floored at its own content, which is what auto asks for.
+     The drawer is floored at a length instead, and has to be: its content is a
+     hundred-team list, near two thousand pixels of it, and a track told to be
+     at least that is a drawer that cannot shut. What the length is worth is
+     the six pixels of turf over the chalkboard, the grab strip, the tab bar
+     with the rule along its foot, and the inset the bottom edge owes the home
+     indicator - the drawer's head and the gap above it, which is the whole of
+     what a shut drawer is (.drawer__grab and .tab in components.css).
 
-     Raised, this is gone and the panels scroll as they always did; the drag
-     that puts the drawer back is taken from the top of the list, where there
-     was nothing to scroll to. */
+     Both tracks are written the same way in both states, which is what lets
+     the swap be travelled rather than jumped: lengths interpolate with lengths
+     and fr factors with fr factors, so the drawer grows up out of the bottom
+     edge over the same 280ms the field folds in. */
+  .board {
+    --drawer-shut: calc(6px + 26px + 49px + env(safe-area-inset-bottom));
+    display: grid;
+    grid-template-rows: auto minmax(auto, 1fr) minmax(var(--drawer-shut), 0fr);
+    transition: grid-template-rows 280ms var(--ease-out);
+  }
+
+  .board.is-raised {
+    grid-template-rows: auto minmax(auto, 0fr) minmax(var(--drawer-shut), 1fr);
+  }
+
+  /* A run that is over has no drawer to shut: the lists are gone, the bar and
+     the grab with them, and how it ended is the whole of what is left (see
+     render in app.js). There is nothing to travel to either, so the track goes
+     back to asking the drawer how tall it is - the band, and not a pixel of a
+     head that is no longer on the board. Held on the bottom edge all the same,
+     because the readout above it still has the fraction. */
+  .board:has(.drawer__panels[hidden]) {
+    grid-template-rows: auto minmax(auto, 1fr) minmax(auto, 0fr);
+  }
+
+  /* And the drawer answers, which it spends the rest of its life refusing to:
+     the nought below is how a drawer holding a list fits a track 81 pixels
+     tall, and the same nought here would fold the ending to nothing and post
+     it off the bottom of the screen. */
+  .board:has(.drawer__panels[hidden]) .drawer {
+    min-height: auto;
+  }
+
+  /* Shut, the drawer's lists do not pan under the finger: a drag up opens it
+     instead (watchRaise in ui/drawer.js), which is what a list nobody can
+     reach means somebody wants. Panning nothing rather than reading the drag
+     against a scroll that has already begun - the browser commits to one after
+     about eight pixels, which is inside the slop a gesture needs to be told
+     apart from a touch, so the two could only ever be a race. There is nothing
+     to lose by it: a shut drawer has no rows to scroll, and the open one
+     reaches nine.
+
+     The bar takes the drag too, and has to: shut, it is the only part of the
+     drawer left on the screen, so it is the only thing a thumb has to pull.
+
+     The panels are named by id because that is how the surfaces the week's
+     drag reads are named at the top of this file, and the two rules have to be
+     able to override each other in the order they are written.
+
+     Open, this is gone and the panels scroll as they always did; the drag that
+     shuts the drawer is taken from the top of the list, where there was
+     nothing to scroll to. */
   .board:not(.is-raised) #view-week,
   .board:not(.is-raised) #view-path,
-  .board:not(.is-raised) #view-burn {
+  .board:not(.is-raised) #view-burn,
+  .board:not(.is-raised) .drawer__tabs,
+  .board:not(.is-raised) .drawer__grab {
     touch-action: none;
   }
 
   /* The grab is the drawer's own top edge, and an edge is separation enough:
-     the turf between the call and the chalkboard comes down by half to pay
-     part of what the strip costs the list. */
+     the turf between the call and the chalkboard comes down by half.
+
+     The 220 the wide layout holds the drawer at is a floor for a drawer that
+     is filling a column; here it is the one thing that would stand between the
+     shut drawer and the bottom edge. Down to nothing rather than to auto: the
+     track above says how tall the drawer is, and a grid item floored at what
+     is inside it would stand its list out through the bottom of a track that
+     is 81 pixels tall.
+
+     And shut, the drawer is what the home indicator runs into, so the inset is
+     its to carry - handed back over the length of the open, because the panel
+     that arrives brings its own (.drawer__panel, above) and a step change
+     would be a jump in the first frame of the one motion on the screen. */
   .drawer {
     margin-top: 6px;
+    min-height: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    transition: padding-bottom 280ms var(--ease-out);
+  }
+
+  /* And the strip keeps its height inside a drawer that has none to spare: the
+     shut drawer is exactly as tall as what is in it, and a flex item free to
+     shrink to its content would leave the grab as the 4px bar drawn on it. */
+  .drawer__grab {
+    flex: none;
+  }
+
+  .board.is-raised .drawer {
+    padding-bottom: 0;
+  }
+
+  /* A run that is over has emptied the drawer down to how it ended, and that
+     band carries the inset itself (.review in components.css). */
+  .drawer:has(.drawer__panels[hidden]) {
+    padding-bottom: 0;
+  }
+
+  /* Shut, the panels are not short - they are away. A box with no height would
+     still be read out by a screen reader and still be tabbed into, behind a
+     bar that says it is shut; visibility takes them out of both. Timed rather
+     than switched, so the list is still there to watch on the way down, and
+     instant on the way up, which is the rule on the box itself. */
+  .drawer__panels {
+    transition: visibility 0s;
+  }
+
+  .board:not(.is-raised) .drawer__panels {
+    visibility: hidden;
+    transition-delay: 280ms;
+  }
+
+  /* The call at the seam. The readout has the spare pixels now, and the one
+     action on the board belongs against the drawer's top edge rather than
+     adrift in the middle of the turf - the turf opens between the field and
+     the call instead. Open, the readout is down to its content and the margin
+     has nothing left to take, so it is the same rule in both states. */
+  .readout > #call {
+    margin-top: auto;
   }
 
   /* The fold, and the gap under it: a field folded to nothing would otherwise
@@ -308,13 +416,25 @@
     --gutter: max(var(--sp-3), env(safe-area-inset-left));
   }
 
-  .board {
+  /* Portrait's two tracks that trade - the readout's screen, the drawer's bar
+     along the bottom - are a stack's answer to a stack's problem. Sideways the
+     two stand side by side and the drawer has its column whatever the raise
+     was left holding, so the rows are the topline and the pair of them, in
+     every state and with nothing to travel between. Every state is written
+     out, because each of the portrait rules names something - the class that
+     says which way the tracks lean, the panels a dead run has put away - and
+     a bare .board here would be outranked by all of them from further up the
+     file. */
+  .board,
+  .board.is-raised,
+  .board:has(.drawer__panels[hidden]) {
     display: grid;
     grid-template-columns: minmax(0, 1fr) clamp(272px, 40%, 380px);
     grid-template-rows: auto minmax(0, 1fr);
     grid-template-areas:
       "topline topline"
       "readout drawer";
+    transition: none;
     /* The columns scroll, not the board: the topline and the seam between them
        hold still, the way the readout holds still in portrait. */
     overflow: hidden;
@@ -358,13 +478,37 @@
     opacity: 1;
   }
 
+  /* And the call is where it falls in the column, not held against a seam that
+     is now a side edge rather than a floor. */
+  .readout > #call {
+    margin-top: 0;
+  }
+
   .drawer {
     grid-area: drawer;
     min-height: 0;
     margin-top: 0;
+    /* The inset is the readout's and the panel's sideways - the notch is on a
+       side now, and nothing of the drawer's own runs into the bottom edge. */
+    padding-bottom: 0;
+    transition: none;
     /* The seam. The drawer is a surface of its own and says so, the way its
        chalkboard does across the foot in portrait. */
     border-left: 1px solid var(--line);
+  }
+
+  /* The panels are open on this screen, whatever the raise was left holding:
+     there is no shut state to take them out of the page for. */
+  .board:not(.is-raised) .drawer__panels {
+    visibility: visible;
+    transition-delay: 0s;
+  }
+
+  /* A dead run's ending is held in a column that is already the height of the
+     screen, so the drawer has nothing to say about how tall it is here either
+     - the band scrolls with the column rather than standing out through it. */
+  .board:has(.drawer__panels[hidden]) .drawer {
+    min-height: 0;
   }
 
   /* The grab raises the drawer over the field to buy it height (ui/drawer.js).
@@ -374,12 +518,18 @@
     display: none;
   }
 
-  /* And with no raise to swipe for, the lists go back to scrolling: the rule
-     above is the price of a gesture this screen does not have. */
+  /* And with no raise to swipe for, the lists go back to scrolling and the bar
+     back to being a bar: the rules above are the price of a gesture this
+     screen does not have. */
   .board:not(.is-raised) #view-week,
   .board:not(.is-raised) #view-path,
   .board:not(.is-raised) #view-burn {
     touch-action: pan-y;
+  }
+
+  .board:not(.is-raised) .drawer__tabs,
+  .board:not(.is-raised) .drawer__grab {
+    touch-action: auto;
   }
 
   /* The right edge is where the notch lands when the phone is turned the other

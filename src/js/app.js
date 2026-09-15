@@ -140,9 +140,10 @@ const app = {
   activeSlot: 0,
   activeTab: initialTab(),
   /**
-   * Whether the drawer is raised over the field. A phone thing: it is what
-   * gives a hundred-team list more than four rows (see ui/drawer.js). Every
-   * board opens with it down, the way every visit opens on the sideline.
+   * Whether the drawer is open over the field. A phone thing: shut, the drawer
+   * is its grab and its tab bar on the bottom edge and the readout has the
+   * screen; open, the field folds away and the list has it (see ui/drawer.js).
+   * Every board opens with it shut, the way every visit opens on the sideline.
    */
   raised: false,
   effect: null,
@@ -1622,19 +1623,31 @@ function startClock() {
  * by every board render, so which one is showing is not a reason to rebuild the
  * board - and a full render here would ask for a plan on the tap that opened a
  * tab, which on a cold board meant the whole season search on it.
+ *
+ * And it opens the drawer, on a screen where the drawer shuts to its bar: a
+ * tab is a label on a list, and naming a list is asking for it. The tab that
+ * was already open asks for it too, which is the whole of what a tap on it can
+ * mean once there is nothing under the bar to be looking at. Not the other way
+ * round, though: the way back down is the grab and the drag, so the bar cannot
+ * be tapped shut by somebody reaching for the list they already have.
  */
 function selectTab(id) {
+  // The drawer first, so the panels are on the screen before the bar hands one
+  // of them an entrance to play: an animation added to a box the browser has
+  // not painted yet is one nobody sees finish (afterMotion in ui/tabs.js).
+  if (canRaise()) setRaised(true);
   if (id === app.activeTab) return;
   app.activeTab = id;
   renderTabs(el.tabs, app.activeTab, selectTab);
 }
 
 /**
- * Raise the drawer over the field, or lower it again.
+ * Open the drawer over the field, or shut it back to its bar.
  *
- * The handle and the class, and nothing else. What the raise does is the
- * stylesheet's - the field folds, the call's slots go to a line each - and
- * none of it is a reason to rebuild the board.
+ * The handle and the class, and nothing else. What the open does is the
+ * stylesheet's - the field folds, the call's slots go to a line each, the
+ * panels come up out of the bottom edge - and none of it is a reason to
+ * rebuild the board.
  */
 function toggleRaised() {
   setRaised(!app.raised);
@@ -1643,9 +1656,9 @@ function toggleRaised() {
 /**
  * Put the drawer at a given height, rather than at the other one.
  *
- * The render asks for this, not just the handle: a board that is raised when
- * the run ends has folded the field away to make room for lists that are
- * about to go (see render), and the way back down goes with them.
+ * The render asks for this, not just the handle: a board that is open when the
+ * run ends has folded the field away to make room for lists that are about to
+ * go (see render), and the way back down goes with them.
  */
 function setRaised(raised) {
   if (app.raised === raised) return;
@@ -1655,14 +1668,14 @@ function setRaised(raised) {
 }
 
 /**
- * Whether this screen has a raise at all.
+ * Whether this screen shuts its drawer at all.
  *
  * Asked of the grab rather than of the viewport: where the handle shows is a
  * question about the shape of the screen and the stylesheet already answers it
  * in two places - not below 900px wide, and not on a phone held sideways,
  * where the drawer already has a column of its own. A media query here would
- * be a third copy of that, and the first one to drift would leave a gesture
- * raising a drawer with nothing above it to fold.
+ * be a third copy of that, and the first one to drift would leave a tab tap
+ * opening a drawer that was never shut.
  */
 function canRaise() {
   return Boolean(el.grab) && getComputedStyle(el.grab).display !== "none";
@@ -2754,13 +2767,17 @@ async function main() {
   );
 
   // And up and down on the same lists, which is the other thing a thumb does
-  // to them: raising the drawer over the field and putting it back
+  // to them: opening the drawer over the field and shutting it again
   // (ui/drawer.js). The bench is watched too - it is the longest list of the
   // three and has no week to turn - and the call is not: it is the thing the
-  // raise folds, not a list to drag.
+  // open folds, not a list to drag.
+  //
+  // The bar and the grab are watched with them, and shut they are the whole of
+  // it: a drawer down to its head has no list under the thumb to drag, so the
+  // gesture that opens it has to be taken from the head itself.
   watchRaise(
     { raisable: canRaise, raised: () => app.raised, toggle: toggleRaised },
-    { surfaces: [el.weekPanel, el.pathPanel, el.burnPanel] },
+    { surfaces: [el.weekPanel, el.pathPanel, el.burnPanel, el.tabs, el.grab] },
   );
 
   // Back and forward, and a link tapped while the app is already open.

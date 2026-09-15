@@ -1,15 +1,28 @@
 /**
- * Raising the drawer over the field: the grab that does it, and the swipe that
+ * Opening the drawer over the field: the grab that does it, and the swipe that
  * does it without looking.
  *
- * A phone shows the readout and the drawer at once, which is right while you
- * are reading the week and wrong while you are working down a list of a
- * hundred teams. Stacked, the field, the drive line and the week's call take
- * six tenths of the screen, and in a college pool - two slots, two of
- * everything - rather more than that; what is left for the list is four rows.
- * So the drawer can be raised: the field folds away, the call keeps its head
- * and puts each slot on a single line, and the list gets the screen. Pulling
- * it back down brings the field with it.
+ * A phone cannot show the readout and the drawer at once. Stacked, the field,
+ * the drive line and the week's call take six tenths of the screen, and in a
+ * college pool - two slots, two of everything - rather more than that; what
+ * was left for a hundred-team list was four rows, which is enough to see that
+ * there is a list and not enough to work one. So the drawer shuts instead: it
+ * comes down to its grab and its tab bar, resting on the bottom edge, and the
+ * readout has the screen. Asked for, it opens - the field folds away, the call
+ * keeps its head and puts each slot on a single line, and the list gets
+ * everything they leave. Shutting it brings the field back.
+ *
+ * Three ways to ask, and the tab bar is the first of them: shut, the bar is
+ * the whole of the drawer on the screen, and a tab is the name of a list, so a
+ * tap on one is asking for that list (selectTab in app.js). The grab is the
+ * second, and the only one that shuts it again by tapping - a bar that opened
+ * and shut on the same tap would close under the thumb of somebody reaching
+ * for the list they had just opened.
+ *
+ * The third is the drag, for the thumb that does not look: up anywhere in the
+ * drawer to open it, down from the top of the list to put it back
+ * (watchRaise). The grab stays, because a gesture nobody can see is not a
+ * control; it is the sign over the door rather than the only way through it.
  *
  * A control rather than something that happens on scroll. A header that
  * collapses under the thumb has to pay for the height it gives up out of the
@@ -23,14 +36,10 @@
  *
  * The field keeps its focusable yard lines while it is folded away, which is
  * how a fold is different from a hide, so it is made inert on the way up and
- * live again on the way down.
- *
- * And the handle is not the only way to ask. Lowered, the list is three rows
- * of a hundred, and the thing a person does to a list three rows tall is drag
- * it up - so that is what raising it is: a drag up anywhere in the drawer, and
- * a drag down from the top of the list to put it back (watchRaise). The grab
- * stays, because a gesture nobody can see is not a control; it is the sign
- * over the door rather than the only way through it.
+ * live again on the way down. The panels shut away under the bar are the same
+ * problem answered the other way round, and answered in the stylesheet: they
+ * are hidden by visibility on a screen that has a shut state at all, which is
+ * a question about the shape of the screen that layout.css is already asking.
  */
 
 /** Latest handler, so the listener bound on the first render stays current. */
@@ -39,13 +48,13 @@ let bound = false;
 
 /**
  * @param {HTMLElement} grab The button.
- * @param {HTMLElement} folded The part of the readout the raise folds away.
+ * @param {HTMLElement} folded The part of the readout the open folds away.
  * @param {boolean} raised
  * @param {() => void} onToggle
  * @param {{hidden?:boolean}} [options] `hidden` takes the handle off the
- *   board: a run that is over has emptied the drawer, and a raise that folds
+ *   board: a run that is over has emptied the drawer, and an open that folds
  *   the field away to make room for nothing is a control with nothing behind
- *   it. The caller lowers the drawer before it asks for this.
+ *   it. The caller shuts the drawer before it asks for this.
  */
 export function renderGrab(grab, folded, raised, onToggle, { hidden = false } = {}) {
   if (!grab) return;
@@ -62,8 +71,8 @@ export function renderGrab(grab, folded, raised, onToggle, { hidden = false } = 
   const label = grab.querySelector(".drawer__grab-label");
   if (label) {
     label.textContent = raised
-      ? "Lower the drawer and show the field"
-      : "Raise the drawer over the field";
+      ? "Close the drawer and show the field"
+      : "Open the drawer over the field";
   }
   if (folded) folded.inert = raised;
 }
@@ -79,30 +88,34 @@ const SLOP_PX = 12;
 const DOMINANCE = 1.4;
 
 /**
- * Watch the drawer's panels for the drag that raises it, and the one that puts
- * it back.
+ * Watch the drawer for the drag that opens it, and the one that puts it back.
  *
  * Touch only, and deliberately: this is the gesture a thumb makes at a list
  * that has no room, and every other pointer has the grab, the keyboard and a
- * screen where the raise is not needed in the first place.
+ * screen where the open is not needed in the first place.
  *
- * Lowered, the panels are told to pan nothing (layout.css), so the drag is
- * ours from the first pixel and there is no race with a scroll that has
- * already started - which is the whole reason the rule is there. Raised, they
+ * Shut, the drawer is told to pan nothing (layout.css), so the drag is ours
+ * from the first pixel and there is no race with a scroll that has already
+ * started - which is the whole reason the rule is there. Open, the panels
  * scroll as they always did and only one drag is taken from them: down, from
  * the very top of the list, where there was nothing to scroll to anyway.
  *
+ * The bar and the grab are surfaces like the lists, and shut they are the only
+ * ones with anything under the thumb - a drawer down to its head has no list
+ * to drag. Neither of them scrolls, so their scrollTop is always nought and
+ * every drag down on them is read from the top, which is what they are for.
+ *
  * One answer per touch. A drag that has been read is done being read, so a
- * long one cannot raise the drawer and then lower it again on the way back.
+ * long one cannot open the drawer and then shut it again on the way back.
  *
  * @param {object} handlers
- * @param {() => boolean} handlers.raisable Whether this screen has a raise at
- *   all - a desktop and a phone held sideways do not, and on those the drag is
- *   the browser's scroll and nothing else.
- * @param {() => boolean} handlers.raised Whether it is up now.
+ * @param {() => boolean} handlers.raisable Whether this screen shuts its
+ *   drawer at all - a desktop and a phone held sideways do not, and on those
+ *   the drag is the browser's scroll and nothing else.
+ * @param {() => boolean} handlers.raised Whether it is open now.
  * @param {() => void} handlers.toggle
- * @param {{surfaces?: HTMLElement[]}} [options] The scrollers to watch. Bound
- *   once and read per touch, so the markup inside them is a render's business.
+ * @param {{surfaces?: HTMLElement[]}} [options] The parts to watch. Bound once
+ *   and read per touch, so the markup inside them is a render's business.
  */
 export function watchRaise({ raisable, raised, toggle }, { surfaces = [] } = {}) {
   for (const surface of surfaces.filter(Boolean)) {
