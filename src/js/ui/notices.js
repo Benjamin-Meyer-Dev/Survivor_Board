@@ -18,7 +18,7 @@
  * top of the board it pushed the field, the strip and the card down by a
  * hundred and forty pixels to report a season that is over, and it left the
  * list of what actually happened with what was left. So renderReview draws it
- * in the drawer instead, in the tab bar's place (see index.html), and the
+ * in the drawer instead, along its bottom edge (see index.html), and the
  * banners here are only ever things that are still true of a board you can
  * still play.
  */
@@ -79,21 +79,27 @@ export function renderNotices(root, { store = null, board = null, message = "" }
 }
 
 /**
- * How the season ended, in the drawer, where the tabs were.
+ * How the season ended, along the bottom of the drawer.
  *
- * The board beneath it is in review from here on: the run as it happened, with
- * nothing left to pick or lock, opened on the week it ended. There is no way
- * back from this short of the result itself changing.
+ * The board above it is in review from here on: the run as it happened, with
+ * nothing left to pick or lock, opened on the week it ended and going no
+ * further than that week (lastWeekInPlay in app.js). There is no way back from
+ * this short of the result itself changing.
  *
- * It stands in the tab bar's place because the bar has nothing left to switch
- * between: nothing can be picked, so the sideline is a list you cannot use and
- * the bench is a list of teams you will not need, and the drive - the season
- * week by week - IS the review. So the drive is what the drawer shows, and
- * this says why (app.js hides the bar, ui/tabs.js names the panel).
+ * The tab bar goes when this arrives, because the bar has nothing left to
+ * switch between: nothing can be picked, so the sideline is a list you cannot
+ * use and the bench is a list of teams you will not need, and the drive - the
+ * season week by week - IS the review. So the drive is what the drawer shows,
+ * and this says how it finished (app.js hides the bar, ui/tabs.js names the
+ * panel).
+ *
+ * At the foot of the drawer rather than the head of it: the drive runs down
+ * the panel week by week and the ending belongs at the end of it, not above
+ * the season it is the last line of.
  *
  * Shorter than the banner it replaces, because it is now spending the list's
  * room rather than the board's: the sentence that said the board is in review
- * is gone, which the disabled lock and the drive under it say for themselves,
+ * is gone, which the disabled lock and the drive above it say for themselves,
  * and what is left is the three facts - when it ended, what ended it, and what
  * the run came to.
  *

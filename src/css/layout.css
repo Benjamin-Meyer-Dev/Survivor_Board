@@ -408,12 +408,11 @@
     display: none;
   }
 
-  /* How the run ended, lined up with the panels under it rather than with the
-     screen: on a phone it is a band the width of the drawer because it stands
-     where the tab bar stood, and here there is no tab bar and three columns
-     that start at 1240 centred. A line of text beginning twenty pixels to the
-     left of the column it introduces is a line that belongs to something
-     else. */
+  /* How the run ended, lined up with the panels above it rather than with the
+     screen: on a phone it is a band the width of the drawer, and here the
+     drawer is three columns that start at 1240 centred. A line of text
+     beginning twenty pixels to the left of the column it closes is a line that
+     belongs to something else. */
   .review {
     max-width: 1240px;
     width: 100%;

@@ -23,6 +23,7 @@ import {
   sameEntry,
   searchesSettled,
 } from "./core/plan.js";
+import { poolStanding } from "./core/standing.js";
 import { readPlans, writePlans } from "./store/plans.js";
 import { onSearchSettled, searchRunner } from "./core/search.js";
 import { useWorkerForSearch } from "./worker-search.js";
@@ -89,7 +90,7 @@ const el = {
   burnPanel: document.getElementById("view-burn"),
   benchLegend: document.getElementById("bench-legend"),
   tabs: document.getElementById("tabs"),
-  /** Where how the run ended goes, once it has: the tab bar's place. */
+  /** Where how the run ended goes, once it has: the foot of the drawer. */
   review: document.getElementById("review"),
   /** The handle that raises the drawer over the field (ui/drawer.js). */
   grab: document.getElementById("grab"),
@@ -668,6 +669,112 @@ async function warmPool(league, kind) {
 }
 
 /**
+ * Whether each pool of the open league is still in it, for the picker to mark
+ * the ones that are out. Keyed by league code and kind, like the rows
+ * (store/rows.js), so a league switch never shows one league's standings
+ * against another's pools.
+ */
+const standings = new Map();
+
+/** The entry each standing was worked out from, so it is worked out once. */
+const stood = new Map();
+
+/** Whether a read is already running, so a run of renders starts only one. */
+let reading = false;
+
+/**
+ * Work out where the open league's other pools stand.
+ *
+ * A pool being out is the one thing about it worth knowing before you switch
+ * to it: the picker names two pools and, on the board, they look exactly alike
+ * whether one of them ended in week 3 or is still alive in week 11. The board
+ * itself answers this for the pool you are on, and for the others it is
+ * core/standing.js - the rules, the locks and the finals, and none of the
+ * pricing or the search a whole board would cost.
+ *
+ * Behind a fingerprint of the entry, like warmPool: this is called from every
+ * render, and the answer only moves when somebody locks a pick or a final
+ * lands. The plan and the odds come from the same per-sport cache the board
+ * reads, so a league whose pools share a season pays for neither twice.
+ *
+ * Quiet, and off to the side: a standing that cannot be worked out is a mark
+ * the picker does not draw, not a board that fails to open.
+ */
+async function readStandings() {
+  const league = app.league;
+  // Every render calls this and the first answer is a file read away, so
+  // without the guard a tap and the search landing behind it would both start
+  // the same work. Whatever the one in flight misses, the next render asks for.
+  if (!league || reading) return;
+
+  reading = true;
+  try {
+    await eachStanding(league);
+  } finally {
+    reading = false;
+  }
+}
+
+/** The work itself: one pool at a time, and the bar once if any of them moved. */
+async function eachStanding(league) {
+  let changed = false;
+  for (const kind of normaliseKinds(league.kinds)) {
+    const key = `${league.code}/${kind}`;
+    // The pool on the board has already been priced in full; its own board is
+    // the answer, and render() files it. This is for the ones nobody is
+    // looking at.
+    if (kind === app.kind) continue;
+
+    const entry = knownEntry(league.code, kind);
+    const fingerprint = JSON.stringify(entry ?? null);
+    if (stood.get(key) === fingerprint) continue;
+
+    try {
+      const sport = POOL_KINDS[kind].sport;
+      const [plan, odds] = await Promise.all([
+        loadJson("plan.json", sport),
+        loadJson("odds.json", sport),
+      ]);
+      // The league moved on while the files were coming; this answer is for a
+      // board nobody is on.
+      if (app.league?.code !== league.code) return;
+      const standing = poolStanding({
+        plan,
+        odds,
+        entry,
+        objective: POOL_KINDS[kind].objective,
+      });
+      stood.set(key, fingerprint);
+      if (standings.get(key)?.eliminated !== standing.eliminated) changed = true;
+      standings.set(key, standing);
+    } catch {
+      /* a mark on a menu row, not a board */
+    }
+  }
+
+  // Only the bar, and only when a row's mark actually changed: this runs after
+  // a render that has already drawn everything else.
+  if (changed && app.view === "board") {
+    renderLeagueBar(el.league, barState(app.kind), BAR_HANDLERS);
+  }
+}
+
+/** What the picker is drawn from: the open league, the pool showing, and where each pool stands. */
+function barState(kind) {
+  return { league: app.league, kind, me: ME, standings: standingsFor(app.league) };
+}
+
+/** The standings of one league's pools, as the picker wants them: kind -> standing. */
+function standingsFor(league) {
+  const found = {};
+  for (const kind of normaliseKinds(league?.kinds)) {
+    const standing = standings.get(`${league.code}/${kind}`);
+    if (standing) found[kind] = standing;
+  }
+  return found;
+}
+
+/**
  * Resolve when the browser has a moment to spare, or soon enough anyway.
  *
  * The search itself is the worker's, but building the board to ask for it is
@@ -867,13 +974,23 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = 
   const previousMotion = captureMotionState();
   const board =
     prepared ?? buildBoard({ ...boardInputs(), allowSearch: search || Boolean(searchRunner()) });
-  // The week being looked at has to be one the pool plays. Which weeks those
-  // are is a rule now (core/rules.js), so a range narrowed here or on another
-  // device can take the open week out from under the drawer.
+  // The week being looked at has to be one the pool plays, and no later than
+  // the week a run that is over ended on. Which weeks the pool plays is a rule
+  // now (core/rules.js), so a range narrowed here or on another device can take
+  // the open week out from under the drawer.
   app.viewWeek = weekOnBoard(board, app.viewWeek);
 
   lastBoard = board;
-  renderLeagueBar(el.league, { league: app.league, kind: app.kind, me: ME }, BAR_HANDLERS);
+  // This pool's own standing, from the board that knows it, so the picker's
+  // mark on the row showing is never a beat behind the field's own "Out".
+  if (app.league) {
+    standings.set(`${app.league.code}/${app.kind}`, {
+      eliminated: Boolean(board.eliminated),
+      eliminatedWeek: board.eliminatedWeek ?? null,
+      record: board.record,
+    });
+  }
+  renderLeagueBar(el.league, barState(app.kind), BAR_HANDLERS);
   renderSettings(el.settings, board, {
     // The rules are the league's, so changing them is a write like any other.
     // Unlike the deck, an eliminated run does not close them: the rules are
@@ -896,10 +1013,11 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = 
   renderDrive(el.drive, board, app.viewWeek, lookAt);
   renderSelection(board);
   // A run that is over shows the drive and puts the bar away: there is nothing
-  // left to pick, so there is nothing to switch between, and how it ended
-  // stands where the bar was (renderReview above). The tab the person had is
-  // not overwritten - it is what the next live board opens on, and a pool
-  // switch out of a dead pool should not land them somewhere they never chose.
+  // left to pick, so there is nothing to switch between, and how it ended is
+  // drawn along the foot of the drawer instead (renderReview above). The tab
+  // the person had is not overwritten - it is what the next live board opens
+  // on, and a pool switch out of a dead pool should not land them somewhere
+  // they never chose.
   const review = Boolean(board.eliminated);
   renderTabs(el.tabs, review ? REVIEW_TAB : app.activeTab, selectTab, { hidden: review });
   renderGrab(el.grab, el.pitch, app.raised, toggleRaised);
@@ -915,6 +1033,10 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = 
   // A search that is already running somewhere else will say when it lands
   // (onSearchSettled in main), so there is nothing to schedule for it.
   if (board.recommendationPending && !board.recommendationRunning) scheduleRecommendation(settle);
+  // Where the league's other pools stand, for the picker. Off to the side of
+  // the render and quiet about everything: it answers in its own time and
+  // marks the bar itself if anything changed.
+  readStandings();
   measure("sudden-death:render", started);
   return board;
 }
@@ -940,8 +1062,26 @@ function measure(name, started) {
  */
 function weekOnBoard(board, week) {
   const first = board.weeks[0]?.week ?? 1;
-  const last = board.weeks.at(-1)?.week ?? first;
-  return Math.min(Math.max(week, first), last);
+  return Math.min(Math.max(week, first), lastWeekInPlay(board));
+}
+
+/**
+ * The last week the board will look at.
+ *
+ * The pool's end week while the run is alive, and the week the run ended on
+ * once it is over: the weeks after that were never played, and a board in
+ * review has nothing to say about them - an empty card with no game in it, a
+ * sideline of teams that cannot be picked, a coach that stood down. They stay
+ * on the field, greyed, because the season's shape is part of what is being
+ * read back; they are just not somewhere the board goes any more.
+ *
+ * One function for every way a week is turned to - the field's yard lines and
+ * arrow keys, the drive's rows, a drag across the board, and a week carried
+ * over from the pool that was open before.
+ */
+function lastWeekInPlay(board) {
+  const last = board.weeks.at(-1)?.week ?? board.weeks[0]?.week ?? 1;
+  return board.eliminated && board.eliminatedWeek ? Math.min(board.eliminatedWeek, last) : last;
 }
 
 /**
@@ -1005,7 +1145,12 @@ function weekAlong(direction) {
   if (!lastBoard) return null;
   const at = lastBoard.weeks.findIndex((week) => week.week === app.viewWeek);
   if (at === -1) return null;
-  return lastBoard.weeks[at + direction] ?? null;
+  const next = lastBoard.weeks[at + direction] ?? null;
+  // Past the week the run ended on there is nothing to turn to, so the drag
+  // pulls against the edge exactly as it does at the end of the season
+  // (lastWeekInPlay).
+  if (next && next.week > lastWeekInPlay(lastBoard)) return null;
+  return next;
 }
 
 /** Whether there is a week that way, for the drag to pull against if not. */
@@ -2166,7 +2311,7 @@ async function switchPool(kind) {
   if (app.switching || !app.league || kind === app.kind) return;
 
   app.switching = true;
-  renderLeagueBar(el.league, { league: app.league, kind, me: ME }, BAR_HANDLERS);
+  renderLeagueBar(el.league, barState(kind), BAR_HANDLERS);
   markPoolLoading(el.league, true);
   let faded = false;
 
@@ -2198,7 +2343,7 @@ async function switchPool(kind) {
     // Put the picker back the way it was. The board under it never moved,
     // unless the failure came after the fade, in which case the render below
     // paints it again.
-    renderLeagueBar(el.league, { league: app.league, kind: app.kind, me: ME }, BAR_HANDLERS);
+    renderLeagueBar(el.league, barState(app.kind), BAR_HANDLERS);
     themeFor(app.kind);
     app.message = `Could not open that pool: ${error.message}`;
     render();

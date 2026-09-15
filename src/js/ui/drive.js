@@ -103,8 +103,13 @@ function weekRowMarkup(week, board) {
 
   // Which row wears the bracket is markDriveViewing's to say, not the row's,
   // so a week change never rewrites a row and a render never rewrites two.
+  //
+  // A week the run never reached takes no tap: it is part of the season's
+  // shape and worth reading, but there is nothing to look at in it, and the
+  // board does not go past the week it ended on (lastWeekInPlay in app.js).
   return `
     <button type="button" class="${classes}" data-week="${week.week}" data-key="${week.week}"
+            ${moot ? "disabled" : ""}
             data-motion-key="drive-${week.week}"
             data-motion-signature="${escapeHtml(signature)}"
             aria-label="Week ${week.week}, ${escapeHtml(week.labelFull)}${teams ? `, ${escapeHtml(teams)}` : ""}"

@@ -23,7 +23,8 @@
  * names it.
  *
  * The picker is drawn here, not by the platform: a chalkboard hung under the
- * line with a row per pool, the one showing checked. It used to be a native
+ * line with a row per pool, the one showing checked and any pool whose run is
+ * over marked OUT (see `row`). It used to be a native
  * `select`, and on Android that opens the system's own radio dialog in the
  * middle of the field, in the system's face and colours - the one thing on the
  * board that is not chalk on turf. The price is that the keyboard and screen
@@ -58,6 +59,8 @@ const REFRESH = `<svg viewBox="0 0 24 24" aria-hidden="true">
 let handlers = { onPool: () => {}, onHome: () => {}, onRefresh: () => {} };
 /** The rows currently in the menu, to know when they need rebuilding. */
 let painted = "";
+/** And which of them were marked out, for the same reason. */
+let marked = "";
 /** And who was last in the roster panel, for the same reason. */
 let roster = "";
 /** The bar's root once built, for the outside-tap listener. */
@@ -67,11 +70,14 @@ let bar = null;
  * @param {HTMLElement} root
  * @param {{league:{code:string,name:string,kinds:string[],
  *   people?:Array<{id:string,name:string}>}|null, kind?:string|null,
- *   me?:string}} state `me` is this device's member id, so the roster can say
- *   which row is you.
+ *   me?:string, standings?:Record<string,{eliminated:boolean,
+ *   eliminatedWeek:number|null}>}} state `me` is this device's member id, so
+ *   the roster can say which row is you. `standings` says which of the
+ *   league's pools are out (readStandings in app.js); a kind it does not name
+ *   is one nothing is known about yet, and its row is drawn plain.
  * @param {{onPool:(kind:string)=>void, onHome:()=>void, onRefresh:()=>void}} given
  */
-export function renderLeagueBar(root, { league, kind = null, me = "" }, given) {
+export function renderLeagueBar(root, { league, kind = null, me = "", standings = {} }, given) {
   if (!root) return;
   handlers = given;
 
@@ -97,14 +103,21 @@ export function renderLeagueBar(root, { league, kind = null, me = "" }, given) {
 
   const menu = root.querySelector(".league-bar__menu");
   const signature = `${league?.code ?? ""}:${kinds.join(",")}`;
-  if (signature !== painted) {
+  // A run ending is a change to the rows themselves, so it is part of what
+  // says whether they need rebuilding. Rebuilt together rather than patched
+  // in place: a mark arriving on a row is the menu being made, not a menu
+  // somebody is reading changing under them - the standings land within a
+  // render or two of the board, long before anyone has opened it.
+  const outs = kinds.map((id) => (standings[id]?.eliminated ? "1" : "0")).join("");
+  if (signature !== painted || outs !== marked) {
     // Another league, or a pool added or taken away: new rows, and a menu
     // open on the old ones is put away rather than left showing them. On the
     // spot, not on its own motion: the rows it would be fading are replaced on
     // the next line, so there is nothing left to watch go.
     closeMenu(root, { now: true });
-    menu.innerHTML = kinds.map(row).join("");
+    menu.innerHTML = kinds.map((id) => row(id, standings[id])).join("");
     painted = signature;
+    marked = outs;
   }
 
   const one = kinds.length === 1;
@@ -164,12 +177,30 @@ export function markRefreshing(root, busy) {
   else button.removeAttribute("aria-busy");
 }
 
-/** One pool, as a row: its paint, its name, and a check when it is the one showing. */
-function row(id) {
+/**
+ * One pool, as a row: its paint, its name, an OUT mark where the run is over,
+ * and a check when it is the one showing.
+ *
+ * The mark is the reason this menu is worth reading before you tap: two pools
+ * of one league are told apart by their paint and their name, and neither says
+ * that one of them ended in week 3. It is the danger the board's own "Out"
+ * flag and the end-of-season band are drawn in, so the three are one signal,
+ * and it names the week in its title for anyone who wants it.
+ *
+ * @param {string} id
+ * @param {{eliminated:boolean, eliminatedWeek:number|null}} [standing] Absent
+ *   for a pool nothing is known about yet, which is drawn plain: a row that
+ *   has not been worked out and a row that is alive look the same, and the
+ *   mark only ever appears, never quietly goes.
+ */
+function row(id, standing) {
+  const out = Boolean(standing?.eliminated);
+  const week = standing?.eliminatedWeek;
   return `
     <li class="league-bar__option" role="option" data-kind="${id}" tabindex="-1" aria-selected="false">
       <span class="league-bar__option-mark" aria-hidden="true"></span>
       <span class="league-bar__option-label">${escapeHtml(POOL_KINDS[id].label)}</span>
+      ${out ? `<span class="league-bar__option-out"${week ? ` title="Eliminated in week ${week}"` : ""}>Out</span>` : ""}
       <svg class="league-bar__option-check" viewBox="0 0 24 24" aria-hidden="true">
         <path d="m5 12.5 4.5 4.5L19 7" />
       </svg>

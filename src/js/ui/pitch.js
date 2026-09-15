@@ -141,8 +141,11 @@ export function renderPitch(root, board, viewWeek, handlers) {
 
   // Keyboard equivalent of the tap, for anyone not on a touchscreen. This one
   // IS by place in the field: an arrow key means the next yard line along,
-  // whatever week it happens to be.
-  const weeks = board.weeks.map((entry) => entry.week);
+  // whatever week it happens to be. The weeks a run that is over never reached
+  // are not among them - they are drawn, but they are not places to be (see
+  // mootWeek), and End would otherwise walk straight past the ending onto a
+  // week with nothing in it.
+  const weeks = board.weeks.map((entry) => entry.week).filter((week) => !mootWeek(week, board));
   delegate(root, "keydown", ".pitch__field", (_field, event) => {
     const step = { ArrowRight: 1, ArrowLeft: -1, Home: -Infinity, End: Infinity }[event.key];
     if (step === undefined) return;
@@ -273,7 +276,7 @@ function viewingWeek(root) {
  */
 function yardMarkup(week, board) {
   const now = week.week === board.currentWeek && !board.eliminated;
-  const moot = board.eliminated && week.week > board.eliminatedWeek;
+  const moot = mootWeek(week.week, board);
   const lanes = week.picks.map(slotMark);
   const says = lanes
     .map((lane) => lane.says)
@@ -297,13 +300,28 @@ function yardMarkup(week, board) {
   // ruler the field is read against - only the chalk on it moves.
   const signature = lanes.map((lane) => `${lane.mark ?? ""}:${lane.team}`).join("|");
 
+  // A week the run never reached is not a week to look at: the yard line is
+  // drawn, greyed, and takes no tap. Disabled rather than left live and
+  // ignored, so the pointer says so before the tap and a screen reader says so
+  // instead of it.
   return `<button type="button" class="${classes}" data-yard="${week.week}" data-key="${week.week}" tabindex="-1"
+      ${moot ? "disabled" : ""}
       data-motion-key="yard-${week.week}" data-motion-signature="${escapeHtml(signature)}"
-      aria-label="Week ${week.week}, ${escapeHtml(week.labelFull)}${says ? `, ${escapeHtml(says)}` : ""}">
+      aria-label="Week ${week.week}, ${escapeHtml(week.labelFull)}${moot ? ", not played" : ""}${says ? `, ${escapeHtml(says)}` : ""}">
       <span class="pitch__lanes">${lanes.map(laneMarkup).join("")}</span>
       <span class="pitch__num">${week.week}</span>
       ${now ? BALL : ""}
     </button>`;
+}
+
+/**
+ * A week the season never reached: past the one a run that is over ended on.
+ *
+ * The field draws these greyed and does not go to them, and app.js holds the
+ * same line for every other way a week is turned to (lastWeekInPlay).
+ */
+function mootWeek(week, board) {
+  return Boolean(board.eliminated && week > board.eliminatedWeek);
 }
 
 /**

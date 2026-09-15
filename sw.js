@@ -40,7 +40,8 @@
 
 /* Bumped when the shell changes shape: v3 was the home page, the start screen
    and the board as separate sections; v4 adds the drawer's review slot, which
-   the board fills once a run is over and puts the tab bar away for.
+   the board fills once a run is over and puts the tab bar away for; v5 moves
+   that slot from the head of the drawer to its foot, under the panels.
 
    "Must not keep half of" is the whole point, and v4 is what that phrase was
    written for. Every shell file is cached first and refreshed on its own a few
@@ -56,7 +57,7 @@
    and is bumped by the same hand: it keeps the coach's last few season plans
    between launches, and a plan cannot say which search produced it. If a
    deploy changes core/recommend.js, bump that one too. */
-const CACHE = "sudden-death-v4";
+const CACHE = "sudden-death-v5";
 
 /** How long to wait for fresh data before opening with the last copy. */
 const DATA_TIMEOUT_MS = 2500;

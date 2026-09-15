@@ -111,10 +111,6 @@
 
           <div class="drawer__tabs" role="tablist" aria-label="Drawer panels" id="tabs"></div>
 
-          <!-- How the run ended, once it has. It takes the tab bar's place
-               rather than standing above the whole board (ui/notices.js). -->
-          <div id="review"></div>
-
           <div class="drawer__panels" id="views">
             <section
               class="drawer__panel"
@@ -152,6 +148,12 @@
               <footer class="legend" id="bench-legend"></footer>
             </section>
           </div>
+
+          <!-- How the run ended, once it has: the drawer's bottom edge, under
+               whatever is left to read (ui/notices.js). The tab bar above is
+               put away with it - a season that is over has one panel worth
+               showing and nothing to switch between. -->
+          <div class="drawer__review" id="review"></div>
         </section>
       </div>
     </main>

@@ -93,6 +93,7 @@ src/js/
     plan.js                   merges plan + odds + entry into the derived board
     probability.js            the calibrated margin model: spread → win probability, de-vig, horizon
     survival.js               season survival, buy backs included
+    standing.js               whether a pool is out, without building its board (the pool picker)
     recommend.js              beam search over the remaining weeks, plus the frontier across futures
     recommend.worker.js       the same search, on its own thread
     search.js                 where a search runs: nowhere by default, so Node searches inline

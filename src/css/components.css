@@ -538,6 +538,30 @@
   text-overflow: ellipsis;
 }
 
+/* A pool whose run is over, marked on its row (ui/league-bar.js).
+
+   Two pools of one league are told apart by their paint and their name, and
+   neither of those says that one of them ended in week 3 - so the menu read
+   the same whether you were about to open a season still being played or a
+   season being read back. This is the one thing about a pool worth knowing
+   before you tap it.
+
+   The danger the board says it in everywhere else: the field's own Out flag
+   and the band at the foot of the drawer. Outlined rather than filled, at the
+   weight the row's own type is drawn in, so it marks the row without becoming
+   the row - the pool's name is still what is being chosen. */
+.league-bar__option-out {
+  flex: none;
+  height: 18px;
+  padding: 0 6px;
+  border: 1px solid color-mix(in srgb, var(--danger) 65%, transparent);
+  border-radius: 3px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 11px;
+  line-height: 16px;
+}
+
 .league-bar__option-check {
   width: 14px;
   height: 14px;
@@ -1247,9 +1271,13 @@
   pointer-events: none;
 }
 
-/* Weeks the season never reached, in review. */
+/* Weeks the season never reached, in review. Drawn, because the season's shape
+   is part of what is being read back, but not somewhere the board goes: the
+   yard line is disabled (ui/pitch.js), so it takes no tap and no arrow key,
+   and the pointer says so before the tap does. */
 .pitch__yard--moot {
   opacity: 0.45;
+  cursor: default;
 }
 
 /* The drive line under the field: the readouts of the season - how fresh the
@@ -1934,14 +1962,21 @@
   display: none;
 }
 
-/* How the run ended, standing where the tabs stood (ui/notices.js).
+/* How the run ended: the band the drawer finishes on (ui/notices.js).
 
-   The same band across the top of the chalkboard the bar is - the gutter, the
-   rule along the bottom - so the drawer's top edge is in the same place
-   whether a season is being played or read back. What is inside it is the
-   painted end-of-season block rather than a row of tabs: three lines, in the
+   It stood where the tab bar stood, which put the season's ending above the
+   season - the first thing read, every time the board was opened, in front of
+   the drive it is the last line of. It is the last line of it here instead:
+   the drive runs down the drawer week by week and this is where it stops, held
+   against the bottom edge under the panel's own scroll rather than riding up
+   and down inside it.
+
+   The same band across the chalkboard the tab bar is - the gutter, a rule
+   along the edge it meets the panels on - so the drawer's two ends are drawn
+   the same whether a season is being played or read back. Three lines, in the
    order they are asked in, and no border of its own, because the band IS the
-   border.
+   border. It carries the bottom inset too: nothing is under it now, so the
+   home indicator is its to clear.
 
    Painted, not chalked, because it is not a warning - the same danger it wore
    as a banner, kept so a person who has seen one recognises the other. */
@@ -1949,9 +1984,18 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 10px var(--gutter) 11px;
-  border-bottom: 1px solid var(--line);
+  flex: none;
+  padding: 10px var(--gutter) calc(11px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
   background: var(--stripes), var(--danger-bg);
+}
+
+/* The region it is written into, which is in the page from the first paint and
+   empty for every board still being played. It is the drawer's last flex item,
+   so it says its own size rather than letting the panels above take it: a
+   drawer shorter than its list would otherwise squeeze the ending out. */
+.drawer__review {
+  flex: none;
 }
 
 .review__eyebrow {
@@ -2354,7 +2398,7 @@
   transition: background-color 0.16s ease;
 }
 
-.drive__row:hover {
+.drive__row:hover:not(:disabled) {
   background: rgb(255 255 255 / 5%);
 }
 
@@ -2447,8 +2491,10 @@
   color: var(--chalk-3);
 }
 
+/* The same weeks on the drive: read back, not turned to (ui/drive.js). */
 .drive__row--moot {
   opacity: 0.6;
+  cursor: default;
 }
 
 .drive__sub,
@@ -2704,8 +2750,8 @@
 }
 
 /* The season's end used to be a banner here, painted rather than chalked
-   because it is not a warning. It is drawn in the drawer now, in the tab bar's
-   place, and wears its own rules there (.review, below). */
+   because it is not a warning. It is drawn in the drawer now, along its bottom
+   edge, and wears its own rules there (.review, below). */
 
 /* home page (ui/home.js) ------------------------------------------------------- */
 

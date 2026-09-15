@@ -36,8 +36,9 @@ export function initialTab() {
  * Nothing can be picked any more, so the sideline is a list you cannot use and
  * the bench is a list of teams you will not need; the drive is the season week
  * by week, which is the whole of what is left to look at. The bar goes with
- * them - there is nothing to switch between - and how the run ended stands in
- * its place (renderReview in ui/notices.js).
+ * them - there is nothing to switch between - and how the run ended is drawn
+ * along the bottom of the drawer, under the drive it closes (renderReview in
+ * ui/notices.js).
  */
 export const REVIEW_TAB = "path";
 
