@@ -1928,6 +1928,12 @@
   cursor: pointer;
 }
 
+/* Put away with the lists it raises, and by attribute rather than by a rule in
+   the media query that shows it, so the two cannot disagree (renderGrab). */
+.drawer__grab[hidden] {
+  display: none;
+}
+
 .drawer__grab-bar {
   width: 40px;
   height: 4px;
@@ -1966,10 +1972,15 @@
 
    It stood where the tab bar stood, which put the season's ending above the
    season - the first thing read, every time the board was opened, in front of
-   the drive it is the last line of. It is the last line of it here instead:
-   the drive runs down the drawer week by week and this is where it stops, held
-   against the bottom edge under the panel's own scroll rather than riding up
-   and down inside it.
+   the lists it is the last line of. It is held against the bottom edge here
+   instead, under whatever the drawer has left, rather than riding up and down
+   inside a panel's own scroll.
+
+   Once the run is over it is the only thing the drawer has left: the three
+   panels go and this takes the room they were spending (see render in app.js).
+   It takes all of it rather than leaving half a screen of bare chalkboard over
+   a band - what stretches is the danger, and the three lines hold the bottom
+   edge, where the list they replace began.
 
    The same band across the chalkboard the tab bar is - the gutter, a rule
    along the edge it meets the panels on - so the drawer's two ends are drawn
@@ -1993,9 +2004,28 @@
 /* The region it is written into, which is in the page from the first paint and
    empty for every board still being played. It is the drawer's last flex item,
    so it says its own size rather than letting the panels above take it: a
-   drawer shorter than its list would otherwise squeeze the ending out. */
+   drawer shorter than its list would otherwise squeeze the ending out.
+
+   The auto margin is what holds it on the bottom edge once the panels have
+   gone: with them there it has nothing to take - they are already spending
+   every spare pixel - and with them away it takes the lot. */
 .drawer__review {
   flex: none;
+  margin-top: auto;
+}
+
+/* The drawer with its panels put away is this and nothing else, so it takes
+   the whole of the chalkboard rather than leaving half a screen of bare board
+   over it. The lines stay on the bottom edge, where the list they replace
+   began; what grows is the danger under them. */
+.drawer__panels[hidden] ~ .drawer__review {
+  flex: 1;
+  display: flex;
+}
+
+.drawer__panels[hidden] ~ .drawer__review .review {
+  flex: 1;
+  justify-content: flex-end;
 }
 
 .review__eyebrow {

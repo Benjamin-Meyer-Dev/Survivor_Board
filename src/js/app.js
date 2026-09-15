@@ -43,6 +43,7 @@ import {
   myId,
   refreshMyLeagues,
   removePool,
+  renameMe,
   renameLeague,
   setMyName,
   sharingAvailable,
@@ -60,7 +61,7 @@ import { renderSideline } from "./ui/sideline.js";
 import { renderDrive, markDriveViewing } from "./ui/drive.js";
 import { renderBench } from "./ui/bench.js";
 import { renderNotices, renderReview } from "./ui/notices.js";
-import { renderTabs, initialTab, REVIEW_TAB } from "./ui/tabs.js";
+import { renderTabs, initialTab } from "./ui/tabs.js";
 import { renderGrab, watchRaise } from "./ui/drawer.js";
 import { requireName } from "./ui/name.js";
 import { requirePasscode } from "./ui/passcode.js";
@@ -89,6 +90,8 @@ const el = {
   pathPanel: document.getElementById("view-path"),
   burnPanel: document.getElementById("view-burn"),
   benchLegend: document.getElementById("bench-legend"),
+  /** The box the three panels stand in. Put away whole once a run is over. */
+  panels: document.getElementById("views"),
   tabs: document.getElementById("tabs"),
   /** Where how the run ended goes, once it has: the foot of the drawer. */
   review: document.getElementById("review"),
@@ -1012,15 +1015,26 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = 
   // rather than on every step of a scrub (see renderSelection).
   renderDrive(el.drive, board, app.viewWeek, lookAt);
   renderSelection(board);
-  // A run that is over shows the drive and puts the bar away: there is nothing
-  // left to pick, so there is nothing to switch between, and how it ended is
-  // drawn along the foot of the drawer instead (renderReview above). The tab
-  // the person had is not overwritten - it is what the next live board opens
+  // A run that is over empties the drawer: the lists go, the bar above them
+  // goes, and how it ended is the whole of what the drawer holds (renderReview
+  // above). Nothing in there could be used - the sideline is a list you cannot
+  // pick from, the bench a list of teams you will not need, and the drive is
+  // the season the field above already draws - week by week, with a row of
+  // "not played" for every week the run never reached under the one row that
+  // ended it. The ending takes the room the three of them were spending.
+  //
+  // The box is put away whole rather than a panel at a time, so the tab the
+  // person had is left exactly as it was: it is what the next live board opens
   // on, and a pool switch out of a dead pool should not land them somewhere
   // they never chose.
   const review = Boolean(board.eliminated);
-  renderTabs(el.tabs, review ? REVIEW_TAB : app.activeTab, selectTab, { hidden: review });
-  renderGrab(el.grab, el.pitch, app.raised, toggleRaised);
+  // The raise buys the lists height over the field. With no lists it would
+  // fold the field away for nothing, so a board that dies while it is up is
+  // put back down before the handle goes.
+  if (review) setRaised(false);
+  if (el.panels) el.panels.hidden = review;
+  renderTabs(el.tabs, app.activeTab, selectTab, { hidden: review });
+  renderGrab(el.grab, el.pitch, app.raised, toggleRaised, { hidden: review });
   renderBench(el.bench, el.benchLegend, board);
   // The action's own feedback first, so the settle knows which slot to leave
   // to it.
@@ -1332,8 +1346,23 @@ function renderHomeView() {
         renderHomeView();
       },
       onRenameMe: (name) => {
-        setMyName(name);
-        app.name = name;
+        // The device's own copies are written before this returns and the
+        // shared rows follow behind it (renameMe in store/directory.js), so
+        // everything repainted below is already the new name.
+        renameMe(name);
+        app.name = myName();
+        // The list and the open board hold their own copies of who is in a
+        // league, and both of them name this person. Rewritten in place rather
+        // than read back from the directory: the list carries a head count and
+        // a missing flag the cache does not, and losing those to a rename
+        // would take the roster button off every card until the next refresh.
+        app.leagues = app.leagues.map((league) => ({
+          ...league,
+          people: renamedMe(league.people, app.name),
+        }));
+        if (app.league) {
+          app.league = { ...app.league, people: renamedMe(app.league.people, app.name) };
+        }
         renderHomeView();
       },
     },
@@ -1608,7 +1637,19 @@ function selectTab(id) {
  * none of it is a reason to rebuild the board.
  */
 function toggleRaised() {
-  app.raised = !app.raised;
+  setRaised(!app.raised);
+}
+
+/**
+ * Put the drawer at a given height, rather than at the other one.
+ *
+ * The render asks for this, not just the handle: a board that is raised when
+ * the run ends has folded the field away to make room for lists that are
+ * about to go (see render), and the way back down goes with them.
+ */
+function setRaised(raised) {
+  if (app.raised === raised) return;
+  app.raised = raised;
   el.board?.classList.toggle("is-raised", app.raised);
   renderGrab(el.grab, el.pitch, app.raised, toggleRaised);
 }
@@ -2131,6 +2172,19 @@ function paintLeague(board) {
   themeFor(app.kind);
   render({ board });
 }
+
+/**
+ * A league's people, with this device's person called something else.
+ *
+ * A rename has to reach every copy of the list that is already in hand - the
+ * home list, and the open board's league - because the name on a roster row is
+ * the member's, not this device's, and neither copy is read back from the
+ * directory until something else moves (see onRenameMe).
+ */
+const renamedMe = (people, name) =>
+  (Array.isArray(people) ? people : []).map((person) =>
+    person.id === ME ? { ...person, name } : person,
+  );
 
 /** A league's members as one string, to know when the list has actually moved. */
 const whoIsHere = (people) =>

@@ -173,11 +173,66 @@ export function myName() {
   }
 }
 
+/**
+ * @returns {string} The name as it was stored - trimmed and cut to length - so
+ *   a caller writing it anywhere else writes the same one.
+ */
 export function setMyName(name) {
+  const clean = name.trim().slice(0, 40);
   try {
-    localStorage.setItem(CONFIG.storage.name, name.trim().slice(0, 40));
+    localStorage.setItem(CONFIG.storage.name, clean);
   } catch {
     /* nothing to do: the name is asked for again next launch */
+  }
+  return clean;
+}
+
+/**
+ * Say what this person is called, everywhere they are named.
+ *
+ * A name is not a setting on a device: it is how everyone else in a league
+ * knows whose picks are whose, and it is stored on each pool's row alongside
+ * them. Changing it used to write the device's own copy and stop there, so the
+ * person's name changed in the header and nowhere else - the roster under the
+ * info button still had the old one, on this phone and on everybody else's,
+ * for good. Nothing ever wrote the member row again.
+ *
+ * Two halves, deliberately. The device's copies - the name itself, and the
+ * cached people on every league it is in - are written BEFORE this returns, so
+ * a caller can repaint on the very next line and the panel is already right.
+ * The shared rows are a round trip per pool and follow behind, best effort,
+ * because a name that did not reach the database is worth less than a board
+ * that did not open (see writeMyMembership).
+ *
+ * @param {string} typed
+ * @returns {Promise<void>} The shared rows, for a caller that wants to know
+ *   when the others can see it. Nothing here throws.
+ */
+export function renameMe(typed) {
+  const name = setMyName(typed);
+  const id = myId();
+
+  for (const league of myLeagues()) {
+    if (!league.people.some((person) => person.id === id)) continue;
+    remember({
+      ...league,
+      people: league.people.map((person) => (person.id === id ? { ...person, name } : person)),
+    });
+  }
+
+  return shareMyName();
+}
+
+/** The second half of a rename: this device's member row on every pool it is in. */
+async function shareMyName() {
+  try {
+    const client = await supabase();
+    if (!client) return;
+    await Promise.all(
+      myLeagues().map((league) => writeMyMembership(client, league.code, league.kinds)),
+    );
+  } catch {
+    /* the name is on this device either way, and the next join writes it out */
   }
 }
 
@@ -556,23 +611,45 @@ export async function joinLeague(typed) {
 
 /**
  * Put this device in a league's members, on every one of its pools, if it is
- * not already.
- *
- * Best effort: the members list is who is here, not who may write, so failing
- * to add yourself must never stop you opening the board. Each write is applied
- * to that row's own entry, over the version it was read at, so joining cannot
- * roll back a pick someone made a moment ago (see patchPoolEntry).
+ * not already. The rows the caller has already read are handed on, so a join
+ * does not re-read what it fetched a moment ago.
  */
 async function addMember(client, league) {
+  await writeMyMembership(client, league.code, league.kinds, (kind) => ({
+    entry: league.pools[kind].entry,
+    version: league.pools[kind].updatedAt,
+  }));
+}
+
+/**
+ * This device's member row on every one of a league's pools, as it should be:
+ * added where it is missing, renamed where the name has moved on, and left
+ * alone - no write at all - where it is already right.
+ *
+ * One function for both the ways a name reaches a row, joining and renaming,
+ * because they are the same write and a second copy of it is how the two came
+ * to disagree in the first place: joining wrote the name and renaming did not.
+ *
+ * Best effort: the members list is who is here, not who may write, so failing
+ * to write it must never stop a board opening. Each write is applied to that
+ * row's own entry, over the version it was read at, so it cannot roll back a
+ * pick someone made a moment ago (see patchPoolEntry).
+ *
+ * @param {object} client
+ * @param {string} code
+ * @param {string[]} kinds
+ * @param {(kind:string) => {entry:object, version:string|null}|null} [known]
+ *   The row as the caller already holds it, to save the first read.
+ */
+async function writeMyMembership(client, code, kinds, known = () => null) {
   const id = myId();
   const name = myName();
   await Promise.all(
-    league.kinds.map(async (kind) => {
-      const pool = league.pools[kind];
+    kinds.map(async (kind) => {
       try {
         await patchPoolEntry(
           client,
-          pool.code,
+          code,
           kind,
           (entry) => {
             const members = Array.isArray(entry.members) ? entry.members : [];
@@ -585,7 +662,7 @@ async function addMember(client, league) {
                 : [...members, { id, name, joinedAt: new Date().toISOString() }],
             };
           },
-          { entry: pool.entry, version: pool.updatedAt },
+          known(kind),
         );
       } catch {
         /* the board opens either way */

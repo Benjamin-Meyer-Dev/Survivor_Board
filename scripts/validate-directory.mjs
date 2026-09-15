@@ -383,6 +383,38 @@ for (const kind of joined.kinds) {
   );
 }
 
+// And renaming on its own does it, without joining again. Nothing else ever
+// rewrote the member row, so a person who changed their name changed it in the
+// header of the home page and nowhere anyone could see it - including the
+// roster on their own device.
+const sharing = directory.renameMe("  Sammy  ");
+
+// The device's own copies are written before the promise is handed back, so
+// the page can repaint on the next line rather than after a round trip.
+assert.equal(directory.myName(), "Sammy", "the name is trimmed and stored at once");
+assert.deepEqual(
+  directory.myLeagues()[0].people.map((person) => person.name),
+  ["Ben", "Sammy"],
+  "the cached people are renamed before the network is asked",
+);
+
+await sharing;
+for (const kind of joined.kinds) {
+  assert.deepEqual(
+    names(table.row(hostCode, kind)),
+    ["Ben", "Sammy"],
+    `${kind}: renaming reaches the member row everyone else reads`,
+  );
+  assert.deepEqual(
+    table.row(hostCode, kind).entry.picks,
+    {},
+    `${kind}: renaming does not touch the board`,
+  );
+}
+
+// Put it back, so what follows reads the name it was written with.
+await directory.renameMe("Samantha");
+
 // Leaving takes this device off the list and out of the members on every
 // board, and leaves the league itself alone: shared boards mean leaving must
 // not delete them while anyone is still on them.
@@ -673,7 +705,8 @@ assert.ok(POOL_KINDS["nfl-win"], "the registry the directory keys on is there");
 console.log(
   "Directory OK: a league is made with a code, a row per pool and each pool's own rules with " +
     "the objective fixed, a code joins every pool of it and adds one member however often it " +
-    "is used, leaving keeps the league and its other members, the last one out takes the " +
+    "is used, a rename reaches this device's copies at once and every member row behind " +
+    "them, leaving keeps the league and its other members, the last one out takes the " +
     "league's rows with them unless somebody joins in the same moment, two leagues never " +
     "share a board and nor do a league's pools, a pool can be removed but never the last one, " +
     "a league can be deleted whole, a delete the table refused is reported rather than " +

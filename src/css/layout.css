@@ -185,6 +185,16 @@
   position: relative;
 }
 
+/* The box put away whole, once the run is over and none of the three lists in
+   it can be used (render in app.js). Written out rather than left to the
+   browser's own rule for the attribute, because the wide layout below sets a
+   display on this box and an author's display beats the one `hidden` carries.
+   The attribute makes this the more specific of the two, so it holds from here
+   and the wide layout does not have to name it a second time. */
+.drawer__panels[hidden] {
+  display: none;
+}
+
 .drawer__panel {
   height: 100%;
   overflow-y: auto;

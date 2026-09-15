@@ -42,8 +42,12 @@ let bound = false;
  * @param {HTMLElement} folded The part of the readout the raise folds away.
  * @param {boolean} raised
  * @param {() => void} onToggle
+ * @param {{hidden?:boolean}} [options] `hidden` takes the handle off the
+ *   board: a run that is over has emptied the drawer, and a raise that folds
+ *   the field away to make room for nothing is a control with nothing behind
+ *   it. The caller lowers the drawer before it asks for this.
  */
-export function renderGrab(grab, folded, raised, onToggle) {
+export function renderGrab(grab, folded, raised, onToggle, { hidden = false } = {}) {
   if (!grab) return;
   onGrab = onToggle;
 
@@ -51,6 +55,8 @@ export function renderGrab(grab, folded, raised, onToggle) {
     bound = true;
     grab.addEventListener("click", () => onGrab());
   }
+
+  grab.hidden = hidden;
 
   grab.setAttribute("aria-pressed", String(raised));
   const label = grab.querySelector(".drawer__grab-label");
