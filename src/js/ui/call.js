@@ -254,19 +254,45 @@ function resultChip(status) {
  * not go into it at any size worth reading. So it stands on the game line
  * instead (sourceMarkup), which is the line it qualifies and has the width for
  * it, and the numbers get the row to themselves in both layouts.
+ *
+ * The same width answers the second key twice over. Two tiles on half a card
+ * leave it about forty-five pixels on a narrow phone, and WIN PROB is sixty
+ * three of them at the size the rest of the board's keys are set in - it was
+ * painting over its own rule. The stylesheet buys back what the padding and
+ * the tracking are worth (.call__slots--two .tile); the word gives up the rest
+ * of it. WIN over 98.9% says what WIN PROB says, because the figure under it
+ * is already a probability and there is nothing else it could be.
+ *
+ * Both words are written and the stylesheet picks one, rather than the short
+ * one being chosen here: which of them fits is a question about how wide the
+ * screen is, and this module counts slots. A desktop and a phone held sideways
+ * have room for the whole word in two slots, and keep it.
  */
 function tiles(line, board) {
-  const probKey = board?.rules?.objective === "lose" ? "Loss prob" : "Win prob";
+  const losers = board?.rules?.objective === "lose";
   return `
     <div class="call__tiles">
       ${tile("Spread", line ? formatSpread(line.spread) : "—", line?.tier)}
-      ${tile(probKey, line ? formatPercent(line.winProb) : "—", line?.tier)}
+      ${tile(
+        losers ? "Loss prob" : "Win prob",
+        line ? formatPercent(line.winProb) : "—",
+        line?.tier,
+        losers ? "Loss" : "Win",
+      )}
     </div>`;
 }
 
-function tile(key, value, tier) {
+/**
+ * @param {string} [short] A shorter key for a tile with no room for the long
+ *   one. Only one of the two is ever in the layout, so only one is ever read
+ *   out (.tile__key-short in components.css).
+ */
+function tile(key, value, tier, short) {
+  const label = short
+    ? `<span class="tile__key-long">${escapeHtml(key)}</span><span class="tile__key-short">${escapeHtml(short)}</span>`
+    : escapeHtml(key);
   return `<div class="tile">
-    <span class="tile__key">${escapeHtml(key)}</span>
+    <span class="tile__key">${label}</span>
     <span class="tile__value${tier ? ` confidence--${tier}` : ""}">${escapeHtml(value)}</span>
   </div>`;
 }

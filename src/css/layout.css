@@ -247,9 +247,21 @@
      the swap be travelled rather than jumped: lengths interpolate with lengths
      and fr factors with fr factors, so the drawer grows up out of the bottom
      edge over the same 280ms the field folds in. */
+  /* And one column, floored at nothing rather than at what is in it.
+
+     A grid column written `auto` - which is what a row-only template leaves -
+     is at least as wide as the widest thing standing in it, and the call
+     card's head is a row of nowrap chalk that says it wants 354 pixels however
+     little it is given. The column took it, the board came out 408 wide on a
+     360 phone, and everything that sits against the right edge went off the
+     side of it: the gear, the lock, the season flag, the third tab. The
+     ellipsis the when-line carries is there to stop exactly that, and it never
+     got the chance - nothing had told the column it was allowed to be
+     narrower. Nought is that permission. */
   .board {
     --drawer-shut: calc(6px + 26px + 49px + env(safe-area-inset-bottom));
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(auto, 1fr) minmax(var(--drawer-shut), 0fr);
     transition: grid-template-rows 280ms var(--ease-out);
   }
@@ -346,7 +358,14 @@
      bar that says it is shut; visibility takes them out of both. Timed rather
      than switched, so the list is still there to watch on the way down, and
      instant on the way up, which is the rule on the box itself. */
+  /* And the box is cut to the height the track gives it. The panel inside it
+     is `height: 100%` over a bottom padding, and a box told to be nothing
+     still cannot be shorter than its own padding: the shut drawer stood
+     fourteen pixels of empty panel out through the bottom of the screen, which
+     nothing could see and the board scrolled to reach. A phantom scroll on
+     every phone, and the one the board is meant never to need. */
   .drawer__panels {
+    overflow: clip;
     transition: visibility 0s;
   }
 
@@ -362,6 +381,46 @@
      has nothing left to take, so it is the same rule in both states. */
   .readout > #call {
     margin-top: auto;
+  }
+
+  /* And the field spends most of what the shut drawer handed back, rather than
+     keeping the 152 it was cut to when it had a list under it and leaving the
+     rest as a bar of empty turf across the middle of the screen - three
+     hundred and sixty pixels of it on the tallest phone, which is not the turf
+     opening, it is the board not being finished.
+
+     The box grows and the field grows inside it; how far is the field's own
+     business (.pitch__field in components.css), and past its ceiling the turf
+     opens as it did. It shrinks the same way, which is the other half of the
+     bargain: a banner over the board takes its height out of the readout, and
+     the field is what can give it up without anything going off the screen.
+
+     Only the box - the fold is the row inside it, and the row is still what
+     travels, so the raise is untouched. */
+  .readout > #pitch {
+    flex: 1 1 auto;
+  }
+
+  /* And the box says how short it is willing to be, which is the other half of
+     that. A flex item left to work it out floors itself at what is in it -
+     here the field at the 152 it happens to be standing at - and an item
+     floored at its own height is one that cannot give a pixel back however
+     little room there is: the readout's row is floored at its content in turn,
+     and the board scrolled.
+
+     Nought is not the answer either. The readout's row would floor at nothing,
+     the flex column inside would be handed less than it can lay out, and the
+     field would hold its floor while the call card was pushed out through the
+     bottom - over the drawer, across the tab bar, off the screen. A box that
+     will not say what it needs is not more flexible than one that will, it
+     just breaks somewhere else.
+
+     So it says: the shortest field, the gap under it, and the drive line that
+     is one row of chalk whatever the screen. Above it the field grows to fill
+     what the readout has spare; below it there is nothing left to give, and a
+     board that still cannot fit scrolls, which is what the scroll is for. */
+  .board:not(.is-raised) .readout > #pitch {
+    min-height: calc(124px + 8px + 37px);
   }
 
   /* The fold, and the gap under it: a field folded to nothing would otherwise
@@ -461,6 +520,22 @@
      the call had climbed over both. */
   .readout > * {
     flex: none;
+  }
+
+  /* The field included, and said again by name because the portrait block
+     names it by id: a phone sideways is 844 across and under the 899 that
+     block is written for, and an id outranks the star above whatever the order
+     of the two. What it says there is that the field spends the readout's
+     spare height and gives it back under a banner - a portrait answer to a
+     portrait screen, where the readout has the height and the drawer is shut
+     under it. Sideways the readout is a column that scrolls, there is no spare
+     height to spend and nothing below the fold to protect, and a field that
+     grew by eight pixels because the banner had gone is the column moving for
+     a reason nobody asked about. */
+  .readout > #pitch,
+  .board:not(.is-raised) .readout > #pitch {
+    flex: none;
+    min-height: 0;
   }
 
   /* The raise is the same squeeze answered standing up: the field's row folded

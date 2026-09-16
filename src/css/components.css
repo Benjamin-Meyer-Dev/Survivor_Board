@@ -1028,12 +1028,28 @@
 /* The field is wider than a phone and scrolls sideways; the end zones stay
    pinned to either edge while the weeks run under them. A desktop shows every
    week at once (see the wide block). */
+/* How tall the field stands: 152 as it always was, and a band either side of
+   it that the readout's spare height is spent into (layout.css).
+
+   Up, because the height of a yard line is the length of the name written down
+   it - NORTHWESTERN came out as NORTHWESTEF at 152 - and because a field is
+   the one thing on this board that is better for being bigger. Not without
+   end: the column is 44 wide, and past about 230 the weeks stop reading as a
+   field and start reading as railings.
+
+   Down, because a banner over the board is height the readout no longer has,
+   and a field that will not give any up is a board that scrolls. 124 is the
+   floor the sideways layout already runs at, where it was chosen as the least
+   a name can be read at. */
 .pitch__field {
   --zone-w: 30px;
   --yard-w: 44px;
   position: relative;
   display: flex;
+  flex: 1 1 auto;
   height: 152px;
+  min-height: 124px;
+  max-height: 232px;
   border: 2px solid var(--chalk);
   background: var(--turf-3);
   overflow-x: auto;
@@ -1289,6 +1305,9 @@
   align-items: stretch;
   justify-content: space-between;
   gap: 10px;
+  /* The field above it is the part that gives and takes; the drive line is one
+     row of chalk either way. */
+  flex: none;
 }
 
 /* The readouts are laid out by the drive row itself rather than inside a box
@@ -1500,10 +1519,13 @@
   gap: 10px;
 }
 
+/* A block, not a flex row, and the dot is set in the line rather than laid out
+   beside it. The ellipsis at the end of this rule is the whole reason the row
+   is allowed to give way first, and text-overflow has nothing to say about a
+   flex container's items: the line was cut mid-word with no mark to say so -
+   ON THE CLO - on every phone narrow enough to need it. */
 .call__when {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
+  display: block;
   flex: 1 1 auto;
   min-width: 0;
   font-family: var(--font-display);
@@ -1517,17 +1539,20 @@
   text-overflow: ellipsis;
 }
 
-.call__when--now::before {
-  flex: none;
-}
-
+/* The week on the clock is lit: a lamp set in the line, ahead of the text.
+   Inline-block with the gap as a margin, since the row it used to be laid out
+   by is a block now, and lifted to sit on the ink's own middle rather than on
+   the baseline the caps stand on. */
 .call__when--now::before {
   content: "";
+  display: inline-block;
   width: 7px;
   height: 7px;
+  margin-right: 7px;
   border-radius: 50%;
   background: var(--flag);
   box-shadow: 0 0 8px var(--flag);
+  vertical-align: 0.1em;
 }
 
 .call__tags {
@@ -1747,6 +1772,14 @@
   border: var(--dash);
   border-radius: var(--radius-sm);
   min-width: 0;
+}
+
+/* The short word a tile carries for the screens that cannot hold the long one,
+   out of the layout - and so out of the reading order too - wherever the long
+   one fits. The narrow two-slot block near the foot of this file is the only
+   place the two swap over. */
+.tile__key-short {
+  display: none;
 }
 
 .tile__key {
@@ -3958,6 +3991,61 @@
   }
 }
 
+/* Two picks a week, on a phone narrower than about four hundred.
+
+   A slot is half the card less its padding, which is the width of the phone
+   halved less fifty: 130 pixels on a 360, 145 on a 390. MISSOURI is 148 at
+   26px and ARIZONA is 134, so both broke - and broke mid-word, because a name
+   that will not fit a line has nowhere else to go (overflow-wrap on
+   .call__team). MISSOU / RI is not a team.
+
+   Measured across all 82 names in the two pools: no size fits them all on one
+   line - MISSISSIPPI STATE is 217 at 20px - and none should. A two-word name
+   wants to wrap at its space, and 22 is where the one-word names stop being
+   the ones that break: ARIZONA comes to 113 and MISSOURI to 125, inside the
+   narrowest slot there is. The long ones still wrap, and now they wrap where
+   the word ends.
+
+   Four hundred because that is where the arithmetic turns: a slot holds
+   MISSOURI at 26px from 396 up, so every phone above this line already had the
+   room and keeps the size. */
+@media (max-width: 400px) {
+  .call__slots--two .call__team {
+    font-size: 22px;
+  }
+
+  /* And the tiles give up the air around their keys rather than the keys.
+
+     Four tiles across a 360 phone leave each key 44 pixels. SPREAD is 48 at
+     the size and tracking every other key on the board is set in and WIN PROB
+     is 63, so both were painting over their own right-hand rule - SPREAE, WIN
+     PROE - on every phone narrower than about four hundred. The padding and
+     the tracking come to six pixels of the difference and SPREAD fits; the
+     rest of it is the word, and the word is shortened where it will not go
+     (tiles in ui/call.js), which is the answer this card already gave when
+     three tiles would not fit two slots.
+
+     Not by stacking them. A tile on its own line has all the room it could
+     want and costs forty-five pixels of card, which is more than the shortest
+     phone has: it put the 375 over its own screen with no banner on it at
+     all. */
+  .call__slots--two .tile {
+    padding: 3px 5px;
+  }
+
+  .call__slots--two .tile__key {
+    letter-spacing: 0.08em;
+  }
+
+  .call__slots--two .tile__key-long {
+    display: none;
+  }
+
+  .call__slots--two .tile__key-short {
+    display: inline;
+  }
+}
+
 @media (max-width: 380px) {
   .call__team {
     font-size: 32px;
@@ -4017,7 +4105,13 @@
   .pitch__field {
     --zone-w: 26px;
     --yard-w: 38px;
+    /* A length, not a band: the portrait field grows and shrinks with the
+       screen it is on, and sideways there is one height that works and it is
+       this one. */
+    flex: none;
     height: 124px;
+    min-height: 0;
+    max-height: none;
   }
 
   /* A step down buys back most of what the shorter field costs: the name is
