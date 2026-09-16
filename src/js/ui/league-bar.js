@@ -11,7 +11,9 @@
  * have done since you looked. It is here rather than left to a pull at the top
  * of the page: the page does not reload on a pull (base.css stops it, and a
  * reload would lose the week you were on), so the gesture people reach for had
- * nothing behind it.
+ * nothing behind it. It also does the one thing the pull was good for - a new
+ * build of the app arrives on it (checkForUpdate in app.js), and the reload
+ * that brings it in comes back to the week and the slot it left.
  *
  * The name and the pool stack as a title block - the name chalked large, the
  * pool as a line under it - so the name gets the bar's whole width between the

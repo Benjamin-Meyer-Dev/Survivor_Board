@@ -2140,8 +2140,12 @@ function adoptLeague(ready) {
   app.calibration = ready.calibration;
   app.availability = ready.availability;
   app.pool = ready.pool;
-  app.viewWeek = ready.viewWeek;
-  app.activeSlot = ready.activeSlot;
+  // Back to the week and the slot a refresh reloaded out of, when this is the
+  // board it reloaded (stashResume); the week on the clock otherwise.
+  const resume = takeResume(league.code, kind);
+  app.viewWeek = resume?.viewWeek ?? ready.viewWeek;
+  app.activeSlot = resume?.activeSlot ?? ready.activeSlot;
+  if (resume?.activeTab) app.activeTab = resume.activeTab;
 
   document.title = titleFor(app.league, kind);
 
@@ -2267,6 +2271,19 @@ const REFRESH_TURN_MS = 1100;
 /** The head of the line a refresh that would not go puts on the board. */
 const REFRESH_FAILED = "Could not check for changes";
 
+/** How long the service worker gets to revalidate the shell before the check moves on without it. */
+const SHELL_CHECK_MS = 8000;
+
+/** How long a stashed week and slot are honoured after the reload that stashed them. */
+const RESUME_FOR_MS = 60_000;
+
+/**
+ * Whether a new worker took over while a check was out (registerServiceWorker
+ * sets it). Only read then: a new worker arriving on its own is the next
+ * launch's business, and must never reload the board under somebody.
+ */
+let controllerChanged = false;
+
 /** Whether a check asked for by hand is out, so a second tap is not a second one. */
 let refreshing = false;
 
@@ -2298,6 +2315,7 @@ let refreshing = false;
 async function refreshBoard() {
   if (refreshing || app.switching || app.view !== "board" || !app.league || !app.store) return;
   refreshing = true;
+  controllerChanged = false;
   markRefreshing(el.league, true);
 
   const started = performance.now();
@@ -2307,18 +2325,30 @@ async function refreshBoard() {
 
   try {
     forgetPoolFiles(kind);
-    const [fresh] = await Promise.all([
+    const [fresh, , , updated] = await Promise.all([
       poolFiles(kind),
       app.store.refresh?.(),
       // The directory is the quiet one of the three: a league is renamed or
       // joined far less often than a line moves, and neither answer is worth
       // failing the check over.
       adoptFreshLeague(code).catch(() => false),
+      // And the app itself. A pull at the top of the page used to be how a new
+      // build arrived; the page no longer reloads on a pull, so this is where
+      // that went (checkForUpdate).
+      checkForUpdate().catch(() => false),
     ]);
     await turned(started);
     // A pool switch or a trip home while the check was out: that board is not
     // this board, and none of this belongs on it.
     if (openScope() !== scope) return;
+    if (updated) {
+      // The newer build is in the cache now, and the only way to be running
+      // it is to load it. The week and the slot go too (takeResume), which is
+      // the thing a reload used to lose.
+      stashResume();
+      window.location.reload();
+      return;
+    }
     // The week being looked at and the slot in hand are the person's, not the
     // file's: this is the same board with newer numbers on it.
     app.plan = fresh.plan;
@@ -2336,6 +2366,113 @@ async function refreshBoard() {
   } finally {
     refreshing = false;
     markRefreshing(el.league, false);
+  }
+}
+
+/**
+ * Whether there is a newer build of the app than the one running.
+ *
+ * Two ways there can be. A new sw.js: `update()` fetches it, and since the
+ * worker takes over as soon as it installs (skipWaiting and claim in sw.js)
+ * the controller changes, which registerServiceWorker notes. Or the same
+ * worker and new files behind it - a deploy that did not bump the cache - in
+ * which case the worker is asked to fetch every shell file again and say
+ * whether any of them differed. Either is a yes.
+ *
+ * Never a no that stops the check: a browser without a worker, a worker that
+ * does not answer in time, a network that is down all come back false, and the
+ * board is refreshed as it always was.
+ */
+async function checkForUpdate() {
+  if (!("serviceWorker" in navigator)) return false;
+  const registration = await navigator.serviceWorker.getRegistration().catch(() => null);
+  if (!registration) return false;
+
+  await registration.update().catch(() => undefined);
+  // A worker found by that check is still installing when update() resolves.
+  // Given the time to take over, so the question below goes to it, and the
+  // controller change it causes is counted.
+  const arriving = registration.installing ?? registration.waiting;
+  if (arriving) await activated(arriving, SHELL_CHECK_MS).catch(() => undefined);
+
+  const worker = navigator.serviceWorker.controller;
+  if (!worker) return controllerChanged;
+  const answer = await askWorker(worker, { type: "refresh-shell" }, SHELL_CHECK_MS).catch(
+    () => null,
+  );
+  return controllerChanged || Boolean(answer?.changed);
+}
+
+/** Resolves once a worker is activated, or rejects when it has not by `ms`. */
+function activated(worker, ms) {
+  return new Promise((resolve, reject) => {
+    if (worker.state === "activated") {
+      resolve();
+      return;
+    }
+    const timer = setTimeout(() => reject(new Error("Worker did not activate")), ms);
+    worker.addEventListener("statechange", () => {
+      if (worker.state === "activated") {
+        clearTimeout(timer);
+        resolve();
+      }
+    });
+  });
+}
+
+/** One question to the worker, answered on a port of its own or not at all. */
+function askWorker(worker, message, ms) {
+  return new Promise((resolve, reject) => {
+    const channel = new MessageChannel();
+    const timer = setTimeout(() => reject(new Error("Worker did not answer")), ms);
+    channel.port1.onmessage = (event) => {
+      clearTimeout(timer);
+      resolve(event.data);
+    };
+    worker.postMessage(message, [channel.port2]);
+  });
+}
+
+/**
+ * The week and the slot on the board, kept across the reload a refresh makes
+ * into a new build. Session storage, because it is for this tab's next page
+ * and nothing else; and stamped, so a stash nobody came back for is not
+ * honoured an hour later.
+ */
+function stashResume() {
+  try {
+    sessionStorage.setItem(
+      CONFIG.storage.resume,
+      JSON.stringify({
+        code: app.league?.code ?? null,
+        kind: app.kind,
+        viewWeek: app.viewWeek,
+        activeSlot: app.activeSlot,
+        activeTab: app.activeTab,
+        at: Date.now(),
+      }),
+    );
+  } catch {
+    // Storage refused: the reload opens on the week on the clock, as it would
+    // have anyway.
+  }
+}
+
+/**
+ * What stashResume kept, if it was kept for this board and recently; taken,
+ * so it is honoured once.
+ */
+function takeResume(code, kind) {
+  try {
+    const raw = sessionStorage.getItem(CONFIG.storage.resume);
+    if (!raw) return null;
+    sessionStorage.removeItem(CONFIG.storage.resume);
+    const saved = JSON.parse(raw);
+    if (saved.code !== code || saved.kind !== kind) return null;
+    if (!Number.isFinite(saved.at) || Date.now() - saved.at > RESUME_FOR_MS) return null;
+    return saved;
+  } catch {
+    return null;
   }
 }
 
@@ -2664,6 +2801,13 @@ function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   navigator.serviceWorker.register("./sw.js").catch((error) => {
     console.warn("Service worker not registered:", error.message);
+  });
+  // A new worker taking over is a new build, and the refresh button wants to
+  // know (checkForUpdate) - but only while its check is out. One arriving on
+  // its own, on launch or in the background, is picked up next launch as it
+  // always was, rather than reloading a board somebody is using.
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing) controllerChanged = true;
   });
 }
 

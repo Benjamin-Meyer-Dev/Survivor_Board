@@ -10,7 +10,10 @@
  * the cached copy was even considered, so opening from the home screen on a
  * weak signal stalled on a blank screen, and then the fonts arrived late and
  * reflowed the startup screen under the play. The price is that a deploy is
- * picked up on the launch after the one that fetched it.
+ * picked up on the launch after the one that fetched it - or when the board's
+ * refresh button asks (the message handler below), which revalidates every
+ * shell file now and tells the page whether anything changed, so it can reload
+ * into the new build without waiting for the next launch.
  *
  * The data files under data/ come in two kinds. The ones the odds bot rewrites
  * daily - the lines, the fit to them, the availability report, the pool's
@@ -105,6 +108,80 @@ self.addEventListener("activate", (event) => {
     })(),
   );
 });
+
+/**
+ * The page asking for the latest build now, rather than on the next launch.
+ *
+ * Every same-origin file this cache holds that is not the daily data - the
+ * shell, and the season files that open from the cache like it - is fetched
+ * again, compared with the copy, and the copy replaced. The answer is how many
+ * differed, on the port the page sent along, so the page knows whether a
+ * reload would show anything new. The daily data is left out: the board
+ * fetches that itself, network first, on the same tap.
+ *
+ * Held open with waitUntil like every other write here: a worker with nothing
+ * else to do is stopped as soon as its handlers return, and a revalidation
+ * that has been stopped part way through has replaced some files and not
+ * others - the half-deploy the CACHE bump exists to prevent.
+ */
+self.addEventListener("message", (event) => {
+  if (event.data?.type !== "refresh-shell") return;
+  const reply = (answer) => (event.ports[0] ?? event.source)?.postMessage(answer);
+  event.waitUntil(refreshShell().then(reply, () => reply({ changed: 0, failed: true })));
+});
+
+async function refreshShell() {
+  const cache = await caches.open(CACHE);
+  const requests = (await cache.keys()).filter((request) => {
+    const url = new URL(request.url);
+    return url.origin === self.location.origin && (!isData(url) || isSettledData(url));
+  });
+  const results = await Promise.all(requests.map((request) => revalidate(cache, request)));
+  return { changed: results.filter(Boolean).length, checked: results.length };
+}
+
+/**
+ * One file fetched again and compared. `no-cache` makes the browser ask the
+ * server whether its own HTTP copy is still good rather than trusting it, so
+ * the answer is the server's current file - a 304 comes back as that same
+ * file, and compares equal.
+ *
+ * @returns {Promise<boolean>} Whether the copy changed.
+ */
+async function revalidate(cache, request) {
+  const key = request.url;
+  const cached = await cache.match(key, { ignoreVary: true });
+  let fresh;
+  try {
+    fresh = await fetch(new Request(key, { cache: "no-cache" }));
+  } catch {
+    return false;
+  }
+  if (!keepable(fresh)) return false;
+  const changed = await differs(cached, fresh.clone());
+  await cache.put(key, fresh);
+  refreshed.add(key);
+  return changed;
+}
+
+/**
+ * Whether two copies of a file are different: by validator where the server
+ * sends one, byte for byte where it does not. Bytes rather than length alone,
+ * because a one-character fix is a deploy too.
+ */
+async function differs(cached, fresh) {
+  if (!cached) return true;
+  const tag = (response) => response.headers.get("etag");
+  if (tag(cached) && tag(fresh)) return tag(cached) !== tag(fresh);
+  const stamp = (response) => response.headers.get("last-modified");
+  if (stamp(cached) && stamp(fresh)) return stamp(cached) !== stamp(fresh);
+  const [before, after] = await Promise.all([cached.clone().arrayBuffer(), fresh.arrayBuffer()]);
+  if (before.byteLength !== after.byteLength) return true;
+  const a = new Uint8Array(before);
+  const b = new Uint8Array(after);
+  for (let index = 0; index < a.length; index += 1) if (a[index] !== b[index]) return true;
+  return false;
+}
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;

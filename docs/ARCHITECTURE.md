@@ -864,7 +864,10 @@ away cannot be trusted to have missed nothing.
   the repo. The shell (page, styles, modules, icons, fonts, the Supabase client)
   opens from the cache and refreshes behind the scenes, which is what makes a
   home-screen launch instant; a deploy is picked up on the launch after the one
-  that fetched it. The data files the refresh rewrites - the lines, the fit,
+  that fetched it, or at once on the board's refresh button, which asks the
+  worker to revalidate the shell (`refresh-shell` in `sw.js`) and reloads into
+  the new build if anything changed, keeping the week and slot that were open
+  (`stashResume` in `app.js`). The data files the refresh rewrites - the lines, the fit,
   the availability report, the pool's numbers - go network-first with a time
   limit, so an odds commit still lands the moment it is published and a weak
   signal falls back to the last copy rather than hanging; the five that

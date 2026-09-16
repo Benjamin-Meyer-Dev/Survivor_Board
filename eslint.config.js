@@ -8,6 +8,8 @@ export default [
         document: "readonly",
         window: "readonly",
         localStorage: "readonly",
+        sessionStorage: "readonly",
+        MessageChannel: "readonly",
         fetch: "readonly",
         console: "readonly",
         setTimeout: "readonly",
@@ -45,6 +47,7 @@ export default [
       globals: {
         self: "readonly",
         caches: "readonly",
+        Request: "readonly",
       },
     },
   },
