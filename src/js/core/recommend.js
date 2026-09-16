@@ -23,13 +23,14 @@
  *
  *   2. The frontier judges this week's choice under uncertainty. The best path
  *      commits to a December pick priced off today's ratings, and today's
- *      ratings will be wrong by an amount the calibration knows. So the few
- *      candidates this week that any good path starts with are each played
- *      through a set of futures (core/scenarios.js): in each future the rest
- *      of the season is re-planned around the candidate, exactly, by
- *      assignment (core/assignment.js), and the candidate that survives most
- *      of those futures is the call. That values keeping options open, which
- *      a single path priced to the decimal cannot.
+ *      ratings will be wrong by an amount the calibration knows. Every legal
+ *      team is played through a set of futures (core/scenarios.js): alone in
+ *      a one-pick pool, or in a viable opening with a compatible partner in a
+ *      multi-pick pool. In each future the rest of the season is re-planned
+ *      around the opening, exactly, by assignment (core/assignment.js), and
+ *      the candidate that survives most of those futures is the call. That
+ *      values keeping options open, which a single path priced to the decimal
+ *      cannot.
  *
  *   3. The call keeps a floor on this week's chance: the season is the goal,
  *      but not at the price of a week that is nearly a coin flip. A week a buy
@@ -68,11 +69,8 @@ const SHORTLIST = 1200;
 /** Futures each candidate for this week is played through. */
 export const SCENARIO_COUNT = 32;
 
-/** Candidates for this week that get the scenario treatment. */
-const FRONTIER_WIDTH = 6;
-
-/** Alternatives the frontier reports, best first. */
-const FRONTIER_SHOWN = 4;
+/** Strongest complete-path openings retained beside the team-complete set. */
+const PATH_OPENINGS = 6;
 
 /**
  * How many calls the coach makes for a week, as a multiple of the picks it has
@@ -273,6 +271,7 @@ export function recommendPath({
       if (judged?.week === week.week) {
         for (const candidate of judged.candidates ?? []) {
           for (const team of candidate.teams) {
+            if (fixed.includes(team)) continue;
             if (list.length < depth && !list.includes(team)) list.push(team);
           }
         }
@@ -536,13 +535,18 @@ function openOptions(week, fixed) {
 /**
  * This week's choice, judged across futures.
  *
- * The candidates are the openings the finalists actually use - every good
- * path starts with one of a handful of teams - plus the week's outright
- * favourite(s), so the safest call is always on the table. Each is then
- * played through the same set of futures: the rest of the season is
- * re-planned around it by exact assignment on the future's numbers, and the
- * whole path is scored on the exact survival maths. What comes back per
- * candidate is its survival in every future, and from that its mean, its
+ * Every legal team belongs to at least one candidate. In a one-pick pool that
+ * candidate is simply the team. A multi-pick week is combinatorial, so it does
+ * not brute-force every possible pair: it keeps the openings from the best
+ * complete paths, then anchors one viable opening on every legal team and
+ * fills its other slot(s) with the strongest compatible choices. That makes
+ * the frontier team-complete without turning a college week into thousands of
+ * candidate pairs.
+ *
+ * Each candidate is played through the same set of futures: the rest of the
+ * season is re-planned around it by exact assignment on the future's numbers,
+ * and the whole path is scored on the exact survival maths. What comes back
+ * per candidate is its survival in every future, and from that its mean, its
  * downside, and how often it was within a whisker of the best. The pool's
  * field is then laid over the candidates and the mode makes the call
  * (core/equity.js): the best mean above the floor - or the best equity, when
@@ -573,7 +577,10 @@ function judgeFrontier({
   const ranked = openOptions(first, fixed).filter((option) => !burned.has(option.team));
   if (ranked.length === 0) return null;
 
-  // Openings, distinct, best finalist first.
+  // Openings, distinct. If only one slot is open, every legal team is the
+  // complete choice. With multiple open slots, keep the strongest complete
+  // paths and also build a viable opening around every legal team. The latter
+  // is O(teams), rather than the O(teams^slots) cartesian product.
   const candidates = [];
   const seenKey = new Set();
   const consider = (teams) => {
@@ -584,18 +591,32 @@ function judgeFrontier({
     seenKey.add(key);
     candidates.push(open);
   };
-  for (const beam of finalists) {
-    if (candidates.length >= FRONTIER_WIDTH) break;
-    consider(beam.picks[first.week] ?? []);
+  if (need === 1) {
+    for (const option of ranked) consider([option.team]);
+  } else {
+    for (const beam of finalists) {
+      if (candidates.length >= PATH_OPENINGS) break;
+      consider(beam.picks[first.week] ?? []);
+    }
+
+    // Every team gets a fair hearing. Anchor it, then fill the other slots with
+    // the strongest teams that neither duplicate it nor play the other side of
+    // any game already in the opening.
+    for (const anchor of ranked) {
+      const opening = [anchor];
+      for (const option of ranked) {
+        if (opening.some((taken) => taken.team === option.team)) continue;
+        if (
+          opening.some((taken) => taken.opponent === option.team || option.opponent === taken.team)
+        ) {
+          continue;
+        }
+        opening.push(option);
+        if (opening.length === need) break;
+      }
+      consider(opening.map((option) => option.team));
+    }
   }
-  // The week's favourite(s), taken greedily and never two sides of one game.
-  const greedy = [];
-  for (const option of ranked) {
-    if (greedy.some((taken) => taken.opponent === option.team)) continue;
-    greedy.push(option);
-    if (greedy.length === need) break;
-  }
-  consider(greedy.map((option) => option.team));
   if (candidates.length === 0) return null;
 
   const forgiving = new Set(buyBacks > 0 ? buyBackWeeks : []);
@@ -634,6 +655,7 @@ function judgeFrontier({
 
     const survivals = futures.map((future) => {
       const continuation = assignPath({ weeks: future, burned: spent, picksPerWeek, weightOf });
+      if (!continuation.complete || !conflictFree(future, continuation.picks)) return 0;
       return survivalOfPath({
         weeks: [first, ...future],
         path: { ...continuation.picks, [first.week]: opening },
@@ -661,12 +683,12 @@ function judgeFrontier({
     }
 
     return {
-      teams: [...teams],
+      // Fixed teams are part of the opening too. This matters for a college
+      // preview: one picked team is fixed while every possible partner is
+      // simulated, and the UI must be able to find the exact pair being shown.
+      teams: [...opening],
       path,
-      weekWinProb: teams.reduce(
-        (product, team) => product * (optionOf(first, team)?.winProb ?? 0.5),
-        1,
-      ),
+      weekWinProb: openingProb,
       season,
       scenarioMean: mean(survivals),
       scenarioLow: quantile(survivals, 0.2),
@@ -712,7 +734,7 @@ function judgeFrontier({
     scenarios: futures.length,
     chosen: { teams: chosen.teams, path: chosen.path, season: chosen.season },
     pool: overlaid.pool ?? null,
-    candidates: ordered.slice(0, FRONTIER_SHOWN).map((candidate, index) => ({
+    candidates: ordered.map((candidate, index) => ({
       teams: candidate.teams,
       weekWinProb: candidate.weekWinProb,
       season: candidate.season,

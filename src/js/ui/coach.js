@@ -12,13 +12,12 @@
  *      probability with the price behind it, and the tier that falls in. Every
  *      number is one the model used (option.pricing, out of core/plan.js).
  *
- *   2. The strip. The optimiser scores the week's best openings across
- *      thirty-two simulated rest-of-seasons (core/scenarios.js) and keeps each
- *      one's result (board.frontier). The selected opening's thirty-two land
- *      as dots on a season-survival axis, with today's estimate as a bar.
- *      Bunched dots are a model that is sure; scattered ones are a model
- *      leaning on projections. A selection the coach did not judge - a team
- *      outside its shortlist - has the bar and no dots, and says so.
+ *   2. The strip. The optimiser gives every legal team an opening and scores
+ *      those openings across thirty-two simulated rest-of-seasons
+ *      (core/scenarios.js). While a two-pick opening is being weighed, its
+ *      rehearsal scores the exact pair. Those thirty-two results land as dots
+ *      on a season-survival axis, with today's estimate as a bar. Bunched dots
+ *      are a model that is sure; scattered ones lean more on projections.
  *
  *   3. The facts. What past games priced like this actually did, in how many
  *      simulated seasons the selection was near the best, and either its
@@ -283,9 +282,12 @@ function strip(state, board) {
   const marks = dots
     .map((value) => `<span class="swarm__dot" style="left:${at(value)}"></span>`)
     .join("");
+  const awaitingDots = state.selection === "picked" && board.previewPending;
   const missing = dots.length
     ? ""
-    : `<span class="swarm__none" title="This selection was not in the coach’s simulated shortlist">estimate only</span>`;
+    : awaitingDots
+      ? `<span class="swarm__none" title="The selected opening is being simulated">simulating</span>`
+      : `<span class="swarm__none" title="Scenario analysis is unavailable for this exact opening">estimate only</span>`;
   const name = escapeHtml(teams.join(" + "));
   const weekTier = confidenceTier(weekProb, board.rules?.tiers ?? DEFAULT_TIERS);
   const focus =
@@ -300,7 +302,9 @@ function strip(state, board) {
           : "Coach preview";
   const dotLegend = dots.length
     ? `<span class="swarm__legend-item"><span class="swarm__legend-dot"></span>Each dot = 1 of ${frontier.scenarios} seasons</span>`
-    : `<span class="swarm__legend-item"><span class="swarm__legend-empty">×</span>Outside simulated shortlist</span>`;
+    : awaitingDots
+      ? `<span class="swarm__legend-item"><span class="swarm__legend-empty">…</span>Running 32 simulated seasons</span>`
+      : `<span class="swarm__legend-item"><span class="swarm__legend-empty">×</span>Exact opening not simulated</span>`;
   const aria = `${teams.join(" and ")}: ${formatPercent(weekProb, 0)} chance this week and ${
     Number.isFinite(estimate) ? formatPercent(estimate, 1) : "no estimate"
   } season survival`;
@@ -381,9 +385,11 @@ function facts(state, board) {
     items.push(
       fact(
         "Simulation set",
-        "Not ranked",
-        "live estimate only",
-        "This pick was outside the coach's shortlist, so it has a live season estimate but no simulation dots",
+        board.previewPending ? "Recalculating" : "Unavailable",
+        board.previewPending ? "32 seasons running" : "live estimate only",
+        board.previewPending
+          ? "The exact opening is being played through the same simulated seasons as the coach's call"
+          : "This exact opening has a live season estimate, but its scenario set is unavailable",
         true,
       ),
     );

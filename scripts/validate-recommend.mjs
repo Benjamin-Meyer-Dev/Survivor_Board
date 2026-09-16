@@ -22,7 +22,8 @@ import {
 import { assignPath, maximumAssignment, FORBIDDEN } from "../src/js/core/assignment.js";
 import { survival } from "../src/js/core/survival.js";
 import { COVERED_FLOOR, COVERED_MARGIN } from "../src/js/core/equity.js";
-import { buildBoard } from "../src/js/core/plan.js";
+import { buildBoard, slotKey, searchesSettled } from "../src/js/core/plan.js";
+import { setSearchRunner } from "../src/js/core/search.js";
 import { CONFIG } from "../src/js/config.js";
 import { SPORT_IDS } from "../src/js/sports.js";
 
@@ -140,6 +141,17 @@ function bruteForce(weeks, { picksPerWeek, buyBackWeeks, buyBacks }) {
   const found = recommendPath({ weeks: SMALL, burned: new Set(), ...rules, pool: PURE });
   close(found.pathProbability, truth.probability, 1e-9, "one pick a week: the optimum is found");
   assert.ok(truth.probability > 0, "the fixture has a legal path");
+  assert.deepEqual(
+    new Set(found.frontier.candidates.flatMap((candidate) => candidate.teams)),
+    new Set(SMALL[0].options.map((option) => option.team)),
+    "one pick a week: every legal team is judged across the futures",
+  );
+  assert.ok(
+    found.frontier.candidates.every(
+      (candidate) => candidate.survivals.length === found.frontier.scenarios,
+    ),
+    "one pick a week: every legal team keeps one result per simulated season",
+  );
   // Taking the favourite every week, under the no-repeat rule, is the path
   // the engine exists to beat.
   const used = new Set();
@@ -238,6 +250,50 @@ function bruteForce(weeks, { picksPerWeek, buyBackWeeks, buyBacks }) {
   assert.deepEqual(found.picks[1], call.teams, "the path shown opens with the call");
   const spent = recommendPath({ weeks: SMALL, burned: new Set(), ...rules, buyBacks: 0 });
   assert.equal(spent.frontier.pool.covered, false, "with the buy back spent, not covered");
+}
+
+// Two picks a week: the base frontier covers every team through a viable pair,
+// and a rehearsal with one slot held covers every legal partner as the exact
+// two-team opening the UI will show.
+{
+  const rules = { picksPerWeek: 2, buyBackWeeks: [], buyBacks: 0 };
+  const open = recommendPath({
+    weeks: SMALL.slice(0, 3),
+    burned: new Set(),
+    ...rules,
+    pool: PURE,
+  });
+  assert.deepEqual(
+    new Set(open.frontier.candidates.flatMap((candidate) => candidate.teams)),
+    new Set(SMALL[0].options.map((option) => option.team)),
+    "two picks a week: every legal team is judged in a viable opening",
+  );
+
+  const weeks = SMALL.slice(0, 3).map((week) =>
+    week.week === 1 ? { ...week, fixed: ["A", null] } : week,
+  );
+  const held = recommendPath({ weeks, burned: new Set(["A"]), ...rules, pool: PURE });
+  const opponent = SMALL[0].options.find((option) => option.team === "A").opponent;
+  const legalPartners = new Set(
+    SMALL[0].options
+      .filter((option) => option.team !== "A" && option.team !== opponent)
+      .map((option) => option.team),
+  );
+  assert.ok(
+    held.frontier.candidates.every(
+      (candidate) => candidate.teams.length === 2 && candidate.teams.includes("A"),
+    ),
+    "two picks a week: a held team is included in every simulated opening",
+  );
+  assert.deepEqual(
+    new Set(
+      held.frontier.candidates
+        .flatMap((candidate) => candidate.teams)
+        .filter((team) => team !== "A"),
+    ),
+    legalPartners,
+    "two picks a week: every legal partner gets the held opening's simulations",
+  );
 }
 
 // Twice what the week needs, ranked. The call comes first; behind it is what
@@ -562,6 +618,15 @@ for (const league of SPORT_IDS) {
   assert.ok(frontier, `${league}: the week on the clock has a frontier`);
   assert.equal(frontier.week, board.currentWeek);
   assert.ok(frontier.candidates.length >= 2, `${league}: at least two openings are compared`);
+  assert.deepEqual(
+    new Set(frontier.candidates.flatMap((candidate) => candidate.teams)),
+    new Set(upcoming[0].options.map((option) => option.team)),
+    `${league}: every legal team reaches the simulated frontier`,
+  );
+  assert.ok(
+    frontier.candidates.every((candidate) => candidate.survivals.length === frontier.scenarios),
+    `${league}: every opening keeps one result per simulated season`,
+  );
   assert.ok(frontier.candidates[0].chosen, `${league}: the call comes first`);
   const openTeams = (recommendation.picks[board.currentWeek] ?? []).slice().sort();
   assert.deepEqual(
@@ -634,6 +699,48 @@ for (const league of SPORT_IDS) {
     frontier.candidates.map((c) => [c.teams, c.scenarioMean]),
     `${league}: the frontier is deterministic`,
   );
+
+  if (board.rules.picksPerWeek > 1) {
+    // A college user can choose any compatible pair, not only one of the
+    // team-complete base frontier's representative openings. The browser
+    // rehearses the slot in hand as fixed, which makes every other legal team
+    // a candidate and gives the exact pair on the card all 32 dots.
+    const current = board.weeks.find((week) => week.week === board.currentWeek);
+    const anchor = current.options.filter((option) => !option.result).at(-1);
+    assert.ok(anchor, `${league}: a team is available to rehearse`);
+    const partner = current.options.find(
+      (option) => !option.result && option.team !== anchor.team && option.team !== anchor.opponent,
+    );
+    assert.ok(partner, `${league}: a compatible pair is available to rehearse`);
+    const entry = {
+      picks: {},
+      swaps: {
+        [slotKey(current.week, 0)]: anchor.team,
+        [slotKey(current.week, 1)]: partner.team,
+      },
+    };
+    const inHand = { week: current.week, slot: 0 };
+    setSearchRunner((request) => Promise.resolve(recommendPath(request)));
+    let preview = buildBoard({ ...inputs, entry, allowSearch: true, inHand });
+    assert.ok(preview.previewPending, `${league}: the exact pair is sent for rehearsal`);
+    await searchesSettled({ rehearsals: true });
+    preview = buildBoard({ ...inputs, entry, allowSearch: true, inHand });
+    setSearchRunner(null);
+    assert.equal(preview.previewPending, false, `${league}: the exact-pair rehearsal lands`);
+    const selectedWeek = preview.weeks.find((week) => week.week === current.week);
+    const shown = selectedWeek.picks.map((pick) => pick.onPath?.team).filter(Boolean);
+    const exact = preview.frontier.candidates.find(
+      (candidate) =>
+        candidate.teams.length === shown.length &&
+        candidate.teams.every((team) => shown.includes(team)),
+    );
+    assert.ok(exact, `${league}: the displayed frontier contains the selected pair`);
+    assert.equal(
+      exact.survivals.length,
+      preview.frontier.scenarios,
+      `${league}: the selected pair gets one dot per simulated season`,
+    );
+  }
 
   // Without futures the engine still answers, and the frontier is simply absent.
   const plain = recommendPath({

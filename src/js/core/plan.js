@@ -884,6 +884,14 @@ export function buildBoard({
   // The rehearsal is still out and the assignment stands in for it. app.js
   // builds again when it lands, as it does for a plan (onSearchSettled).
   board.previewPending = Boolean(rehearsal?.pending);
+  // The committed frontier answers "what should I take?"; a settled rehearsal
+  // answers the more specific "how does the opening I am weighing behave?" In
+  // a two-pick week the held slot is fixed and every legal partner is simulated,
+  // so this frontier contains the exact pair on the card and its full set of
+  // dots. Keep the committed frontier while the rehearsal is still travelling.
+  if (fresh && weighing && !board.previewPending && preview.frontier) {
+    board.frontier = frontierOf(preview.frontier, weekByNumber, rules);
+  }
   // Meanwhile a recent plan is what is painted, not a blank (see
   // memoisedRecommendation). Its badges always show. Its numbers show only if
   // it still fills every open week: a team it planned for a later week may
