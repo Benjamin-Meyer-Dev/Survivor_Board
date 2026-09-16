@@ -450,7 +450,7 @@
   --mark: var(--chalk-3);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
   min-height: 42px;
   padding: 0 10px 0 12px;
   border-radius: 8px;
@@ -2254,13 +2254,13 @@
 
 .swarm__identity {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(105px, 0.35fr) minmax(0, 1fr);
   grid-template-areas:
     "eyebrow status"
-    "name name"
-    "verdict verdict";
+    "name verdict";
   align-items: center;
-  gap: 2px 7px;
+  gap: 2px 10px;
+  width: 100%;
   min-width: 0;
 }
 
@@ -2316,108 +2316,123 @@
 
 .swarm__verdict {
   grid-area: verdict;
-  margin-top: 3px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 11px;
-  line-height: 1.15;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--chalk-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  max-width: 720px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line-soft);
+  font-family: var(--font-ui);
+  font-weight: 650;
+  font-size: 12px;
+  line-height: 1.35;
+  letter-spacing: 0;
+  color: var(--chalk);
 }
 
 .swarm__metrics {
   display: grid;
-  grid-template-columns: 66px minmax(92px, auto);
-  align-items: stretch;
-  gap: 7px;
+  grid-template-columns: minmax(96px, 1.15fr) minmax(66px, 0.7fr) minmax(92px, 0.9fr) minmax(
+      58px,
+      0.6fr
+    );
+  align-items: center;
+  gap: 0;
   flex: none;
-}
-
-.swarm__metric {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  align-content: center;
-  gap: 1px;
-  min-width: 0;
-  padding: 5px 7px;
-  border-radius: var(--radius-sm);
-  background: rgb(0 0 0 / 10%);
-}
-
-.swarm__gate {
-  width: 66px;
-  height: 66px;
-  padding: 0;
   overflow: hidden;
-  border-radius: 50%;
-  background: conic-gradient(
-    from -90deg,
-    var(--flag) 0 var(--gate),
-    rgb(243 247 241 / 8%) var(--gate) 100%
-  );
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: rgb(0 0 0 / 7%);
 }
 
-.swarm__gate::before {
-  content: "";
-  position: absolute;
-  inset: 4px;
-  border-radius: inherit;
-  background: color-mix(in srgb, var(--turf-2) 92%, black);
-  box-shadow: inset 0 0 12px rgb(0 0 0 / 18%);
+.swarm__compare-head,
+.swarm__compare-label,
+.swarm__compare-value,
+.swarm__metrics > .swarm__impact {
+  min-width: 0;
+  padding: 4px 7px;
+  border-left: 1px solid var(--line-soft);
 }
 
-.swarm__gate > * {
-  position: relative;
-  z-index: 1;
-}
-
-.swarm__metric--season {
-  justify-items: start;
-  align-content: center;
-  box-shadow: inset 0 0 0 1px var(--line-soft);
-}
-
-.swarm__metric > span {
+.swarm__compare-head {
+  align-self: stretch;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 9px;
-  line-height: 1;
-  letter-spacing: 0.1em;
+  font-size: 8px;
+  line-height: 1.1;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--chalk-4);
+  white-space: nowrap;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line-soft);
+  text-overflow: ellipsis;
 }
 
+.swarm__compare-head:first-child,
+.swarm__compare-label {
+  border-left: 0;
+}
+
+.swarm__metrics > :nth-child(n + 9) {
+  border-top: 1px solid var(--line-soft);
+}
+
+.swarm__compare-label {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 10px;
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--chalk-2);
+}
+
+.swarm__compare-value,
 .swarm__week,
 .swarm__value {
   font-family: var(--font-mono);
   font-weight: 650;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.1;
-  text-align: right;
   color: var(--chalk);
   white-space: nowrap;
 }
 
-.swarm__gate .swarm__week {
-  font-size: 16px;
-  text-align: center;
+.swarm__metrics > .swarm__compare-value:nth-child(4n + 3) {
+  color: var(--chalk-2);
 }
 
-.swarm__metric--season .swarm__value {
-  font-size: 22px;
-  line-height: 1;
+.swarm__metric {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 6px 8px;
+}
+
+.swarm__metrics--model {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  overflow: visible;
+  border: 0;
+  background: none;
+}
+
+.swarm__metrics--model .swarm__metric {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: rgb(0 0 0 / 7%);
+}
+
+.swarm__metrics--model .swarm__week,
+.swarm__metrics--model .swarm__value {
+  font-size: 18px;
   text-align: left;
 }
 
 .swarm__impact {
   display: block;
   max-width: 100%;
-  margin-top: 2px;
+  margin: 0;
   font-family: var(--font-display);
   font-style: normal;
   font-weight: 750;
@@ -2431,6 +2446,12 @@
   text-overflow: ellipsis;
 }
 
+.swarm__metrics > .swarm__impact {
+  align-self: stretch;
+  border-radius: 0;
+  background: rgb(0 0 0 / 8%);
+}
+
 .swarm__impact--gain {
   color: var(--safe);
 }
@@ -2441,9 +2462,9 @@
 
 .swarm__plot {
   display: grid;
-  grid-template-rows: auto minmax(62px, 1fr) auto;
+  grid-template-rows: auto minmax(48px, 1fr) auto;
   gap: 4px;
-  min-height: 82px;
+  min-height: 68px;
 }
 
 .swarm__axis {
@@ -2468,10 +2489,11 @@
 
 .swarm__range {
   flex: none;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  line-height: 1.1;
-  color: var(--chalk-4);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--chalk-3);
   white-space: nowrap;
 }
 
@@ -2492,7 +2514,7 @@
   position: relative;
   display: block;
   height: 100%;
-  min-height: 62px;
+  min-height: 48px;
   min-width: 0;
   overflow: hidden;
   border-top: 1px solid var(--line-soft);
@@ -2514,28 +2536,6 @@
   right: 0;
   height: 1px;
   background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
-}
-
-.swarm__zone {
-  position: absolute;
-  top: 5px;
-  z-index: 1;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 8px;
-  line-height: 1;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--chalk-4);
-  opacity: 0.75;
-}
-
-.swarm__zone--low {
-  left: 6px;
-}
-
-.swarm__zone--high {
-  right: 6px;
 }
 
 /* While an exact opening is being rehearsed, the status occupies the centre
@@ -2631,60 +2631,6 @@
   top: 5px;
 }
 
-/* What a dot and a bar are, in four words at the foot of the strips: the two
-   marks drawn at the size they are drawn above, and a word each. */
-.swarm__legend {
-  display: flex;
-  justify-content: flex-start;
-  gap: 16px;
-  flex: none;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 10px;
-  line-height: 1.2;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--chalk-4);
-}
-
-.swarm__legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.swarm__legend-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--chalk-2);
-  opacity: 0.5;
-}
-
-.swarm__legend-bar {
-  width: 2px;
-  height: 10px;
-  border-radius: 1px;
-  background: var(--chalk);
-}
-
-.swarm__legend-coach {
-  width: 1px;
-  height: 10px;
-  border-left: 1px dashed var(--chalk-2);
-  opacity: 0.7;
-}
-
-.swarm__legend-empty {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--chalk-3);
-}
-
 /* --- the facts under both --------------------------------------------------- */
 
 /* Three compact readout cards: evidence, simulation strength, and the selected
@@ -2704,7 +2650,7 @@
   align-items: flex-start;
   gap: 2px;
   min-width: 0;
-  padding: 7px 30px 6px 9px;
+  padding: 7px 9px 6px;
   overflow: hidden;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-sm);
@@ -2722,32 +2668,12 @@
   background: var(--chalk-3);
 }
 
-.facts__item::after {
-  content: "01";
-  position: absolute;
-  top: 6px;
-  right: 7px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  line-height: 1;
-  color: var(--chalk-4);
-  opacity: 0.6;
-}
-
 .facts__item:nth-child(2)::before {
   background: var(--flag);
 }
 
-.facts__item:nth-child(2)::after {
-  content: "02";
-}
-
 .facts__item:nth-child(3)::before {
   background: var(--neutral);
-}
-
-.facts__item:nth-child(3)::after {
-  content: "03";
 }
 
 .facts__item .chain__value {
@@ -2781,10 +2707,6 @@
 }
 
 @container (max-height: 190px) {
-  .swarm__legend {
-    display: none;
-  }
-
   .swarm {
     gap: 3px;
     min-height: 65px;
@@ -2807,24 +2729,8 @@
     font-size: 15px;
   }
 
-  .swarm__metric {
-    min-width: 50px;
-    padding: 2px 5px;
-  }
-
   .swarm__metrics {
-    grid-template-columns: 50px minmax(78px, auto);
-  }
-
-  .swarm__gate {
-    width: 50px;
-    height: 50px;
-    padding: 0;
-  }
-
-  .swarm__week,
-  .swarm__value {
-    font-size: 13px;
+    display: none;
   }
 
   .swarm__plot {
@@ -2836,7 +2742,6 @@
     min-height: 28px;
   }
 
-  .swarm__zone,
   .swarm__mark > span,
   .swarm__benchmark > span {
     display: none;
