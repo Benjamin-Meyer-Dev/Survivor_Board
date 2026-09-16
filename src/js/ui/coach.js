@@ -7,10 +7,11 @@
  * and everything is a key over a figure over a word, the way the drive line
  * is, rather than a sentence. Three parts:
  *
- *   1. The chain. Four stops from ratings to a tier: the line the two power
- *      ratings project, the market's line and where it opened, the win
- *      probability with the price behind it, and the tier that falls in. Every
- *      number is one the model used (option.pricing, out of core/plan.js).
+ *   1. The chain. Four stops from the model to a tier: the model's own line
+ *      (the spread the two power ratings and the home field come to, before
+ *      the market is looked at), the market's line and where it opened, the
+ *      win probability with the price behind it, and the tier that falls in.
+ *      Every number is one the model used (option.pricing, core/plan.js).
  *
  *   2. The route. One chart: each remaining week's chance of surviving it,
  *      along the route your pick leaves (the rehearsal the coach plans around
@@ -161,7 +162,19 @@ function chain(state, board) {
   const tier = subject.tier;
 
   const rating = (value) => (Number.isFinite(value) ? value.toFixed(1) : "—");
-  const ratingsSub = `power ${rating(p.team.rating)} v ${rating(p.opponent.rating)}`;
+  // The working the number comes from: the two power ratings, and the home
+  // field added or taken off - "ratings 85.7 v 82.5 · +2.5 home" is the whole
+  // of -5.7. The home term is its own span so a narrow box can let it go
+  // (components.css) rather than cut the ratings short to keep it.
+  const homeTerm =
+    p.homeField > 0
+      ? `+${p.homeField.toFixed(1)} home`
+      : p.homeField < 0
+        ? `−${Math.abs(p.homeField).toFixed(1)} away`
+        : "";
+  const ratingsSub =
+    `ratings ${rating(p.team.rating)} v ${rating(p.opponent.rating)}` +
+    (homeTerm ? `<span class="chain__term"> · ${homeTerm}</span>` : "");
   const homeNote =
     p.homeField > 0
       ? `, plus ${Math.abs(p.homeField)} for home field`
@@ -198,10 +211,10 @@ function chain(state, board) {
       }`;
 
   return `<ol class="chain" data-key="chain" aria-label="How ${escapeHtml(subject.team)} was priced">
-    <li class="chain__stop" title="The line the two teams' power ratings project on their own - the fitted ratings where the season has data, the preseason ones where it does not${homeNote}">
-      <span class="chain__key">Ratings line</span>
+    <li class="chain__stop" title="The model's own line: the spread the two teams' power ratings come to on their own, before the market is looked at - the fitted ratings where the season has data, the preseason ones where it does not${homeNote}">
+      <span class="chain__key">Model line</span>
       <span class="chain__value">${formatSpread(p.projected)}</span>
-      <span class="chain__sub">${escapeHtml(ratingsSub)}</span>
+      <span class="chain__sub">${ratingsSub}</span>
     </li>
     <li class="chain__stop" title="${escapeHtml(marketTitle)}">
       <span class="chain__key">Market line</span>

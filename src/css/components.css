@@ -2033,16 +2033,17 @@
 
 /* --- the chain ------------------------------------------------------------- */
 
-/* Four stops on a route, the route the full width of the block: a dashed rule
-   from the left edge to the right with a chalk dot at each stop, and each
-   stop's key, number and note hung under its dot. The first stop stands at
-   the left edge, the last at the right, the two between them spaced out - so
-   the number arrives at the far side of the screen rather than three
-   quarters of the way across it. */
+/* Four stops on a route, in four equal quarters of the block - the columns
+   the drive line's readouts stand in, so the model's line sits under the
+   lines pull, the market's under the buy backs, the probability under the
+   lock preview and the tier under the season tile. Each stop is a chalk dot
+   on a dashed rule with its key, number and note hung under it, left-aligned
+   in its quarter the way the readouts above are; the rule runs from the first
+   dot to the last, lit, one. */
 .chain {
   position: relative;
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   margin: 0;
   padding: 0;
@@ -2050,12 +2051,14 @@
   flex: none;
 }
 
+/* The last column starts three quarters of the way across plus three quarters
+   of a gap, and its dot is 7 wide: the rule ends on that dot's centre. */
 .chain::before {
   content: "";
   position: absolute;
   top: 3px;
   left: 3px;
-  right: 3px;
+  right: calc(25% - 10px);
   height: 1px;
   background: linear-gradient(90deg, var(--line-soft), var(--line-strong), var(--flag));
 }
@@ -2064,46 +2067,23 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 2px;
   min-width: 0;
-  width: 25%;
   padding-top: 10px;
-  text-align: center;
-}
-
-.chain__stop:first-child {
-  align-items: flex-start;
   text-align: left;
 }
 
-.chain__stop:last-child {
-  align-items: flex-end;
-  text-align: right;
-}
-
-/* The dot, over the middle of the stop; over its outer edge at either end. */
+/* The dot, over the left edge of the stop. */
 .chain__stop::before {
   content: "";
   position: absolute;
   top: 0;
-  left: 50%;
+  left: 0;
   width: 7px;
   height: 7px;
-  margin-left: -4px;
   border-radius: 50%;
   background: var(--chalk-3);
-}
-
-.chain__stop:first-child::before {
-  left: 0;
-  margin-left: 0;
-}
-
-.chain__stop:last-child::before {
-  left: auto;
-  right: 0;
-  margin-left: 0;
 }
 
 /* The last stop is where the number arrives, and its dot is lit. */
@@ -2170,6 +2150,16 @@
 /* A symbol in the sub-line keeps its case. */
 .chain__sym {
   text-transform: none;
+}
+
+/* The home-field term on the model's line. A quarter of a phone or of the
+   desktop's side box is too narrow for the ratings and the term both, and the
+   ratings are the part that says what the line is, so the term goes first
+   (the ratings would otherwise be cut mid-number to keep it). */
+@container (max-width: 599px) {
+  .chain__term {
+    display: none;
+  }
 }
 
 /* --- the route ------------------------------------------------------------- */
