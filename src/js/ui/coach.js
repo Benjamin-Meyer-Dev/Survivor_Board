@@ -12,12 +12,13 @@
  *      probability with the price behind it, and the tier that falls in. Every
  *      number is one the model used (option.pricing, out of core/plan.js).
  *
- *   2. The comparison. A sentence first says the trade: whether this pick is
- *      safer this week, and whether it raises or lowers season survival versus
- *      the coach plan. Two rows put those four numbers side by side. Under
- *      them, the optimiser's thirty-two simulated rest-of-seasons
- *      (core/scenarios.js) land as dots on one clearly labelled axis. While a
- *      two-pick opening is being weighed, its rehearsal scores the exact pair.
+ *   2. The route. One chart: each remaining week's chance of surviving it,
+ *      along the route your pick leaves (the rehearsal the coach plans around
+ *      it, core/plan.js) and along the coach's own route, with the season
+ *      chance each arrives at. The two lines say the whole trade without a
+ *      sentence - a pick that is safer this week stands higher at this week's
+ *      column, and where the coach was saving that team for a later week, the
+ *      coach's line stands higher there, and the season figures settle it.
  *
  *   3. The facts. What past games priced like this actually did, in how many
  *      simulated seasons the selection was near the best, and either its
@@ -28,7 +29,7 @@
  */
 
 import { formatPercent, formatSpread, formatMatchup, escapeHtml } from "../core/format.js";
-import { confidenceTier, TIER_LABEL, DEFAULT_TIERS } from "../core/probability.js";
+import { TIER_LABEL, DEFAULT_TIERS } from "../core/probability.js";
 import { frame, reconcile } from "./patch.js";
 
 /**
@@ -69,7 +70,7 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0) {
     panel,
     state.kind === "none"
       ? ""
-      : head(state) + chain(state, board) + strip(state, board) + facts(state, board),
+      : head(state) + chain(state, board) + route(state, board) + facts(state, board),
   );
 }
 
@@ -260,161 +261,262 @@ function estimateFor(state, board) {
 }
 
 /**
- * The selected opening's simulated seasons, as a constellation of dots, with
- * today's estimate and the coach route drawn through them.
+ * The route: week-by-week win chance along two routes through the rest of
+ * the season, and the season chance each arrives at.
  *
- * The axis is the dots' own, not nought's: thirty-two results between 3.4% and
- * 3.6% drawn from zero are a smear in the last inch of the strip; drawn from
- * 3.3% to 3.7% they are a shape across the whole of it. The ticks say what
- * the ends are, so a zoom reads as a zoom. Without dots the axis is a point
- * either side of the estimate, so the bar stands in the middle.
+ * Your route is the one the lock would leave - your pick this week and the
+ * coach's plan around it (week.rehearsalPath, core/plan.js) - and the coach's
+ * is the untouched plan (week.pathRecommendation). Both end at the numbers
+ * the drive line quotes: "if locked" and the season chance. A week where the
+ * two routes name the same team draws one mark; where they part, two, and
+ * the week the coach was saving your team for is ruled and named, because
+ * that is the whole of why a safer pick this week can leave a lower season.
+ *
+ * A pick pending in any week has the coach planning around it, and that plan
+ * is the route the field shows, so it is drawn as yours whichever week is
+ * being looked at. With nothing pending, a locked week has one route - the
+ * lock is on it - and the coach's call for the week stands beside it as a
+ * lone mark; the coach's own preview has one route and nothing to compare it
+ * with.
+ *
+ * Drawn as an SVG stretched to the box for the lines, with the marks and
+ * every word placed over it by percentage, so the marks stay round and the
+ * type stays type whatever shape the band is.
  */
-function strip(state, board) {
-  const { frontier, candidate, opening, teams } = state;
-  if (!frontier) return "";
+function route(state, board) {
+  const { week: viewed, teams, opening, selection } = state;
+  const weeks = board.weeks.filter((week) => week.week >= board.currentWeek);
+  const at = weeks.findIndex((week) => week.week === viewed.week);
+  if (!weeks.length || at < 0) return "";
 
-  const dots = Array.isArray(candidate?.survivals) ? candidate.survivals : [];
-  const estimate = estimateFor(state, board);
-  const weekProb =
-    candidate?.weekWinProb ?? opening.reduce((product, option) => product * option.winProb, 1);
-  const baseline = Number.isFinite(board.pathProbability) ? board.pathProbability : null;
-  const liveEstimate = Number.isFinite(estimate)
-    ? estimate
-    : Number.isFinite(candidate?.scenarioMean)
-      ? candidate.scenarioMean
-      : 0;
+  const stopsOf = (pathOf) =>
+    weeks.map((week) => {
+      const options = (pathOf(week) ?? []).filter(Boolean);
+      return {
+        week: week.week,
+        options,
+        prob: options.length
+          ? options.reduce((product, option) => product * option.winProb, 1)
+          : null,
+      };
+    });
+  const nameOf = (options) => options.map((option) => option.team).join(" + ");
 
-  const values = [...dots, liveEstimate, baseline].filter(Number.isFinite);
-  const low = Math.min(...values);
-  const high = Math.max(...values);
-  const pad = Math.max((high - low) * 0.12, 0.001);
-  const axisMin = Math.max(0, Math.floor((low - pad) * 1000) / 1000);
-  const axisMax = Math.ceil((high + pad) * 1000) / 1000;
-  const span = Math.max(axisMax - axisMin, 0.001);
-  const at = (value) =>
-    `${Math.max(0, Math.min(100, ((value - axisMin) / span) * 100)).toFixed(1)}%`;
-  const tick = (value) => formatPercent(value, span < 0.01 ? 2 : 1);
+  const coachStops = stopsOf((week) => week.pathRecommendation);
+  // A pick pending anywhere on the board has the coach planning around it,
+  // and that plan is the route the field shows (week.rehearsalPath): yours,
+  // whichever week is being looked at.
+  const rehearsed = weeks.some((week) => Array.isArray(week.rehearsalPath));
 
-  // A fixed lane pattern gives the futures a compact constellation rather
-  // than piling thirty-two circles onto one rule. It is deterministic, so a
-  // team changing position reads as model movement rather than visual noise.
-  const lanes = [50, 28, 72, 16, 84, 39, 61, 22, 78, 45, 66, 34];
-  const marks = dots
+  // The series. `you` is the route on the field, `coach` the untouched plan
+  // it is measured against; `lone` is the coach's call for a locked week,
+  // which has no route of its own to draw.
+  let you = null;
+  let coach = null;
+  let lone = null;
+  if (rehearsed) {
+    you = {
+      stops: stopsOf((week) => week.rehearsalPath),
+      season: Number.isFinite(board.rehearsalProbability)
+        ? board.rehearsalProbability
+        : estimateFor(state, board),
+    };
+    coach = { stops: coachStops, season: board.pathProbability };
+  } else if (selection === "picked") {
+    you = { stops: coachStops, season: estimateFor(state, board) };
+    you.stops[at] = {
+      ...you.stops[at],
+      options: opening,
+      prob: opening.reduce((product, option) => product * option.winProb, 1),
+    };
+    coach = { stops: coachStops, season: board.pathProbability };
+  } else if (selection === "locked") {
+    you = { stops: coachStops, season: board.pathProbability };
+    const call = state.coachOpening ?? [];
+    if (
+      call.length &&
+      !sameTeams(
+        call.map((option) => option.team),
+        teams,
+      )
+    ) {
+      lone = {
+        options: call,
+        prob: call.reduce((product, option) => product * option.winProb, 1),
+      };
+    }
+  } else {
+    coach = { stops: coachStops, season: board.pathProbability };
+  }
+
+  const series = [you, coach].filter(Boolean);
+  const probs = series
+    .flatMap((entry) => entry.stops.map((stop) => stop.prob))
+    .concat(lone ? [lone.prob] : [])
+    .filter(Number.isFinite);
+  if (!probs.length) return "";
+
+  // The scale is the data's, in steps of five, with room over and under for a
+  // mark and its figure; the rules every ten. A survivor pick lives between
+  // sixty and ninety-five, and from nought every week would be a flat line
+  // along the top.
+  const lo = Math.max(0, Math.floor((Math.min(...probs) - 0.07) * 20) / 20);
+  const hi = Math.min(1, Math.ceil((Math.max(...probs) + 0.07) * 20) / 20);
+  const span = Math.max(hi - lo, 0.05);
+  const n = weeks.length;
+  const xAt = (index) => ((index + 0.5) / n) * 100;
+  const yAt = (prob) => ((hi - prob) / span) * 100;
+  const pct = (value) => `${value.toFixed(2)}%`;
+
+  const rules = [];
+  for (let level = Math.ceil(lo * 10) / 10; level < hi - 1e-9; level += 0.1) {
+    if (level > lo + 1e-9) rules.push(Math.round(level * 10) / 10);
+  }
+  const grid = rules
     .map(
-      (value, index) =>
-        `<span class="swarm__dot" style="left:${at(value)};top:${lanes[index % lanes.length]}%;--dot-order:${index}"></span>`,
+      (level) =>
+        `<span class="route__rule" style="top:${pct(yAt(level))}"><span class="route__rule-label">${Math.round(level * 100)}%</span></span>`,
     )
     .join("");
-  const awaitingDots = state.selection === "picked" && board.previewPending;
-  const missing = dots.length
-    ? ""
-    : awaitingDots
-      ? `<span class="swarm__none" title="The selected opening is being simulated">simulating</span>`
-      : `<span class="swarm__none" title="Scenario analysis is unavailable for this exact opening">estimate only</span>`;
-  const name = escapeHtml(teams.join(" + "));
-  const weekTier = confidenceTier(weekProb, board.rules?.tiers ?? DEFAULT_TIERS);
-  const call = frontier.candidates?.[0] ?? null;
-  const coachOpening = state.coachOpening?.length ? state.coachOpening : (call?.options ?? []);
-  const coachWeekProb = coachOpening.length
-    ? coachOpening.reduce((product, option) => product * option.winProb, 1)
-    : (call?.weekWinProb ?? null);
-  const delta = baseline === null ? null : liveEstimate - baseline;
-  const deltaPoints = delta === null ? null : delta * 100;
-  const personal = state.selection === "picked" || state.selection === "locked";
-  const callName = coachOpening.length
-    ? coachOpening.map((option) => option.team).join(" + ")
-    : call
-      ? call.teams.join(" + ")
-      : "the coach pick";
-  const weekPoints = coachWeekProb === null ? null : (weekProb - coachWeekProb) * 100;
-  const weekComparison =
-    weekPoints === null || Math.abs(weekPoints) < 0.05
-      ? `about as safe this week as ${callName}`
-      : weekPoints > 0
-        ? `${Math.abs(weekPoints).toFixed(0)} points safer this week than ${callName}`
-        : `${Math.abs(weekPoints).toFixed(0)} points riskier this week than ${callName}`;
-  const seasonComparison =
-    deltaPoints === null || Math.abs(deltaPoints) < 0.04
-      ? "leaves your season chance essentially unchanged"
-      : deltaPoints > 0
-        ? `raises your chance of surviving the season from ${formatPercent(baseline, 1)} to ${formatPercent(liveEstimate, 1)}`
-        : `lowers your chance of surviving the season from ${formatPercent(baseline, 1)} to ${formatPercent(liveEstimate, 1)}`;
-  const tradeoff =
-    weekPoints !== null &&
-    deltaPoints !== null &&
-    Math.abs(weekPoints) >= 0.05 &&
-    Math.abs(deltaPoints) >= 0.04 &&
-    Math.sign(weekPoints) !== Math.sign(deltaPoints);
-  const explanation = personal
-    ? `This pick is ${weekComparison}, ${tradeoff ? "but" : "and"} ${seasonComparison}.`
-    : `The model’s pick has a ${formatPercent(weekProb, 0)} chance to survive this week and a ${formatPercent(liveEstimate, 1)} chance to survive the season.`;
-  const focus =
-    state.selection === "picked"
-      ? board.previewPending
-        ? "Recalculating your pick"
-        : "Following your pick"
-      : state.selection === "locked"
-        ? "Locked selection"
-        : candidate?.chosen
-          ? "Coach’s call"
-          : "Coach preview";
-  const nowDelta =
-    weekPoints === null
-      ? "—"
-      : Math.abs(weekPoints) < 0.05
-        ? "Same"
-        : `${weekPoints > 0 ? "+" : "−"}${Math.abs(weekPoints).toFixed(0)} pts`;
-  const seasonDelta =
-    deltaPoints === null
-      ? "—"
-      : Math.abs(deltaPoints) < 0.04
-        ? "Same"
-        : `${deltaPoints > 0 ? "+" : "−"}${Math.abs(deltaPoints).toFixed(1)} pts`;
-  const comparison = personal
-    ? `<div class="swarm__metrics" aria-label="Your pick compared with the coach plan">
-        <span class="swarm__compare-head"></span>
-        <span class="swarm__compare-head">Your pick</span>
-        <span class="swarm__compare-head" title="Coach pick: ${escapeHtml(callName)}">Coach · ${escapeHtml(callName)}</span>
-        <span class="swarm__compare-head">Difference</span>
-        <span class="swarm__compare-label">This week</span>
-        <strong class="swarm__compare-value swarm__week${weekTier ? ` confidence--${weekTier}` : ""}">${formatPercent(weekProb, 0)}</strong>
-        <strong class="swarm__compare-value">${coachWeekProb === null ? "—" : formatPercent(coachWeekProb, 0)}</strong>
-        <em class="swarm__impact swarm__impact--${weekPoints > 0.05 ? "gain" : weekPoints < -0.05 ? "cost" : "even"}">${nowDelta}</em>
-        <span class="swarm__compare-label">Whole season</span>
-        <strong class="swarm__compare-value swarm__value">${formatPercent(liveEstimate, 1)}</strong>
-        <strong class="swarm__compare-value">${baseline === null ? "—" : formatPercent(baseline, 1)}</strong>
-        <em class="swarm__impact swarm__impact--${deltaPoints > 0.04 ? "gain" : deltaPoints < -0.04 ? "cost" : "even"}">${seasonDelta}</em>
-      </div>`
-    : `<div class="swarm__metrics swarm__metrics--model" aria-label="Model pick probabilities">
-        <div class="swarm__metric"><span class="swarm__metric-title">Survive this week</span><strong class="swarm__week${weekTier ? ` confidence--${weekTier}` : ""}">${formatPercent(weekProb, 0)}</strong></div>
-        <div class="swarm__metric"><span class="swarm__metric-title">Survive the season</span><strong class="swarm__value">${formatPercent(liveEstimate, 1)}</strong></div>
-      </div>`;
-  const aria = `${teams.join(" and ")}: ${formatPercent(weekProb, 0)} chance this week and ${
-    Number.isFinite(estimate) ? formatPercent(estimate, 1) : "no estimate"
-  } season survival`;
 
-  return `<section class="swarm${state.selection === "picked" ? " swarm--picked" : ""}" data-key="swarm" aria-label="${escapeHtml(aria)}">
-    <div class="swarm__head">
-      <div class="swarm__identity">
-        <span class="swarm__eyebrow">What this pick means</span>
-        <strong class="swarm__name${teams.length > 1 ? " swarm__name--pair" : ""}">${name}</strong>
-        <span class="swarm__status">${focus}</span>
-        <span class="swarm__verdict">${escapeHtml(explanation)}</span>
-      </div>
+  // One polyline per unbroken run of weeks with a team on the route.
+  const lineOf = (entry, kind) => {
+    const runs = [];
+    let run = [];
+    entry.stops.forEach((stop, index) => {
+      if (stop.prob === null) {
+        if (run.length) runs.push(run);
+        run = [];
+        return;
+      }
+      run.push(`${xAt(index).toFixed(2)},${yAt(stop.prob).toFixed(2)}`);
+    });
+    if (run.length) runs.push(run);
+    return runs
+      .filter((points) => points.length > 1)
+      .map(
+        (points) =>
+          `<polyline class="route__line route__line--${kind}" points="${points.join(" ")}" />`,
+      )
+      .join("");
+  };
+
+  const dotsOf = (entry, kind) =>
+    entry.stops
+      .map((stop, index) => {
+        if (stop.prob === null) return "";
+        const title = `Wk ${stop.week} · ${nameOf(stop.options)} · ${formatPercent(stop.prob, 0)}`;
+        return `<span class="route__dot route__dot--${kind}${index === at ? " route__dot--here" : ""}" style="left:${pct(xAt(index))};top:${pct(yAt(stop.prob))};--order:${index}" title="${escapeHtml(title)}"></span>`;
+      })
+      .join("");
+
+  // This week's figures ride their marks. The higher mark's figure stands
+  // over it, or under it when the mark is up against the top; the lower
+  // mark's stands under its own, and drops a further line when the higher
+  // one is already under a mark within reach of it, so the two figures never
+  // sit on each other. Two routes on the same team this week are one mark
+  // and one figure.
+  const here = [];
+  if (you && you.stops[at].prob !== null) here.push({ kind: "you", prob: you.stops[at].prob });
+  if (coach && coach.stops[at].prob !== null) {
+    here.push({ kind: "coach", prob: coach.stops[at].prob });
+  }
+  if (lone) here.push({ kind: "coach", prob: lone.prob });
+  here.sort((a, b) => b.prob - a.prob);
+  const distinct = here.filter(
+    (mark, index) => index === 0 || Math.abs(here[index - 1].prob - mark.prob) > 0.0005,
+  );
+  const figures = distinct
+    .map((mark, index) => {
+      const y = yAt(mark.prob);
+      let place = "";
+      if (index === 0) {
+        place = y < 18 ? " route__figure--below" : "";
+      } else {
+        const upper = yAt(distinct[0].prob);
+        const upperBelow = upper < 18;
+        place =
+          upperBelow && y - upper < 22
+            ? " route__figure--below route__figure--second"
+            : " route__figure--below";
+      }
+      return `<span class="route__figure route__figure--${mark.kind}${place}" style="left:${pct(xAt(at))};top:${pct(y)}">${formatPercent(mark.prob, 0)}</span>`;
+    })
+    .join("");
+
+  const loneMark = lone
+    ? `<span class="route__dot route__dot--coach route__dot--here route__dot--lone" style="left:${pct(xAt(at))};top:${pct(yAt(lone.prob))}" title="${escapeHtml(`Coach: ${nameOf(lone.options)} · ${formatPercent(lone.prob, 0)}`)}"></span>`
+    : "";
+
+  // Where the coach's route spends the team being looked at: saved for a
+  // later week, or already played in an earlier one.
+  const savedAt = coach
+    ? coach.stops.findIndex(
+        (stop, index) => index !== at && stop.options.some((option) => teams.includes(option.team)),
+      )
+    : -1;
+  const savedTeams =
+    savedAt >= 0
+      ? coach.stops[savedAt].options.filter((option) => teams.includes(option.team))
+      : [];
+  const saved =
+    savedAt >= 0
+      ? `<span class="route__saved${savedAt / n > 0.62 ? " route__saved--left" : ""}" style="left:${pct(xAt(savedAt))}"><span class="route__saved-label">Coach ${savedAt > at ? "saves" : "plays"} ${escapeHtml(nameOf(savedTeams))}</span></span>`
+      : "";
+
+  const axis = weeks
+    .map(
+      (week, index) =>
+        `<span class="route__week${index === at ? " route__week--here" : ""}${index === savedAt ? " route__week--saved" : ""}" style="left:${pct(xAt(index))}">${index === 0 ? "Wk " : ""}${week.week}</span>`,
+    )
+    .join("");
+
+  const pending = Boolean(rehearsed && board.previewPending);
+  const key = (kind, name, figure, word) =>
+    `<li class="route__key route__key--${kind}"><i class="route__swatch" aria-hidden="true"></i><span class="route__key-name">${name}</span><b class="route__key-figure">${figure}</b><span class="route__key-word">${word}</span></li>`;
+  const legend = [
+    you &&
+      key(
+        "you",
+        selection === "locked" && !rehearsed ? "Locked" : "You",
+        Number.isFinite(you.season) ? formatPercent(you.season, 1) : "—",
+        "season",
+      ),
+    coach && key("coach", "Coach", formatPercent(coach.season, 1), "season"),
+    lone &&
+      key(
+        "coach",
+        `Coach: ${escapeHtml(nameOf(lone.options))}`,
+        formatPercent(lone.prob, 0),
+        "this week",
+      ),
+  ]
+    .filter(Boolean)
+    .join("");
+
+  const summary = series
+    .map(
+      (entry) =>
+        `${entry === you ? "your route" : "the coach's route"}: ${formatPercent(entry.stops[at].prob ?? 0, 0)} this week, ${formatPercent(entry.season, 1)} for the season`,
+    )
+    .join("; ");
+
+  return `<section class="route${you && coach ? " route--compared" : ""}${pending ? " route--pending" : ""}" data-key="route" aria-label="${escapeHtml(`Win chance by week - ${summary}`)}">
+    <div class="route__head">
+      <span class="route__eyebrow">Win chance by week</span>
+      <ul class="route__legend">${legend}</ul>
     </div>
-    ${comparison}
-    <div class="swarm__plot" aria-hidden="true">
-      <div class="swarm__axis">
-        <span class="swarm__axis-label">${frontier.scenarios} simulated seasons</span>
-        <span class="swarm__range">Each dot is one season · farther right is better</span>
-      </div>
-      <span class="swarm__strip">
-        ${marks}${missing}
-        ${baseline === null ? "" : `<span class="swarm__benchmark" style="left:${at(baseline)}"><span>Coach plan ${formatPercent(baseline, 1)}</span></span>`}
-        <span class="swarm__mark" style="left:${at(liveEstimate)}"><span>Your pick ${formatPercent(liveEstimate, 1)}</span></span>
-      </span>
-      <span class="swarm__ticks"><span>Lower chance · ${tick(axisMin)}</span><span>Higher chance · ${tick(axisMax)}</span></span>
+    <div class="route__plot" aria-hidden="true">
+      <span class="route__band" style="left:${pct((at / n) * 100)};width:${pct(100 / n)}"></span>
+      ${grid}
+      <svg class="route__lines" viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
+        ${coach ? lineOf(coach, "coach") : ""}${you ? lineOf(you, "you") : ""}
+      </svg>
+      ${saved}
+      ${coach ? dotsOf(coach, "coach") : ""}${you ? dotsOf(you, "you") : ""}${loneMark}
+      ${figures}
     </div>
+    <div class="route__axis" aria-hidden="true">${axis}</div>
   </section>`;
 }
 

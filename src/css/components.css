@@ -2172,17 +2172,27 @@
   text-transform: none;
 }
 
-/* --- the swarm ------------------------------------------------------------- */
+/* --- the route ------------------------------------------------------------- */
 
-.swarm {
+/* One chart: each remaining week's chance of surviving it, along the route
+   your pick leaves and along the coach's, with the season chance each arrives
+   at set as a figure in the key. The two lines are the whole trade - your
+   line stands higher at this week's column, the coach's at the week it was
+   saving your team for - so the box says it without a sentence.
+
+   The lines are an SVG stretched to the box; the marks and every word are
+   placed over it by percentage, so the marks stay round and the type stays
+   type whatever shape the band is. Your route wears the flag, the coach's the
+   neutral chalk-blue the facts row already gives the coach, and the coach's
+   line is dashed besides, so the two part by more than colour. */
+.route {
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 6px;
   flex: 1 1 auto;
-  min-height: 132px;
-  padding: 11px 12px 9px;
+  min-height: 118px;
+  padding: 9px 12px 7px;
   overflow: hidden;
   border: 1px solid var(--line-soft);
   border-left: 3px solid var(--line-strong);
@@ -2197,29 +2207,9 @@
   isolation: isolate;
 }
 
-/* A plotting grid behind the flight recorder: part play sheet, part radar. */
-.swarm::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background:
-    repeating-linear-gradient(
-      90deg,
-      transparent 0 calc(20% - 1px),
-      rgb(243 247 241 / 4%) calc(20% - 1px) 20%
-    ),
-    repeating-linear-gradient(
-      0deg,
-      transparent 0 calc(25% - 1px),
-      rgb(243 247 241 / 2.5%) calc(25% - 1px) 25%
-    );
-  pointer-events: none;
-}
-
 /* The clipped corner reads like a tagged coach's sheet, without adding a
    decorative asset to the shell. */
-.swarm::after {
+.route::after {
   content: "";
   position: absolute;
   top: 6px;
@@ -2231,12 +2221,13 @@
   pointer-events: none;
 }
 
-.swarm > * {
+.route > * {
   position: relative;
   z-index: 1;
 }
 
-.swarm--picked {
+/* Two routes on the chart: the edge takes the flag, as the pick has. */
+.route--compared {
   border-left-color: var(--flag);
   background:
     radial-gradient(circle at 88% 12%, var(--flag-soft), transparent 27%),
@@ -2244,391 +2235,262 @@
     color-mix(in srgb, var(--turf-2) 65%, transparent);
 }
 
-.swarm__head {
+.route__head {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-}
-
-.swarm__identity {
-  display: grid;
-  grid-template-columns: minmax(105px, 0.35fr) minmax(0, 1fr);
-  grid-template-areas:
-    "eyebrow status"
-    "name verdict";
+  flex-wrap: wrap;
   align-items: center;
-  gap: 2px 10px;
-  width: 100%;
+  justify-content: space-between;
+  gap: 3px 12px;
   min-width: 0;
 }
 
-.swarm__eyebrow {
-  grid-area: eyebrow;
+.route__eyebrow {
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 10px;
-  line-height: 1.1;
+  line-height: 1.2;
   letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--chalk-3);
-}
-
-.swarm__status {
-  grid-area: status;
-  min-width: 0;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 10px;
-  line-height: 1.1;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--chalk-4);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.swarm--picked .swarm__status {
-  color: var(--flag-2);
-}
-
-.swarm__name {
-  grid-area: name;
-  display: block;
-  min-width: 0;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: clamp(17px, 4cqh, 23px);
-  line-height: 1;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--chalk);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.swarm__name--pair {
-  font-size: clamp(14px, 3.2cqh, 19px);
-}
-
-.swarm__verdict {
-  grid-area: verdict;
-  max-width: 720px;
-  padding-left: 10px;
-  border-left: 1px solid var(--line-soft);
-  font-family: var(--font-ui);
-  font-weight: 650;
-  font-size: 12px;
-  line-height: 1.35;
-  letter-spacing: 0;
-  color: var(--chalk);
-}
-
-.swarm__metrics {
-  display: grid;
-  grid-template-columns: minmax(96px, 1.15fr) minmax(66px, 0.7fr) minmax(92px, 0.9fr) minmax(
-      58px,
-      0.6fr
-    );
-  align-items: center;
-  gap: 0;
-  flex: none;
-  overflow: hidden;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-sm);
-  background: rgb(0 0 0 / 7%);
-}
-
-.swarm__compare-head,
-.swarm__compare-label,
-.swarm__compare-value,
-.swarm__metrics > .swarm__impact {
-  min-width: 0;
-  padding: 4px 7px;
-  border-left: 1px solid var(--line-soft);
-}
-
-.swarm__compare-head {
-  align-self: stretch;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 8px;
-  line-height: 1.1;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--chalk-4);
-  white-space: nowrap;
-  overflow: hidden;
-  border-bottom: 1px solid var(--line-soft);
-  text-overflow: ellipsis;
-}
-
-.swarm__compare-head:first-child,
-.swarm__compare-label {
-  border-left: 0;
-}
-
-.swarm__metrics > :nth-child(n + 9) {
-  border-top: 1px solid var(--line-soft);
-}
-
-.swarm__compare-label {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 10px;
-  line-height: 1.1;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--chalk-2);
-}
-
-.swarm__compare-value,
-.swarm__week,
-.swarm__value {
-  font-family: var(--font-mono);
-  font-weight: 650;
-  font-size: 14px;
-  line-height: 1.1;
-  color: var(--chalk);
   white-space: nowrap;
 }
 
-.swarm__metrics > .swarm__compare-value:nth-child(4n + 3) {
-  color: var(--chalk-2);
-}
-
-.swarm__metric {
+/* The key: a swatch of each line, its name, and the season figure it arrives
+   at - the number the drive line quotes, set as a figure over the word. */
+.route__legend {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-  padding: 6px 8px;
-}
-
-.swarm__metrics--model {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-  overflow: visible;
-  border: 0;
-  background: none;
-}
-
-.swarm__metrics--model .swarm__metric {
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-sm);
-  background: rgb(0 0 0 / 7%);
-}
-
-.swarm__metrics--model .swarm__week,
-.swarm__metrics--model .swarm__value {
-  font-size: 18px;
-  text-align: left;
-}
-
-.swarm__impact {
-  display: block;
-  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 3px 14px;
   margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.route__key {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
   font-family: var(--font-display);
-  font-style: normal;
-  font-weight: 750;
-  font-size: 9px;
-  line-height: 1.1;
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 1.2;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--chalk-3);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.swarm__metrics > .swarm__impact {
-  align-self: stretch;
-  border-radius: 0;
-  background: rgb(0 0 0 / 8%);
+.route__swatch {
+  align-self: center;
+  width: 14px;
+  height: 0;
+  border-top: 2px dashed var(--neutral);
 }
 
-.swarm__impact--gain {
-  color: var(--safe);
+.route__key--you .route__swatch {
+  border-top-style: solid;
+  border-top-color: var(--flag);
 }
 
-.swarm__impact--cost {
-  color: var(--flag-2);
-}
-
-.swarm__plot {
-  display: grid;
-  grid-template-rows: auto minmax(48px, 1fr) auto;
-  gap: 4px;
-  min-height: 68px;
-}
-
-.swarm__axis {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.swarm__axis-label {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 10px;
-  line-height: 1.2;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--chalk-4);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.swarm__range {
-  flex: none;
-  font-family: var(--font-ui);
-  font-weight: 600;
-  font-size: 10px;
-  line-height: 1.2;
-  color: var(--chalk-3);
-  white-space: nowrap;
-}
-
-.swarm__ticks {
-  display: flex;
-  justify-content: space-between;
-  padding: 0 1px;
+.route__key-figure {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-weight: 650;
+  font-size: 13px;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--chalk);
+}
+
+.route__key-word {
   color: var(--chalk-4);
 }
 
-/* The strip the dots stand on: a faint rule, and every dot placed along it by
-   the percentage the layout wrote. Dots are translucent so that where the
-   futures pile up the chalk gets thicker - that pile is the whole drawing. */
-.swarm__strip {
-  --dot: clamp(6px, 2.5cqh, 9px);
-  position: relative;
-  display: block;
-  height: 100%;
-  min-height: 48px;
-  min-width: 0;
-  overflow: hidden;
-  border-top: 1px solid var(--line-soft);
-  border-bottom: 1px solid var(--line-soft);
-  background:
-    linear-gradient(90deg, rgb(239 91 76 / 4%), transparent 34%, rgb(88 190 132 / 4%)),
-    repeating-linear-gradient(
-      0deg,
-      transparent 0 calc(25% - 1px),
-      rgb(243 247 241 / 4%) calc(25% - 1px) 25%
-    );
+/* A rehearsal still out: the figure it will replace is a stand-in. */
+.route--pending .route__key--you .route__key-figure {
+  opacity: 0.5;
 }
 
-.swarm__strip::before {
-  content: "";
+/* The plot proper, with a gutter to its left for the rules' labels. */
+.route__plot {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 56px;
+  margin-left: 28px;
+}
+
+/* This week's column, so the eye lands where the two routes are being
+   compared. */
+.route__band {
   position: absolute;
-  top: 50%;
+  top: -4px;
+  bottom: -4px;
+  border-radius: 3px;
+  background: rgb(243 247 241 / 6%);
+}
+
+/* Rules every ten points, solid hairlines a shade off the turf. */
+.route__rule {
+  position: absolute;
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
+  background: rgb(243 247 241 / 9%);
 }
 
-/* While an exact opening is being rehearsed, the status occupies the centre
-   of the otherwise empty radar rather than leaving a lone live marker. */
-.swarm__none {
+.route__rule-label {
   position: absolute;
   top: 50%;
-  left: 50%;
+  right: calc(100% + 5px);
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 1;
+  color: var(--chalk-4);
+}
+
+.route__lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.route__line {
+  fill: none;
+  stroke-width: 2px;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.route__line--coach {
+  stroke: var(--neutral);
+  stroke-dasharray: 4 3;
+  opacity: 0.9;
+}
+
+.route__line--you {
+  stroke: var(--flag);
+}
+
+/* A mark a week, ringed in the turf so it stays whole where the lines cross.
+   Your route's marks stand on the coach's, so a week the two routes agree on
+   shows one mark. */
+.route__dot {
+  position: absolute;
+  z-index: 1;
+  width: 8px;
+  height: 8px;
   transform: translate(-50%, -50%);
-  padding: 0 6px;
+  border-radius: 50%;
+  background: var(--neutral);
+  box-shadow: 0 0 0 2px var(--turf-2);
+}
+
+.route__dot--you {
+  z-index: 2;
+  background: var(--flag);
+}
+
+.route__dot--here {
+  width: 10px;
+  height: 10px;
+}
+
+/* The coach's call for a locked week: a call, not a route, so it is hollow. */
+.route__dot--lone {
+  z-index: 3;
   background: var(--turf-2);
+  border: 2px solid var(--neutral);
+}
+
+/* This week's figure rides its mark. */
+.route__figure {
+  position: absolute;
+  z-index: 4;
+  padding: 0 3px;
+  transform: translate(-50%, calc(-100% - 7px));
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--turf-2) 85%, transparent);
+  font-family: var(--font-mono);
+  font-weight: 650;
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--chalk);
+  white-space: nowrap;
+}
+
+.route__figure--coach {
+  color: var(--chalk-2);
+}
+
+.route__figure--below {
+  transform: translate(-50%, 7px);
+}
+
+.route__figure--second {
+  transform: translate(-50%, 21px);
+}
+
+/* The week the coach was saving your team for, ruled and named: the reason a
+   safer pick this week can leave a lower season. */
+.route__saved {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 0;
+  border-left: 1px dashed var(--neutral-line);
+}
+
+.route__saved-label {
+  position: absolute;
+  top: 0;
+  left: 5px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--turf-2) 85%, transparent);
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 10px;
+  font-size: 9px;
   line-height: 1.2;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: var(--neutral-2);
+  white-space: nowrap;
+}
+
+.route__saved--left .route__saved-label {
+  left: auto;
+  right: 5px;
+}
+
+.route__axis {
+  position: relative;
+  height: 12px;
+  margin-left: 28px;
+}
+
+.route__week {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 12px;
   color: var(--chalk-4);
   white-space: nowrap;
 }
 
-.swarm__dot {
-  position: absolute;
-  z-index: 2;
-  width: var(--dot);
-  height: var(--dot);
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: var(--chalk-2);
-  opacity: 0.34;
-  box-shadow: 0 0 5px rgb(243 247 241 / 12%);
+.route__week--here {
+  font-weight: 600;
+  color: var(--chalk);
 }
 
-.swarm--picked .swarm__dot {
-  background: var(--flag);
-  opacity: 0.48;
-  box-shadow: 0 0 6px color-mix(in srgb, var(--flag) 22%, transparent);
-}
-
-/* The live pick is a solid flight line; the committed coach route is its
-   quieter dashed benchmark. Labels live on opposite edges so equal values do
-   not collide. */
-.swarm__mark {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  z-index: 4;
-  width: 3px;
-  margin-left: -2px;
-  border-radius: 1px;
-  background: var(--chalk);
-  box-shadow: 0 0 7px rgb(243 247 241 / 42%);
-}
-
-.swarm__mark > span,
-.swarm__benchmark > span {
-  position: absolute;
-  left: 5px;
-  padding: 2px 4px;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--turf-2) 90%, transparent);
-  font-family: var(--font-mono);
-  font-size: 8px;
-  line-height: 1;
-  color: var(--chalk-2);
-  white-space: nowrap;
-}
-
-.swarm__mark > span {
-  bottom: 5px;
-}
-
-.swarm--picked .swarm__mark {
-  background: var(--flag);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--flag) 56%, transparent);
-}
-
-.swarm--picked .swarm__mark > span {
-  color: var(--flag-2);
-}
-
-.swarm__benchmark {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  z-index: 3;
-  width: 0;
-  border-left: 1px dashed var(--chalk-2);
-  opacity: 0.72;
-}
-
-.swarm__benchmark > span {
-  top: 5px;
+.route__week--saved {
+  color: var(--neutral-2);
 }
 
 /* --- the facts under both --------------------------------------------------- */
@@ -2696,60 +2558,38 @@
    come to fifty pixels. So the parts come off from the bottom up, and what is
    left is the turf that was there before any of this.
 
-   The facts leave first. The outlook then folds into a scoreboard-sized strip:
-   its identity is already in the live-read head, so the duplicate eyebrow and
-   status can go while its team, two numbers and distribution remain. Only when
-   even that will not fit does the outlook leave too. */
-@container (max-height: 239px) {
+   The facts leave first: with them the chart needs 270 to draw in full, and
+   under that it would rather have the room. The chart then folds to its lines
+   and key: the eyebrow, the figures on the marks and the saved-week label go
+   while the two routes, their marks and the season figures remain. Only when
+   even that will not fit does the chart leave too. */
+@container (max-height: 267px) {
   .facts {
     display: none;
   }
 }
 
-@container (max-height: 190px) {
-  .swarm {
-    gap: 3px;
-    min-height: 65px;
-    padding: 5px 8px;
+@container (max-height: 213px) {
+  .route {
+    gap: 4px;
+    min-height: 66px;
+    padding: 6px 10px 5px;
   }
 
-  .swarm__identity {
-    display: block;
-  }
-
-  .swarm__eyebrow,
-  .swarm__status,
-  .swarm__verdict,
-  .swarm__ticks {
+  .route__eyebrow,
+  .route__key-word,
+  .route__figure,
+  .route__saved-label {
     display: none;
   }
 
-  .swarm__name,
-  .swarm__name--pair {
-    font-size: 15px;
-  }
-
-  .swarm__metrics {
-    display: none;
-  }
-
-  .swarm__plot {
-    grid-template-rows: auto minmax(28px, 1fr);
-    min-height: 40px;
-  }
-
-  .swarm__strip {
-    min-height: 28px;
-  }
-
-  .swarm__mark > span,
-  .swarm__benchmark > span {
-    display: none;
+  .route__plot {
+    min-height: 34px;
   }
 }
 
 @container (max-height: 148px) {
-  .swarm {
+  .route {
     display: none;
   }
 }

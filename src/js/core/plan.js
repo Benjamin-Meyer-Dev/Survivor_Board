@@ -997,7 +997,11 @@ export function buildBoard({
       .map((option) => ({ ...option, tier: confidenceTier(option.winProb, rules.tiers) }));
     // The rehearsal's own week: its locks first and its plan behind them,
     // built the way the committed path is (pathRecommendation), so the number
-    // it prices is the number the lock's plan will price.
+    // it prices is the number the lock's plan will price. The week's share of
+    // that route is kept on the week (rehearsalPath) for the coach's chart,
+    // which draws it against the committed route; null when nothing is being
+    // weighed and there is no rehearsal.
+    week.rehearsalPath = null;
     if (rehearsal) {
       const onRehearsal =
         week.week < currentWeek
@@ -1006,9 +1010,11 @@ export function buildBoard({
               0,
               rules.picksPerWeek,
             );
+      week.rehearsalPath = [];
       for (const team of onRehearsal) {
         const option = week.optionByTeam.get(team);
         if (!option) continue;
+        week.rehearsalPath.push({ ...option, tier: confidenceTier(option.winProb, rules.tiers) });
         const lock = week.picks.find((pick) => pick.status.locked && pick.team === team);
         rehearsalPicks.push({
           week: week.week,
@@ -1203,6 +1209,10 @@ export function buildBoard({
   // scripts) every pick is held and that is the number, as it always was.
   board.previewPathProbability =
     previewOutcome && (target || !inHand) ? previewOutcome.probability : null;
+  // And the rehearsal's own number whatever is in hand, for the coach's chart,
+  // which draws the rehearsal route (rehearsalPath) whichever week is looked
+  // at and ends it on this.
+  board.rehearsalProbability = previewOutcome ? previewOutcome.probability : null;
 
   // The depth chart carries all three truths: crossed-out teams are locked,
   // outlined teams are picked but not yet locked, and ghosted teams are only
