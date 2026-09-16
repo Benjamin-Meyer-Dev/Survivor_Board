@@ -2141,7 +2141,7 @@
 .swarm__axis,
 .swarm__row {
   display: grid;
-  grid-template-columns: fit-content(34%) minmax(0, 1fr) 40px 44px;
+  grid-template-columns: fit-content(34%) minmax(0, 1fr) 58px 48px;
   gap: 12px;
 }
 
@@ -2177,10 +2177,9 @@
   color: var(--chalk-4);
 }
 
-/* One strip per opening. The rows share what height the band has left, closing
-   up to a line of the name on a short phone and opening out on a tall one.
-   Every row the same height - a pair's name is set smaller rather than
-   wrapped - so that the gates below can take rows off whole. */
+/* The one strip - the selected opening - takes what height the band has left,
+   closing up to a line of the name on a short phone and opening out on a tall
+   one. A pair's name is set smaller rather than wrapped. */
 .swarm__rows {
   display: flex;
   flex-direction: column;
@@ -2197,10 +2196,9 @@
   align-items: center;
   flex: 1 0 auto;
   min-height: 24px;
-  /* Open out with the band, and no further than this: two rows in a tall box
-     at sixty-four each is a table, at a hundred each is two lines lost in a
-     field. What is left over past that is spread between the rows. */
-  max-height: 64px;
+  /* Open out with the band, and no further than this: one strip at seventy
+     is a drawing, at two hundred it is a line lost in a field. */
+  max-height: 72px;
 }
 
 .swarm__name {
@@ -2265,6 +2263,26 @@
   left: 0;
   right: 0;
   border-top: 1px solid var(--line-soft);
+}
+
+/* A selection the coach did not judge has no dots to draw, and the strip says
+   so where the dots would be rather than leaving a rule with one bar on it to
+   be read as a result. */
+.swarm__none {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 0 6px;
+  background: var(--turf);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--chalk-4);
+  white-space: nowrap;
 }
 
 .swarm__dot {
@@ -2402,37 +2420,22 @@
    left is the turf that was there before any of this.
 
    The numbers are the block measured, and they stack: the head and the chain
-   come to 94; the swarm's axis and its first two rows bring it to 169 and its
-   legend to 190; the facts to 248; each row after the second adds 24. Rows come off
-   whole, from the bottom, because the call and its runner-up are the two that
-   matter and a row cut through the middle of a name reads as a fault. So a box
-   of 200 shows the chain, two rows and no facts; 250 shows the facts too; 275
-   a third row; 300 all four. */
-@container (max-height: 295px) {
-  .swarm__row:nth-child(n + 4) {
-    display: none;
-  }
-}
-
-@container (max-height: 271px) {
-  .swarm__row:nth-child(n + 3) {
-    display: none;
-  }
-}
-
-@container (max-height: 247px) {
+   come to 94; the strip's axis and its one row bring it to 149 and its legend
+   to 167; the facts to 225. So a box of 150 shows the chain and the strip;
+   170 the legend too; 230 the facts. */
+@container (max-height: 224px) {
   .facts {
     display: none;
   }
 }
 
-@container (max-height: 189px) {
+@container (max-height: 166px) {
   .swarm__legend {
     display: none;
   }
 }
 
-@container (max-height: 168px) {
+@container (max-height: 148px) {
   .swarm {
     display: none;
   }
