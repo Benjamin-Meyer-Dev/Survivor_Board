@@ -557,6 +557,21 @@
   animation-delay: 105ms;
 }
 
+/* The futures land like a fresh radar sweep, left-to-right in their stable
+   scenario order. Their final positions still carry all the information; the
+   motion only makes a changed model read feel newly plotted. */
+.coach.is-data-updated .swarm__dot {
+  animation: future-land 0.32s var(--ease-out) both;
+  animation-delay: calc(80ms + var(--dot-order, 0) * 7ms);
+}
+
+@keyframes future-land {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3);
+  }
+}
+
 @keyframes coach-pulse {
   0%,
   100% {

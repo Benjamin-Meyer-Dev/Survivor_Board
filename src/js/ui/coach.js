@@ -15,9 +15,11 @@
  *   2. The strip. The optimiser gives every legal team an opening and scores
  *      those openings across thirty-two simulated rest-of-seasons
  *      (core/scenarios.js). While a two-pick opening is being weighed, its
- *      rehearsal scores the exact pair. Those thirty-two results land as dots
- *      on a season-survival axis, with today's estimate as a bar. Bunched dots
- *      are a model that is sure; scattered ones lean more on projections.
+ *      rehearsal scores the exact pair. Those thirty-two results land as a
+ *      multi-lane constellation on a season-survival axis, with the live pick
+ *      and coach route drawn through it. A week-clearance dial and a short
+ *      runway verdict turn the figures into a decision. Bunched dots are a
+ *      model that is sure; scattered ones lean more on projections.
  *
  *   3. The facts. What past games priced like this actually did, in how many
  *      simulated seasons the selection was near the best, and either its
@@ -251,8 +253,8 @@ function estimateFor(state, board) {
 }
 
 /**
- * The selected opening's simulated seasons, as one strip of dots, with
- * today's estimate as a bar through them.
+ * The selected opening's simulated seasons, as a constellation of dots, with
+ * today's estimate and the coach route drawn through them.
  *
  * The axis is the dots' own, not nought's: thirty-two results between 3.4% and
  * 3.6% drawn from zero are a smear in the last inch of the strip; drawn from
@@ -268,19 +270,33 @@ function strip(state, board) {
   const estimate = estimateFor(state, board);
   const weekProb =
     candidate?.weekWinProb ?? opening.reduce((product, option) => product * option.winProb, 1);
+  const baseline = Number.isFinite(board.pathProbability) ? board.pathProbability : null;
+  const liveEstimate = Number.isFinite(estimate)
+    ? estimate
+    : Number.isFinite(candidate?.scenarioMean)
+      ? candidate.scenarioMean
+      : 0;
 
-  const values = [...dots, estimate].filter(Number.isFinite);
+  const values = [...dots, liveEstimate, baseline].filter(Number.isFinite);
   const low = Math.min(...values);
   const high = Math.max(...values);
   const pad = Math.max((high - low) * 0.12, 0.001);
   const axisMin = Math.max(0, Math.floor((low - pad) * 1000) / 1000);
   const axisMax = Math.ceil((high + pad) * 1000) / 1000;
   const span = Math.max(axisMax - axisMin, 0.001);
-  const at = (value) => `${(((value - axisMin) / span) * 100).toFixed(1)}%`;
+  const at = (value) =>
+    `${Math.max(0, Math.min(100, ((value - axisMin) / span) * 100)).toFixed(1)}%`;
   const tick = (value) => formatPercent(value, span < 0.01 ? 2 : 1);
 
+  // A fixed lane pattern gives the futures a compact constellation rather
+  // than piling thirty-two circles onto one rule. It is deterministic, so a
+  // team changing position reads as model movement rather than visual noise.
+  const lanes = [50, 28, 72, 16, 84, 39, 61, 22, 78, 45, 66, 34];
   const marks = dots
-    .map((value) => `<span class="swarm__dot" style="left:${at(value)}"></span>`)
+    .map(
+      (value, index) =>
+        `<span class="swarm__dot" style="left:${at(value)};top:${lanes[index % lanes.length]}%;--dot-order:${index}"></span>`,
+    )
     .join("");
   const awaitingDots = state.selection === "picked" && board.previewPending;
   const missing = dots.length
@@ -290,6 +306,29 @@ function strip(state, board) {
       : `<span class="swarm__none" title="Scenario analysis is unavailable for this exact opening">estimate only</span>`;
   const name = escapeHtml(teams.join(" + "));
   const weekTier = confidenceTier(weekProb, board.rules?.tiers ?? DEFAULT_TIERS);
+  const call = frontier.candidates?.[0] ?? null;
+  const delta = baseline === null ? null : liveEstimate - baseline;
+  const deltaPoints = delta === null ? null : delta * 100;
+  const deltaClass = deltaPoints > 0.04 ? "gain" : deltaPoints < -0.04 ? "cost" : "even";
+  const deltaLabel =
+    deltaPoints === null
+      ? "Plan comparison unavailable"
+      : Math.abs(deltaPoints) < 0.04
+        ? "Holds the coach line"
+        : `${deltaPoints > 0 ? "+" : "−"}${Math.abs(deltaPoints).toFixed(1)} pts vs plan`;
+  const saferNow = call && weekProb > call.weekWinProb + 0.005;
+  const verdict =
+    state.selection === "picked"
+      ? deltaPoints < -0.04
+        ? saferNow
+          ? `Safer now · spends ${Math.abs(deltaPoints).toFixed(1)} pts of runway`
+          : `Spends ${Math.abs(deltaPoints).toFixed(1)} pts of season runway`
+        : deltaPoints > 0.04
+          ? `Adds ${deltaPoints.toFixed(1)} pts of season runway`
+          : "Tracks the coach’s season route"
+      : candidate?.chosen
+        ? "Best season route across the futures"
+        : "Live alternative to the coach route";
   const focus =
     state.selection === "picked"
       ? board.previewPending
@@ -300,8 +339,9 @@ function strip(state, board) {
         : candidate?.chosen
           ? "Coach’s call"
           : "Coach preview";
+  const beatsPlan = baseline === null ? null : dots.filter((value) => value >= baseline).length;
   const dotLegend = dots.length
-    ? `<span class="swarm__legend-item"><span class="swarm__legend-dot"></span>Each dot = 1 of ${frontier.scenarios} seasons</span>`
+    ? `<span class="swarm__legend-item"><span class="swarm__legend-dot"></span>${frontier.scenarios} futures · 1 dot each</span>`
     : awaitingDots
       ? `<span class="swarm__legend-item"><span class="swarm__legend-empty">…</span>Running 32 simulated seasons</span>`
       : `<span class="swarm__legend-item"><span class="swarm__legend-empty">×</span>Exact opening not simulated</span>`;
@@ -312,32 +352,41 @@ function strip(state, board) {
   return `<section class="swarm${state.selection === "picked" ? " swarm--picked" : ""}" data-key="swarm" aria-label="${escapeHtml(aria)}">
     <div class="swarm__head">
       <div class="swarm__identity">
-        <span class="swarm__eyebrow">Season outlook</span>
+        <span class="swarm__eyebrow">Season flight recorder</span>
         <strong class="swarm__name${teams.length > 1 ? " swarm__name--pair" : ""}">${name}</strong>
         <span class="swarm__status">${focus}</span>
+        <span class="swarm__verdict">${escapeHtml(verdict)}</span>
       </div>
       <div class="swarm__metrics">
-        <span class="swarm__metric">
+        <span class="swarm__metric swarm__gate" style="--gate:${Math.max(0, Math.min(100, weekProb * 100)).toFixed(1)}%">
           <strong class="swarm__week${weekTier ? ` confidence--${weekTier}` : ""}">${formatPercent(weekProb, 0)}</strong>
-          <span>This week</span>
+          <span>Clear wk ${String(state.week.week).padStart(2, "0")}</span>
         </span>
         <span class="swarm__metric swarm__metric--season">
+          <span>Season runway</span>
           <strong class="swarm__value">${Number.isFinite(estimate) ? formatPercent(estimate, 1) : "—"}</strong>
-          <span>Season</span>
+          <em class="swarm__impact swarm__impact--${deltaClass}">${escapeHtml(deltaLabel)}</em>
         </span>
       </div>
     </div>
     <div class="swarm__plot" aria-hidden="true">
       <div class="swarm__axis">
-        <span class="swarm__axis-label">Simulated season survival</span>
-        <span class="swarm__range">Range ${tick(axisMin)}–${tick(axisMax)}</span>
+        <span class="swarm__axis-label">Possible season landings</span>
+        <span class="swarm__range">${beatsPlan === null ? `Range ${tick(axisMin)}–${tick(axisMax)}` : `${beatsPlan} of ${dots.length} clear the coach plan`}</span>
       </div>
+      <span class="swarm__strip">
+        <span class="swarm__zone swarm__zone--low">Pressure</span>
+        <span class="swarm__zone swarm__zone--high">Upside</span>
+        ${marks}${missing}
+        ${baseline === null ? "" : `<span class="swarm__benchmark" style="left:${at(baseline)}"><span>Coach ${formatPercent(baseline, 1)}</span></span>`}
+        <span class="swarm__mark" style="left:${at(liveEstimate)}"><span>Live ${formatPercent(liveEstimate, 1)}</span></span>
+      </span>
       <span class="swarm__ticks"><span>${tick(axisMin)}</span><span>${tick((axisMin + axisMax) / 2)}</span><span>${tick(axisMax)}</span></span>
-      <span class="swarm__strip">${marks}${missing}<span class="swarm__mark" style="left:${at(estimate)}"></span></span>
     </div>
     <div class="swarm__legend" aria-hidden="true">
       ${dotLegend}
-      <span class="swarm__legend-item"><span class="swarm__legend-bar"></span>Your live estimate</span>
+      <span class="swarm__legend-item"><span class="swarm__legend-coach"></span>Coach route</span>
+      <span class="swarm__legend-item"><span class="swarm__legend-bar"></span>Live pick</span>
     </div>
   </section>`;
 }
@@ -352,8 +401,9 @@ function strip(state, board) {
  *   coach's simulations the selected opening was the best available, or as
  *   good as.
  *
- *   SEASON IMPACT - for a user pick, its live lock preview against the coach's
- *   untouched plan. On the coach's own call, the closest challenger instead.
+ *   COACH ROUTE - for a user pick, the opening it moved away from. The flight
+ *   recorder already draws the numerical impact. On the coach's own call, the
+ *   closest challenger instead.
  */
 function facts(state, board) {
   const items = [];
@@ -403,14 +453,13 @@ function facts(state, board) {
       const estimate = estimateFor(state, board);
       const baseline = board.pathProbability;
       if (Number.isFinite(estimate) && Number.isFinite(baseline)) {
-        const points = (estimate - baseline) * 100;
-        const impact = `${points > 0 ? "+" : points < 0 ? "−" : ""}${Math.abs(points).toFixed(1)} pts`;
         items.push(
           fact(
-            "Season impact",
-            impact,
-            "vs coach plan",
+            "Coach route",
+            escapeHtml(nameOf(call)),
+            `${formatPercent(call.weekWinProb, 0)} wk · ${formatPercent(baseline, 1)} season`,
             `${nameOf(call)} is the coach's baseline at ${formatPercent(baseline, 1)} season survival; this pick's live estimate is ${formatPercent(estimate, 1)}`,
+            true,
           ),
         );
       }

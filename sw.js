@@ -50,7 +50,8 @@
    that visibly follows the active pick and settles in its updated figures;
    v10 carries a team-complete frontier in both one- and two-pick pools rather
    than a four-team excerpt, and follows an exact college pair while it is
-   being weighed.
+   being weighed; v11 turns that frontier into a flight recorder with a week
+   gate, coach benchmark and multi-lane future constellation.
 
    "Must not keep half of" is the whole point, and v4 is what that phrase was
    written for. Every shell file is cached first and refreshed on its own a few
@@ -66,7 +67,7 @@
    and is bumped by the same hand: it keeps the coach's last few season plans
    between launches, and a plan cannot say which search produced it. If a
    deploy changes core/recommend.js, bump that one too. */
-const CACHE = "sudden-death-v10";
+const CACHE = "sudden-death-v11";
 
 /** How long to wait for fresh data before opening with the last copy. */
 const DATA_TIMEOUT_MS = 2500;
