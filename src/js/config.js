@@ -87,7 +87,7 @@ export const CONFIG = Object.freeze({
     who: `${STORAGE_PREFIX}who`,
     leagues: `${STORAGE_PREFIX}leagues/v1`,
     entryPrefix: `${STORAGE_PREFIX}entry/v2`,
-    plans: `${STORAGE_PREFIX}plans/v1`,
+    plans: `${STORAGE_PREFIX}plans/v2`,
   }),
 
   /**

@@ -718,6 +718,10 @@ function judgeFrontier({
       season: candidate.season,
       scenarioMean: candidate.scenarioMean,
       scenarioLow: candidate.scenarioLow,
+      // Every future's own answer, for the board to draw (ui/coach.js): the
+      // mean and the low above are what these come to, and a row of the
+      // points themselves says how they got there - bunched or scattered.
+      survivals: candidate.survivals,
       robust: candidate.robust / futures.length,
       ...(overlaid.pool
         ? {

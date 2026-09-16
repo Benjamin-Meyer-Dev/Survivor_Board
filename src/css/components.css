@@ -1938,15 +1938,15 @@
   padding: 6px 8px 8px;
 }
 
-/* the coach's case (ui/coach.js) --------------------------------------------- */
+/* the model's working (ui/coach.js) ----------------------------------------- */
 
-/* The openings the coach weighed, chalked on the turf between the field and
-   the card. No box: the call card below it is the one thing on this screen you
-   act on and it wears the chalk rectangle that says so, and a second box over
-   it would make two cards and no card. This is writing on the ground.
+/* How the week's pick was priced and where the season lands across the
+   futures, chalked on the turf between the field and the card. No box: the
+   call card below it is the one thing on this screen you act on and it wears
+   the chalk rectangle that says so. This is writing on the ground.
 
-   A column so the table can take the height the band has and the head and the
-   note stay put at either end of it (layout.css sizes the box). */
+   A column so the two drawings and the line under them take the height the
+   band has, head and note held at either end (layout.css sizes the box). */
 .coach {
   display: flex;
   flex-direction: column;
@@ -1975,26 +1975,117 @@
   white-space: nowrap;
 }
 
-/* How many futures the four openings were judged across. A number that
-   qualifies the two columns it sits over rather than one of them, so it is set
-   the way the card sets the same kind of remark - quiet, and at the end of the
-   line it belongs to. */
-.coach__futures {
+/* The game the chain prices, at the end of the head's line in the quiet
+   chalk the card sets its own game line in. */
+.coach__game {
   flex: none;
+  font-size: 12px;
+  color: var(--chalk-3);
+  white-space: nowrap;
+}
+
+/* --- the chain ------------------------------------------------------------- */
+
+/* Four stops on a route: a dashed rule runs the width of the block with a
+   chalk dot at each stop, and each stop's key, number and note hang under its
+   dot. The rule is the thing being drawn - the number travels along it from
+   the ratings to the tier - so it is drawn once on the list and the dots on
+   the stops, rather than each stop wearing a segment of its own that would
+   have to meet its neighbours' exactly. */
+.chain {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  flex: none;
+}
+
+.chain::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  /* To the last dot and no further: the number arrives there. */
+  right: calc(25% - 3px);
+  border-top: 1px dashed var(--line-soft);
+}
+
+.chain__stop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 10px;
+}
+
+.chain__stop::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--chalk-3);
+}
+
+/* The last stop is where the number arrives, and its dot is lit. */
+.chain__stop:last-child::before {
+  background: var(--flag);
+  box-shadow: 0 0 6px var(--flag);
+}
+
+.chain__key {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--chalk-3);
+  white-space: nowrap;
+}
+
+/* The number at each stop, set the way the drive line sets its readouts. The
+   tier's is a chip rather than a figure, and the chip is 22 tall where the
+   figure's line is 18, so the row of values is lined up on 22. */
+.chain__value {
+  display: flex;
+  align-items: center;
+  min-height: 22px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.1;
+  color: var(--chalk);
+  white-space: nowrap;
+}
+
+.chain__sub {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 11px;
-  letter-spacing: 0.1em;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--chalk-4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* The table: the column heads, then the rows under them. Both are the same
-   grid, declared once here and inherited by each, so a figure and the word
-   over it can never come apart. The name takes what is left and the three
-   figures take what they need - they are short, right-aligned and the same
-   width whatever is in them. */
-.coach__table {
+/* A symbol in the sub-line keeps its case. */
+.chain__sym {
+  text-transform: none;
+}
+
+/* --- the swarm ------------------------------------------------------------- */
+
+.swarm {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -2002,30 +2093,20 @@
   min-height: 0;
 }
 
-.coach__columns,
-.coach__row {
+/* The axis: what the strips measure, and three ticks along the strips' own
+   width. The ticks sit over the strip column, so the row is the same grid as
+   the rows under it with the name and value columns left empty. */
+.swarm__axis {
   display: grid;
-  align-items: center;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr) 44px;
   gap: 10px;
-}
-
-.coach__table--case .coach__columns,
-.coach__table--case .coach__row {
-  grid-template-columns: minmax(0, 1fr) 40px 46px 44px;
-}
-
-.coach__table--ranked .coach__columns,
-.coach__table--ranked .coach__row {
-  grid-template-columns: minmax(0, 1fr) 40px 52px;
-}
-
-.coach__columns {
-  flex: none;
+  align-items: baseline;
   padding-bottom: 2px;
   border-bottom: 1px solid var(--line-soft);
+  flex: none;
 }
 
-.coach__col {
+.swarm__axis-label {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 10px;
@@ -2033,21 +2114,28 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--chalk-4);
-  text-align: right;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* The rows share the height the band has left, so three or four of them fill a
-   tall phone without being three rows adrift in it, and on a shorter one they
-   close up to the height of their own text.
+.swarm__axis-label--unit {
+  text-align: right;
+}
 
-   Bounded at both ends, and the ceiling is the half that is easy to forget: a
-   row free to take a third of the band is a name and a number with ninety
-   pixels of turf under them, which is the dead space this block was built to
-   answer turning up again inside the answer. Centred, so what a capped row
-   leaves over opens above and below the table rather than dropping out of the
-   bottom of it. */
-.coach__rows {
+.swarm__ticks {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--chalk-4);
+}
+
+/* One strip per opening. The rows share what height the band has left, closing
+   up to a line of the name on a short phone and opening out on a tall one.
+   Every row the same height - a pair's name is set smaller rather than
+   wrapped - so that the gates below can take rows off whole. */
+.swarm__rows {
   display: flex;
   flex-direction: column;
   list-style: none;
@@ -2058,48 +2146,22 @@
   overflow: hidden;
 }
 
-/* Grow into room going spare, never give a pixel back. A box short of height
-   drops whole rows off the bottom rather than pressing four of them into the
-   space for two - the best call is the top row, so a table cut short is still
-   the table, just less of it. */
-.coach__row {
+.swarm__row {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr) 44px;
+  gap: 10px;
+  align-items: center;
   flex: 1 0 auto;
-  min-height: 30px;
-  max-height: 54px;
+  min-height: 24px;
+  max-height: 40px;
 }
 
-/* The call the card is already showing, lit the way the field lights the week
-   on the clock: the row is the one that was taken, and the three below it are
-   what it was taken over. */
-.coach__row--chosen .coach__pick {
-  color: var(--chalk);
-}
-
-.coach__row--chosen .coach__pick::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: 3px;
-  height: 14px;
-  margin-top: -7px;
-  border-radius: 1px;
-  background: var(--flag);
-}
-
-.coach__team {
-  min-width: 0;
-}
-
-/* The name, with room at its head for the flag the chosen row wears, so every
-   row's ink starts on the same line whether it is wearing one or not. */
-.coach__pick {
+.swarm__name {
   position: relative;
-  display: block;
   padding-left: 11px;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1.1;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -2109,22 +2171,82 @@
   text-overflow: ellipsis;
 }
 
-/* Who it plays, under the name: the line the row is priced off, so the figures
-   beside it are a claim about something rather than three numbers. Quieter
-   than the name and set in the body face, the way the card sets the same
-   line. */
-.coach__game {
-  display: block;
-  padding-left: 11px;
+/* Two names in the room for one: down a size and closer set, and still on one
+   line, which is the point (see the row's floor above). */
+.swarm__name--pair {
   font-size: 11px;
-  line-height: 1.3;
-  color: var(--chalk-4);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  letter-spacing: 0.02em;
 }
 
-.coach__figure {
+/* The call the card is already showing, lit the way the field lights the week
+   on the clock. */
+.swarm__row--chosen .swarm__name {
+  color: var(--chalk);
+}
+
+.swarm__row--chosen .swarm__name::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 3px;
+  height: 12px;
+  margin-top: -6px;
+  border-radius: 1px;
+  background: var(--flag);
+}
+
+/* The strip the dots stand on: a faint rule, and every dot placed along it by
+   the percentage the layout wrote. Dots are translucent so that where the
+   futures pile up the chalk gets thicker - that pile is the whole drawing. */
+.swarm__strip {
+  position: relative;
+  height: 14px;
+  min-width: 0;
+}
+
+.swarm__strip::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.swarm__dot {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: var(--chalk-2);
+  opacity: 0.28;
+}
+
+.swarm__row--chosen .swarm__dot {
+  background: var(--flag);
+  opacity: 0.32;
+}
+
+/* The point estimate - the number the row prints - as a bar through the dots,
+   the way the field's marks are bars. */
+.swarm__mark {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--chalk);
+}
+
+.swarm__row--chosen .swarm__mark {
+  background: var(--flag);
+}
+
+.swarm__value {
   font-family: var(--font-mono);
   font-weight: 500;
   font-size: 13px;
@@ -2134,18 +2256,13 @@
   white-space: nowrap;
 }
 
-/* The season figure is the point of the block - the column the week's own
-   number is there to be read against - so it is the one set in full chalk. */
-.coach__figure--season {
+.swarm__row--chosen .swarm__value {
   color: var(--chalk);
 }
 
-.coach__figure--robust {
-  color: var(--chalk-3);
-}
+/* --- the line under both ---------------------------------------------------- */
 
-/* What the runner-up costs, said once in words under the columns that show it.
-   Body face, because it is a sentence and everything else here is a label or a
+/* Body face, because it is a sentence and everything else here is a label or a
    figure. */
 .coach__note {
   flex: none;
@@ -2155,27 +2272,47 @@
   color: var(--chalk-3);
 }
 
-/* How much of the case there is room for, asked of its own box (layout.css
+/* How much of the working there is room for, asked of its own box (layout.css
    makes it a size container).
 
    The band between the field and the card is whatever two other things leave,
-   and on a short phone - or any phone with a banner over the board - that can
-   come to fifty pixels. Fifty pixels of a table is a head, a rule and the top
-   of a row: it reads as something that failed to load rather than as something
-   with nothing to say. So the note goes first, and then the block goes, and
-   what is left is the turf that was there before any of this.
+   and on a short phone - or any phone with a banner over the board - it can
+   come to fifty pixels. So the parts come off from the bottom up: the note
+   first, then the swarm, and then the whole block, and what is left is the
+   turf that was there before any of this.
 
-   The two numbers are the block measured, not chosen: 54 for the head and the
-   column rule, 30 a row, 40 the note. Under 184 the note has nowhere to sit;
-   under 114 there is no room for a second row, and one row of a table that is
-   there to compare four is not worth the turf. */
-@container (max-height: 183px) {
+   The numbers are the block measured, and they stack: the head and the chain
+   come to 94; the swarm's axis and its first two rows bring it to 168; the
+   note to 208; each row after the second adds 24. Rows come off whole, from
+   the bottom, because the call and its runner-up are the two that matter and a
+   row cut through the middle of a name reads as a fault. So a box of 200 shows
+   the chain, two rows and no note; 240 shows three rows and the note; the full
+   264 shows all four. */
+@container (max-height: 256px) {
+  .swarm__row:nth-child(n + 4) {
+    display: none;
+  }
+}
+
+@container (max-height: 232px) {
+  .swarm__row:nth-child(n + 3) {
+    display: none;
+  }
+}
+
+@container (max-height: 208px) {
   .coach__note {
     display: none;
   }
 }
 
-@container (max-height: 113px) {
+@container (max-height: 168px) {
+  .swarm {
+    display: none;
+  }
+}
+
+@container (max-height: 93px) {
   .coach {
     display: none;
   }

@@ -1129,10 +1129,9 @@ function renderSelection(board) {
     canWrite,
     onAction: handleAction,
   });
-  // Read-only, and about the week rather than the slot, so it rides with the
-  // week's other regions rather than being re-rendered by a slot swap - but it
-  // costs a handful of rows, and the week is what a scrub changes.
-  renderCoach(el.coach, board, app.viewWeek);
+  // Read-only. It prices the team on the card, so it follows the week and the
+  // slot the card has active, the same two things the card itself follows.
+  renderCoach(el.coach, board, app.viewWeek, app.activeSlot);
   markDriveViewing(el.drive, app.viewWeek);
 }
 

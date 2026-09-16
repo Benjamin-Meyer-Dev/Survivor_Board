@@ -37,6 +37,8 @@ import {
   marketWinProb,
   confidenceTier,
   projectSpread,
+  marginSigma,
+  horizonVariance,
   resolveModel,
   DEFAULT_TIERS,
 } from "./probability.js";
@@ -238,6 +240,7 @@ function resolvePick({
     kickoff: base.kickoff ?? line?.kickoff ?? null,
     sinceLock,
     availability: base.availability ?? null,
+    pricing: base.pricing ?? null,
     status: {
       ...saved,
       picked: true,
@@ -370,6 +373,47 @@ function weekOptions({
         // When the game kicks off, from the market feed: nothing until the
         // week has been priced.
         kickoff: line?.kickoff ?? null,
+        // How the number above was arrived at, station by station, for the
+        // board to show its working (ui/coach.js): the two ratings and the
+        // line they project, the market's line where there is one and where
+        // it opened, the spread's own probability and the moneyline's before
+        // the blend, and how wide the margin's bell is. Every probability is
+        // in the pool's terms, like winProb - a losers pool reads them as the
+        // chance the pick carries the week, not the chance the team wins.
+        pricing: {
+          team: { rating: rating(team), preseason: ratings.ratings?.[team] ?? null },
+          opponent: { rating: rating(opponent), preseason: ratings.ratings?.[opponent] ?? null },
+          homeField: site === "Neutral" ? 0 : site === "Home" ? home : -home,
+          projected: projectSpread(
+            rating(team),
+            rating(opponent),
+            site === "Home",
+            site === "Neutral" ? 0 : home,
+          ),
+          market: line
+            ? {
+                spread: line.spread,
+                opened: Number.isFinite(line.opened) ? line.opened : null,
+                books: line.books ?? null,
+                moneyline: line.moneyline ?? null,
+                moneylineProb: Number.isFinite(line.moneylineProb)
+                  ? advanceProb(line.moneylineProb, objective)
+                  : null,
+                weight: Number.isFinite(line.moneylineProb) ? model.moneylineWeight : 0,
+              }
+            : null,
+          adjustment,
+          sigma: marginSigma(spread, model, line?.total ?? null),
+          horizonSd: line ? 0 : Math.sqrt(horizonVariance(weeksAhead, model, unseenSides)),
+          fromSpread: advanceProb(
+            winProbFromSpread(
+              spread,
+              model,
+              line ? { total: line.total ?? null } : { weeksAhead, unseenSides },
+            ),
+            objective,
+          ),
+        },
         // Where the line opened, when the refresh job has seen it move: the
         // spread now less the spread when the week was first priced, so a
         // negative number is the market warming to the team.
@@ -453,6 +497,7 @@ function lineOf(pick) {
     movement: pick.movement ?? null,
     kickoff: pick.kickoff ?? null,
     availability: pick.availability ?? null,
+    pricing: pick.pricing ?? null,
   };
 }
 
@@ -696,6 +741,11 @@ export function buildBoard({
     // and for anything in the UI that wants to say how it was priced.
     model,
     calibratedAt: calibration?.fittedAt ?? null,
+    // How the model's numbers have held up: for each band of predicted
+    // probability, how many past games landed in it and how many of them the
+    // favourite actually won (scripts/calibrate.mjs). The board's working
+    // quotes the band the week's pick falls in.
+    calibrationBands: calibration?.report?.bands ?? null,
     spentTeams,
     spentCount: Object.keys(spentTeams).length,
     totalTeams: Object.keys(eligible).length,
