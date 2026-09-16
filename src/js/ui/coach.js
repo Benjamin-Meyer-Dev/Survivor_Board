@@ -53,7 +53,7 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0) {
     panel,
     state.kind === "none"
       ? ""
-      : head(state) + chain(state, board) + swarm(state) + foot(state, board),
+      : head(state) + chain(state, board) + swarm(state) + facts(state, board),
   );
 }
 
@@ -90,36 +90,6 @@ function head(state) {
     <span class="u-eyebrow coach__what">The model’s working · Wk ${String(week.week).padStart(2, "0")}</span>
     <span class="coach__game">${escapeHtml(subject.team)} ${escapeHtml(formatMatchup(subject.site, subject.opponent))}</span>
   </div>`;
-}
-
-/**
- * The chain in a sentence, for the reading that does not follow dots along a
- * rule: what the ratings alone would make it, what the market makes it and
- * which way it has moved, and what that prices at. Shown when the band is tall
- * enough to afford a line of prose under the stops (components.css).
- */
-function chainCaption(subject) {
-  const p = subject.pricing;
-  const team = escapeHtml(subject.team);
-  const ratings = `Power ratings alone make ${team} ${formatSpread(p.projected)}${
-    p.homeField > 0 ? " at home" : p.homeField < 0 ? " on the road" : ""
-  }`;
-  let market;
-  if (p.market) {
-    const moved =
-      p.market.opened !== null && p.market.opened !== p.market.spread
-        ? `, ${Math.abs(p.market.spread) > Math.abs(p.market.opened) ? "out" : "in"} from ${formatSpread(p.market.opened)}`
-        : "";
-    market = `the market says ${formatSpread(p.market.spread)}${moved}`;
-  } else {
-    market = `no line is posted yet, and a projection this far out usually misses by about ${p.horizonSd.toFixed(1)} points`;
-  }
-  const via =
-    p.market && p.market.weight > 0 && p.market.moneylineProb !== null
-      ? "with the moneyline"
-      : "on the margin curve";
-  const tier = TIER_LABEL[subject.tier] ?? subject.tier;
-  return `<p class="coach__caption" data-key="chain-caption">${ratings}; ${market}; ${via} that prices at ${formatPercent(subject.winProb, 1)} — ${escapeHtml(tier)}.</p>`;
 }
 
 /**
@@ -191,7 +161,7 @@ function chain(state, board) {
       <span class="chain__value"><span class="chip chip--${tier}">${TIER_LABEL[tier] ?? tier}</span></span>
       <span class="chain__sub">${tierBand(tier, tiers)}</span>
     </li>
-  </ol>${chainCaption(subject)}`;
+  </ol>`;
 }
 
 function formatMoneyline(moneyline) {
@@ -217,10 +187,15 @@ function tierBand(tier, tiers) {
 }
 
 /**
- * The futures, as dots. One strip per opening on a shared axis from nought to
- * a little past the best any future managed, so the rows are read against
- * each other. The point estimate - the number the strip's own row on the drive
- * line shows - is a bar through the dots.
+ * The futures, as dots. One strip per opening on a shared axis, the point
+ * estimate - the number the strip's own row on the drive line shows - as a bar
+ * through the dots.
+ *
+ * The axis is the data's, not nought's. Four openings whose futures all land
+ * between 3.4% and 3.6% drawn from zero are four identical smears in the last
+ * inch of the strip; drawn from 3.3% to 3.7% they are four different shapes
+ * across the whole of it, which is the drawing. The ticks say what the ends
+ * are, so a spread that has been zoomed into reads as zoomed.
  */
 function swarm(state) {
   const frontier = state.frontier;
@@ -228,14 +203,19 @@ function swarm(state) {
   const rows = frontier.candidates.filter((candidate) => Array.isArray(candidate.survivals));
   if (!rows.length) return "";
 
-  const top = Math.max(
-    ...rows.flatMap((candidate) => [...candidate.survivals, candidate.season]),
-    0.001,
-  );
-  // To the next half a percent, so the axis ends on a number worth printing.
-  const axisMax = Math.ceil(top * 200) / 200;
-  const at = (value) => `${((value / axisMax) * 100).toFixed(1)}%`;
-  const tick = (value) => formatPercent(value, axisMax < 0.1 ? 1 : 0);
+  const values = rows.flatMap((candidate) => [...candidate.survivals, candidate.season]);
+  const low = Math.min(...values);
+  const high = Math.max(...values);
+  // Room either side so the outermost dots are not on the ends, floored at a
+  // tenth of a point so a set of identical futures still has an axis.
+  const pad = Math.max((high - low) * 0.12, 0.001);
+  const axisMin = Math.max(0, Math.floor((low - pad) * 1000) / 1000);
+  const axisMax = Math.ceil((high + pad) * 1000) / 1000;
+  const span = Math.max(axisMax - axisMin, 0.001);
+  const at = (value) => `${(((value - axisMin) / span) * 100).toFixed(1)}%`;
+  // One decimal unless the whole axis is under a point wide, when it takes two
+  // to tell the ends apart.
+  const tick = (value) => formatPercent(value, span < 0.01 ? 2 : 1);
 
   const list = rows
     .map((candidate, index) => {
@@ -265,51 +245,77 @@ function swarm(state) {
   return `<div class="swarm" data-key="swarm">
     <div class="swarm__axis" aria-hidden="true">
       <span class="swarm__axis-label">${frontier.scenarios} futures</span>
-      <span class="swarm__ticks"><span>${tick(0)}</span><span>${tick(axisMax / 2)}</span><span>${tick(axisMax)}</span></span>
+      <span class="swarm__ticks"><span>${tick(axisMin)}</span><span>${tick((axisMin + axisMax) / 2)}</span><span>${tick(axisMax)}</span></span>
       <span class="swarm__axis-label swarm__axis-label--unit">Week</span>
       <span class="swarm__axis-label swarm__axis-label--unit">Season</span>
     </div>
     <ol class="swarm__rows">${list}</ol>
-    <p class="coach__caption" data-key="swarm-caption">The coach replayed the rest of the season ${frontier.scenarios} times with the lines nudged the way they usually miss. Each dot is where one of those futures left the season; the bar is today’s number. Dots that pile up mean the model is sure; dots that spread mean it is guessing.</p>
+    <div class="swarm__legend" aria-hidden="true">
+      <span class="swarm__legend-item"><span class="swarm__legend-dot"></span>one future</span>
+      <span class="swarm__legend-item"><span class="swarm__legend-bar"></span>today’s number</span>
+    </div>
   </div>`;
 }
 
 /**
- * Two sentences, each about one of the drawings above it. The first is the
- * calibration speaking: of every past game the model priced in this band, how
- * many the favourite actually won. The second is the swarm counted: in how
- * many of the futures the runner-up did as well as the call.
+ * Three figures across the foot, set like the stops above them - a key, a
+ * number, a word under it - rather than as sentences. The record: of every
+ * past game the model priced in this band, how many the favourite actually
+ * won. The call: in how many futures it was the best opening or as good as.
+ * The next best: named, and in how many futures it matched the call.
  */
-function foot(state, board) {
-  const lines = [];
+function facts(state, board) {
+  const items = [];
 
   const band = bandFor(board.calibrationBands, state.subject.winProb);
   if (band && band.n >= 20) {
-    lines.push(
-      `Games the model has priced around ${Math.round(band.predicted * 100)}% went on to win ${Math.round(
-        band.actual * 100,
-      )}% of ${band.n}.`,
+    items.push(
+      fact(
+        "Track record",
+        `${Math.round(band.predicted * 100)}% → ${Math.round(band.actual * 100)}%`,
+        `${band.n} games priced like this`,
+        "Of past games the model priced in this band, the share the favourite actually won",
+      ),
     );
   }
 
-  const candidates = state.frontier?.candidates ?? [];
-  const [call, next] = candidates;
-  if (call && next && state.frontier.scenarios) {
-    const total = state.frontier.scenarios;
+  const total = state.frontier?.scenarios ?? 0;
+  const [call, next] = state.frontier?.candidates ?? [];
+  if (call && total) {
+    items.push(
+      fact(
+        "Call holds up",
+        `${Math.round((call.robust ?? 0) * total)} of ${total}`,
+        "futures",
+        "Futures in which the call was the best opening, or within a whisker of it",
+      ),
+    );
+  }
+  if (next && total) {
+    const name = (
+      next.options?.length ? next.options.map((option) => option.team) : next.teams
+    ).join(" + ");
     const agree = Math.round((next.robust ?? 0) * total);
-    const name = escapeHtml(
-      (next.options?.length ? next.options.map((option) => option.team) : next.teams).join(" + "),
-    );
-    lines.push(
-      agree >= total - 1
-        ? `${name} lands with the call in ${agree} of ${total} futures: nothing between them.`
-        : agree === 0
-          ? `No future had ${name} as good as the call.`
-          : `${name} does as well as the call in ${agree} of ${total} futures.`,
+    items.push(
+      fact(
+        "Next best",
+        escapeHtml(name),
+        `even in ${agree} of ${total}`,
+        "The runner-up, and the futures in which it did as well as the call",
+        true,
+      ),
     );
   }
 
-  return lines.length ? `<p class="coach__note" data-key="note">${lines.join(" ")}</p>` : "";
+  return items.length ? `<div class="facts" data-key="facts">${items.join("")}</div>` : "";
+}
+
+function fact(key, value, sub, title, isName = false) {
+  return `<div class="facts__item" title="${escapeHtml(title)}">
+    <span class="chain__key">${key}</span>
+    <span class="chain__value${isName ? " chain__value--name" : ""}">${value}</span>
+    <span class="chain__sub">${escapeHtml(sub)}</span>
+  </div>`;
 }
 
 /** The calibration band a probability falls in, or null without a table. */

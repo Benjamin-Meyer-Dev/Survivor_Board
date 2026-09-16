@@ -1945,8 +1945,10 @@
    call card below it is the one thing on this screen you act on and it wears
    the chalk rectangle that says so. This is writing on the ground.
 
-   A column so the two drawings and the line under them take the height the
-   band has, head and note held at either end (layout.css sizes the box). */
+   Figures, not sentences: every part of it is a key over a number over a word,
+   the way the drive line is, so the whole block is read the way the rest of
+   the readout is read. A column so the parts take the height the band has
+   (layout.css sizes the box). */
 .coach {
   display: flex;
   flex-direction: column;
@@ -1986,16 +1988,16 @@
 
 /* --- the chain ------------------------------------------------------------- */
 
-/* Four stops on a route: a dashed rule runs the width of the block with a
-   chalk dot at each stop, and each stop's key, number and note hang under its
-   dot. The rule is the thing being drawn - the number travels along it from
-   the ratings to the tier - so it is drawn once on the list and the dots on
-   the stops, rather than each stop wearing a segment of its own that would
-   have to meet its neighbours' exactly. */
+/* Four stops on a route, the route the full width of the block: a dashed rule
+   from the left edge to the right with a chalk dot at each stop, and each
+   stop's key, number and note hung under its dot. The first stop stands at
+   the left edge, the last at the right, the two between them spaced out - so
+   the number arrives at the far side of the screen rather than three
+   quarters of the way across it. */
 .chain {
   position: relative;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  justify-content: space-between;
   gap: 8px;
   margin: 0;
   padding: 0;
@@ -2008,8 +2010,7 @@
   position: absolute;
   top: 3px;
   left: 3px;
-  /* To the last dot and no further: the number arrives there. */
-  right: calc(25% - 3px);
+  right: 3px;
   border-top: 1px dashed var(--line-soft);
 }
 
@@ -2017,20 +2018,45 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 2px;
   min-width: 0;
   padding-top: 10px;
+  text-align: center;
 }
 
+.chain__stop:first-child {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.chain__stop:last-child {
+  align-items: flex-end;
+  text-align: right;
+}
+
+/* The dot, over the middle of the stop; over its outer edge at either end. */
 .chain__stop::before {
   content: "";
   position: absolute;
   top: 0;
-  left: 0;
+  left: 50%;
   width: 7px;
   height: 7px;
+  margin-left: -4px;
   border-radius: 50%;
   background: var(--chalk-3);
+}
+
+.chain__stop:first-child::before {
+  left: 0;
+  margin-left: 0;
+}
+
+.chain__stop:last-child::before {
+  left: auto;
+  right: 0;
+  margin-left: 0;
 }
 
 /* The last stop is where the number arrives, and its dot is lit. */
@@ -2065,6 +2091,21 @@
   white-space: nowrap;
 }
 
+/* A team named where a number would stand: the display face, since a name is
+   not a figure, cut with an ellipsis where a pair will not fit. */
+.chain__value--name {
+  display: block;
+  max-width: 100%;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 22px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .chain__sub {
   font-family: var(--font-display);
   font-weight: 700;
@@ -2076,6 +2117,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 /* A symbol in the sub-line keeps its case. */
@@ -2093,13 +2135,17 @@
   min-height: 0;
 }
 
-/* The axis: what the strips measure, and three ticks along the strips' own
-   width. The ticks sit over the strip column, so the row is the same grid as
-   the rows under it with the name and value columns left empty. */
-.swarm__axis {
+/* The axis row and every row under it share one grid: the name takes what it
+   needs and no more, the strip takes everything left, and the two figures at
+   the end take a fixed width each so they line up down the block. */
+.swarm__axis,
+.swarm__row {
   display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr) 40px 44px;
-  gap: 10px;
+  grid-template-columns: fit-content(34%) minmax(0, 1fr) 40px 44px;
+  gap: 12px;
+}
+
+.swarm__axis {
   align-items: baseline;
   padding-bottom: 2px;
   border-bottom: 1px solid var(--line-soft);
@@ -2148,9 +2194,6 @@
 }
 
 .swarm__row {
-  display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr) 40px 44px;
-  gap: 10px;
   align-items: center;
   flex: 1 0 auto;
   min-height: 24px;
@@ -2206,9 +2249,8 @@
 
    Both grow with the band, in container-height units: a dot is six pixels in
    a box that can barely hold the block and ten in one with room to spare, and
-   the strip under it deepens to match. The box is a size container in the
-   phone layout (layout.css); on the desktop, where it is not, the units fall
-   back to the viewport and the clamps hold them at the top of the range. */
+   the strip under it deepens to match (the box is a size container in every
+   layout that shows it - layout.css). */
 .swarm__strip {
   --dot: clamp(6px, 3cqh, 10px);
   position: relative;
@@ -2283,29 +2325,72 @@
   color: var(--chalk);
 }
 
-/* --- the lines under both --------------------------------------------------- */
-
-/* Body face, because these are sentences and everything else here is a label
-   or a figure. The captions say what each drawing is in words - the chain as
-   one sentence, the swarm as what a dot means - for the first time someone
-   sees it and every time the dots alone are not enough. They are the first
-   thing to go when the band is short. The note is the two drawings measured
-   against the record and against each other. */
-.coach__caption,
-.coach__note {
+/* What a dot and a bar are, in four words at the foot of the strips: the two
+   marks drawn at the size they are drawn above, and a word each. */
+.swarm__legend {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
   flex: none;
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.3;
-  color: var(--chalk-3);
-}
-
-.coach__caption {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   color: var(--chalk-4);
 }
 
-.chain + .coach__caption {
-  margin-top: -2px;
+.swarm__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.swarm__legend-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--chalk-2);
+  opacity: 0.5;
+}
+
+.swarm__legend-bar {
+  width: 2px;
+  height: 10px;
+  border-radius: 1px;
+  background: var(--chalk);
+}
+
+/* --- the facts under both --------------------------------------------------- */
+
+/* Three more stops without a route: the record, the call, the next best, set
+   exactly as the chain's stops are so the block reads as one thing. Spread
+   the width of the block like the chain, ends at the edges. */
+.facts {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex: none;
+}
+
+.facts__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  text-align: center;
+}
+
+.facts__item:first-child {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.facts__item:last-child {
+  align-items: flex-end;
+  text-align: right;
 }
 
 /* How much of the working there is room for, asked of its own box (layout.css
@@ -2313,41 +2398,36 @@
 
    The band between the field and the card is whatever two other things leave,
    and on a short phone - or any phone with a banner over the board - it can
-   come to fifty pixels. So the parts come off from the bottom up: the note
-   first, then the swarm, and then the whole block, and what is left is the
-   turf that was there before any of this.
+   come to fifty pixels. So the parts come off from the bottom up, and what is
+   left is the turf that was there before any of this.
 
    The numbers are the block measured, and they stack: the head and the chain
-   come to 94; the swarm's axis and its first two rows bring it to 168; the
-   note to 208; each row after the second adds 24; the two captions, at two
-   lines and four, another 100 on top of everything. Rows come off whole, from
-   the bottom, because the call and its runner-up are the two that matter and a
-   row cut through the middle of a name reads as a fault. So a box of 200 shows
-   the chain, two rows and no note; 240 shows three rows and the note; 260 all
-   four; and from about 300 - which on a phone is never, and on the tall
-   windows and tablets that have it means the captions run one or two lines
-   rather than four - the captions come back and the drawings explain
-   themselves. */
-@container (max-height: 299px) {
-  .coach__caption {
-    display: none;
-  }
-}
-
-@container (max-height: 256px) {
+   come to 94; the swarm's axis and its first two rows bring it to 169 and its
+   legend to 190; the facts to 248; each row after the second adds 24. Rows come off
+   whole, from the bottom, because the call and its runner-up are the two that
+   matter and a row cut through the middle of a name reads as a fault. So a box
+   of 200 shows the chain, two rows and no facts; 250 shows the facts too; 275
+   a third row; 300 all four. */
+@container (max-height: 295px) {
   .swarm__row:nth-child(n + 4) {
     display: none;
   }
 }
 
-@container (max-height: 232px) {
+@container (max-height: 271px) {
   .swarm__row:nth-child(n + 3) {
     display: none;
   }
 }
 
-@container (max-height: 208px) {
-  .coach__note {
+@container (max-height: 247px) {
+  .facts {
+    display: none;
+  }
+}
+
+@container (max-height: 189px) {
+  .swarm__legend {
     display: none;
   }
 }
