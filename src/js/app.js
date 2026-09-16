@@ -31,6 +31,7 @@ import { createStore, knownEntry } from "./store/index.js";
 import {
   accessGranted,
   adoptOldStorage,
+  claimId,
   createLeague,
   deleteLeague,
   grantAccess,
@@ -380,11 +381,14 @@ function settlePages() {
 }
 
 /**
- * Local identity, saved as `by` on every lock and result: the device's id and
- * the name this person gave on first run. The board does not show it, but a
- * league with several people in it records who did what and when.
+ * Local identity, saved as `by` on every lock and result: this person's id
+ * (store/directory.js myId) and the name they gave on first run. The board
+ * does not show it, but a league with several people in it records who did
+ * what and when. A `let`, because a phone can become somebody the app already
+ * knows by taking their id off another phone (claimId), and every lock after
+ * that is theirs.
  */
-const ME = myId();
+let ME = myId();
 
 /**
  * Every file a board reads, in the order loadLeague unpacks them, and how many
@@ -1302,8 +1306,10 @@ function renderHomeView() {
     el.home,
     {
       name: app.name,
-      // Which row of a league's roster is this device (ui/roster.js).
+      // Which row of a league's roster is this device (ui/roster.js), and
+      // the id itself, for the Who's picking? sheet to show.
       me: ME,
+      id: ME,
       leagues: app.leagues,
       shared: sharingAvailable(),
       loading: app.leaguesLoading,
@@ -1371,6 +1377,18 @@ function renderHomeView() {
         if (app.league) {
           app.league = { ...app.league, people: renamedMe(app.league.people, app.name) };
         }
+        renderHomeView();
+      },
+      onClaimId: async (typed) => {
+        // This phone becomes the person the id names: the directory has
+        // written the id, their name and their leagues before this returns,
+        // and the list is refreshed so their boards are warm and their head
+        // counts right. A rejection stays in the sheet (ui/home.js).
+        await claimId(typed);
+        ME = myId();
+        app.name = myName();
+        app.homeMessage = "";
+        await reloadLeagues();
         renderHomeView();
       },
     },
@@ -2605,6 +2623,10 @@ async function requireAccess() {
  * It is asked for before anything loads because the first thing after it may
  * be joining a league from a link, and a member with no name is a row in a
  * list that says nothing.
+ *
+ * The other answer the screen takes is the id off another phone: the
+ * directory makes this device that person (claimId), and the name that comes
+ * back is theirs. A join from a link then finds them already in the members.
  */
 async function requireIdentity() {
   const saved = myName();
@@ -2614,7 +2636,13 @@ async function requireIdentity() {
   }
 
   document.body.classList.add("is-gated");
-  const name = await requireName(el.start);
+  const name = await requireName(el.start, {
+    onClaim: async (typed) => {
+      const claimed = await claimId(typed);
+      ME = myId();
+      return claimed.name;
+    },
+  });
   setMyName(name);
   app.name = name;
   document.body.classList.remove("is-gated");

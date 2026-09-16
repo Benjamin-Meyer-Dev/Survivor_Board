@@ -40,6 +40,12 @@ What that does not protect against is the publishable Supabase key that ships
 in the page - see the note at the top of [supabase/schema.sql](supabase/schema.sql),
 which is also where the upgrade to real accounts is written down.
 
+**Your ID is you.** Every person gets an eight-character ID on their first
+phone, shown under _Who's picking?_. Enter it on a new phone and that phone
+becomes you: the same member in every league, the same picks, your leagues
+listed again. Without it, a new phone joining by code would be a second member
+with your name.
+
 ## Quick start
 
 ```bash

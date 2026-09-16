@@ -69,7 +69,7 @@
    and is bumped by the same hand: it keeps the coach's last few season plans
    between launches, and a plan cannot say which search produced it. If a
    deploy changes core/recommend.js, bump that one too. */
-const CACHE = "sudden-death-v13";
+const CACHE = "sudden-death-v14";
 
 /** How long to wait for fresh data before opening with the last copy. */
 const DATA_TIMEOUT_MS = 2500;

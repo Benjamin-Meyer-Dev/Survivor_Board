@@ -13,7 +13,9 @@
  * losers, is fixed when it is made (see POOL_KINDS in sports.js). Creating a
  * league inserts a row per pool; joining one reads them all by code. There are
  * no accounts, so the code is the credential - see supabase/schema.sql for
- * exactly what that does and does not protect.
+ * exactly what that does and does not protect. A person is an id the same
+ * way (myId, claimId): minted on their first phone, and typed into their next
+ * to be the same member there rather than a second one.
  *
  * The **local** half is the list of codes on this phone, with the name, the
  * kinds of pool and each pool's rules cached beside each. It is what the home
@@ -30,7 +32,14 @@
  */
 
 import { CONFIG, OLD_STORAGE_PREFIXES, STORAGE_PREFIX, scopeFor } from "../config.js";
-import { newCode, normaliseCode, isCode } from "../core/code.js";
+import {
+  newCode,
+  normaliseCode,
+  isCode,
+  newPersonId,
+  normalisePersonId,
+  isPersonId,
+} from "../core/code.js";
 import { SPORTS, POOL_KINDS, KIND_IDS, kindId, normaliseKinds, kindsLabel } from "../sports.js";
 import { mergeRules } from "../core/rules.js";
 import { supabaseClient } from "./client.js";
@@ -258,20 +267,85 @@ export function grantAccess(digest) {
 }
 
 /**
- * This device's id, saved against every lock and pick and used to tell one
- * member from another. Random and local: it identifies a phone, not a person,
- * which is the most an app with no accounts can honestly claim.
+ * This person's id, saved against every lock and pick and used to tell one
+ * member from another. Minted at random on the first phone a person uses
+ * (core/code.js newPersonId) and claimable on the next (claimId below), which
+ * is the most an app with no accounts can offer: nothing is verified, and the
+ * id is as much of a secret as a name is.
  */
 export function myId() {
   try {
     const stored = localStorage.getItem(CONFIG.storage.who);
     if (stored) return stored;
-    const id = `d-${Math.random().toString(36).slice(2, 10)}`;
+    const id = newPersonId();
     localStorage.setItem(CONFIG.storage.who, id);
     return id;
   } catch {
     return "d-anon";
   }
+}
+
+/**
+ * Become a person this app already knows: the one whose id was read off
+ * another phone.
+ *
+ * Every pool's row carries its members, so the leagues a person is in are
+ * the rows whose members carry the id - one containment query, with no
+ * accounts table to ask. Those leagues go on this device's list, the id and
+ * the name the member rows give become this device's, and from here on a
+ * lock made on this phone is theirs and a join adds nobody: the same person
+ * on two phones, rather than two members with one name.
+ *
+ * An id no league knows is refused rather than adopted. Nothing is lost
+ * either way - a phone with no leagues had nothing to bring - and the one
+ * thing this exists to stop is a mistyped id quietly making a second person.
+ *
+ * @param {string} typed Anything a person might type or paste.
+ * @returns {Promise<{id:string, name:string, leagues:Array<object>}>}
+ *   `name` is "" when the member rows carry none; `leagues` as myLeagues
+ *   lists them.
+ * @throws When the id is not an id, when sharing is off, when the lookup
+ *   fails, or when no league has a member with it.
+ */
+export async function claimId(typed) {
+  const id = normalisePersonId(typed);
+  if (!isPersonId(id)) {
+    throw new Error("That is not an ID. It is eight characters, like K7QM-3WXP.");
+  }
+
+  const client = await supabase();
+  if (!client) {
+    throw new Error("Sharing is off in this build, so there is nothing to bring across.");
+  }
+
+  const { data, error } = await client
+    .from(CONFIG.supabase.table)
+    .select(COLUMNS)
+    .contains("entry", { members: [{ id }] });
+  if (error) throw new Error(`Could not look up that ID: ${explain(error)}`);
+
+  const leagues = groupPools(data);
+  if (leagues.length === 0) {
+    throw new Error("No league has anyone with that ID. Check it on the other phone.");
+  }
+
+  // What that person is called, as their newest member row has it.
+  const name =
+    leagues
+      .flatMap((league) => league.kinds.flatMap((kind) => membersOf(league.pools[kind])))
+      .filter((member) => member?.id === id && typeof member.name === "string")
+      .map(person)
+      .filter((member) => member.name)
+      .sort((a, b) => b.joinedAt.localeCompare(a.joinedAt))[0]?.name ?? "";
+
+  try {
+    localStorage.setItem(CONFIG.storage.who, id);
+  } catch {
+    /* private mode or a full quota: the id holds for this session only */
+  }
+  if (name) setMyName(name);
+  const known = leagues.map((league) => remember(summary(league)));
+  return { id, name: myName(), leagues: known };
 }
 
 /* --- the shared half ------------------------------------------------------ */

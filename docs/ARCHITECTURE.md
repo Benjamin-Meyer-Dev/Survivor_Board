@@ -881,8 +881,13 @@ away cannot be trusted to have missed nothing.
   the address alone opens nothing. A league's code is the credential for that
   league: twelve characters from a 31-letter alphabet, generated with
   `crypto.getRandomValues`, and holding one is what lets a device read and
-  write that league. Nothing is verified and nobody signs in - a name is a
-  label this device typed, not an identity. The publishable key ships in the
+  write that league. Nothing is verified and nobody signs in. A person is an
+  eight-character id minted on their first phone (`myId`), carried on every
+  lock and member row and shown under _Who's picking?_; typed into another
+  phone it is looked up by jsonb containment over every pool's members
+  (`claimId`) and that phone becomes the same member, so a second phone is
+  not a second person. It is as secret as a name: anyone holding it can pick
+  as you, which is the trust a league's code already extends. The publishable key ships in the
   page, so the policies cannot check a code and the obstacle is that codes are
   unguessable, which keeps out passers-by rather than anyone determined; the
   door is the same kind of obstacle, since its digest is public and only its

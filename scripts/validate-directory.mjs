@@ -55,6 +55,25 @@ globalThis.localStorage = storage;
  * delete policy does, and `beforeDelete` lands one change on the rows in the
  * moment before the next delete is applied, the way another device's write can.
  */
+/** Whether `haystack` contains `needle` the way jsonb's `@>` reads it. */
+function holds(haystack, needle) {
+  if (Array.isArray(needle)) {
+    return (
+      Array.isArray(haystack) &&
+      needle.every((item) => haystack.some((entry) => holds(entry, item)))
+    );
+  }
+  if (needle && typeof needle === "object") {
+    return (
+      Boolean(haystack) &&
+      typeof haystack === "object" &&
+      !Array.isArray(haystack) &&
+      Object.entries(needle).every(([key, value]) => key in haystack && holds(haystack[key], value))
+    );
+  }
+  return haystack === needle;
+}
+
 function fakeTable() {
   const rows = new Map();
   let clock = 0;
@@ -81,6 +100,12 @@ function fakeTable() {
       },
       in(column, values) {
         filters.push((row) => values.includes(row[column]));
+        return chain;
+      },
+      // jsonb containment, as the directory asks it of the entry column to
+      // find the pools a person is a member of.
+      contains(column, value) {
+        filters.push((row) => holds(row[column], value));
         return chain;
       },
       // What a write changed, which is how the directory knows whether the row
@@ -165,7 +190,8 @@ function fakeTable() {
 
 const { setSupabaseClient } = await import("../src/js/store/client.js");
 const directory = await import("../src/js/store/directory.js");
-const { isCode, normaliseCode, formatCode } = await import("../src/js/core/code.js");
+const { isCode, normaliseCode, formatCode, isPersonId, normalisePersonId, formatPersonId } =
+  await import("../src/js/core/code.js");
 const { CONFIG, OLD_STORAGE_PREFIXES, STORAGE_PREFIX, scopeFor } =
   await import("../src/js/config.js");
 const { SPORTS, POOL_KINDS } = await import("../src/js/sports.js");
@@ -187,7 +213,8 @@ directory.setMyName("  Ben  ");
 assert.equal(directory.myName(), "Ben", "a name is stored trimmed");
 const id = directory.myId();
 assert.equal(directory.myId(), id, "a device's id is stable");
-assert.ok(id.startsWith("d-"), "and is a device id, not a person");
+assert.ok(isPersonId(id) && !id.startsWith("d-"), "and is a person's code, eight letters");
+assert.equal(formatPersonId(id).length, 9, "shown in two groups of four");
 
 const made = await directory.createLeague({ name: "  The Office Pool  ", kinds: ["nfl-win"] });
 assert.ok(isCode(made.code), "a new league gets a whole code");
@@ -371,6 +398,36 @@ for (const kind of joined.kinds) {
 // Joining twice is not two members.
 await directory.joinLeague(hostCode);
 assert.equal(table.row(hostCode, "nfl-win").entry.members.length, 2, "joining again adds nobody");
+
+// A new phone. The person's id, read off the old one, makes this phone that
+// person - their name, their leagues, and no second member row - which is what
+// keeps a new phone from joining its owner's league as somebody else.
+const samId = directory.myId();
+reset(table);
+assert.notEqual(directory.myId(), samId, "a blank phone is nobody in particular");
+await assert.rejects(() => directory.claimId("nonsense"), /not an ID/);
+await assert.rejects(() => directory.claimId("BXQK-7HRT"), /No league has anyone/);
+assert.notEqual(directory.myId(), samId, "an id nobody has is not adopted");
+const back = await directory.claimId(` ${formatPersonId(samId).toLowerCase()} `);
+assert.equal(back.id, samId, "an id typed with its dash, in lower case, is found");
+assert.equal(directory.myId(), samId, "and this phone is that person now");
+assert.equal(directory.myName(), "Sam", "called what their member row calls them");
+assert.deepEqual(
+  back.leagues.map((league) => league.code),
+  [hostCode],
+  "with their leagues",
+);
+assert.deepEqual(
+  directory.myLeagues().map((league) => league.code),
+  [hostCode],
+  "on this phone's list",
+);
+await directory.joinLeague(hostCode);
+assert.equal(
+  table.row(hostCode, "nfl-win").entry.members.length,
+  2,
+  "and joining from it adds nobody",
+);
 
 // A name changed after joining reaches the members list, on every board.
 directory.setMyName("Samantha");
@@ -633,6 +690,7 @@ assert.deepEqual(
 // Its own code opens it; anyone else's cannot, and says why.
 assert.equal((await directory.joinLeague(local.code)).code, local.code);
 await assert.rejects(() => directory.joinLeague("BXQK7HRTM4WD"), /Sharing is off/);
+await assert.rejects(() => directory.claimId("K7QM3WXP"), /Sharing is off/);
 
 const offline = await directory.refreshMyLeagues();
 assert.equal(offline.length, 1, "the list still lists it");
@@ -700,6 +758,15 @@ storage.clear();
 
 assert.equal(normaliseCode(" bxqk-7hrt m4wd "), "BXQK7HRTM4WD");
 assert.equal(formatCode("BXQK7HRTM4WD"), "BXQK-7HRT-M4WD");
+
+// And a person's id: two groups of four, or a device id from before as it was.
+assert.equal(normalisePersonId(" k7qm-3wxp "), "K7QM3WXP");
+assert.equal(formatPersonId("K7QM3WXP"), "K7QM-3WXP");
+assert.ok(isPersonId("k7qm 3wxp"), "eight letters typed any way is an id");
+assert.ok(!isPersonId("K7QM-3WX"), "seven is not");
+assert.equal(normalisePersonId(" D-New67890 "), "d-new67890", "an old device id keeps its shape");
+assert.ok(isPersonId("d-new67890"), "and is still an id");
+assert.equal(formatPersonId("d-new67890"), "d-new67890", "shown as it is stored");
 assert.ok(POOL_KINDS["nfl-win"], "the registry the directory keys on is there");
 
 console.log(
@@ -711,6 +778,7 @@ console.log(
     "share a board and nor do a league's pools, a pool can be removed but never the last one, " +
     "a league can be deleted whole, a delete the table refused is reported rather than " +
     "believed, old rows and old lists read as the pools they were, a device from " +
-    "before the rename keeps its code, name, leagues and boards, and a build with no backend " +
-    "still makes leagues that work.",
+    "before the rename keeps its code, name, leagues and boards, a person's id read off one " +
+    "phone makes another phone that person with their name and leagues while an id nobody " +
+    "has is refused, and a build with no backend still makes leagues that work.",
 );

@@ -44,7 +44,14 @@
 
 import { APP_NAME } from "../config.js";
 import { POOL_KINDS, KIND_IDS, normaliseKinds } from "../sports.js";
-import { formatCode, normaliseCode, isCode } from "../core/code.js";
+import {
+  formatCode,
+  normaliseCode,
+  isCode,
+  formatPersonId,
+  normalisePersonId,
+  isPersonId,
+} from "../core/code.js";
 import { escapeHtml } from "../core/format.js";
 import { delegate } from "./events.js";
 import { rosterMarkup } from "./roster.js";
@@ -178,19 +185,23 @@ const SHEETS = [
 let leaving = null;
 /** This person's name as last rendered, for the rename sheet to start from. */
 let me = "";
+/** And their id, for the same sheet to show. */
+let meId = "";
 
 /**
  * @param {HTMLElement} root Where the list and the menu are drawn.
  * @param {object} state
  * @param {string} state.name This person's name.
+ * @param {string} state.id This person's id, shown on the Who's picking? sheet
+ *   to be read off to another phone (core/code.js).
  * @param {Array<object>} state.leagues From store/directory.js refreshMyLeagues,
  *   each with its `kinds` and its `rules` by kind.
  * @param {boolean} state.shared Whether leagues can be shared from this build.
  * @param {boolean} state.loading Whether the shared copy is still on its way.
  * @param {string} state.message A line to show above the list, or "".
  * @param {object} given onOpen(code), onCreate({name, kinds}), onJoin(code),
- *   onLeave(code), onRenameMe(name). onCreate and onJoin may reject; the message is
- *   shown in their sheet.
+ *   onLeave(code), onRenameMe(name), onClaimId(id). onCreate, onJoin and onClaimId
+ *   may reject; the message is shown in their sheet.
  * @param {HTMLElement} [sheets] Where the two sheets live. Built once, on the
  *   first render that names it, and left alone after.
  */
@@ -205,6 +216,7 @@ export function renderHome(root, state, given, sheets = null) {
     }
   }
   me = state.name ?? "";
+  meId = state.id ?? "";
 
   // Built once and patched after (ui/patch.js), where it used to be rebuilt
   // from innerHTML on every render. A league's card is now the same element
@@ -375,11 +387,25 @@ function sheetsMarkup() {
         <label class="home__label" for="home-me">Your name</label>
         <input class="home__input" id="home-me" name="name" type="text" maxlength="40"
                autocomplete="name" autocapitalize="words" spellcheck="false" placeholder="Ben" />
+        <p class="home__label" id="home-id-label">Your ID</p>
+        <div class="home__id-box">
+          <code class="home__id" aria-labelledby="home-id-label"></code>
+          <button type="button" class="home__icon home__id-copy" aria-label="Copy your ID"
+                  title="Copy your ID">${ICONS.copy}</button>
+        </div>
         <p class="home__form-error" role="alert" hidden></p>
         <div class="home__confirm-row">
           <button type="submit" class="home__btn home__btn--go">Save</button>
           <button type="button" class="home__btn home__btn--quiet" data-close>Cancel</button>
         </div>
+        <button type="button" class="home__link" data-act="show-claim">Picking on another phone already? Use that ID</button>
+      </form>
+      <form class="home__form home__form--claim" data-act="claim" hidden>
+        <label class="home__label" for="home-claim">The ID from your other phone</label>
+        <input class="home__input home__input--code" id="home-claim" name="id" type="text" maxlength="18"
+               placeholder="K7QM-3WXP" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+        <p class="home__form-error" role="alert" hidden></p>
+        <button type="submit" class="home__btn home__btn--go" disabled>Use this ID</button>
       </form>
     </dialog>
 
@@ -484,9 +510,21 @@ function kindsOf(league) {
  */
 function wire(root) {
   delegate(root, "click", '[data-act="rename-me"]', () => {
-    // The name as it stands, to edit rather than retype.
+    // The name as it stands, to edit rather than retype, and the id as it
+    // is, to read off. The other phone's id is asked for behind a line, so
+    // the sheet opens as the short question it usually is.
     const field = sheetsRoot?.querySelector("#home-me");
     if (field) field.value = me;
+    const shown = sheetsRoot?.querySelector(".home__id");
+    if (shown) shown.textContent = formatPersonId(meId);
+    const claim = sheetsRoot?.querySelector('form[data-act="claim"]');
+    if (claim) {
+      claim.reset();
+      claim.hidden = true;
+      showProblem(claim, "", { now: true });
+      syncClaim(claim);
+      sheetsRoot.querySelector('[data-act="show-claim"]').hidden = false;
+    }
     openSheet("rename");
   });
 
@@ -579,6 +617,31 @@ function wireSheets(sheets) {
     homeHandlers.onRenameMe(typed);
   });
 
+  // The id: copied off this phone, or the other phone's typed in. The second
+  // makes this device that person (claimId in store/directory.js), and the
+  // sheet closes on their leagues arriving; an id nobody has is refused under
+  // the field.
+  const idCopy = sheets.querySelector(".home__id-copy");
+  idCopy.addEventListener("click", () =>
+    copyText(idCopy, formatPersonId(meId), "ID copied", "Copy your ID"),
+  );
+  const claim = sheets.querySelector('form[data-act="claim"]');
+  sheets.querySelector('[data-act="show-claim"]').addEventListener("click", (event) => {
+    event.currentTarget.hidden = true;
+    claim.hidden = false;
+    claim.elements.id.focus();
+  });
+  claim.elements.id.addEventListener("input", () => syncClaim(claim));
+  claim.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const typed = claim.elements.id.value;
+    if (!isPersonId(typed)) {
+      showProblem(claim, "An ID is eight characters, like K7QM-3WXP.");
+      return;
+    }
+    attempt(claim, () => homeHandlers.onClaimId(normalisePersonId(typed)));
+  });
+
   // The leave question: the answer acts on whichever league asked it.
   const leave = sheets.querySelector("#home-leave");
   leave.querySelector('[data-act="leave-yes"]').addEventListener("click", () => {
@@ -652,10 +715,15 @@ function askToLeave(code, name, alone) {
  * or a cross when the browser refused - an insecure origin, or a permission
  * declined. The code is on the card either way, which is the part that matters.
  */
-async function copyCode(button, code) {
+function copyCode(button, code) {
+  return copyText(button, formatCode(code), "Code copied", "Copy code");
+}
+
+/** The same, for anything else the sheets show to be read off: a person's id. */
+async function copyText(button, text, said, title) {
   let state = "done";
   try {
-    await navigator.clipboard.writeText(formatCode(code));
+    await navigator.clipboard.writeText(text);
   } catch {
     state = "failed";
   }
@@ -664,11 +732,11 @@ async function copyCode(button, code) {
   // appears (icon-swap in motion.css). Left on for good: the icon changes back
   // in a moment and that swap is the same news the other way.
   button.classList.add(`home__icon--${state}`, "is-swapped");
-  button.title = state === "done" ? "Code copied" : "Copy failed";
+  button.title = state === "done" ? said : "Copy failed";
   setTimeout(() => {
     button.innerHTML = ICONS.copy;
     button.classList.remove(`home__icon--${state}`);
-    button.title = "Copy code";
+    button.title = title;
   }, 1800);
 }
 
@@ -692,6 +760,11 @@ function syncCreate(form) {
 function syncJoin(form) {
   form.querySelector('button[type="submit"]').disabled =
     form.elements.code.value.trim().length === 0;
+}
+
+/** And the other phone's id until what is typed is the shape of one. */
+function syncClaim(form) {
+  form.querySelector('button[type="submit"]').disabled = !isPersonId(form.elements.id.value);
 }
 
 /**

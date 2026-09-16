@@ -36,16 +36,23 @@ const GROUP = 4;
  * @returns {string} Twelve characters, no dashes.
  */
 export function newCode() {
+  return randomLetters(CODE_LENGTH);
+}
+
+/**
+ * `length` letters of the alphabet, each drawn evenly. Rejection sampling,
+ * because 256 is not a multiple of 31: taking the modulo of every byte would
+ * make the first eight letters of the alphabet slightly likelier than the
+ * rest, and a credential should not have a shape.
+ */
+function randomLetters(length) {
   const out = [];
-  // Rejection sampling, because 256 is not a multiple of 31: taking the
-  // modulo of every byte would make the first eight letters of the alphabet
-  // slightly likelier than the rest, and a credential should not have a shape.
   const limit = 256 - (256 % ALPHABET.length);
-  while (out.length < CODE_LENGTH) {
-    const bytes = new Uint8Array(CODE_LENGTH);
+  while (out.length < length) {
+    const bytes = new Uint8Array(length);
     crypto.getRandomValues(bytes);
     for (const byte of bytes) {
-      if (byte >= limit || out.length === CODE_LENGTH) continue;
+      if (byte >= limit || out.length === length) continue;
       out.push(ALPHABET[byte % ALPHABET.length]);
     }
   }
@@ -81,6 +88,64 @@ export function formatCode(code) {
     groups.push(clean.slice(index, index + GROUP));
   }
   return groups.join("-");
+}
+
+/* --- a person's id --------------------------------------------------------- */
+
+/**
+ * A person's id: eight letters of the same alphabet, shown as two groups of
+ * four (K7QM-3WXP).
+ *
+ * It is what a lock and a member row carry to say whose they are, and it is
+ * minted on the first phone a person uses. Read off that phone and typed into
+ * another, it makes the second phone the same person - the same member row,
+ * the same picks, the same leagues (claimId in store/directory.js) - rather
+ * than a second member with the same name. Eight letters is about 40 bits,
+ * which is enough that no two people will ever draw the same one; it is not
+ * a secret, any more than a name is, and whoever holds a league's code can
+ * already write to it.
+ *
+ * Ids from before this were `d-` and eight base-36 characters, and every lock
+ * and member row from then still carries one. They stay valid as they are:
+ * normalising keeps that shape, and it is shown as it is stored.
+ */
+export const PERSON_ID_LENGTH = 8;
+const LEGACY_ID = /^d-[a-z0-9]{4,16}$/;
+
+export function newPersonId() {
+  return randomLetters(PERSON_ID_LENGTH);
+}
+
+/**
+ * A typed id, as the thing to look up: a legacy device id lower-cased and
+ * kept whole, anything else upper-cased and stripped to the alphabet.
+ *
+ * @param {string} value Anything a person might type or paste.
+ * @returns {string} May be short of an id: the caller decides whether what
+ *   it got is whole (see isPersonId).
+ */
+export function normalisePersonId(value) {
+  const typed = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (LEGACY_ID.test(typed)) return typed;
+  return [...typed.toUpperCase()]
+    .filter((character) => ALPHABET.includes(character))
+    .join("")
+    .slice(0, PERSON_ID_LENGTH);
+}
+
+/** Whether a normalised id is a whole one, and so worth looking up. */
+export function isPersonId(value) {
+  const id = normalisePersonId(value);
+  return LEGACY_ID.test(id) || id.length === PERSON_ID_LENGTH;
+}
+
+/** An id as it is shown to a person: two groups of four; a legacy id as it is. */
+export function formatPersonId(id) {
+  const clean = normalisePersonId(id);
+  if (LEGACY_ID.test(clean)) return clean;
+  return clean.length > 4 ? `${clean.slice(0, 4)}-${clean.slice(4)}` : clean;
 }
 
 /**

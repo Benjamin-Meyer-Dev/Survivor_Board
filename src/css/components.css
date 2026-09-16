@@ -4124,6 +4124,59 @@
   text-transform: uppercase;
 }
 
+/* This person's id, on the Who's picking? sheet, to read off to another phone
+   or to copy: the dashed box the settings sheet keeps a league's code in. */
+.home__id-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 4px 4px 12px;
+  border: var(--dash);
+  border-radius: var(--radius-sm);
+}
+
+.home__id {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--flag);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.14em;
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+
+/* A quiet line that acts: the way to the other phone's id. */
+.home__link {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--chalk-3);
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.home__link:hover {
+  color: var(--chalk);
+}
+
+.home__link[hidden],
+.home__form--claim[hidden] {
+  display: none;
+}
+
+/* The second form carries on from the first, so the two read as one sheet. */
+.home__form--claim {
+  padding-top: 0;
+}
+
 .home__choices-group {
   border: 0;
   padding: 0;
@@ -4625,6 +4678,31 @@
   min-height: 16px;
   font-size: 12px;
   color: var(--danger);
+}
+
+/* The other way in, under the button: a line of text for the phone that is
+   not the first, so the card still has one action. */
+.gate__alt {
+  justify-self: center;
+  margin: 0;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.gate__alt:hover {
+  color: var(--ink);
+}
+
+.gate__alt[hidden] {
+  display: none;
 }
 
 /* phone ----------------------------------------------------------------------- */
