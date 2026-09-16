@@ -1941,9 +1941,9 @@
 /* the model's working (ui/coach.js) ----------------------------------------- */
 
 /* How the week's pick was priced and where the season lands across the
-   futures, chalked on the turf between the field and the card. No box: the
-   call card below it is the one thing on this screen you act on and it wears
-   the chalk rectangle that says so. This is writing on the ground.
+   futures, chalked on the turf between the field and the card. The whole case
+   stays writing on the ground; only the season outlook gets a low-contrast
+   play-sheet edge so the selected team's changing numbers read as one thing.
 
    Figures, not sentences: every part of it is a key over a number over a word,
    the way the drive line is, so the whole block is read the way the rest of
@@ -1952,7 +1952,7 @@
 .coach {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 9px;
   min-height: 0;
 }
 
@@ -1964,10 +1964,55 @@
 
 .coach__head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
   flex: none;
+}
+
+.coach__heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.coach__focus {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgb(0 0 0 / 8%);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 10px;
+  line-height: 1.1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--chalk-2);
+}
+
+.coach__pulse {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--chalk-3);
+}
+
+.coach--picked .coach__focus,
+.coach--locked .coach__focus {
+  border-color: color-mix(in srgb, var(--flag) 62%, transparent);
+  background: var(--flag-soft);
+  color: var(--flag-2);
+}
+
+.coach--picked .coach__pulse,
+.coach--locked .coach__pulse {
+  background: var(--flag);
+  box-shadow: 0 0 6px var(--flag);
 }
 
 .coach__what {
@@ -2011,7 +2056,8 @@
   top: 3px;
   left: 3px;
   right: 3px;
-  border-top: 1px dashed var(--line-soft);
+  height: 1px;
+  background: linear-gradient(90deg, var(--line-soft), var(--line-strong), var(--flag));
 }
 
 .chain__stop {
@@ -2021,6 +2067,7 @@
   align-items: center;
   gap: 2px;
   min-width: 0;
+  width: 25%;
   padding-top: 10px;
   text-align: center;
 }
@@ -2128,28 +2175,172 @@
 /* --- the swarm ------------------------------------------------------------- */
 
 .swarm {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  justify-content: space-between;
+  gap: 7px;
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 92px;
+  padding: 9px 11px;
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  border-left: 3px solid var(--line-strong);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(90deg, rgb(0 0 0 / 10%), transparent 38%),
+    color-mix(in srgb, var(--turf-2) 52%, transparent);
 }
 
-/* The axis row and every row under it share one grid: the name takes what it
-   needs and no more, the strip takes everything left, and the two figures at
-   the end take a fixed width each so they line up down the block. */
-.swarm__axis,
-.swarm__row {
-  display: grid;
-  grid-template-columns: fit-content(34%) minmax(0, 1fr) 58px 48px;
+/* Faint yard lines make the outlook a little field of its own without turning
+   it into another card competing with the call below. */
+.swarm::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(20% - 1px),
+    rgb(243 247 241 / 4%) calc(20% - 1px) 20%
+  );
+  pointer-events: none;
+}
+
+.swarm > * {
+  position: relative;
+  z-index: 1;
+}
+
+.swarm--picked {
+  border-left-color: var(--flag);
+  background:
+    radial-gradient(circle at 100% 0, var(--flag-soft), transparent 34%),
+    linear-gradient(90deg, rgb(0 0 0 / 12%), transparent 42%),
+    color-mix(in srgb, var(--turf-2) 58%, transparent);
+}
+
+.swarm__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 12px;
+  min-width: 0;
+}
+
+.swarm__identity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "eyebrow status"
+    "name name";
+  align-items: center;
+  gap: 2px 7px;
+  min-width: 0;
+}
+
+.swarm__eyebrow {
+  grid-area: eyebrow;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 10px;
+  line-height: 1.1;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--chalk-3);
+}
+
+.swarm__status {
+  grid-area: status;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 1.1;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--chalk-4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.swarm--picked .swarm__status {
+  color: var(--flag-2);
+}
+
+.swarm__name {
+  grid-area: name;
+  display: block;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(17px, 4cqh, 23px);
+  line-height: 1;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--chalk);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.swarm__name--pair {
+  font-size: clamp(14px, 3.2cqh, 19px);
+}
+
+.swarm__metrics {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+
+.swarm__metric {
+  display: grid;
+  justify-items: end;
+  gap: 1px;
+  min-width: 55px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  background: rgb(0 0 0 / 10%);
+}
+
+.swarm__metric--season {
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+.swarm__metric > span {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 9px;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--chalk-4);
+}
+
+.swarm__week,
+.swarm__value {
+  font-family: var(--font-mono);
+  font-weight: 650;
+  font-size: 15px;
+  line-height: 1.1;
+  text-align: right;
+  color: var(--chalk);
+  white-space: nowrap;
+}
+
+.swarm__plot {
+  display: grid;
+  grid-template-rows: auto auto minmax(16px, 1fr);
+  gap: 2px;
+  min-height: 34px;
 }
 
 .swarm__axis {
+  display: flex;
   align-items: baseline;
-  padding-bottom: 2px;
-  border-bottom: 1px solid var(--line-soft);
-  flex: none;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .swarm__axis-label {
@@ -2165,8 +2356,13 @@
   text-overflow: ellipsis;
 }
 
-.swarm__axis-label--unit {
-  text-align: right;
+.swarm__range {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 1.1;
+  color: var(--chalk-4);
+  white-space: nowrap;
 }
 
 .swarm__ticks {
@@ -2177,82 +2373,14 @@
   color: var(--chalk-4);
 }
 
-/* The one strip - the selected opening - takes what height the band has left,
-   closing up to a line of the name on a short phone and opening out on a tall
-   one. A pair's name is set smaller rather than wrapped. */
-.swarm__rows {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.swarm__row {
-  align-items: center;
-  flex: 1 0 auto;
-  min-height: 24px;
-  /* Open out with the band, and no further than this: one strip at seventy
-     is a drawing, at two hundred it is a line lost in a field. */
-  max-height: 72px;
-}
-
-.swarm__name {
-  position: relative;
-  padding-left: 11px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 13px;
-  line-height: 1.1;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--chalk-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Two names in the room for one: down a size and closer set, and still on one
-   line, which is the point (see the row's floor above). */
-.swarm__name--pair {
-  font-size: 11px;
-  letter-spacing: 0.02em;
-}
-
-/* The call the card is already showing, lit the way the field lights the week
-   on the clock. */
-.swarm__row--chosen .swarm__name {
-  color: var(--chalk);
-}
-
-.swarm__row--chosen .swarm__name::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: 3px;
-  height: 12px;
-  margin-top: -6px;
-  border-radius: 1px;
-  background: var(--flag);
-}
-
 /* The strip the dots stand on: a faint rule, and every dot placed along it by
    the percentage the layout wrote. Dots are translucent so that where the
-   futures pile up the chalk gets thicker - that pile is the whole drawing.
-
-   Both grow with the band, in container-height units: a dot is six pixels in
-   a box that can barely hold the block and ten in one with room to spare, and
-   the strip under it deepens to match (the box is a size container in every
-   layout that shows it - layout.css). */
+   futures pile up the chalk gets thicker - that pile is the whole drawing. */
 .swarm__strip {
   --dot: clamp(6px, 3cqh, 10px);
   position: relative;
-  height: clamp(14px, 7cqh, 28px);
+  display: block;
+  height: 100%;
   min-width: 0;
 }
 
@@ -2262,7 +2390,9 @@
   top: 50%;
   left: 0;
   right: 0;
-  border-top: 1px solid var(--line-soft);
+  height: 2px;
+  margin-top: -1px;
+  background: linear-gradient(90deg, var(--line-soft), var(--line-strong), var(--line-soft));
 }
 
 /* A selection the coach did not judge has no dots to draw, and the strip says
@@ -2274,7 +2404,7 @@
   left: 50%;
   transform: translate(-50%, -50%);
   padding: 0 6px;
-  background: var(--turf);
+  background: var(--turf-2);
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 10px;
@@ -2296,58 +2426,34 @@
   opacity: 0.28;
 }
 
-.swarm__row--chosen .swarm__dot {
+.swarm--picked .swarm__dot {
   background: var(--flag);
-  opacity: 0.32;
+  opacity: 0.38;
 }
 
 /* The point estimate - the number the row prints - as a bar through the dots,
    the way the field's marks are bars. */
 .swarm__mark {
   position: absolute;
-  top: 1px;
-  bottom: 1px;
-  width: 2px;
-  margin-left: -1px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  margin-left: -2px;
   border-radius: 1px;
   background: var(--chalk);
+  box-shadow: 0 0 7px rgb(243 247 241 / 42%);
 }
 
-.swarm__row--chosen .swarm__mark {
+.swarm--picked .swarm__mark {
   background: var(--flag);
-}
-
-/* This week's chance, in the confidence chalk every other week number on the
-   board wears, beside the season's in plain chalk: the pair is the lesson. */
-.swarm__week {
-  font-family: var(--font-mono);
-  font-weight: 500;
-  font-size: 13px;
-  line-height: 1.1;
-  text-align: right;
-  color: var(--chalk-3);
-  white-space: nowrap;
-}
-
-.swarm__value {
-  font-family: var(--font-mono);
-  font-weight: 500;
-  font-size: 13px;
-  line-height: 1.1;
-  text-align: right;
-  color: var(--chalk-2);
-  white-space: nowrap;
-}
-
-.swarm__row--chosen .swarm__value {
-  color: var(--chalk);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--flag) 56%, transparent);
 }
 
 /* What a dot and a bar are, in four words at the foot of the strips: the two
    marks drawn at the size they are drawn above, and a word each. */
 .swarm__legend {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 14px;
   flex: none;
   font-family: var(--font-display);
@@ -2363,6 +2469,10 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .swarm__legend-dot {
@@ -2380,35 +2490,67 @@
   background: var(--chalk);
 }
 
+.swarm__legend-empty {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--chalk-3);
+}
+
 /* --- the facts under both --------------------------------------------------- */
 
-/* Three more stops without a route: the record, the call, the next best, set
-   exactly as the chain's stops are so the block reads as one thing. Spread
-   the width of the block like the chain, ends at the edges. */
+/* Three compact readout cards: evidence, simulation strength, and the selected
+   team's effect on the season. They sit on one baseline but each gets a small
+   chalk colour of its own, like notes clipped to a play sheet. */
 .facts {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(110px, 100%), 1fr));
+  gap: 7px;
   flex: none;
 }
 
 .facts__item {
+  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 2px;
   min-width: 0;
-  text-align: center;
-}
-
-.facts__item:first-child {
-  align-items: flex-start;
+  padding: 6px 7px 5px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: rgb(0 0 0 / 9%);
   text-align: left;
 }
 
-.facts__item:last-child {
-  align-items: flex-end;
-  text-align: right;
+.facts__item::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 7px;
+  width: 22px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--chalk-3);
+}
+
+.facts__item:nth-child(2)::before {
+  background: var(--flag);
+}
+
+.facts__item:nth-child(3)::before {
+  background: var(--neutral);
+}
+
+.facts__item .chain__value {
+  max-width: 100%;
+  min-height: 19px;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.facts__item .chain__value--name {
+  line-height: 19px;
 }
 
 /* How much of the working there is room for, asked of its own box (layout.css
@@ -2419,19 +2561,55 @@
    come to fifty pixels. So the parts come off from the bottom up, and what is
    left is the turf that was there before any of this.
 
-   The numbers are the block measured, and they stack: the head and the chain
-   come to 94; the strip's axis and its one row bring it to 149 and its legend
-   to 167; the facts to 225. So a box of 150 shows the chain and the strip;
-   170 the legend too; 230 the facts. */
-@container (max-height: 224px) {
+   The facts leave first. The outlook then folds into a scoreboard-sized strip:
+   its identity is already in the live-read head, so the duplicate eyebrow and
+   status can go while its team, two numbers and distribution remain. Only when
+   even that will not fit does the outlook leave too. */
+@container (max-height: 239px) {
   .facts {
     display: none;
   }
 }
 
-@container (max-height: 166px) {
+@container (max-height: 190px) {
   .swarm__legend {
     display: none;
+  }
+
+  .swarm {
+    gap: 3px;
+    min-height: 65px;
+    padding: 5px 8px;
+  }
+
+  .swarm__identity {
+    display: block;
+  }
+
+  .swarm__eyebrow,
+  .swarm__status,
+  .swarm__ticks {
+    display: none;
+  }
+
+  .swarm__name,
+  .swarm__name--pair {
+    font-size: 15px;
+  }
+
+  .swarm__metric {
+    min-width: 50px;
+    padding: 2px 5px;
+  }
+
+  .swarm__week,
+  .swarm__value {
+    font-size: 13px;
+  }
+
+  .swarm__plot {
+    grid-template-rows: auto minmax(14px, 1fr);
+    min-height: 26px;
   }
 }
 

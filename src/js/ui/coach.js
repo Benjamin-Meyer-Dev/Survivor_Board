@@ -21,8 +21,8 @@
  *      outside its shortlist - has the bar and no dots, and says so.
  *
  *   3. The facts. What past games priced like this actually did, in how many
- *      simulated seasons the selection was the best pick, and the coach's
- *      call or its runner-up, whichever the selection is not.
+ *      simulated seasons the selection was near the best, and either its
+ *      impact against the coach's plan or the closest challenger to that plan.
  *
  * A week already played shows nothing: its numbers are on the field, the drive
  * line and the card three times over. Read-only.
@@ -42,6 +42,29 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0) {
   const week = board.weeks.find((entry) => entry.week === viewWeek) ?? board.weeks[0];
   const panel = frame(root, `<div class="coach"></div>`);
   const state = stateFor(board, week, activeSlot);
+
+  // The frame survives every render. Keep its identity stable for the shared
+  // data-settle motion, while the signature says when the team or one of its
+  // live estimates has changed.
+  panel.dataset.motionKey = "coach-read";
+  panel.dataset.motionSignature =
+    state.kind === "working"
+      ? [
+          state.subject.team,
+          state.teams.join("+"),
+          state.subject.winProb,
+          state.candidate?.season ?? "",
+          board.previewPathProbability ?? "",
+          board.previewPending ? "pending" : "settled",
+        ].join("|")
+      : "empty";
+  panel.setAttribute("aria-live", "polite");
+  panel.classList.toggle("coach--picked", state.selection === "picked");
+  panel.classList.toggle("coach--locked", state.selection === "locked");
+  panel.classList.toggle(
+    "coach--pending",
+    state.selection === "picked" && Boolean(board.previewPending),
+  );
   panel.classList.toggle("coach--empty", state.kind === "none");
   reconcile(
     panel,
@@ -84,7 +107,18 @@ function stateFor(board, week, activeSlot) {
     frontier && frontier.week === week.week && frontier.candidates?.length ? frontier : null;
   const candidate = judged?.candidates.find((entry) => sameTeams(entry.teams, teams)) ?? null;
 
-  return { kind: "working", week, subject, opening, teams, frontier: judged, candidate };
+  const selection = pick?.team ? (pick.status.locked ? "locked" : "picked") : "coach";
+
+  return {
+    kind: "working",
+    week,
+    subject,
+    opening,
+    teams,
+    frontier: judged,
+    candidate,
+    selection,
+  };
 }
 
 function sameTeams(a, b) {
@@ -94,9 +128,14 @@ function sameTeams(a, b) {
 }
 
 function head(state) {
-  const { subject, week } = state;
+  const { subject, week, selection } = state;
+  const focus =
+    selection === "picked" ? "Your pick" : selection === "locked" ? "Locked pick" : "Coach preview";
   return `<div class="coach__head" data-key="head">
-    <span class="u-eyebrow coach__what">The model’s working · Wk ${String(week.week).padStart(2, "0")}</span>
+    <span class="coach__heading">
+      <span class="coach__focus"><span class="coach__pulse" aria-hidden="true"></span>${focus}</span>
+      <span class="u-eyebrow coach__what">Live model read · Wk ${String(week.week).padStart(2, "0")}</span>
+    </span>
     <span class="coach__game">${escapeHtml(subject.team)} ${escapeHtml(formatMatchup(subject.site, subject.opponent))}</span>
   </div>`;
 }
@@ -198,6 +237,21 @@ function tierBand(tier, tiers) {
 }
 
 /**
+ * The selected opening's current season number.
+ *
+ * A user pick owns the lock preview: that is the number that changes as they
+ * try another team, and the one the board promises the lock will produce. The
+ * coach's untouched call owns the frontier mean, since its dots and its bar
+ * then describe the same simulated set.
+ */
+function estimateFor(state, board) {
+  if (state.selection === "picked" && Number.isFinite(board.previewPathProbability)) {
+    return board.previewPathProbability;
+  }
+  return state.candidate?.season ?? board.pathProbability;
+}
+
+/**
  * The selected opening's simulated seasons, as one strip of dots, with
  * today's estimate as a bar through them.
  *
@@ -212,13 +266,7 @@ function strip(state, board) {
   if (!frontier) return "";
 
   const dots = Array.isArray(candidate?.survivals) ? candidate.survivals : [];
-  // Today's estimate: the coach's own for a judged opening; for anything else
-  // the board's "if locked" number, or failing that the season as it stands.
-  const estimate =
-    candidate?.season ??
-    (Number.isFinite(board.previewPathProbability)
-      ? board.previewPathProbability
-      : board.pathProbability);
+  const estimate = estimateFor(state, board);
   const weekProb =
     candidate?.weekWinProb ?? opening.reduce((product, option) => product * option.winProb, 1);
 
@@ -237,30 +285,57 @@ function strip(state, board) {
     .join("");
   const missing = dots.length
     ? ""
-    : `<span class="swarm__none" title="This selection was not in the coach’s simulated shortlist">no dots</span>`;
+    : `<span class="swarm__none" title="This selection was not in the coach’s simulated shortlist">estimate only</span>`;
   const name = escapeHtml(teams.join(" + "));
   const weekTier = confidenceTier(weekProb, board.rules?.tiers ?? DEFAULT_TIERS);
+  const focus =
+    state.selection === "picked"
+      ? board.previewPending
+        ? "Recalculating your pick"
+        : "Following your pick"
+      : state.selection === "locked"
+        ? "Locked selection"
+        : candidate?.chosen
+          ? "Coach’s call"
+          : "Coach preview";
+  const dotLegend = dots.length
+    ? `<span class="swarm__legend-item"><span class="swarm__legend-dot"></span>Each dot = 1 of ${frontier.scenarios} seasons</span>`
+    : `<span class="swarm__legend-item"><span class="swarm__legend-empty">×</span>Outside simulated shortlist</span>`;
+  const aria = `${teams.join(" and ")}: ${formatPercent(weekProb, 0)} chance this week and ${
+    Number.isFinite(estimate) ? formatPercent(estimate, 1) : "no estimate"
+  } season survival`;
 
-  return `<div class="swarm" data-key="swarm">
-    <div class="swarm__axis" aria-hidden="true">
-      <span class="swarm__axis-label">Season survival</span>
+  return `<section class="swarm${state.selection === "picked" ? " swarm--picked" : ""}" data-key="swarm" aria-label="${escapeHtml(aria)}">
+    <div class="swarm__head">
+      <div class="swarm__identity">
+        <span class="swarm__eyebrow">Season outlook</span>
+        <strong class="swarm__name${teams.length > 1 ? " swarm__name--pair" : ""}">${name}</strong>
+        <span class="swarm__status">${focus}</span>
+      </div>
+      <div class="swarm__metrics">
+        <span class="swarm__metric">
+          <strong class="swarm__week${weekTier ? ` confidence--${weekTier}` : ""}">${formatPercent(weekProb, 0)}</strong>
+          <span>This week</span>
+        </span>
+        <span class="swarm__metric swarm__metric--season">
+          <strong class="swarm__value">${Number.isFinite(estimate) ? formatPercent(estimate, 1) : "—"}</strong>
+          <span>Season</span>
+        </span>
+      </div>
+    </div>
+    <div class="swarm__plot" aria-hidden="true">
+      <div class="swarm__axis">
+        <span class="swarm__axis-label">Simulated season survival</span>
+        <span class="swarm__range">Range ${tick(axisMin)}–${tick(axisMax)}</span>
+      </div>
       <span class="swarm__ticks"><span>${tick(axisMin)}</span><span>${tick((axisMin + axisMax) / 2)}</span><span>${tick(axisMax)}</span></span>
-      <span class="swarm__axis-label swarm__axis-label--unit">This week</span>
-      <span class="swarm__axis-label swarm__axis-label--unit">Season</span>
+      <span class="swarm__strip">${marks}${missing}<span class="swarm__mark" style="left:${at(estimate)}"></span></span>
     </div>
-    <ol class="swarm__rows">
-      <li class="swarm__row${candidate?.chosen ? " swarm__row--chosen" : ""}" data-key="row">
-        <span class="swarm__name${teams.length > 1 ? " swarm__name--pair" : ""}">${name}</span>
-        <span class="swarm__strip" aria-hidden="true">${marks}${missing}<span class="swarm__mark" style="left:${at(estimate)}"></span></span>
-        <span class="swarm__week${weekTier ? ` confidence--${weekTier}` : ""}">${formatPercent(weekProb, 0)}</span>
-        <span class="swarm__value">${Number.isFinite(estimate) ? formatPercent(estimate, 1) : "—"}</span>
-      </li>
-    </ol>
     <div class="swarm__legend" aria-hidden="true">
-      <span class="swarm__legend-item"><span class="swarm__legend-dot"></span>1 of ${frontier.scenarios} simulated seasons</span>
-      <span class="swarm__legend-item"><span class="swarm__legend-bar"></span>today’s estimate</span>
+      ${dotLegend}
+      <span class="swarm__legend-item"><span class="swarm__legend-bar"></span>Your live estimate</span>
     </div>
-  </div>`;
+  </section>`;
 }
 
 /**
@@ -269,11 +344,12 @@ function strip(state, board) {
  *   MODEL SAID 88% / WON 90% / 173 PAST GAMES - the record: of every past game
  *   the model priced in this band, the share the favourite actually won.
  *
- *   BEST PICK IN / 28 of 32 / SIMULATED SEASONS - in how many of the coach's
- *   simulations the selected opening was the best available, or as good as.
+ *   SIMULATION STRENGTH / 28 of 32 / BEST OR NEAR-BEST - in how many of the
+ *   coach's simulations the selected opening was the best available, or as
+ *   good as.
  *
- *   RUNNER-UP or COACH'S CALL - whichever the selection is not: the coach's
- *   next best when you are on its call, its call when you are not.
+ *   SEASON IMPACT - for a user pick, its live lock preview against the coach's
+ *   untouched plan. On the coach's own call, the closest challenger instead.
  */
 function facts(state, board) {
   const items = [];
@@ -295,10 +371,20 @@ function facts(state, board) {
   if (candidate && total) {
     items.push(
       fact(
-        "Best pick in",
+        "Simulation strength",
         `${Math.round((candidate.robust ?? 0) * total)} of ${total}`,
-        "simulated seasons",
+        "best or near-best",
         "Simulated seasons in which this opening was the best available, or within a whisker of it",
+      ),
+    );
+  } else if (frontier && state.selection === "picked") {
+    items.push(
+      fact(
+        "Simulation set",
+        "Not ranked",
+        "live estimate only",
+        "This pick was outside the coach's shortlist, so it has a live season estimate but no simulation dots",
+        true,
       ),
     );
   }
@@ -306,21 +392,36 @@ function facts(state, board) {
   const [call, next] = frontier?.candidates ?? [];
   const nameOf = (entry) =>
     (entry.options?.length ? entry.options.map((option) => option.team) : entry.teams).join(" + ");
-  if (call && total) {
-    if (candidate?.chosen && next) {
+  if (call) {
+    if (state.selection === "picked") {
+      const estimate = estimateFor(state, board);
+      const baseline = board.pathProbability;
+      if (Number.isFinite(estimate) && Number.isFinite(baseline)) {
+        const points = (estimate - baseline) * 100;
+        const impact = `${points > 0 ? "+" : points < 0 ? "−" : ""}${Math.abs(points).toFixed(1)} pts`;
+        items.push(
+          fact(
+            "Season impact",
+            impact,
+            "vs coach plan",
+            `${nameOf(call)} is the coach's baseline at ${formatPercent(baseline, 1)} season survival; this pick's live estimate is ${formatPercent(estimate, 1)}`,
+          ),
+        );
+      }
+    } else if (candidate?.chosen && next && total) {
       items.push(
         fact(
-          "Runner-up",
+          "Closest challenger",
           escapeHtml(nameOf(next)),
-          `ties it in ${Math.round((next.robust ?? 0) * total)} of ${total}`,
-          "The coach's next best opening, and the simulated seasons in which it did as well as the call",
+          `${formatPercent(next.season, 1)} season`,
+          "The coach's next best opening and the season survival it leads to",
           true,
         ),
       );
     } else if (!candidate?.chosen) {
       items.push(
         fact(
-          "Coach’s call",
+          "Coach benchmark",
           escapeHtml(nameOf(call)),
           `${formatPercent(call.season, 1)} season`,
           "The opening the coach calls for this week, and the season survival it leads to",

@@ -538,6 +538,41 @@
   animation: data-settle 0.34s var(--ease-out) both;
 }
 
+/* The model read follows the active pick. Its frame stays put while every
+   figure settles in together, so changing teams feels like one fresh read and
+   not four unrelated counters blinking. */
+.coach.is-data-updated > * {
+  animation: data-settle 0.34s var(--ease-out) both;
+}
+
+.coach.is-data-updated > :nth-child(2) {
+  animation-delay: 35ms;
+}
+
+.coach.is-data-updated > :nth-child(3) {
+  animation-delay: 70ms;
+}
+
+.coach.is-data-updated > :nth-child(4) {
+  animation-delay: 105ms;
+}
+
+@keyframes coach-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.75);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+
+.coach--pending .coach__pulse {
+  animation: coach-pulse 1.1s ease-in-out infinite;
+}
+
 /* --- a lock changing ------------------------------------------------------- */
 
 /* Both halves of the lock feedback are overlays, drawn on top of the slot and
