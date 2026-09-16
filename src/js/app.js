@@ -57,6 +57,7 @@ import { afterMotion, playOnce, prefersReducedMotion, twoFrames } from "./ui/mot
 import { renderHome, closeHomePanels, markOpening, playLeagueExit } from "./ui/home.js";
 import { renderPitch, markViewing } from "./ui/pitch.js";
 import { renderCall } from "./ui/call.js";
+import { renderCoach } from "./ui/coach.js";
 import { renderSideline } from "./ui/sideline.js";
 import { renderDrive, markDriveViewing } from "./ui/drive.js";
 import { renderBench } from "./ui/bench.js";
@@ -81,6 +82,8 @@ const el = {
   notices: document.getElementById("notices"),
   /** The readout: the field and drive line, then the week's call. */
   pitch: document.getElementById("pitch"),
+  /** The coach's case: the openings it weighed for the week being looked at. */
+  coach: document.getElementById("coach"),
   call: document.getElementById("call"),
   /** The drawer's three panels, and the two of them a week turns. */
   sideline: document.getElementById("sideline"),
@@ -187,6 +190,7 @@ const EFFECT_FOR = { lock: "fx-lock", pick: "fx-swap" };
  */
 const SLIDING = [
   { clip: "#call", moves: ".call" },
+  { clip: "#coach", moves: ".coach" },
   { clip: "#view-week", moves: "#sideline" },
   { clip: "#view-path", moves: "#drive" },
 ];
@@ -1125,6 +1129,10 @@ function renderSelection(board) {
     canWrite,
     onAction: handleAction,
   });
+  // Read-only, and about the week rather than the slot, so it rides with the
+  // week's other regions rather than being re-rendered by a slot swap - but it
+  // costs a handful of rows, and the week is what a scrub changes.
+  renderCoach(el.coach, board, app.viewWeek);
   markDriveViewing(el.drive, app.viewWeek);
 }
 
@@ -2752,16 +2760,16 @@ async function main() {
   // the first switch into it costs what the second one does (warmPools).
   warmPools();
 
-  // Drag the board sideways to turn the week. The surfaces are the three
-  // regions a week is about - its card, the team list and the drive - each
-  // bound once rather than to anything a render replaces. The field is not one
-  // of them: it pans its own yard lines. Nor is the depth chart, which says the
-  // same thing whatever week is open. What is left to skip is what a sideways
-  // drag already means something in.
+  // Drag the board sideways to turn the week. The surfaces are the regions a
+  // week is about - its card, the coach's case for it, the team list and the
+  // drive - each bound once rather than to anything a render replaces. The
+  // field is not one of them: it pans its own yard lines. Nor is the depth
+  // chart, which says the same thing whatever week is open. What is left to
+  // skip is what a sideways drag already means something in.
   watchDrags(
     { parts: slidingParts, canTurn, turn: turnWeek },
     {
-      surfaces: [el.call, el.weekPanel, el.pathPanel],
+      surfaces: [el.call, el.coach, el.weekPanel, el.pathPanel],
       ignore: ["input", "textarea", "select", "dialog", ".league-bar__menu"],
     },
   );

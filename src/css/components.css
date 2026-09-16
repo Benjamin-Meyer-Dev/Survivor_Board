@@ -1938,6 +1938,249 @@
   padding: 6px 8px 8px;
 }
 
+/* the coach's case (ui/coach.js) --------------------------------------------- */
+
+/* The openings the coach weighed, chalked on the turf between the field and
+   the card. No box: the call card below it is the one thing on this screen you
+   act on and it wears the chalk rectangle that says so, and a second box over
+   it would make two cards and no card. This is writing on the ground.
+
+   A column so the table can take the height the band has and the head and the
+   note stay put at either end of it (layout.css sizes the box). */
+.coach {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+/* Nothing to say about this week. The box is folded away by the layout, and
+   the class is what tells it so. */
+.coach--empty {
+  display: none;
+}
+
+.coach__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex: none;
+}
+
+.coach__what {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* How many futures the four openings were judged across. A number that
+   qualifies the two columns it sits over rather than one of them, so it is set
+   the way the card sets the same kind of remark - quiet, and at the end of the
+   line it belongs to. */
+.coach__futures {
+  flex: none;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--chalk-4);
+}
+
+/* The table: the column heads, then the rows under them. Both are the same
+   grid, declared once here and inherited by each, so a figure and the word
+   over it can never come apart. The name takes what is left and the three
+   figures take what they need - they are short, right-aligned and the same
+   width whatever is in them. */
+.coach__table {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.coach__columns,
+.coach__row {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+}
+
+.coach__table--case .coach__columns,
+.coach__table--case .coach__row {
+  grid-template-columns: minmax(0, 1fr) 40px 46px 44px;
+}
+
+.coach__table--ranked .coach__columns,
+.coach__table--ranked .coach__row {
+  grid-template-columns: minmax(0, 1fr) 40px 52px;
+}
+
+.coach__columns {
+  flex: none;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.coach__col {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--chalk-4);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* The rows share the height the band has left, so three or four of them fill a
+   tall phone without being three rows adrift in it, and on a shorter one they
+   close up to the height of their own text.
+
+   Bounded at both ends, and the ceiling is the half that is easy to forget: a
+   row free to take a third of the band is a name and a number with ninety
+   pixels of turf under them, which is the dead space this block was built to
+   answer turning up again inside the answer. Centred, so what a capped row
+   leaves over opens above and below the table rather than dropping out of the
+   bottom of it. */
+.coach__rows {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Grow into room going spare, never give a pixel back. A box short of height
+   drops whole rows off the bottom rather than pressing four of them into the
+   space for two - the best call is the top row, so a table cut short is still
+   the table, just less of it. */
+.coach__row {
+  flex: 1 0 auto;
+  min-height: 30px;
+  max-height: 54px;
+}
+
+/* The call the card is already showing, lit the way the field lights the week
+   on the clock: the row is the one that was taken, and the three below it are
+   what it was taken over. */
+.coach__row--chosen .coach__pick {
+  color: var(--chalk);
+}
+
+.coach__row--chosen .coach__pick::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 3px;
+  height: 14px;
+  margin-top: -7px;
+  border-radius: 1px;
+  background: var(--flag);
+}
+
+.coach__team {
+  min-width: 0;
+}
+
+/* The name, with room at its head for the flag the chosen row wears, so every
+   row's ink starts on the same line whether it is wearing one or not. */
+.coach__pick {
+  position: relative;
+  display: block;
+  padding-left: 11px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--chalk-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Who it plays, under the name: the line the row is priced off, so the figures
+   beside it are a claim about something rather than three numbers. Quieter
+   than the name and set in the body face, the way the card sets the same
+   line. */
+.coach__game {
+  display: block;
+  padding-left: 11px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--chalk-4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.coach__figure {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 1.1;
+  text-align: right;
+  color: var(--chalk-2);
+  white-space: nowrap;
+}
+
+/* The season figure is the point of the block - the column the week's own
+   number is there to be read against - so it is the one set in full chalk. */
+.coach__figure--season {
+  color: var(--chalk);
+}
+
+.coach__figure--robust {
+  color: var(--chalk-3);
+}
+
+/* What the runner-up costs, said once in words under the columns that show it.
+   Body face, because it is a sentence and everything else here is a label or a
+   figure. */
+.coach__note {
+  flex: none;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--chalk-3);
+}
+
+/* How much of the case there is room for, asked of its own box (layout.css
+   makes it a size container).
+
+   The band between the field and the card is whatever two other things leave,
+   and on a short phone - or any phone with a banner over the board - that can
+   come to fifty pixels. Fifty pixels of a table is a head, a rule and the top
+   of a row: it reads as something that failed to load rather than as something
+   with nothing to say. So the note goes first, and then the block goes, and
+   what is left is the turf that was there before any of this.
+
+   The two numbers are the block measured, not chosen: 54 for the head and the
+   column rule, 30 a row, 40 the note. Under 184 the note has nowhere to sit;
+   under 114 there is no room for a second row, and one row of a table that is
+   there to compare four is not worth the turf. */
+@container (max-height: 183px) {
+  .coach__note {
+    display: none;
+  }
+}
+
+@container (max-height: 113px) {
+  .coach {
+    display: none;
+  }
+}
+
 /* the drawer (ui/tabs.js) ---------------------------------------------------- */
 
 /* The grab: the drawer's top edge, as a thing to pull.

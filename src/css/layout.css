@@ -57,14 +57,15 @@
 
 /* board --------------------------------------------------------------------- */
 
-/* The three surfaces a sideways drag turns the week on (ui/swipe.js): the
-   week's card, and the drawer's two panels that are about a week. Sideways
-   panning is ours on these, up-and-down is still the browser's, which is what
-   lets the drag be tracked with pointer events at all - without pan-y the
-   vertical scroller takes the gesture and cancels the pointer on the first
-   move. The field is deliberately not one of them: its yard lines pan sideways
-   themselves, and the bench is not about a week. */
+/* The surfaces a sideways drag turns the week on (ui/swipe.js): the week's
+   card, the coach's case for it, and the drawer's two panels that are about a
+   week. Sideways panning is ours on these, up-and-down is still the browser's,
+   which is what lets the drag be tracked with pointer events at all - without
+   pan-y the vertical scroller takes the gesture and cancels the pointer on the
+   first move. The field is deliberately not one of them: its yard lines pan
+   sideways themselves, and the bench is not about a week. */
 #call,
+#coach,
 #view-week,
 #view-path {
   touch-action: pan-y;
@@ -162,6 +163,24 @@
 .readout > #pitch > * {
   min-height: 0;
   min-width: 0;
+}
+
+/* The coach's case, in the turf between the field and the card (ui/coach.js).
+
+   Clipped, because the box is told how tall it is by the room there is rather
+   than by what is in it, and what is in it is a table. A column, so the table
+   is handed that height rather than standing at its own in the top of it -
+   without this the rows had nothing to open out into and the box wore a
+   hundred pixels of turf under its own last line. */
+.readout > #coach {
+  display: flex;
+  flex-direction: column;
+  overflow: clip;
+}
+
+.readout > #coach > * {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* The drawer fills the rest and scrolls inside itself. Its grab - the handle
@@ -381,6 +400,10 @@
      has nothing left to take, so it is the same rule in both states. */
   .readout > #call {
     margin-top: auto;
+    /* And it is never the thing that gives. The field can be shorter and the
+       coach's table can be fewer rows; the one action on the board is whole or
+       it is broken. */
+    flex: none;
   }
 
   /* And the field spends most of what the shut drawer handed back, rather than
@@ -421,6 +444,78 @@
      board that still cannot fit scrolls, which is what the scroll is for. */
   .board:not(.is-raised) .readout > #pitch {
     min-height: calc(124px + 8px + 37px);
+    /* And a ceiling written the same way, for the same reason turned round.
+       The field stops at 232 (.pitch__field) but the box it stands in would
+       not: a box told to grow takes every pixel going and leaves the ones the
+       field cannot use as turf inside itself, which is the same dead band in a
+       different place. Capped, the box stops when the field does and what is
+       left over goes to the case below it. */
+    max-height: calc(232px + 8px + 37px);
+  }
+
+  /* The case has what the field and the card leave, and never asks for a pixel
+     more than that.
+
+     `contain: size` is the whole rule. A readout row is floored at what is in
+     it, all the way down the tree - it is why the field can only ever grow
+     into spare height and never shrink out of a shortage - and a table added
+     to that column would have floored it four rows higher again: on a 360 with
+     a college card the board went eighty pixels off the bottom of the screen
+     and scrolled to reach them. Containment cuts the box off from its own
+     contents for sizing: it is worth nothing intrinsically, so the readout's
+     floor is the field and the card exactly as it was before this block
+     existed, and what the case gets is the room left over. Where there is
+     none, it is nothing, and the board is the board it was yesterday.
+
+     It follows that this is also the fold. The box is sized by the flex layout
+     rather than by a row of its own, so it shrinks over the same 280ms the
+     readout's track does when the drawer comes up over it - no second
+     mechanism to keep in step with the field's.
+
+     It asks for nothing and takes half of what is going, up to 264 - a head,
+     four rows opened out to a size a thumb reads at, and the line underneath.
+     Nothing, and not a length: a stated basis is a stated basis, contained or
+     not, and 214px here floored the readout at 214px more than it had. The
+     basis has to come from the contents for containment to be able to say the
+     contents are worth nothing.
+
+     Half of what is going, rather than all of it, because the other half is
+     the field still growing towards its own ceiling, and on a phone too short
+     for both the field is what is left holding the band.
+
+     A size container as well as a contained one, so the table inside can ask
+     how much of itself there is room for (components.css). */
+  .readout > #coach {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 264px;
+    container-type: size;
+    transition: opacity 160ms ease;
+  }
+
+  .board.is-raised .readout > #coach {
+    opacity: 0;
+  }
+
+  /* An empty case is not a short one - it is a week with no case to make (a
+     week already played, a plan still being worked out). Containment off, so
+     the box is worth what is in it, which is nothing, and the field takes the
+     room back rather than the board holding an empty box open over turf. */
+  .readout > #coach:has(.coach--empty) {
+    flex: none;
+    container-type: normal;
+  }
+
+  /* And a phone this short never has a band to put it in: the field, the drive
+     line and the card fill a 667 screen on their own, and half of what is left
+     over is not two rows of anything. Off the board altogether rather than
+     left standing at nought - an empty box is still a box, and the readout's
+     own 10px gap above it was enough to put the shortest phone over its own
+     screen and set it scrolling. */
+  @media (max-height: 700px) {
+    .readout > #coach {
+      display: none;
+    }
   }
 
   /* The fold, and the gap under it: a field folded to nothing would otherwise
@@ -536,6 +631,17 @@
   .board:not(.is-raised) .readout > #pitch {
     flex: none;
     min-height: 0;
+    max-height: none;
+  }
+
+  /* And the case comes off the board entirely. Sideways the readout is a
+     column short enough that everything in it gives up height to land the call
+     above the fold (components.css), and a four-row table is not a thing to
+     trim - it is the one region here that is worth reading or not worth
+     having. The drawer beside it is open on this screen, so the coach's own
+     list is a thumb away in the sideline. */
+  .readout > #coach {
+    display: none;
   }
 
   /* The raise is the same squeeze answered standing up: the field's row folded
@@ -633,6 +739,41 @@
     width: 100%;
     margin-left: auto;
     margin-right: auto;
+  }
+
+  /* The coach's case beside the card rather than over it.
+
+     On a phone the case fills a band that had nothing in it. The desktop has
+     no such band - the drawer's three panels stand under the readout and every
+     pixel added above them pushes them down the page, which is how a 187-pixel
+     table turned a board that scrolled twenty into one that scrolled two
+     hundred and seventy. What this screen has spare is width: 1240 of it, with
+     the call card using about half. Standing side by side the table costs the
+     page nothing at all, and the two things about the week on the clock - what
+     the coach calls, and what it weighed - read as one row about one week.
+
+     Aligned to the top rather than stretched, because they are two blocks of
+     different lengths and not two columns of a table. */
+  .readout {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    grid-template-areas:
+      "pitch pitch"
+      "call coach";
+    align-items: start;
+    column-gap: 18px;
+  }
+
+  .readout > #pitch {
+    grid-area: pitch;
+  }
+
+  .readout > #call {
+    grid-area: call;
+  }
+
+  .readout > #coach {
+    grid-area: coach;
   }
 
   .drawer {
