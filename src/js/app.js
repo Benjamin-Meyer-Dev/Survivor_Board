@@ -1657,13 +1657,27 @@ function startClock() {
  * be tapped shut by somebody reaching for the list they already have.
  */
 function selectTab(id) {
-  // The drawer first, so the panels are on the screen before the bar hands one
-  // of them an entrance to play: an animation added to a box the browser has
-  // not painted yet is one nobody sees finish (afterMotion in ui/tabs.js).
-  if (canRaise()) setRaised(true);
-  if (id === app.activeTab) return;
-  app.activeTab = id;
-  renderTabs(el.tabs, app.activeTab, selectTab);
+  // Whether this tap is also the open. Both at once is the common one - the
+  // bar IS the shut drawer - and the two have to be ordered rather than just
+  // both done, because the drawer's rise is 280ms of the browser laying the
+  // board out again on every frame, and a panel swapped in the middle of that
+  // is the one thing on the screen that stutters: on a college board at a
+  // quarter speed, a frame of a tenth of a second, against a rise that is
+  // otherwise every frame on time.
+  //
+  // So the panels are put right FIRST and without a motion of their own
+  // (quiet), and the class that starts the rise goes on after them: the list
+  // is the one it will be before anything begins to move, and the rise is the
+  // entrance - the list comes up out of the bottom edge - so nothing is lost
+  // by the panel not playing one of its own. Both in the one task, because a
+  // frame spent waiting before the drawer moves is a tap that did nothing.
+  const opening = canRaise() && !app.raised;
+  const changed = id !== app.activeTab;
+  if (changed) {
+    app.activeTab = id;
+    renderTabs(el.tabs, app.activeTab, selectTab, { quiet: opening });
+  }
+  if (opening) setRaised(true);
 }
 
 /**

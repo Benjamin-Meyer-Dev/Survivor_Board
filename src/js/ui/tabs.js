@@ -44,13 +44,19 @@ let lastRendered = null;
  * @param {HTMLElement} root The element with role="tablist".
  * @param {string} activeId
  * @param {(id: string) => void} onSelect
- * @param {{hidden?:boolean}} [options] `hidden` takes the bar off the board.
- *   The panels go with it, but not from here: a run that is over empties the
- *   drawer whole and app.js puts the box away in one (render). The tab stays
- *   whatever it was while the bar is down, so the drawer opens on it again if
- *   the board ever comes back - a result corrected, a live pool switched into.
+ * @param {{hidden?:boolean, quiet?:boolean}} [options] `hidden` takes the bar
+ *   off the board. The panels go with it, but not from here: a run that is
+ *   over empties the drawer whole and app.js puts the box away in one
+ *   (render). The tab stays whatever it was while the bar is down, so the
+ *   drawer opens on it again if the board ever comes back - a result
+ *   corrected, a live pool switched into.
+ *
+ *   `quiet` swaps the panel without a motion of its own, for the tap that is
+ *   also opening the drawer (selectTab in app.js): the drawer coming up is
+ *   already the entrance, and a panel sliding about inside a box that is
+ *   growing is two motions where somebody asked for one.
  */
-export function renderTabs(root, activeId, onSelect, { hidden = false } = {}) {
+export function renderTabs(root, activeId, onSelect, { hidden = false, quiet = false } = {}) {
   onTab = onSelect;
 
   if (!root.firstElementChild) buildTabBar(root);
@@ -75,7 +81,7 @@ export function renderTabs(root, activeId, onSelect, { hidden = false } = {}) {
   const changed = activeId !== lastRendered;
   const direction = changed && was >= 0 && at >= 0 ? Math.sign(at - was) : 0;
   lastRendered = activeId;
-  applyPanels(activeId, changed, direction);
+  applyPanels(activeId, { animate: changed && !quiet, direction, quiet: quiet && changed });
 }
 
 function buildTabBar(root) {
@@ -134,12 +140,16 @@ let change = null;
  * shortening panel-enter in motion.css cannot leave one hanging on afterwards.
  *
  * @param {string} activeId
- * @param {boolean} animate
- * @param {number} direction -1 for a step towards the start of the bar, +1
- *   towards the end, 0 where there is no direction to give - the first paint,
- *   or a panel shown again by a render.
+ * @param {object} [options]
+ * @param {boolean} [options.animate] Whether the change is one to watch.
+ * @param {number} [options.direction] -1 for a step towards the start of the
+ *   bar, +1 towards the end, 0 where there is no direction to give - the first
+ *   paint, or a panel shown again by a render.
+ * @param {boolean} [options.quiet] A change to make now and not to play: the
+ *   drawer is opening over it, and the swap belongs in the frame before that
+ *   motion starts rather than in the middle of it.
  */
-function applyPanels(activeId, animate, direction = 0) {
+function applyPanels(activeId, { animate = false, direction = 0, quiet = false } = {}) {
   const panels = TABS.map((tab) => document.getElementById(tab.panel)).filter(Boolean);
   const to = document.getElementById(TABS.find((tab) => tab.id === activeId)?.panel);
   if (!to) return;
@@ -147,8 +157,9 @@ function applyPanels(activeId, animate, direction = 0) {
   // A change already in flight owns the panels until it has finished. Every
   // render calls this, and a pick or a lock has nothing to say about which
   // panel is showing - it used to strip the entrance off a panel that was
-  // still arriving.
-  if (!animate && (change || entering)) return;
+  // still arriving. A quiet change is one somebody has just asked for, so it
+  // takes the panels from whatever was playing.
+  if (!animate && !quiet && (change || entering)) return;
 
   const from = panels.find((panel) => !panel.hidden && panel !== to);
   const show = () => {
@@ -160,10 +171,10 @@ function applyPanels(activeId, animate, direction = 0) {
   // wearing an exit it will never finish.
   settlePanels(panels);
 
-  if (!animate || prefersReducedMotion() || !from) {
+  if (quiet || !animate || prefersReducedMotion() || !from) {
     change = null;
     show();
-    if (animate && !prefersReducedMotion()) enter(to, direction);
+    if (animate && !quiet && !prefersReducedMotion()) enter(to, direction);
     return;
   }
 

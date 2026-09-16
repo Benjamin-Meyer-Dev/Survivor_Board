@@ -1919,6 +1919,22 @@
    card closing rather than as a different card: the eyebrow over the team, at
    the size a slot half a card wide has always used. The name goes to one line
    and ellipsises - a slot that is two lines tall folded is not folded. */
+/* The name travels between the two sizes, over the beat the drawer rises in,
+   so the card closes up rather than cutting to its folded self.
+
+   The three rows go at once, and on purpose. Fading them first was tried -
+   a discrete `display` transition behind an opacity one, which holds the
+   switch until the fade has finished - and it is worse: the rows keep their
+   space while they dim, so for the first seventh of a second the card is a
+   tall empty box with the team's name adrift at the top of it and a hole
+   underneath. The rows are the week being read rather than the week being
+   filled; they leave, and what stays travels. */
+.call__team {
+  transition:
+    font-size 240ms var(--ease-out),
+    line-height 240ms var(--ease-out);
+}
+
 .board.is-raised .call__marks,
 .board.is-raised .call__matchup,
 .board.is-raised .call__tiles {
@@ -2051,16 +2067,19 @@
   flex: none;
 }
 
-/* The last column starts three quarters of the way across plus three quarters
-   of a gap, and its dot is 7 wide: the rule ends on that dot's centre. */
+/* The rule runs the whole width of the block: from the first dot's centre to
+   the right edge, lit from the last stop onwards, so the route arrives rather
+   than stopping three quarters of the way across. The flag stop is at the
+   tier's dot and holds to the end - the lit stretch is the arrival, and the
+   line still reaches the edge the drive line's season tile reaches. */
 .chain::before {
   content: "";
   position: absolute;
   top: 3px;
   left: 3px;
-  right: calc(25% - 10px);
+  right: 0;
   height: 1px;
-  background: linear-gradient(90deg, var(--line-soft), var(--line-strong), var(--flag));
+  background: linear-gradient(90deg, var(--line-soft), var(--line-strong) 52%, var(--flag) 75%);
 }
 
 .chain__stop {
@@ -2329,14 +2348,21 @@
   background: rgb(243 247 241 / 9%);
 }
 
+/* Set in the board's own hand, not a chart's: every label on this board is
+   the display face, from the drive line's keys to the numbers painted on the
+   field, and a chart in the middle of it in a mono face read as something
+   pasted in. The two season figures in the key keep the mono, because those
+   are headline values and that is what the board sets values in. */
 .route__rule-label {
   position: absolute;
   top: 50%;
   right: calc(100% + 5px);
   transform: translateY(-50%);
-  font-family: var(--font-mono);
-  font-size: 9px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
   line-height: 1;
+  letter-spacing: 0.04em;
   color: var(--chalk-4);
 }
 
@@ -2405,10 +2431,11 @@
   transform: translate(-50%, calc(-100% - 7px));
   border-radius: 2px;
   background: color-mix(in srgb, var(--turf-2) 85%, transparent);
-  font-family: var(--font-mono);
-  font-weight: 650;
-  font-size: 11px;
-  line-height: 1.2;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 12px;
+  line-height: 1.25;
+  letter-spacing: 0.04em;
   color: var(--chalk);
   white-space: nowrap;
 }
@@ -2459,23 +2486,28 @@
 
 .route__axis {
   position: relative;
-  height: 12px;
+  height: 13px;
   margin-left: 28px;
 }
 
+/* A week number, in the face and the weight the field paints its own week
+   numbers in (.pitch__yard-label): the axis under the chart and the yard
+   lines over it are the same row of weeks, read twice. */
 .route__week {
   position: absolute;
   top: 0;
   transform: translateX(-50%);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  line-height: 12px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 11px;
+  line-height: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--chalk-4);
   white-space: nowrap;
 }
 
 .route__week--here {
-  font-weight: 600;
   color: var(--chalk);
 }
 
@@ -2826,7 +2858,26 @@
 }
 
 /* One row: the team and its game, then the line in the tier's chalk. */
+/* A row the drawer is not showing is not laid out.
+
+   The raise is 280ms of the browser working out the board's two tracks over
+   and over, and everything inside them with it: a college sideline is
+   ninety-eight of these rows, nine of which are on the screen, and the other
+   eighty-nine were being measured on every frame of a motion that could not
+   show them. Skipping them cut the frames that missed 60fps from a median of
+   five or six per gesture to two or three, measured on a throttled phone
+   viewport with the rule switched on and off in turn (scratchpad raise.mjs).
+
+   The height is stated so the scroll is the right length before a row has
+   ever been laid out, and `auto` lets each row's real height replace the
+   estimate once it has been laid out once. What is stated is the CONTENT
+   box: the row's own 12 of padding and its rule are added to it, so 43 is
+   the 56 these rows average - a 54 floor, and a little more where a name
+   wraps. Stating 54 here made every unrendered row 67 and the list a
+   hundred and sixty pixels longer than it turned out to be. */
 .sideline__row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 43px;
   appearance: none;
   position: relative;
   display: grid;
@@ -3271,7 +3322,11 @@
   padding-top: 14px;
 }
 
+/* Off-screen bench cards are skipped the same way the sideline's rows are,
+   and for the same 280ms (see .sideline__row). */
 .bench__team {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 52px;
   position: relative;
   display: flex;
   align-items: center;

@@ -162,19 +162,27 @@ function chain(state, board) {
   const tier = subject.tier;
 
   const rating = (value) => (Number.isFinite(value) ? value.toFixed(1) : "—");
-  // The working the number comes from: the two power ratings, and the home
-  // field added or taken off - "ratings 85.7 v 82.5 · +2.5 home" is the whole
-  // of -5.7. The home term is its own span so a narrow box can let it go
-  // (components.css) rather than cut the ratings short to keep it.
+  // The two terms the line is the sum of, rather than the two ratings it is
+  // the difference of: "8.6 power gap · +2.0 home" adds up to the -10.6 over
+  // it, where "86.7 v 78.1" left the reader to do the subtraction and say
+  // which team each number belonged to. The gap is the pick's own - negative
+  // where the ratings have it behind - and the home term is its own span, so
+  // a narrow box lets that go rather than cutting the gap short to keep it.
+  const gap =
+    Number.isFinite(p.team.rating) && Number.isFinite(p.opponent.rating)
+      ? p.team.rating - p.opponent.rating
+      : null;
+  const gapTerm =
+    gap === null
+      ? `ratings ${rating(p.team.rating)} v ${rating(p.opponent.rating)}`
+      : `${gap < 0 ? "−" : ""}${Math.abs(gap).toFixed(1)} power gap`;
   const homeTerm =
     p.homeField > 0
       ? `+${p.homeField.toFixed(1)} home`
       : p.homeField < 0
         ? `−${Math.abs(p.homeField).toFixed(1)} away`
         : "";
-  const ratingsSub =
-    `ratings ${rating(p.team.rating)} v ${rating(p.opponent.rating)}` +
-    (homeTerm ? `<span class="chain__term"> · ${homeTerm}</span>` : "");
+  const ratingsSub = gapTerm + (homeTerm ? `<span class="chain__term"> · ${homeTerm}</span>` : "");
   const homeNote =
     p.homeField > 0
       ? `, plus ${Math.abs(p.homeField)} for home field`
@@ -211,7 +219,7 @@ function chain(state, board) {
       }`;
 
   return `<ol class="chain" data-key="chain" aria-label="How ${escapeHtml(subject.team)} was priced">
-    <li class="chain__stop" title="The model's own line: the spread the two teams' power ratings come to on their own, before the market is looked at - the fitted ratings where the season has data, the preseason ones where it does not${homeNote}">
+    <li class="chain__stop" title="The model's own line: what the two teams' power ratings come to on their own, before the market is looked at. ${escapeHtml(subject.team)} is rated ${rating(p.team.rating)} and ${escapeHtml(subject.opponent)} ${rating(p.opponent.rating)}${homeNote} - the fitted ratings where the season has data, the preseason ones where it does not">
       <span class="chain__key">Model line</span>
       <span class="chain__value">${formatSpread(p.projected)}</span>
       <span class="chain__sub">${ratingsSub}</span>
