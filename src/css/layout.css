@@ -472,12 +472,15 @@
      readout's track does when the drawer comes up over it - no second
      mechanism to keep in step with the field's.
 
-     It asks for nothing and takes half of what is going, up to 264 - a head,
-     four rows opened out to a size a thumb reads at, and the line underneath.
-     Nothing, and not a length: a stated basis is a stated basis, contained or
-     not, and 214px here floored the readout at 214px more than it had. The
-     basis has to come from the contents for containment to be able to say the
-     contents are worth nothing.
+     It asks for nothing and takes half of what is going, all the way to the
+     card: the field stops at its own ceiling and everything past that is the
+     working's, so the band is filled by construction on every phone, and the
+     block spends what it is given on rows opened out, dots grown and the
+     captions that say what the drawings are (components.css). Nothing, and
+     not a length: a stated basis is a stated basis, contained or not, and
+     214px here floored the readout at 214px more than it had. The basis has
+     to come from the contents for containment to be able to say the contents
+     are worth nothing.
 
      Half of what is going, rather than all of it, because the other half is
      the field still growing towards its own ceiling, and on a phone too short
@@ -488,7 +491,6 @@
   .readout > #coach {
     flex: 1 1 auto;
     min-height: 0;
-    max-height: 264px;
     container-type: size;
     transition: opacity 160ms ease;
   }
@@ -752,16 +754,25 @@
      page nothing at all, and the two things about the week on the clock - what
      the coach calls, and what it weighed - read as one row about one week.
 
-     Aligned to the top rather than stretched, because they are two blocks of
-     different lengths and not two columns of a table. */
+     The row is as tall as the card and the case is told so, by the same
+     containment the phone uses (above): worth nothing intrinsically, it takes
+     the card's height and its own gates fit the drawings to it. Left to its
+     content it grew past the card - captions, a strip sized against the
+     viewport - and pushed the drawer's three panels down the page by the
+     difference. */
   .readout {
     display: grid;
     grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
     grid-template-areas:
       "pitch pitch"
       "call coach";
-    align-items: start;
     column-gap: 18px;
+  }
+
+  .readout > #coach {
+    grid-area: coach;
+    container-type: size;
+    min-height: 0;
   }
 
   .readout > #pitch {
@@ -770,10 +781,6 @@
 
   .readout > #call {
     grid-area: call;
-  }
-
-  .readout > #coach {
-    grid-area: coach;
   }
 
   .drawer {

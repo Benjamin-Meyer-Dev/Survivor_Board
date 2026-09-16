@@ -87,9 +87,39 @@ function stateFor(board, week, activeSlot) {
 function head(state) {
   const { subject, week } = state;
   return `<div class="coach__head" data-key="head">
-    <span class="u-eyebrow coach__what">Pricing ${escapeHtml(subject.team)} · Wk ${String(week.week).padStart(2, "0")}</span>
-    <span class="coach__game">${escapeHtml(formatMatchup(subject.site, subject.opponent))}</span>
+    <span class="u-eyebrow coach__what">The model’s working · Wk ${String(week.week).padStart(2, "0")}</span>
+    <span class="coach__game">${escapeHtml(subject.team)} ${escapeHtml(formatMatchup(subject.site, subject.opponent))}</span>
   </div>`;
+}
+
+/**
+ * The chain in a sentence, for the reading that does not follow dots along a
+ * rule: what the ratings alone would make it, what the market makes it and
+ * which way it has moved, and what that prices at. Shown when the band is tall
+ * enough to afford a line of prose under the stops (components.css).
+ */
+function chainCaption(subject) {
+  const p = subject.pricing;
+  const team = escapeHtml(subject.team);
+  const ratings = `Power ratings alone make ${team} ${formatSpread(p.projected)}${
+    p.homeField > 0 ? " at home" : p.homeField < 0 ? " on the road" : ""
+  }`;
+  let market;
+  if (p.market) {
+    const moved =
+      p.market.opened !== null && p.market.opened !== p.market.spread
+        ? `, ${Math.abs(p.market.spread) > Math.abs(p.market.opened) ? "out" : "in"} from ${formatSpread(p.market.opened)}`
+        : "";
+    market = `the market says ${formatSpread(p.market.spread)}${moved}`;
+  } else {
+    market = `no line is posted yet, and a projection this far out usually misses by about ${p.horizonSd.toFixed(1)} points`;
+  }
+  const via =
+    p.market && p.market.weight > 0 && p.market.moneylineProb !== null
+      ? "with the moneyline"
+      : "on the margin curve";
+  const tier = TIER_LABEL[subject.tier] ?? subject.tier;
+  return `<p class="coach__caption" data-key="chain-caption">${ratings}; ${market}; ${via} that prices at ${formatPercent(subject.winProb, 1)} — ${escapeHtml(tier)}.</p>`;
 }
 
 /**
@@ -152,7 +182,7 @@ function chain(state, board) {
       <span class="chain__sub">${escapeHtml(marketSub)}</span>
     </li>
     <li class="chain__stop" title="${escapeHtml(priceTitle)}">
-      <span class="chain__key">Price</span>
+      <span class="chain__key">Win prob</span>
       <span class="chain__value${tier ? ` confidence--${tier}` : ""}">${formatPercent(price, 1)}</span>
       <span class="chain__sub">${priceSub}</span>
     </li>
@@ -161,7 +191,7 @@ function chain(state, board) {
       <span class="chain__value"><span class="chip chip--${tier}">${TIER_LABEL[tier] ?? tier}</span></span>
       <span class="chain__sub">${tierBand(tier, tiers)}</span>
     </li>
-  </ol>`;
+  </ol>${chainCaption(subject)}`;
 }
 
 function formatMoneyline(moneyline) {
@@ -219,9 +249,14 @@ function swarm(state) {
       const dots = candidate.survivals
         .map((value) => `<span class="swarm__dot" style="left:${at(value)}"></span>`)
         .join("");
+      // This week's chance beside the season's, because the two disagreeing
+      // is the whole lesson: the sharpest pick this week is rarely the one
+      // that gets the season furthest.
+      const weekTier = candidate.options?.[0]?.tier;
       return `<li class="swarm__row${candidate.chosen ? " swarm__row--chosen" : ""}" data-key="row-${index}">
         <span class="swarm__name${teams.length > 1 ? " swarm__name--pair" : ""}">${name}</span>
         <span class="swarm__strip" aria-hidden="true">${dots}<span class="swarm__mark" style="left:${at(candidate.season)}"></span></span>
+        <span class="swarm__week${weekTier ? ` confidence--${weekTier}` : ""}">${formatPercent(candidate.weekWinProb, 0)}</span>
         <span class="swarm__value">${formatPercent(candidate.season, 1)}</span>
       </li>`;
     })
@@ -231,9 +266,11 @@ function swarm(state) {
     <div class="swarm__axis" aria-hidden="true">
       <span class="swarm__axis-label">${frontier.scenarios} futures</span>
       <span class="swarm__ticks"><span>${tick(0)}</span><span>${tick(axisMax / 2)}</span><span>${tick(axisMax)}</span></span>
+      <span class="swarm__axis-label swarm__axis-label--unit">Week</span>
       <span class="swarm__axis-label swarm__axis-label--unit">Season</span>
     </div>
     <ol class="swarm__rows">${list}</ol>
+    <p class="coach__caption" data-key="swarm-caption">The coach replayed the rest of the season ${frontier.scenarios} times with the lines nudged the way they usually miss. Each dot is where one of those futures left the season; the bar is today’s number. Dots that pile up mean the model is sure; dots that spread mean it is guessing.</p>
   </div>`;
 }
 
