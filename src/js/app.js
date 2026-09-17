@@ -1206,7 +1206,7 @@ function turnWeek(direction, { alreadyVisible = false } = {}) {
     return;
   }
 
-  lookAt(next.week);
+  adoptTrackedWeek(next.week);
   if (alreadyVisible) return;
   for (const { clip, moves } of slidingParts()) {
     const gap = Number.parseFloat(getComputedStyle(moves).getPropertyValue("--week-swipe-gap"));
@@ -1220,6 +1220,44 @@ function turnWeek(direction, { alreadyVisible = false } = {}) {
       moves.style.removeProperty("--slide-gap");
     });
   }
+}
+
+/**
+ * Exchange a swipe mark's temporary one-week offset for the new week's real
+ * position without exposing the intermediate styles.
+ *
+ * At the end of a committed swipe the pitch bracket and route band already sit
+ * on the incoming week through `--week-turn`. A normal render would first move
+ * their base to that week and only later clear the temporary offset, briefly
+ * placing each mark one week too far along. Keep transitions off, clear the
+ * offset, adopt the week, and restore motion in one task so the browser only
+ * ever paints the shared endpoint.
+ */
+function adoptTrackedWeek(week) {
+  const before = weekTrackingMarks();
+  for (const mark of before) {
+    mark.classList.add("is-week-tracking");
+    mark.classList.remove("is-week-settling");
+    mark.style.removeProperty("--week-turn");
+  }
+
+  try {
+    lookAt(week);
+  } finally {
+    const marks = new Set([...before, ...weekTrackingMarks()]);
+    for (const mark of marks) {
+      mark.classList.remove("is-week-tracking", "is-week-settling");
+      mark.style.removeProperty("--week-turn");
+    }
+  }
+}
+
+/** The two one-week-wide marks that follow a horizontal turn. */
+function weekTrackingMarks() {
+  return [
+    el.pitch?.querySelector(".pitch__bracket"),
+    el.coach?.querySelector(".route__band"),
+  ].filter(Boolean);
 }
 
 /**
@@ -1241,10 +1279,7 @@ function trackFieldTurn(progress, phase) {
   // chart does not travel with the card - it is the season, not the week - so
   // without this the band would be the one thing on the board that jumped to
   // the new week instead of arriving at it.
-  const marks = [
-    el.pitch?.querySelector(".pitch__bracket"),
-    el.coach?.querySelector(".route__band"),
-  ].filter(Boolean);
+  const marks = weekTrackingMarks();
 
   for (const mark of marks) {
     if (phase === "done") {

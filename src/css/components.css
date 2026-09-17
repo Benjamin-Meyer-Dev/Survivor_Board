@@ -1357,27 +1357,36 @@
   white-space: nowrap;
 }
 
-/* The arrow before an "if locked" number, lifted to sit level with it. The
-   display face draws the arrow around the middle of its x-height and the
-   figures from the baseline to their cap height, so the two ink centres are
-   0.14em apart and the arrow reads as sagging under the number until it is
-   moved. Measured, not guessed: see PREVIEW_ARROW in ui/pitch.js. */
-.pitch__stat-arrow {
-  display: inline-block;
-  margin-right: 2px;
-  transform: translateY(-0.14em);
-}
-
-/* The refresh countdown is a number, so it keeps the mono face - set exactly
-   as the season number beside it (.pitch__tag-value), so the two mono figures
-   on the row are one size, and the clock stands as tall as the display-face
-   readouts between them rather than a step under them. */
-.pitch__stat-value #countdown {
+/* A readout that is a figure rather than a phrase keeps the mono face - set
+   exactly as the season number on the flag beside it (.pitch__tag-value), so
+   every figure on this row is one face at one size and the clock and the "if
+   locked" percentage stand as tall as the display-face readouts between them
+   rather than a step under them. The percentage is the same quantity the flag
+   carries, formatted by the same formatPercent, so a row that set the two in
+   different faces read as two different kinds of number. Which readouts are
+   figures is decided where they are written: see stats() in ui/pitch.js. */
+.pitch__stat-value--figure {
   font-family: var(--font-mono);
   font-weight: 600;
   font-size: 17px;
   letter-spacing: 0;
   text-transform: none;
+}
+
+/* The arrow before an "if locked" number, lifted to sit level with it. It
+   stays in the display face inside a mono figure: the mono arrow is drawn on
+   the full advance of a monospaced cell and read as a long dash beside the
+   number. The display face draws the arrow around the middle of its x-height
+   and the mono figures from the baseline to their cap height, so the two ink
+   centres are 0.118em apart and the arrow reads as sagging under the number
+   until it is moved. Held in em rather than the 2px it comes to here, because
+   the row is set at four sizes across the breakpoints and both faces' metrics
+   scale with it. Measured, not guessed: see PREVIEW_ARROW in ui/pitch.js. */
+.pitch__stat-arrow {
+  display: inline-block;
+  margin-right: 2px;
+  font-family: var(--font-display);
+  transform: translateY(-0.118em);
 }
 
 .pitch__stat--spent .pitch__stat-value {
@@ -1408,15 +1417,16 @@
    (PREVIEW_RULE in ui/pitch.js): the yard line the figure will be chalked on,
    with the chalk laid along it and taken off again (chalk-draw in motion.css).
 
-   44px is what "100.0%" measures in this face at this size - the widest thing
-   the readout ever says - so the rule is the number's own width and the row
-   neither grows nor shrinks when the number lands on it. One width at every
-   breakpoint: it is a mark, not a reading, and the keyframe that draws it has
-   the same measurement written into it.
+   61px is what "100.0%" measures in this face at this size - the widest thing
+   the readout ever says, six cells of a monospaced 17px - so the rule is the
+   number's own width and the row neither grows nor shrinks when the number
+   lands on it. It was 44px for the display face the figure used to be set in.
+   One width at every breakpoint: it is a mark, not a reading, and the keyframe
+   that draws it has the same measurement written into it.
 
    It is lifted off the baseline to the middle of the figures either side of
    it, the same move the arrow makes for the same reason: the ink centre of a
-   lining figure is half its cap height up, which at 16px of this face is 6px.
+   lining figure is half its cap height up, which at 17px of this face is 6px.
 
    The ends are rounded here and left square on the chalk, so the line has
    chalk's own blunt edge as it is drawn and the rule's own cap where it is
@@ -1426,7 +1436,7 @@
 .pitch__stat-rule {
   position: relative;
   display: inline-block;
-  width: 44px;
+  width: 61px;
   height: 3px;
   margin-bottom: 6px;
   border-radius: 2px;
@@ -1441,7 +1451,7 @@
   position: absolute;
   inset-block: 0;
   left: 0;
-  width: 44px;
+  width: 61px;
   transform-origin: left;
   transform: scaleX(0);
   background: var(--chalk-2);
@@ -2526,7 +2536,11 @@
   border: 2px solid var(--neutral);
 }
 
-/* This week's figure rides its mark. */
+/* This week's figure rides its mark. The same percentage the key under the
+   chart and the callout over it both carry, so it is set in their face: mono,
+   a step down from the key's 13px because it is read off the chart rather than
+   read out of a row. It was the display face, which put the same reading in
+   two faces a chart's height apart. */
 .route__figure {
   position: absolute;
   z-index: 4;
@@ -2534,11 +2548,11 @@
   transform: translate(-50%, calc(-100% - 7px));
   border-radius: 2px;
   background: color-mix(in srgb, var(--turf-2) 85%, transparent);
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 11px;
   line-height: 1.25;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   color: var(--chalk);
   white-space: nowrap;
 }
@@ -2555,14 +2569,18 @@
   transform: translate(-50%, 21px);
 }
 
-/* The week the coach was saving your team for, ruled and named: the reason a
-   safer pick this week can leave a lower season. */
+/* The week the coach was saving your team for: the reason a safer pick this
+   week can leave a lower season. Named, not ruled - a dashed rule down the
+   plot was one more vertical in a chart that already has a band on the week
+   being looked at, and on a short chart the label leaves (the container block
+   near the foot of this file) and the rule was left standing on its own with
+   nothing to say what it marked. The element stays as the tag's anchor: it is
+   placed on the week, and the tag hangs off it. */
 .route__saved {
   position: absolute;
   top: -4px;
   bottom: -4px;
   width: 0;
-  border-left: 1px dashed var(--neutral-line);
 }
 
 /* The tag on that rule. It sat on the top of the plot in a box drawn tight
@@ -5015,7 +5033,8 @@
     gap: 8px;
   }
 
-  .pitch__stat-value {
+  .pitch__stat-value,
+  .pitch__stat-value--figure {
     font-size: 15px;
   }
 
@@ -5096,7 +5115,7 @@
   }
 
   .pitch__stat-value,
-  .pitch__stat-value #countdown,
+  .pitch__stat-value--figure,
   .pitch__tag-value {
     font-size: 14px;
   }
@@ -5302,11 +5321,8 @@
     gap: 28px;
   }
 
-  .pitch__stat-value {
-    font-size: 20px;
-  }
-
-  .pitch__stat-value #countdown {
+  .pitch__stat-value,
+  .pitch__stat-value--figure {
     font-size: 20px;
   }
 

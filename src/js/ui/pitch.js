@@ -65,11 +65,14 @@ const BALL = `<svg class="pitch__ball" viewBox="0 0 34 21" aria-hidden="true">
 /**
  * The arrow before the "if locked" number.
  *
- * Its own element so it can be lifted. The display face draws the arrow around
- * the middle of its x-height, well under the middle of the figures beside it -
- * measured at 0.14em of the two ink centres apart - so left alone it sits
- * below the number rather than level with it. Hidden from a screen reader,
- * which reads the number and the key above it and needs no glyph for "to".
+ * Its own element so it can be lifted, and its own face: the figure beside it
+ * is mono and a mono arrow is drawn on the full width of a monospaced cell,
+ * which reads as a long dash rather than an arrow. The display face draws the
+ * arrow around the middle of its x-height, well under the middle of the mono
+ * figures beside it - measured at 0.118em of the two ink centres apart - so
+ * left alone it sits below the number rather than level with it. Hidden from
+ * a screen reader, which reads the number and the key above it and needs no
+ * glyph for "to".
  */
 const PREVIEW_ARROW = `<span class="pitch__stat-arrow" aria-hidden="true">→</span>`;
 
@@ -365,15 +368,17 @@ function stats(board) {
   // sit beside it and was one reading too many for a readout this size. The
   // countdown is ticked in place by app.js rather than re-rendered.
   // The number itself is set after the paint (renderPitch), not carried here.
-  items.push(stat("Lines pull", `<span id="countdown"></span>`, "", true));
+  items.push(stat("Lines pull", `<span id="countdown"></span>`, { raw: true, figure: true }));
 
   if (board.eliminated) {
-    items.push(stat("Eliminated", `Wk ${board.eliminatedWeek}`));
-    items.push(stat("Final record", `${board.record.won}-${board.record.lost}`));
+    items.push(stat("Eliminated", `Wk ${board.eliminatedWeek}`, { figure: true }));
+    items.push(stat("Final record", `${board.record.won}-${board.record.lost}`, { figure: true }));
   } else if (board.buyBack) {
     const left = board.buyBack.left;
     items.push(
-      stat("Buy backs", left === 0 ? "Spent" : `${left} in hand`, left === 0 ? "spent" : ""),
+      stat("Buy backs", left === 0 ? "Spent" : `${left} in hand`, {
+        modifier: left === 0 ? "spent" : "",
+      }),
     );
   }
 
@@ -383,14 +388,20 @@ function stats(board) {
   // locked a moment ago - and the number otherwise.
   if (!board.eliminated) {
     if (board.previewPathProbability === null) {
-      items.push(stat("If locked", "—", "preview-idle"));
+      items.push(stat("If locked", "—", { modifier: "preview-idle", figure: true }));
     } else if (board.previewPending) {
       // The lock is still being rehearsed (memoisedPreview in core/plan.js)
       // and the number in hand is the quick assignment standing in for it. It
       // is near, not right - a Bills pick read 0.9% for the beat and 0.8% once
       // the rehearsal landed - so the readout waits rather than saying a number
       // it will take back. app.js builds again when the rehearsal lands.
-      items.push(stat("If locked", `${PREVIEW_ARROW}${PREVIEW_RULE}`, "preview-pending", true));
+      items.push(
+        stat("If locked", `${PREVIEW_ARROW}${PREVIEW_RULE}`, {
+          modifier: "preview-pending",
+          raw: true,
+          figure: true,
+        }),
+      );
     } else {
       // Judged as shown: a preview that rounds to the same tenth of a percent
       // as the season number reads as even, however the unrounded pair fall.
@@ -404,8 +415,11 @@ function stats(board) {
         stat(
           "If locked",
           `${PREVIEW_ARROW}${escapeHtml(formatPercent(board.previewPathProbability))}`,
-          `preview-${change}`,
-          true,
+          {
+            modifier: `preview-${change}`,
+            raw: true,
+            figure: true,
+          },
         ),
       );
     }
@@ -413,10 +427,21 @@ function stats(board) {
   return items.join("");
 }
 
-function stat(key, value, modifier = "", raw = false) {
+/**
+ * One readout: a key over a value.
+ *
+ * `figure` is what the value is, not how it looks: a readout that is a number
+ * and nothing else takes the mono face the flag's season number and every
+ * other figure on the board take, and a readout that is a phrase - "Spent",
+ * "1 in hand", "Wk 5" - stays in the display face the keys around it are set
+ * in. The row used to decide this per readout and drifted: the "if locked"
+ * percentage is the same quantity as the season percentage a hand's width
+ * along the same row, and the two were being set in different faces.
+ */
+function stat(key, value, { modifier = "", raw = false, figure = false } = {}) {
   return `<span class="pitch__stat${modifier ? ` pitch__stat--${modifier}` : ""}">
       <span class="pitch__stat-key">${escapeHtml(key)}</span>
-      <span class="pitch__stat-value">${raw ? value : escapeHtml(value)}</span>
+      <span class="pitch__stat-value${figure ? " pitch__stat-value--figure" : ""}">${raw ? value : escapeHtml(value)}</span>
     </span>`;
 }
 

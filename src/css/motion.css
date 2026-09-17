@@ -1276,7 +1276,7 @@
    and anything animating a layout property would stall for each of them and
    then jump.
 
-   The 44px is the rule's own width (pitch__stat-rule in components.css) and
+   The 61px is the rule's own width (pitch__stat-rule in components.css) and
    has to match it. It is written out rather than read from a custom property
    because a keyframe that depends on a variable is one Chrome will not hand
    to the compositor, which is the whole point of doing it this way.
@@ -1299,7 +1299,7 @@
   }
 
   100% {
-    transform: translateX(44px) scaleX(0);
+    transform: translateX(61px) scaleX(0);
   }
 }
 
