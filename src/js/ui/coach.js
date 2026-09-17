@@ -70,9 +70,15 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0) {
     state.selection === "picked" && Boolean(board.previewPending),
   );
   panel.classList.toggle("coach--empty", state.kind === "none");
+  // The head and the chain are the week's page: they turn with the card, so
+  // they travel with it under a finger (SLIDING in app.js names this box). The
+  // chart is the season and stays where it is.
   reconcile(
     panel,
-    state.kind === "none" ? "" : head(state) + chain(state, board) + route(state, board),
+    state.kind === "none"
+      ? ""
+      : `<div class="coach__page" data-key="page">${head(state)}${chain(state, board)}</div>` +
+          route(state, board),
   );
   // The live board only. A week being staged for a swipe is rendered into a
   // detached box (stageWeek in app.js), and a copy that is about to be thrown
@@ -168,11 +174,18 @@ function chain(state, board) {
 
   const rating = (value) => (Number.isFinite(value) ? value.toFixed(1) : "—");
   // The two terms the line is the sum of, rather than the two ratings it is
-  // the difference of: "8.6 power gap · +2.0 home" adds up to the -10.6 over
-  // it, where "86.7 v 78.1" left the reader to do the subtraction and say
-  // which team each number belonged to. The gap is the pick's own - negative
-  // where the ratings have it behind - and the home term is its own span, so
-  // a narrow box lets that go rather than cutting the gap short to keep it.
+  // the difference of: "Ratings +3.4 · Home +2.0" adds up to the -5.4 over it,
+  // where "86.7 v 78.1" left the reader to do the subtraction and say which
+  // team each number belonged to. The gap is the pick's own - negative where
+  // the ratings have it behind - and the home term is its own span, so a
+  // narrow box lets that go rather than cutting the gap short to keep it.
+  //
+  // Named rather than jargoned. It read "3.4 power gap", which is this board's
+  // own word for the difference between two power ratings and nobody else's:
+  // the number is the same, and now it says where it comes from and carries
+  // the sign the home term beside it carries, so the two read as the two
+  // things being added up.
+  const signed = (value) => `${value < 0 ? "−" : "+"}${Math.abs(value).toFixed(1)}`;
   const gap =
     Number.isFinite(p.team.rating) && Number.isFinite(p.opponent.rating)
       ? p.team.rating - p.opponent.rating
@@ -180,12 +193,12 @@ function chain(state, board) {
   const gapTerm =
     gap === null
       ? `ratings ${rating(p.team.rating)} v ${rating(p.opponent.rating)}`
-      : `${gap < 0 ? "−" : ""}${Math.abs(gap).toFixed(1)} power gap`;
+      : `Ratings ${signed(gap)}`;
   const homeTerm =
     p.homeField > 0
-      ? `+${p.homeField.toFixed(1)} home`
+      ? `Home ${signed(p.homeField)}`
       : p.homeField < 0
-        ? `−${Math.abs(p.homeField).toFixed(1)} away`
+        ? `Away ${signed(p.homeField)}`
         : "";
   const ratingsSub = gapTerm + (homeTerm ? `<span class="chain__term"> · ${homeTerm}</span>` : "");
   const homeNote =
@@ -287,8 +300,22 @@ function estimateFor(state, board) {
 }
 
 /**
- * The route: week-by-week win chance along two routes through the rest of
- * the season, and the season chance each arrives at.
+ * The route: week-by-week win chance across the whole season, and the season
+ * chance each route through the rest of it arrives at.
+ *
+ * The chart is the season, not the week. It runs from week one to the last
+ * week the pool plays whatever week is open on the card, and the week being
+ * looked at is a band standing on it - so turning the week moves the band and
+ * leaves the season where it was, the way the field above does with its
+ * bracket. It does not travel with the card either (SLIDING in app.js): a
+ * summary that slid away every time the week turned was a week page pretending
+ * to be a summary.
+ *
+ * Weeks already played are the green run at the left: what the pick was worth
+ * on the day, drawn from the results rather than the plan, with a red mark
+ * where one went down. They cost the chart nothing to carry - the numbers were
+ * already on the board - and they are the half of the season the two routes
+ * are the continuation of.
  *
  * Your route is the one the lock would leave - your pick this week and the
  * coach's plan around it (week.rehearsalPath, core/plan.js) - and the coach's
@@ -311,13 +338,17 @@ function estimateFor(state, board) {
  */
 function route(state, board) {
   const { week: viewed, teams, opening, selection } = state;
-  const weeks = board.weeks.filter((week) => week.week >= board.currentWeek);
+  const weeks = board.weeks;
   const at = weeks.findIndex((week) => week.week === viewed.week);
   if (!weeks.length || at < 0) return "";
 
+  // A plan covers the weeks still to play. Before the current week the chart
+  // is history instead, and a plan's idea of what it would have done there is
+  // not what happened.
   const stopsOf = (pathOf) =>
     weeks.map((week) => {
-      const options = (pathOf(week) ?? []).filter(Boolean);
+      const options =
+        week.week < board.currentWeek ? [] : ((pathOf(week) ?? []).filter(Boolean) ?? []);
       return {
         week: week.week,
         options,
@@ -327,6 +358,24 @@ function route(state, board) {
       };
     });
   const nameOf = (options) => options.map((option) => option.team).join(" + ");
+
+  // What was played: the teams that were locked in, priced as they were priced
+  // on the day (week.pathWinProb, core/plan.js), and how each week went. A
+  // week with nothing locked in it - a pool joined late, a week the run does
+  // not cover - is a hole in the line rather than a nought.
+  const played = {
+    stops: weeks.map((week) => {
+      if (week.week >= board.currentWeek) return { week: week.week, options: [], prob: null };
+      const done = week.picks.filter((pick) => pick.status.result && pick.onPath);
+      return {
+        week: week.week,
+        options: done.map((pick) => pick.onPath),
+        prob: done.length ? week.pathWinProb : null,
+        result: done.some((pick) => pick.status.result === "L") ? "L" : "W",
+      };
+    }),
+  };
+  const anyPlayed = played.stops.some((stop) => stop.prob !== null);
 
   const coachStops = stopsOf((week) => week.pathRecommendation);
   // A pick pending anywhere on the board has the coach planning around it,
@@ -376,7 +425,7 @@ function route(state, board) {
   }
 
   const series = [you, coach].filter(Boolean);
-  const probs = series
+  const probs = [...series, ...(anyPlayed ? [played] : [])]
     .flatMap((entry) => entry.stops.map((stop) => stop.prob))
     .concat(lone ? [lone.prob] : [])
     .filter(Number.isFinite);
@@ -414,8 +463,11 @@ function route(state, board) {
     )
     .join("");
 
-  // One polyline per unbroken run of weeks with a team on the route.
-  const lineOf = (entry, kind) => {
+  // One polyline per unbroken run of weeks with a team on the route. `tail` is
+  // a point to finish the last run on that is not a week of its own: the
+  // played line runs into the first week still to come, so the season is one
+  // line through the current week rather than two charts side by side.
+  const lineOf = (entry, kind, tail = null) => {
     const runs = [];
     let run = [];
     entry.stops.forEach((stop, index) => {
@@ -427,6 +479,7 @@ function route(state, board) {
       run.push(`${xAt(index).toFixed(2)},${yAt(stop.prob).toFixed(2)}`);
     });
     if (run.length) runs.push(run);
+    if (tail && runs.length) runs.at(-1).push(tail);
     return runs
       .filter((points) => points.length > 1)
       .map(
@@ -445,9 +498,17 @@ function route(state, board) {
     entry.stops
       .map((stop, index) => {
         if (stop.prob === null) return "";
-        return `<span class="route__dot route__dot--${kind}${index === at ? " route__dot--here" : ""}" style="left:${pct(xAt(index))};top:${pct(yAt(stop.prob))};--order:${index}" data-at="${index}" data-week="${stop.week}" data-kind="${kind}" data-team="${escapeHtml(nameOf(stop.options))}" data-prob="${formatPercent(stop.prob, 0)}"></span>`;
+        const lost = stop.result === "L" ? " route__dot--lost" : "";
+        return `<span class="route__dot route__dot--${kind}${lost}${index === at ? " route__dot--here" : ""}" style="left:${pct(xAt(index))};top:${pct(yAt(stop.prob))};--order:${index}" data-at="${index}" data-week="${stop.week}" data-kind="${kind}"${stop.result ? ` data-result="${stop.result}"` : ""} data-team="${escapeHtml(nameOf(stop.options))}" data-prob="${formatPercent(stop.prob, 0)}"></span>`;
       })
       .join("");
+
+  // Where the season stands now, for the played line to run into.
+  const firstLive = (you ?? coach)?.stops.findIndex((stop) => stop.prob !== null) ?? -1;
+  const liveTail =
+    anyPlayed && firstLive >= 0
+      ? `${xAt(firstLive).toFixed(2)},${yAt((you ?? coach).stops[firstLive].prob).toFixed(2)}`
+      : null;
 
   // This week's figures ride their marks. The higher mark's figure stands
   // over it, or under it when the mark is up against the top; the lower
@@ -540,7 +601,15 @@ function route(state, board) {
     )
     .join("; ");
 
-  return `<section class="route${you && coach ? " route--compared" : ""}${pending ? " route--pending" : ""}" data-key="route" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
+  // The chart's own key for the shared data-settle motion (app.js), which the
+  // week it is being looked at from is deliberately not part of: the marks
+  // land again when the plan they are drawing changes, and stay put when all
+  // that moved is the band.
+  const signature = series
+    .map((entry) => `${entry.stops.map((stop) => nameOf(stop.options)).join(">")}@${entry.season}`)
+    .join("|");
+
+  return `<section class="route${you && coach ? " route--compared" : ""}${pending ? " route--pending" : ""}" data-key="route" data-motion-key="coach-route" data-motion-signature="${escapeHtml(signature)}" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
     <div class="route__head">
       <span class="route__eyebrow">Survival chance by week</span>
       <ul class="route__legend">${legend}</ul>
@@ -549,10 +618,10 @@ function route(state, board) {
       <span class="route__band" style="left:${pct((at / n) * 100)};width:${pct(100 / n)}"></span>
       ${grid}
       <svg class="route__lines" viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
-        ${coach ? lineOf(coach, "coach") : ""}${you ? lineOf(you, "you") : ""}
+        ${anyPlayed ? lineOf(played, "played", liveTail) : ""}${coach ? lineOf(coach, "coach") : ""}${you ? lineOf(you, "you") : ""}
       </svg>
       ${saved}
-      ${coach ? dotsOf(coach, "coach") : ""}${you ? dotsOf(you, "you") : ""}${loneMark}
+      ${anyPlayed ? dotsOf(played, "played") : ""}${coach ? dotsOf(coach, "coach") : ""}${you ? dotsOf(you, "you") : ""}${loneMark}
       ${figures}
       <span class="route__callout" hidden></span>
     </div>
@@ -662,9 +731,9 @@ function reveal(plot, clientX) {
   const rows = [];
   const order = (dot) => (dot.dataset.kind === "you" ? 0 : 1);
   for (const dot of [...column].sort((a, b) => order(a) - order(b))) {
-    const { kind, team, prob } = dot.dataset;
+    const { kind, team, prob, result } = dot.dataset;
     if (rows.some((row) => row.team === team && row.prob === prob)) continue;
-    rows.push({ kind, team, prob });
+    rows.push({ kind, team, prob, result });
   }
 
   const x = xOf(nearest);
@@ -674,7 +743,7 @@ function reveal(plot, clientX) {
     rows
       .map(
         (row) =>
-          `<span class="route__callout-row route__callout-row--${row.kind}"><i class="route__swatch" aria-hidden="true"></i><span class="route__callout-team">${escapeHtml(row.team)}</span><b class="route__callout-prob">${escapeHtml(row.prob)}</b></span>`,
+          `<span class="route__callout-row route__callout-row--${row.kind}${row.result === "L" ? " route__callout-row--lost" : ""}"><i class="route__swatch" aria-hidden="true"></i><span class="route__callout-team">${escapeHtml(row.team)}</span><b class="route__callout-prob">${escapeHtml(row.prob)}</b></span>`,
       )
       .join("");
   callout.style.left = `${x.toFixed(2)}%`;

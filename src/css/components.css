@@ -1269,7 +1269,7 @@
   bottom: 0;
   left: 0;
   width: calc(100% / var(--weeks, 1));
-  transform: translateX(calc(var(--yard, 0) * 100%));
+  transform: translateX(calc(var(--yard, 0) * 100% + var(--week-turn, 0) * 100%));
   pointer-events: none;
   box-shadow: inset 0 0 0 2px var(--chalk);
   background-color: rgb(255 255 255 / 10%);
@@ -1981,6 +1981,18 @@
   min-height: 0;
 }
 
+/* The week's page inside the case: the head and the pricing chain, the two
+   parts that are about the week on the card rather than about the season. They
+   are one box so that a sideways drag can carry them off with the card while
+   the chart underneath holds still (SLIDING in app.js). */
+.coach__page {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  flex: none;
+  min-width: 0;
+}
+
 /* Nothing to say about this week. The box is folded away by the layout, and
    the class is what tells it so. */
 .coach--empty {
@@ -2072,8 +2084,11 @@
    other three dots were spread evenly over a rule whose stops were not, so
    the middle two floated between the columns they belonged to. A column that
    is worth what it holds fixes both: the words sit under their dot, and the
-   three that are left share what is over. */
+   three that are left share what is over. The rule under them is the block's
+   own width whatever the tier is doing (below), so the last dot stands on the
+   line rather than ending it. */
 .chain {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
   gap: 6px;
@@ -2106,29 +2121,22 @@
   background: var(--chalk-3);
 }
 
-/* The rule, in three lengths of it: each stop draws from its own dot's centre
-   to the next one's, across the gap between the columns. Drawn in pieces
-   rather than as one line under the lot, because the line ends where the route
-   does - at the last dot - and that is a point no box in this grid has an edge
-   at. The three are the same length, so the sweep they make between them is
-   the one line the block always drew: faint at the model's own number, firm
-   across the market's, lit as it arrives at the tier. */
-.chain__stop:not(:last-child)::after {
+/* The rule, edge to edge under the whole block: the four dots stand on a line
+   the width of the readout above it, rather than one that gives up where the
+   last of them happens to fall. It was drawn in three lengths between the dots
+   for a while, which ended the line on the tier's dot and left the block's
+   last inches bare - and a line that stops short of the edge every other row
+   on this board reaches is a line that looks cut, not finished. Faint where
+   the model's own number is, firm across the market's, lit from the tier
+   on. */
+.chain::before {
   content: "";
   position: absolute;
   top: 3px;
-  left: 3px;
-  right: -9px;
+  left: 0;
+  right: 0;
   height: 1px;
-  background: var(--line-strong);
-}
-
-.chain__stop:first-child::after {
-  background: linear-gradient(90deg, var(--line-soft), var(--line-strong));
-}
-
-.chain__stop:nth-last-child(2)::after {
-  background: linear-gradient(90deg, var(--line-strong), var(--flag));
+  background: linear-gradient(90deg, var(--line-soft), var(--line-strong) 52%, var(--flag) 75%);
 }
 
 .chain__stop:last-child::before {
@@ -2346,13 +2354,17 @@
 }
 
 /* This week's column, so the eye lands where the two routes are being
-   compared. */
+   compared. It is the field's bracket in another hand: one week wide, standing
+   on the week the card is showing, and carrying the same --week-turn while a
+   drag turns the week under it (trackFieldTurn in app.js) - the chart holds
+   still through the turn, so this is the part of it that moves. */
 .route__band {
   position: absolute;
   top: -4px;
   bottom: -4px;
   border-radius: 3px;
   background: rgb(243 247 241 / 6%);
+  transform: translateX(calc(var(--week-turn, 0) * 100%));
 }
 
 /* Rules every ten points, solid hairlines a shade off the turf. */
@@ -2408,6 +2420,14 @@
   stroke: var(--flag);
 }
 
+/* The weeks already played, in the green the field marks a win in. It runs
+   into the first week still to come, so the season is one line with the band
+   standing on the week being looked at rather than a before and an after. */
+.route__line--played {
+  stroke: var(--safe);
+  opacity: 0.85;
+}
+
 /* A mark a week, ringed in the turf so it stays whole where the lines cross.
    Your route's marks stand on the coach's, so a week the two routes agree on
    shows one mark. */
@@ -2425,6 +2445,17 @@
 .route__dot--you {
   z-index: 2;
   background: var(--flag);
+}
+
+/* A week that has been played wears its result, the way the field's marks and
+   the drive's rows do: green for a week survived, the danger red where one
+   went down. */
+.route__dot--played {
+  background: var(--safe);
+}
+
+.route__dot--lost {
+  background: var(--danger);
 }
 
 .route__dot--here {
@@ -2572,6 +2603,16 @@
 .route__callout-row--you .route__swatch {
   border-top-style: solid;
   border-top-color: var(--flag);
+}
+
+.route__callout-row--played .route__swatch {
+  border-top-style: solid;
+  border-top-color: var(--safe);
+}
+
+.route__callout-row--lost .route__swatch {
+  border-top-style: solid;
+  border-top-color: var(--danger);
 }
 
 .route__callout-team {

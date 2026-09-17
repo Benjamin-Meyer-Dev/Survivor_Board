@@ -183,15 +183,15 @@ const EFFECT_FOR = { lock: "fx-lock", pick: "fx-swap" };
  * What turns when the week does: a box that clips the slide, and the thing
  * inside it that moves across.
  *
- * The field is deliberately not here. Its bracket slides along the yard lines
- * under its own smooth scroll, and it is what everything else moves against -
- * a board where the field slid too would have nothing standing still to read
- * the movement from. Nor is the bench, which says the same thing whatever week
- * is open.
+ * The field is deliberately not here. Its yard lines stay put, while the one
+ * bracket tracking the selected week follows the drag through trackFieldTurn;
+ * a board where the whole field slid too would have nothing standing still to
+ * read the movement from. Nor is the bench, which says the same thing whatever
+ * week is open.
  */
 const SLIDING = [
   { key: "call", clip: "#call", moves: ".call" },
-  { key: "coach", clip: "#coach", moves: ".coach" },
+  { key: "coach", clip: "#coach", moves: ".coach__page" },
   { key: "week", clip: "#view-week", moves: "#sideline" },
   { key: "path", clip: "#view-path", moves: "#drive" },
 ];
@@ -1209,13 +1209,53 @@ function turnWeek(direction, { alreadyVisible = false } = {}) {
   lookAt(next.week);
   if (alreadyVisible) return;
   for (const { clip, moves } of slidingParts()) {
+    const gap = Number.parseFloat(getComputedStyle(moves).getPropertyValue("--week-swipe-gap"));
     moves.style.setProperty("--slide", String(direction));
+    moves.style.setProperty("--slide-gap", `${direction * (gap || 0)}px`);
     moves.classList.add("is-slide-in");
     afterMotion(moves, { subtree: false }).then(() => {
       clip.classList.remove("is-dragging");
       moves.classList.remove("is-slide-in");
       moves.style.removeProperty("--slide");
+      moves.style.removeProperty("--slide-gap");
     });
+  }
+}
+
+/**
+ * Carry the field's selected-week bracket through the same turn as the pages.
+ *
+ * The pitch is a navigator, not a week page, so it stays still. Its bracket is
+ * exactly one yard wide, though, which makes a normalized page turn an exact
+ * fraction of the trip to the adjacent yard. While the finger is down the
+ * transition is off; the release gives it the same settle as the pages. Once
+ * lookAt has adopted the week, `--yard` owns the endpoint and this temporary
+ * fraction can be removed without moving anything.
+ *
+ * @param {number} progress -1 for the previous week, +1 for the next.
+ * @param {"drag"|"settle"|"done"} phase
+ */
+function trackFieldTurn(progress, phase) {
+  // The chart's band is the same mark on the same row of weeks (ui/coach.js),
+  // and it is exactly one week wide too, so it takes the same fraction. The
+  // chart does not travel with the card - it is the season, not the week - so
+  // without this the band would be the one thing on the board that jumped to
+  // the new week instead of arriving at it.
+  const marks = [
+    el.pitch?.querySelector(".pitch__bracket"),
+    el.coach?.querySelector(".route__band"),
+  ].filter(Boolean);
+
+  for (const mark of marks) {
+    if (phase === "done") {
+      mark.classList.remove("is-week-tracking", "is-week-settling");
+      mark.style.removeProperty("--week-turn");
+      continue;
+    }
+
+    mark.classList.toggle("is-week-tracking", phase === "drag");
+    mark.classList.toggle("is-week-settling", phase === "settle");
+    mark.style.setProperty("--week-turn", String(progress));
   }
 }
 
@@ -1257,7 +1297,7 @@ function stageWeek(direction, parts) {
         return root.firstElementChild;
       case "coach":
         renderCoach(root, lastBoard, next.week, 0);
-        return root.firstElementChild;
+        return root.querySelector(".coach__page");
       case "week":
         renderSideline(root, lastBoard, next.week, 0, {
           canWrite,
@@ -1291,6 +1331,7 @@ function stagedRoot(current, rendered) {
  * off its own edge at opacity nothing, or a clip could stay on for good.
  */
 function settleTurn() {
+  trackFieldTurn(0, "done");
   for (const { clip, moves } of SLIDING) {
     const box = document.querySelector(clip);
     box?.classList.remove("is-dragging");
@@ -1298,6 +1339,7 @@ function settleTurn() {
     const inner = box?.querySelector(moves);
     inner?.classList.remove("is-slide-in", "is-drag-settling", "is-swipe-current");
     inner?.style.removeProperty("--slide");
+    inner?.style.removeProperty("--slide-gap");
     inner?.style.removeProperty("transform");
     inner?.style.removeProperty("opacity");
   }
@@ -3003,11 +3045,18 @@ async function main() {
   // Drag the board sideways to turn the week. The surfaces are the regions a
   // week is about - its card, the coach's case for it, the team list and the
   // drive - each bound once rather than to anything a render replaces. The
-  // field is not one of them: it pans its own yard lines. Nor is the depth
-  // chart, which says the same thing whatever week is open. What is left to
-  // skip is what a sideways drag already means something in.
+  // field is not one of them: it pans its own yard lines, while trackFieldTurn
+  // carries its selected-week bracket with these pages. Nor is the depth chart,
+  // which says the same thing whatever week is open. What is left to skip is
+  // what a sideways drag already means something in.
   watchDrags(
-    { parts: slidingParts, canTurn, turn: turnWeek, stage: stageWeek },
+    {
+      parts: slidingParts,
+      canTurn,
+      turn: turnWeek,
+      stage: stageWeek,
+      track: trackFieldTurn,
+    },
     {
       surfaces: [el.call, el.coach, el.weekPanel, el.pathPanel],
       ignore: ["input", "textarea", "select", "dialog", ".league-bar__menu"],

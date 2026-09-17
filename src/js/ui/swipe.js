@@ -8,10 +8,10 @@
  * part of a swipe a person reads is the part their finger is still in.
  *
  * So the card, the model read, the team list and the drive move with the drag,
- * with the adjacent week's already-rendered copy following directly behind.
- * The release either finishes that one continuous turn from wherever it got
- * to or springs both copies back. A drag that is too short, or too much
- * up-and-down to be a swipe, is a spring back and turns nothing.
+ * with the adjacent week's already-rendered copy following behind a narrow
+ * strip of turf. The release either finishes that one continuous turn from
+ * wherever it got to or springs both copies back. A drag that is too short,
+ * or too much up-and-down to be a swipe, is a spring back and turns nothing.
  *
  * Pointer events, which this file argued against for years and can now use.
  * The objection was real: the board scrolls vertically, so the moment a finger
@@ -69,6 +69,9 @@ const RUBBER = 0.25;
  *   Render the adjacent week for each moving region. The returned nodes are
  *   laid beside their current counterparts and do not become interactive; the
  *   real render is adopted under them at the end of the move.
+ * @param {(progress:number, phase:"drag"|"settle"|"done") => void} [handlers.track]
+ *   Follow the turn somewhere that is not itself a page. Progress is -1 for
+ *   the previous week, +1 for the next and fractional while under the finger.
  * @param {object} [options]
  * @param {HTMLElement[]} [options.surfaces] The elements to watch. Listeners
  *   are bound once and read the event's target, so the markup under them can be
@@ -77,7 +80,10 @@ const RUBBER = 0.25;
  *   inside: anything modal over the top, and anything a drag already means
  *   something in.
  */
-export function watchDrags({ parts, canTurn, turn, stage }, { surfaces = [], ignore = [] } = {}) {
+export function watchDrags(
+  { parts, canTurn, turn, stage, track },
+  { surfaces = [], ignore = [] } = {},
+) {
   /** The drag in hand: where it started, which pointer, and what it is moving. */
   let drag = null;
   /** Set for the length of the release, so a second finger cannot cut in. */
@@ -148,6 +154,8 @@ export function watchDrags({ parts, canTurn, turn, stage }, { surfaces = [], ign
   function begin(current) {
     current.moving = true;
     current.parts = parts();
+    current.gap = swipeGap(current.surface);
+    current.travel = Math.max(1, current.surface.getBoundingClientRect().width + current.gap);
     for (const { clip, moves } of current.parts) {
       clip.classList.add("is-dragging");
       moves.classList.remove("is-slide-in");
@@ -168,13 +176,16 @@ export function watchDrags({ parts, canTurn, turn, stage }, { surfaces = [], ign
     const direction = drag.across < 0 ? 1 : -1;
     stageDirection(drag, direction);
     // A week that is not there pulls against you rather than moving.
-    const offset = canTurn(direction) ? drag.across : drag.across * RUBBER;
+    const turnable = canTurn(direction);
+    const offset = turnable ? drag.across : drag.across * RUBBER;
     for (const part of drag.parts) {
       part.moves.style.transform = `translateX(${offset}px)`;
       if (part.incoming) {
-        part.incoming.style.transform = `translateX(calc(${direction * 100}% + ${offset}px))`;
+        part.incoming.style.transform = beside(direction, drag.gap, offset);
       }
     }
+    const progress = turnable ? Math.max(-1, Math.min(1, -offset / drag.travel)) : 0;
+    track?.(progress, "drag");
   }
 
   /** Put the week on the approached side of the frame, changing sides on a reversal. */
@@ -212,7 +223,7 @@ export function watchDrags({ parts, canTurn, turn, stage }, { surfaces = [], ign
       node.style.top = `${part.moves.offsetTop}px`;
       node.style.width = `${part.moves.offsetWidth}px`;
       node.style.height = `${part.moves.offsetHeight}px`;
-      node.style.transform = `translateX(${direction * 100}%)`;
+      node.style.transform = beside(direction, current.gap);
       part.clip.append(node);
       part.incoming = node;
     });
@@ -237,15 +248,16 @@ export function watchDrags({ parts, canTurn, turn, stage }, { surfaces = [], ign
     settling = true;
     dragged = true;
     try {
+      track?.(turning ? direction : 0, "settle");
       for (const { moves, incoming } of current.parts) {
         moves.classList.add("is-drag-settling");
         // From wherever the finger left it: the rest of the way off its own
         // edge, or back where it came from.
-        moves.style.transform = turning ? `translateX(${direction * -100}%)` : "";
+        moves.style.transform = turning ? beside(-direction, current.gap) : "";
         if (turning && !alreadyVisible) moves.style.opacity = "0";
         if (incoming) {
           incoming.classList.add("is-drag-settling");
-          incoming.style.transform = turning ? "" : `translateX(${direction * 100}%)`;
+          incoming.style.transform = turning ? "" : beside(direction, current.gap);
         }
       }
       // Reduced motion has no settle to wait for, and no travel either.
@@ -271,6 +283,10 @@ export function watchDrags({ parts, canTurn, turn, stage }, { surfaces = [], ign
 
       if (turning && !alreadyVisible) turn(direction, { alreadyVisible: false });
     } finally {
+      // A committed turn has moved the tracker's real base to this visual
+      // endpoint. Dropping its temporary progress in the same task leaves it
+      // exactly where it arrived; a spring-back is already at zero.
+      track?.(0, "done");
       settling = false;
       // Long enough for the click the release would have produced to have been
       // dispatched and swallowed, and no longer.
@@ -278,6 +294,17 @@ export function watchDrags({ parts, canTurn, turn, stage }, { surfaces = [], ign
         dragged = false;
       }, 0);
     }
+  }
+
+  /** The small piece of turf kept between two week pages. */
+  function swipeGap(node) {
+    const value = getComputedStyle(node).getPropertyValue("--week-swipe-gap");
+    return Math.max(0, Number.parseFloat(value) || 0);
+  }
+
+  /** One page just beyond an edge, plus the gap and any distance under the finger. */
+  function beside(direction, gap, offset = 0) {
+    return `translateX(calc(${direction * 100}% + ${direction * gap + offset}px))`;
   }
 
   function clearIncoming(partsToClear) {

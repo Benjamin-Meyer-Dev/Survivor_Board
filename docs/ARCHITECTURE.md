@@ -811,14 +811,17 @@ offered the request first. Where there is no `CloseWatcher` the gesture cannot
 be reached at all and nothing is held.
 
 The adjacent week is rendered into inert staging nodes when the drag declares a
-direction. Those nodes sit one frame-width beyond the current card, model read
-and visible drawer panel, so both weeks follow the finger and settle as one
-track: the next graph is already drawn while the previous one leaves. At the end
-the staged copy covers the real nodes for the one task in which `turnWeek` adopts
-the new week. `week-slide-in` in `motion.css` remains as a fallback if a render
-interrupts staging, and every class either path sets is cleared again by the
-next full render, so a lock or another device's change arriving mid-turn cannot
-leave a card sitting off its own edge.
+direction. Those nodes sit one frame-width and a narrow strip of turf beyond the
+current card, model read and visible drawer panel, so both weeks follow the
+finger and settle as one track: the next graph is already drawn while the
+previous one leaves. The field stays a navigator rather than becoming another
+page, but its selected-week bracket follows the same normalized drag to the
+adjacent yard and settles with the pages. At the end the staged copy covers the
+real nodes for the one task in which `turnWeek` adopts the new week.
+`week-slide-in` in `motion.css` remains as a fallback if a render interrupts
+staging, and every class either path sets is cleared again by the next full
+render, so a lock or another device's change arriving mid-turn cannot leave a
+card sitting off its own edge.
 
 The route graph is shared by every live pool kind: NFL and college, winners and
 losers. Its probabilities mean surviving that pool's week, so the same chart

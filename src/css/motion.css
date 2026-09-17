@@ -540,27 +540,28 @@
 
 /* The model read follows the active pick. Its frame stays put while every
    figure settles in together, so changing teams feels like one fresh read and
-   not four unrelated counters blinking. */
-.coach.is-data-updated > * {
+   not four unrelated counters blinking.
+
+   The week's page only. The chart under it is the season rather than the week
+   (ui/coach.js), and a summary that faded itself in every time the week turned
+   would be a page after all - it carries its own key, below, and settles when
+   what it is drawing changes rather than when the band over it moves. */
+.coach.is-data-updated > .coach__page > * {
   animation: data-settle 0.34s var(--ease-out) both;
 }
 
-.coach.is-data-updated > :nth-child(2) {
+.coach.is-data-updated > .coach__page > :nth-child(2) {
   animation-delay: 35ms;
 }
 
-.coach.is-data-updated > :nth-child(3) {
+.coach.is-data-updated > .coach__page > :nth-child(3) {
   animation-delay: 70ms;
-}
-
-.coach.is-data-updated > :nth-child(4) {
-  animation-delay: 105ms;
 }
 
 /* The route's marks land week by week, left to right. Their final positions
    still carry all the information; the motion only makes a changed model read
    feel newly plotted. */
-.coach.is-data-updated .route__dot {
+.route.is-data-updated .route__dot {
   animation: future-land 0.32s var(--ease-out) both;
   animation-delay: calc(80ms + var(--order, 0) * 12ms);
 }
@@ -675,6 +676,20 @@
   transition: none;
 }
 
+/* The chart's band travels between weeks the way the bracket does, and for the
+   same reason: one mark moving says which way the week went where a highlight
+   lit in a new place only says that it moved. */
+.route__band {
+  transition: transform 0.2s var(--ease-out);
+}
+
+/* A swipe expresses its progress as a fraction of the one-yard trip. It is
+   under the finger until release; the release then shares the page's settle
+   below. Both marks that follow the week wear it. */
+.is-week-tracking {
+  transition: none;
+}
+
 /* --- the drawer's tabs ----------------------------------------------------- */
 
 /* The indicator travels with the tab change, the same move the field's bracket
@@ -686,8 +701,9 @@
 /* --- turning the week -----------------------------------------------------
    A drag pushes the week off the side it was dragged towards and brings the
    next one on behind it, in the readout's card and in the drawer's panel at
-   once, so the board turns rather than one card of it. The field's bracket
-   slides along the yard lines at the same time under its own smooth scroll,
+   once, so the board turns rather than one card of it. A narrow strip of turf
+   keeps the two pages from being crushed edge to edge. The field's bracket
+   follows the same progress along the yard lines while the field stays put,
    which is what the movement is read against.
 
    The half going out is the drag itself: ui/swipe.js writes the transform the
@@ -718,6 +734,10 @@
    from one edge to the other; a slide that faded the whole way across would
    read as a dissolve rather than as a push. */
 
+.board {
+  --week-swipe-gap: 10px;
+}
+
 .is-dragging {
   position: relative;
   overflow: hidden;
@@ -743,7 +763,8 @@
 /* The release. Quick and accelerating away when the turn is being finished,
    which is the same curve the exit keyframe used to have; the spring back rides
    the same transition the other way. */
-.is-drag-settling {
+.is-drag-settling,
+.is-week-settling {
   transition:
     transform 0.13s cubic-bezier(0.45, 0, 0.9, 0.5),
     opacity 0.13s cubic-bezier(0.45, 0, 0.9, 0.5);
@@ -752,7 +773,7 @@
 @keyframes week-slide-in {
   from {
     opacity: 0;
-    transform: translateX(calc(var(--slide, 1) * 100%));
+    transform: translateX(calc(var(--slide, 1) * 100% + var(--slide-gap, 0px)));
   }
   35% {
     opacity: 1;
