@@ -66,8 +66,28 @@ const FINALISTS = 40;
  */
 const SHORTLIST = 1200;
 
-/** Futures each candidate for this week is played through. */
-export const SCENARIO_COUNT = 32;
+/**
+ * Futures each candidate for this week is played through.
+ *
+ * 128, up from 32. The call is the highest mean survival across these futures
+ * (bySurvival in core/equity.js), so the number of them is the precision the
+ * call is made at, and 32 was not enough of them to separate a close week:
+ * measured on week 2 of the NFL board, the top opening led the second by
+ * 0.80 parts in a thousand of season survival with a paired standard error of
+ * 0.28 - a call made at under three sigma, which is a call that can change
+ * because a future landed one way rather than because the football did. At 128
+ * the same gap reads 0.89 against 0.12, better than seven. The robustness
+ * share each candidate carries moves off thirty-seconds at the same time,
+ * which is what made it worth 0.875 or 0.500 and nothing in between.
+ *
+ * The cost is linear and it is paid in a worker, off the tap: a cold board
+ * builds in 307ms for the NFL pool and 591ms for the college one where 32 took
+ * 149 and 204 (a phone is some multiple of that, and shows the plan it already
+ * had while it waits). The budget is the 2500ms scripts/validate-recommend.mjs
+ * holds buildBoard to, and a tap is never waiting on this - it is answered by
+ * the exact assignment, which plays no futures at all (`quick`).
+ */
+export const SCENARIO_COUNT = 128;
 
 /** Strongest complete-path openings retained beside the team-complete set. */
 const PATH_OPENINGS = 6;

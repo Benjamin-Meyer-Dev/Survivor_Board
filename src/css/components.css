@@ -2110,31 +2110,33 @@
    own quarter put the four at nought, a quarter, a half and the far edge,
    which is a rule with a hole in the end of it rather than a route.
 
-   Placed off --at, the stop's place in the order, so the arithmetic is the
-   bracket's and the tab marker's: the centres run from the first dot's to the
-   last one's, which is the width less the one dot that has to fit inside
-   either end, and each is a third of that along. */
-.chain__stop:nth-child(2) {
-  --at: 1;
-}
-
-.chain__stop:nth-child(3) {
-  --at: 2;
-}
-
-.chain__stop:nth-child(4) {
-  --at: 3;
-}
-
+   The run the dots are spread over is the width less the one dot that has to
+   fit inside either end, and each is a third of that along it. Written out per
+   stop rather than multiplied out of a custom property: a var() inside a
+   calc's multiplication is the one part of this that a browser can drop, and a
+   dropped `left` is not a dot a third of the way along that is slightly off,
+   it is four dots back at the heads of their own quarters. */
 .chain__stop::before {
   content: "";
   position: absolute;
   top: 0;
-  left: calc(var(--at, 0) * (100% - 7px) / 3);
+  left: 0;
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: var(--chalk-3);
+}
+
+.chain__stop:nth-child(2)::before {
+  left: calc((100% - 7px) / 3);
+}
+
+.chain__stop:nth-child(3)::before {
+  left: calc((200% - 14px) / 3);
+}
+
+.chain__stop:nth-child(4)::before {
+  left: calc(100% - 7px);
 }
 
 /* The last stop is where the number arrives, so it stands at the end of the
@@ -2177,21 +2179,6 @@
   white-space: nowrap;
 }
 
-/* A team named where a number would stand: the display face, since a name is
-   not a figure, cut with an ellipsis where a pair will not fit. */
-.chain__value--name {
-  display: block;
-  max-width: 100%;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 14px;
-  line-height: 22px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .chain__sub {
   font-family: var(--font-display);
   font-weight: 700;
@@ -2232,8 +2219,8 @@
    The lines are an SVG stretched to the box; the marks and every word are
    placed over it by percentage, so the marks stay round and the type stays
    type whatever shape the band is. Your route wears the flag, the coach's the
-   neutral chalk-blue the facts row already gives the coach, and the coach's
-   line is dashed besides, so the two part by more than colour. */
+   neutral chalk-blue the board keeps for the coach, and the coach's line is
+   dashed besides, so the two part by more than colour. */
 .route {
   position: relative;
   display: flex;
@@ -2555,63 +2542,6 @@
   color: var(--neutral-2);
 }
 
-/* --- the facts under both --------------------------------------------------- */
-
-/* Three compact readout cards: evidence, simulation strength, and the selected
-   team's effect on the season. They sit on one baseline but each gets a small
-   chalk colour of its own, like notes clipped to a play sheet. */
-.facts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(110px, 100%), 1fr));
-  gap: 6px;
-  flex: none;
-}
-
-.facts__item {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  min-width: 0;
-  padding: 7px 9px 6px;
-  overflow: hidden;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-sm);
-  background: linear-gradient(120deg, rgb(0 0 0 / 12%), transparent 68%), rgb(0 0 0 / 5%);
-  text-align: left;
-}
-
-.facts__item::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 2px;
-  background: var(--chalk-3);
-}
-
-.facts__item:nth-child(2)::before {
-  background: var(--flag);
-}
-
-.facts__item:nth-child(3)::before {
-  background: var(--neutral);
-}
-
-.facts__item .chain__value {
-  max-width: 100%;
-  min-height: 19px;
-  font-size: 14px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.facts__item .chain__value--name {
-  line-height: 19px;
-}
-
 /* How much of the working there is room for, asked of its own box (layout.css
    makes it a size container).
 
@@ -2620,36 +2550,23 @@
    come to fifty pixels. So the parts come off from the bottom up, and what is
    left is the turf that was there before any of this.
 
-   The facts leave first: with them the chart needs 270 to draw in full, and
-   under that it would rather have the room. The chart then folds to its lines
-   and key: the eyebrow, the figures on the marks and the saved-week label go
-   while the two routes, their marks and the season figures remain. In the
-   shortest useful band the supporting head and pricing chain leave instead;
-   the graph is the one part every live pool keeps.
+   There were three gates and now there are two, because there were four parts
+   and now there are three: the row of fact cards that used to leave first is
+   gone from the band altogether (ui/coach.js), so every box that had the room
+   for it spends that room on the chart instead. The chart is what gives next,
+   folding to its lines and key: the eyebrow, the figures on the marks and the
+   saved-week label go while the two routes, their marks and the season figures
+   remain. In the shortest useful band the supporting head and pricing chain
+   leave instead; the graph is the one part every live pool keeps.
 
    Each gate is the height every part above it needs, added up, rather than a
-   figure read off a phone: the head and the chain are 97 with their gaps, the
-   folded chart's floor is 66 and the full one's is 118, and the facts are 43
-   and the gap over them. So the chain leaves at 163 rather than 148 - between
-   the two the board kept a chain it had no room for and cut the graph off
-   inside its own box, which a 360 phone with a two-slot college card landed in
-   the moment the field handed its thirty pixels down (.pitch__field) - and the
-   full chart waits for 215 rather than 213, which is the two pixels its own
-   floor was short.
-
-   The facts wait longer than they need: 275, not the 267 they cost. The thirty
-   the field gave up were handed down for the chart to draw in, and on a
-   390 phone they landed five pixels under the old gate - a card a nudge
-   shorter and the band would have spent the lot on a fourth part instead, the
-   chart dropping from 165 to 118 to pay for it. The eight are the most that
-   can go there: past 289 the desktop's own box, which never grew, would lose
-   the facts it has always had. */
-@container (max-height: 275px) {
-  .facts {
-    display: none;
-  }
-}
-
+   figure read off a phone: the head and the chain are 97 with their gaps, and
+   the folded chart's floor is 66 where the full one's is 118. So the chain
+   leaves at 163 - under that the board kept a chain it had no room for and cut
+   the graph off inside its own box, which a 360 phone with a two-slot college
+   card landed in the moment the field handed its thirty pixels down
+   (.pitch__field) - and the full chart waits for 215, its own floor plus the
+   two parts above it. */
 @container (max-height: 215px) {
   .route {
     gap: 4px;

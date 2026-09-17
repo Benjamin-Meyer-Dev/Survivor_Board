@@ -5,7 +5,7 @@
  * Everything here is about the selection - the team in the slot the card has
  * active, and the opening it makes with the other slot in a two-pick week -
  * and everything is a key over a figure over a word, the way the drive line
- * is, rather than a sentence. Three parts:
+ * is, rather than a sentence. Two parts:
  *
  *   1. The chain. Four stops from the model to a tier: the model's own line
  *      (the spread the two power ratings and the home field come to, before
@@ -21,9 +21,12 @@
  *      column, and where the coach was saving that team for a later week, the
  *      coach's line stands higher there, and the season figures settle it.
  *
- *   3. The facts. What past games priced like this actually did, in how many
- *      simulated seasons the selection was near the best, and either its
- *      impact against the coach's plan or the closest challenger to that plan.
+ * There was a third part under these - three cards of supporting facts, the
+ * calibration behind the price, how many simulated seasons backed the opening,
+ * and what the coach would take instead. They are gone. Every one of them was
+ * a footnote to something the two parts above already say, and a footnote set
+ * in the same weight as the thing it supports is not read as a footnote: the
+ * band is the price and the trade, and the room the cards took is the chart's.
  *
  * A week already played shows nothing: its numbers are on the field, the drive
  * line and the card three times over. Read-only.
@@ -69,9 +72,7 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0) {
   panel.classList.toggle("coach--empty", state.kind === "none");
   reconcile(
     panel,
-    state.kind === "none"
-      ? ""
-      : head(state) + chain(state, board) + route(state, board) + facts(state, board),
+    state.kind === "none" ? "" : head(state) + chain(state, board) + route(state, board),
   );
 }
 
@@ -377,12 +378,21 @@ function route(state, board) {
     .filter(Number.isFinite);
   if (!probs.length) return "";
 
-  // The scale is the data's, in steps of five, with room over and under for a
-  // mark and its figure; the rules every ten. A survivor pick lives between
-  // sixty and ninety-five, and from nought every week would be a flat line
-  // along the top.
-  const lo = Math.max(0, Math.floor((Math.min(...probs) - 0.07) * 20) / 20);
-  const hi = Math.min(1, Math.ceil((Math.max(...probs) + 0.07) * 20) / 20);
+  // The scale is the data's, in steps of two and a half, with room over and
+  // under for a mark and its figure; the rules every ten. A survivor pick
+  // lives between sixty and ninety-five, and from nought every week would be a
+  // flat line along the top.
+  //
+  // Three and a half points of room, in steps of two and a half, where it was
+  // seven in steps of five. The room is for a mark and the figure over it, and
+  // those are pixels, not points: at the 56-pixel plot a short phone gives the
+  // chart, seven points is fourteen pixels and about right; at the 180 the
+  // band has now that the fact cards are gone, it is forty-five pixels of
+  // turf under the lowest week and the season it is drawing sits in the top
+  // half of its own box. Rounding out to the nearest five gave back as much
+  // again - a 69.5 low became 60 - so both halves come in together.
+  const lo = Math.max(0, Math.floor((Math.min(...probs) - 0.035) * 40) / 40);
+  const hi = Math.min(1, Math.ceil((Math.max(...probs) + 0.035) * 40) / 40);
   const span = Math.max(hi - lo, 0.05);
   const n = weeks.length;
   const xAt = (index) => ((index + 0.5) / n) * 100;
@@ -539,130 +549,4 @@ function route(state, board) {
     </div>
     <div class="route__axis" aria-hidden="true">${axis}</div>
   </section>`;
-}
-
-/**
- * Three plain-language checks under the comparison.
- *
- *   SIMILAR PAST PICKS / 90% WON / 173 GAMES AROUND 88% - whether probabilities
- *   like this one have been honest in completed games.
- *
- *   IN THE SIMULATIONS / 28 OF 32 BACKED THIS / AS A NEAR-BEST CHOICE - how
- *   often the selected opening stayed with the best available route.
- *
- *   COACH WOULD PICK - for a user pick, the opening it moved away from. On the
- *   coach's own call, the closest challenger instead.
- */
-function facts(state, board) {
-  const items = [];
-
-  const band = bandFor(board.calibrationBands, state.subject.winProb);
-  if (band && band.n >= 20) {
-    items.push(
-      fact(
-        "Similar past picks",
-        `${Math.round(band.actual * 100)}% won`,
-        `${band.n} games around ${Math.round(band.predicted * 100)}%`,
-        "Of every past game the model priced in this band, the share the favourite actually won",
-      ),
-    );
-  }
-
-  const { frontier, candidate } = state;
-  const total = frontier?.scenarios ?? 0;
-  if (candidate && total) {
-    const backed = Math.round((candidate.robust ?? 0) * total);
-    items.push(
-      fact(
-        "In the simulations",
-        `${backed} of ${total} backed this`,
-        "as a near-best choice",
-        "Simulated seasons in which this opening was the best available, or within a whisker of it",
-        true,
-      ),
-    );
-  } else if (frontier && state.selection === "picked") {
-    items.push(
-      fact(
-        "Exact-pick analysis",
-        board.previewPending ? "Recalculating" : "Unavailable",
-        board.previewPending ? "running 32 seasons" : "live estimate only",
-        board.previewPending
-          ? "The exact opening is being played through the same simulated seasons as the coach's call"
-          : "This exact opening has a live season estimate, but its scenario set is unavailable",
-        true,
-      ),
-    );
-  }
-
-  const [call, next] = frontier?.candidates ?? [];
-  const nameOf = (entry) =>
-    (entry.options?.length ? entry.options.map((option) => option.team) : entry.teams).join(" + ");
-  if (call) {
-    if (state.selection === "picked" || state.selection === "locked") {
-      const estimate = estimateFor(state, board);
-      const baseline = board.pathProbability;
-      const coachOptions = state.coachOpening?.length ? state.coachOpening : (call.options ?? []);
-      const coachName = coachOptions.length
-        ? coachOptions.map((option) => option.team).join(" + ")
-        : nameOf(call);
-      const coachWeekProb = coachOptions.length
-        ? coachOptions.reduce((product, option) => product * option.winProb, 1)
-        : call.weekWinProb;
-      if (Number.isFinite(estimate) && Number.isFinite(baseline)) {
-        items.push(
-          fact(
-            "Coach would pick",
-            escapeHtml(coachName),
-            `${formatPercent(coachWeekProb, 0)} this week · ${formatPercent(baseline, 1)} season`,
-            `${coachName} is the coach's baseline at ${formatPercent(baseline, 1)} season survival; this pick's live estimate is ${formatPercent(estimate, 1)}`,
-            true,
-          ),
-        );
-      }
-    } else if (candidate?.chosen && next && total) {
-      items.push(
-        fact(
-          "Next-best option",
-          escapeHtml(nameOf(next)),
-          `${formatPercent(next.season, 1)} season`,
-          "The coach's next best opening and the season survival it leads to",
-          true,
-        ),
-      );
-    } else if (!candidate?.chosen) {
-      items.push(
-        fact(
-          "Coach would pick",
-          escapeHtml(nameOf(call)),
-          `${formatPercent(call.season, 1)} season`,
-          "The opening the coach calls for this week, and the season survival it leads to",
-          true,
-        ),
-      );
-    }
-  }
-
-  return items.length ? `<div class="facts" data-key="facts">${items.join("")}</div>` : "";
-}
-
-function fact(key, value, sub, title, isName = false) {
-  return `<div class="facts__item" title="${escapeHtml(title)}">
-    <span class="chain__key">${escapeHtml(key)}</span>
-    <span class="chain__value${isName ? " chain__value--name" : ""}">${value}</span>
-    <span class="chain__sub">${escapeHtml(sub)}</span>
-  </div>`;
-}
-
-/** The calibration band a probability falls in, or null without a table. */
-function bandFor(bands, probability) {
-  if (!Array.isArray(bands) || !Number.isFinite(probability)) return null;
-  // The bands are written for the favourite's side. A pick under even odds is
-  // read through its opposite: a 40% pick is the 60% band seen from the other
-  // bench.
-  const p = probability < 0.5 ? 1 - probability : probability;
-  return (
-    bands.find((band) => p >= band.low && p < band.high) ??
-    (p >= (bands.at(-1)?.low ?? 1) ? bands.at(-1) : null)
-  );
 }

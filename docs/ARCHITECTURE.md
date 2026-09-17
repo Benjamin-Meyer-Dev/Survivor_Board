@@ -427,7 +427,8 @@ way ahead and re-planning beats committing to a full-season forecast.
 So this week's call is judged across futures (`core/scenarios.js`,
 `judgeFrontier` in `core/recommend.js`). The candidates are the openings the
 finalists actually use, plus the week's outright favourites. Each is played
-through the same set of thirty-two seeded futures. In a future, next week's
+through the same set of a hundred and twenty-eight seeded futures. In a
+future, next week's
 lines are realised - drawn from the horizon variance, with one draw per team
 shared by all its games and one per game - and the rest of the season is
 re-planned around the candidate by exact assignment on those numbers, then
