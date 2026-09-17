@@ -90,7 +90,6 @@ body::after {
 /* The coach's plan is pencilled in: a dashed chalk underline in the flag's
    colour, wherever a suggestion is named. */
 .call__slot--empty .call__team,
-.drive__row--coach .drive__team,
 .bench__team--planned .bench__name {
   text-decoration: underline dashed color-mix(in srgb, var(--flag) 70%, transparent);
   text-underline-offset: 0.16em;

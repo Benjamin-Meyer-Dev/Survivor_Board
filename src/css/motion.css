@@ -199,13 +199,11 @@
 
 /* --- press and hover, the states that outlive a render ------------------- */
 
-.sideline__row:active:not(:disabled),
-.drive__row:active {
+.sideline__row:active:not(:disabled) {
   transform: scale(0.985);
 }
 
-.sideline__row,
-.drive__row {
+.sideline__row {
   transition:
     background-color 0.16s ease,
     transform 0.12s var(--ease-out);
@@ -528,10 +526,6 @@
 .bench__team.is-data-updated {
   animation: data-settle 0.38s var(--ease-out) both;
   animation-delay: calc(var(--i, 0) * 3ms);
-}
-
-.drive__row.is-data-updated {
-  animation: data-settle 0.3s var(--ease-out) both;
 }
 
 .call__slot.is-data-updated > * {
@@ -1110,12 +1104,11 @@
 }
 
 /* --- marks on the board ----------------------------------------------------
-   The settle the call slots, the drive rows and the bench cards already get
-   (data-settle, above), for the two places that were left out: a yard line's
-   marks, and a row of the sideline whose state changed. The yard line settles
-   its marks alone - the line itself is the ruler the field is read against and
-   must not move - and a sideline row is a full-width row like the drive's, so
-   it takes the same settle they do. */
+   The settle the call slots and the bench cards already get (data-settle,
+   above), for the two places that were left out: a yard line's marks, and a
+   row of the sideline whose state changed. The yard line settles its marks
+   alone - the line itself is the ruler the field is read against and must not
+   move - and a sideline row takes the same settle the cards do. */
 @keyframes mark-settle {
   from {
     opacity: 0.25;

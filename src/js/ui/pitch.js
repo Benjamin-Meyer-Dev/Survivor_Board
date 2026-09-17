@@ -26,9 +26,9 @@
  * and another coming on.
  *
  * A tap does not move the bracket itself: it asks for the week and app.js's
- * lookAt moves it, which is the same path a row of the drive takes. Both
- * layers doing it restarted the same smooth scroll and read the layout twice
- * for one tap. Handlers are injected; this module knows nothing about the
+ * lookAt moves it, the same path every other way of turning a week takes.
+ * Both layers doing it restarted the same smooth scroll and read the layout
+ * twice for one tap. Handlers are injected; this module knows nothing about the
  * store.
  */
 
@@ -238,7 +238,7 @@ export function markViewing(root, week, { behavior = "smooth" } = {}) {
  * page, so the board does not move.
  *
  * Measured in the next frame rather than now. A render writes the field first
- * and the drive, the call, the sideline and the bench after it, and measuring
+ * and the call, the case, the sideline and the bench after it, and measuring
  * the field here made the browser lay the page out for the measurement and
  * then again for everything written after - the mid-render layout the first
  * tap on a cold board was paying for. An animation frame callback runs once
@@ -355,8 +355,8 @@ function slotMark(pick) {
 }
 
 /**
- * The drive's readouts: where the lines stand, what the pool forgives, and
- * what a pick being weighed would do to the season.
+ * The drive line's readouts: where the lines stand, what the pool forgives,
+ * and what a pick being weighed would do to the season.
  */
 function stats(board) {
   const items = [];

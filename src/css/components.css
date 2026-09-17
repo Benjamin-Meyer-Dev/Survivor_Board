@@ -2513,9 +2513,8 @@
   background: var(--flag);
 }
 
-/* A week that has been played wears its result, the way the field's marks and
-   the drive's rows do: green for a week survived, the danger red where one
-   went down. */
+/* A week that has been played wears its result, the way the field's marks do:
+   green for a week survived, the danger red where one went down. */
 .route__dot--played {
   background: var(--safe);
 }
@@ -2966,19 +2965,29 @@
 
 /* The indicator: one mark that slides between the tabs. Every tab is an equal
    share of the bar, so --tab - the open tab's place in the list, set by
-   renderTabs - moves the mark by whole tab widths of its own width, and nothing
-   here has to be measured. The gutter is taken off because the tabs sit in the
-   bar's content box while this is positioned against its padding box. */
+   renderTabs - moves the mark by whole shares, and nothing here has to be
+   measured. The gutter is taken off because the tabs sit in the bar's content
+   box while this is positioned against its padding box.
+
+   Half a share wide, and centred in it. It used to be the share less twenty,
+   which held while there were three tabs and the mark came out about as wide
+   as the word over it; with the drive gone there are two, and a share less
+   twenty is most of half the bar - a mark that says which half rather than
+   which word. A ratio rather than an inset, so the tab count is the only thing
+   that has to be right: half a share is 95 pixels on a 412 phone, and SIDELINE
+   is 94 of them. The slide is written in the mark's own width because that is
+   what a percentage in a transform means, and at half a share one tab along is
+   two of it. */
 .tab-marker {
   position: absolute;
   z-index: 1;
   bottom: -1px;
-  left: calc(var(--gutter) + 10px);
-  width: calc((100% - 2 * var(--gutter)) / var(--tabs, 3) - 20px);
+  left: calc(var(--gutter) + (100% - 2 * var(--gutter)) / var(--tabs, 2) / 4);
+  width: calc((100% - 2 * var(--gutter)) / var(--tabs, 2) / 2);
   height: 3px;
   border-radius: 2px 2px 0 0;
   background: var(--flag);
-  transform: translateX(calc(var(--tab, 0) * (100% + 20px)));
+  transform: translateX(calc(var(--tab, 0) * 200%));
   pointer-events: none;
 }
 
@@ -3304,203 +3313,6 @@
   font-family: var(--font-body);
   font-weight: 400;
   font-size: 12px;
-}
-
-/* the drive (ui/drive.js) --------------------------------------------------- */
-
-/* The season as yard-line bands: week, pick, its chance, and how much of the
-   season is still alive by then. Tap a row to look at that week. */
-.drive {
-  display: flex;
-  flex-direction: column;
-  padding-top: 12px;
-}
-
-.drive__head,
-.drive__row {
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) 56px 74px;
-  align-items: center;
-  gap: 6px;
-}
-
-.drive__head {
-  padding: 2px 12px 8px 10px;
-  border-bottom: 1px solid var(--line);
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--chalk-3);
-}
-
-.drive__head > :nth-child(n + 3),
-.drive__row > :nth-child(n + 3) {
-  text-align: right;
-}
-
-.drive__row {
-  appearance: none;
-  position: relative;
-  min-height: 56px;
-  padding: 6px 12px 6px 10px;
-  border: 0;
-  border-bottom: 1px solid var(--line-soft);
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--chalk);
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
-  transition: background-color 0.16s ease;
-}
-
-.drive__row:hover:not(:disabled) {
-  background: rgb(255 255 255 / 5%);
-}
-
-/* The week on the clock stands in a little of the floodlight. */
-.drive__row--now {
-  background: radial-gradient(ellipse 60% 100% at 50% 0%, rgb(255 255 255 / 8%), transparent 70%);
-}
-
-/* The week being looked at wears the bracket. */
-.drive__row--viewing {
-  box-shadow: inset 0 0 0 2px var(--chalk);
-  background-color: rgb(255 255 255 / 8%);
-}
-
-.drive__wk {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-size: 20px;
-  color: var(--chalk-3);
-}
-
-.drive__row--now .drive__wk {
-  color: var(--flag);
-}
-
-.drive__row--viewing .drive__wk {
-  color: var(--chalk);
-}
-
-.drive__wk svg {
-  width: 14px;
-  height: 9px;
-  flex: none;
-}
-
-.drive__pick {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-/* Two picks a week: one per line, each with its own game beside it. The grid
-   sits on the cell rather than on each pair, so both lines share the two
-   columns and the games stand in a column of their own - which is the whole
-   point of splitting them up. The names are given whatever they need and the
-   games the rest, with a floor under the game column so a long pair of college
-   names can never squeeze it away. Both are cut with an ellipsis: in a column
-   this narrow something has to give, and a name cut one letter short still
-   says which team it is. */
-.drive__pick--pairs {
-  display: grid;
-  grid-template-columns: minmax(0, auto) minmax(56px, 1fr);
-  align-items: baseline;
-  column-gap: 8px;
-  row-gap: 3px;
-}
-
-.drive__team {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 20px;
-  line-height: 1;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Two names to a row rather than one, with a game beside each. */
-.drive__pick--pairs .drive__team {
-  font-size: 16px;
-}
-
-/* The coach's plan, faint and pencilled in (field.css draws the line). */
-.drive__row--coach .drive__team {
-  color: var(--chalk-2);
-}
-
-.drive__row--empty .drive__team,
-.drive__row--moot .drive__team {
-  font-weight: 700;
-  font-size: 15px;
-  text-transform: none;
-  letter-spacing: 0;
-  color: var(--chalk-3);
-}
-
-/* The same weeks on the drive: read back, not turned to (ui/drive.js). */
-.drive__row--moot {
-  opacity: 0.6;
-  cursor: default;
-}
-
-.drive__sub,
-.drive__game {
-  font-size: 11px;
-  color: var(--chalk-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.drive__win,
-.drive__alive {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 14px;
-  white-space: nowrap;
-}
-
-.drive__win {
-  font-weight: 600;
-}
-
-/* How much of the season is still alive by this week, in the week's own
-   confidence chalk (ui/drive.js hangs the tier on it) - a step smaller and
-   lighter than the week's own chance beside it, so the two colour columns read
-   as a headline and its running total rather than as two headlines.
-
-   The chalk below is only for a row with no tier to wear: a week the path
-   cannot reach yet has no survival to colour, and the bracketed row lifts to
-   full chalk for the same reason. Written as the tier's absence rather than
-   ahead of it because these rules come after the confidence scale in this
-   file and would otherwise simply beat it. */
-.drive__alive {
-  font-size: 13px;
-}
-
-.drive__alive:not([class*="confidence--"]) {
-  color: var(--chalk-2);
-}
-
-.drive__row--viewing .drive__alive:not([class*="confidence--"]) {
-  color: var(--chalk);
-}
-
-/* Columns a phone has no room for. */
-.drive__wide {
-  display: none;
 }
 
 /* the bench (ui/bench.js) --------------------------------------------------- */
@@ -5345,11 +5157,6 @@
 
   .pitch__tag-value {
     font-size: 20px;
-  }
-
-  .drive__head,
-  .drive__row {
-    grid-template-columns: 34px minmax(0, 1fr) 60px 78px;
   }
 
   .call__box {

@@ -70,7 +70,6 @@ const JS = [
   "ui/pitch.js",
   "ui/call.js",
   "ui/sideline.js",
-  "ui/drive.js",
   "ui/bench.js",
   "ui/notices.js",
   "ui/swipe.js",

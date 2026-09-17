@@ -1,11 +1,11 @@
 /**
- * The drawer's tabs: Sideline, Drive, Bench.
+ * The drawer's tabs: Sideline, Bench.
  *
  * A real tablist: roving tabindex, arrow/Home/End keys, aria-selected, and
  * `hidden` on the panels rather than `display:none` in a stylesheet, so the
  * state lives in one place. Every new page load begins on the sideline. From
- * 900px wide the stylesheet shows all three panels side by side and hides
- * the bar; the state here still says which one a phone would be on.
+ * 900px wide the stylesheet shows both panels side by side and hides the bar;
+ * the state here still says which one a phone would be on.
  *
  * On a phone the bar is also the shut drawer - the panels are away under it
  * and this is what is left on the bottom edge - so a tab does two things at
@@ -20,20 +20,30 @@
  * The indicator is one mark that slides between the tabs rather than an
  * underline lit under each of them in turn - the same thing the field's bracket
  * does with its yard lines, and for the same reason: a transform on one element
- * says which way the drawer moved, where three fades only say that it did.
+ * says which way the drawer moved, where a fade per tab only says that it did.
  */
 
 import { afterMotion, prefersReducedMotion } from "./motion.js";
 
 export const TABS = Object.freeze([
   { id: "week", label: "Sideline", panel: "view-week" },
-  { id: "path", label: "The drive", panel: "view-path" },
   { id: "burn", label: "Bench", panel: "view-burn" },
 ]);
 
 /** Every visit opens on the sideline, regardless of the previous session. */
 export function initialTab() {
   return TABS[0].id;
+}
+
+/**
+ * Is this still a tab? A session stashed before a deploy can name one that has
+ * gone - "path" was the drive, which the route graph says better and which
+ * left with it - and a resumed id nothing answers to leaves the bar with no
+ * tab selected and the drawer with no panel showing (applyPanels returns on a
+ * panel it cannot find). Asked by whoever restores one (takeResume in app.js).
+ */
+export function knownTab(id) {
+  return TABS.some((tab) => tab.id === id);
 }
 
 /** Latest handler, so the listeners bound on the first render stay current. */

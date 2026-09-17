@@ -7,7 +7,7 @@
  * finished asking. Nothing was dropped, and it still felt slow, because the
  * part of a swipe a person reads is the part their finger is still in.
  *
- * So the card, the model read, the team list and the drive move with the drag,
+ * So the card, the model read and the team list move with the drag,
  * with the adjacent week's already-rendered copy following behind a narrow
  * strip of turf. The release either finishes that one continuous turn from
  * wherever it got to or springs both copies back. A drag that is too short,

@@ -60,10 +60,9 @@ import { renderPitch, markViewing } from "./ui/pitch.js";
 import { renderCall } from "./ui/call.js";
 import { renderCoach } from "./ui/coach.js";
 import { renderSideline } from "./ui/sideline.js";
-import { renderDrive, markDriveViewing } from "./ui/drive.js";
 import { renderBench } from "./ui/bench.js";
 import { renderNotices, renderReview } from "./ui/notices.js";
-import { renderTabs, initialTab } from "./ui/tabs.js";
+import { renderTabs, initialTab, knownTab } from "./ui/tabs.js";
 import { renderGrab, watchRaise } from "./ui/drawer.js";
 import { requireName } from "./ui/name.js";
 import { requirePasscode } from "./ui/passcode.js";
@@ -88,10 +87,8 @@ const el = {
   call: document.getElementById("call"),
   /** The drawer's three panels, and the two of them a week turns. */
   sideline: document.getElementById("sideline"),
-  drive: document.getElementById("drive"),
   bench: document.getElementById("bench"),
   weekPanel: document.getElementById("view-week"),
-  pathPanel: document.getElementById("view-path"),
   burnPanel: document.getElementById("view-burn"),
   benchLegend: document.getElementById("bench-legend"),
   /** The box the three panels stand in. Put away whole once a run is over. */
@@ -138,7 +135,7 @@ const app = {
   pool: null,
   entry: { picks: {}, swaps: {} },
   store: null,
-  /** The week being looked at: the call, the sideline and the drive follow it. */
+  /** The week being looked at: the call, the case and the sideline follow it. */
   viewWeek: 1,
   /** Which of that week's slots the sideline is filling. */
   activeSlot: 0,
@@ -193,7 +190,6 @@ const SLIDING = [
   { key: "call", clip: "#call", moves: ".call" },
   { key: "coach", clip: "#coach", moves: ".coach__page" },
   { key: "week", clip: "#view-week", moves: "#sideline" },
-  { key: "path", clip: "#view-path", moves: "#drive" },
 ];
 
 /**
@@ -1019,18 +1015,12 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = 
   renderNotices(el.notices, { store: app.store, board, message: app.message });
   renderReview(el.review, board);
   renderPitch(el.pitch, board, app.viewWeek, { onWeekChange: lookAt });
-  // The drive is a board's worth of rows and none of them says which week is
-  // being looked at except the one wearing the bracket, so it is rebuilt here
-  // rather than on every step of a scrub (see renderSelection).
-  renderDrive(el.drive, board, app.viewWeek, lookAt);
   renderSelection(board);
   // A run that is over empties the drawer: the lists go, the bar above them
   // goes, and how it ended is the whole of what the drawer holds (renderReview
   // above). Nothing in there could be used - the sideline is a list you cannot
-  // pick from, the bench a list of teams you will not need, and the drive is
-  // the season the field above already draws - week by week, with a row of
-  // "not played" for every week the run never reached under the one row that
-  // ended it. The ending takes the room the three of them were spending.
+  // pick from, and the bench a list of teams you will not need. The ending
+  // takes the room the two of them were spending.
   //
   // The box is put away whole rather than a panel at a time, so the tab the
   // person had is left exactly as it was: it is what the next live board opens
@@ -1099,8 +1089,8 @@ function weekOnBoard(board, week) {
  * read back; they are just not somewhere the board goes any more.
  *
  * One function for every way a week is turned to - the field's yard lines and
- * arrow keys, the drive's rows, a drag across the board, and a week carried
- * over from the pool that was open before.
+ * arrow keys, a drag across the board, and a week carried over from the pool
+ * that was open before.
  */
 function lastWeekInPlay(board) {
   const last = board.weeks.at(-1)?.week ?? board.weeks[0]?.week ?? 1;
@@ -1109,8 +1099,8 @@ function lastWeekInPlay(board) {
 
 /**
  * The parts of the board that follow the week being looked at and the slot in
- * hand: the call under the field, the sideline in the drawer, and the drive's
- * bracket. Cheap enough to run on every step of a scrub along the field.
+ * hand: the call under the field, the coach's case for it, and the sideline in
+ * the drawer. Cheap enough to run on every step of a scrub along the field.
  */
 function renderSelection(board) {
   // Once the run is over the board is a review, and a review is read-only:
@@ -1136,7 +1126,6 @@ function renderSelection(board) {
   // Read-only. It prices the team on the card, so it follows the week and the
   // slot the card has active, the same two things the card itself follows.
   renderCoach(el.coach, board, app.viewWeek, app.activeSlot);
-  markDriveViewing(el.drive, app.viewWeek);
 }
 
 /**
@@ -1339,9 +1328,6 @@ function stageWeek(direction, parts) {
           onAction: () => {},
         });
         return stagedRoot(moves, root);
-      case "path":
-        renderDrive(root, lastBoard, next.week, () => {});
-        return stagedRoot(moves, root);
       default:
         return null;
     }
@@ -1381,12 +1367,11 @@ function settleTurn() {
 }
 
 /**
- * Look at a week, from a tap on the field, a row of the drive or a drag across
- * the board.
+ * Look at a week, from a tap on the field or a drag across the board.
  *
  * Only the parts that follow the week are touched: the field slides its own
  * bracket (pitch.js) rather than being rebuilt under a finger that is still on
- * it, the drive moves the bracket on its rows, and the board itself is not
+ * it, the case slides its own band with it, and the board itself is not
  * rebuilt - so a scrub costs a millisecond or two a step and never asks for a
  * new plan.
  *
@@ -2309,7 +2294,7 @@ function adoptLeague(ready) {
   const resume = takeResume(league.code, kind);
   app.viewWeek = resume?.viewWeek ?? ready.viewWeek;
   app.activeSlot = resume?.activeSlot ?? ready.activeSlot;
-  if (resume?.activeTab) app.activeTab = resume.activeTab;
+  if (knownTab(resume?.activeTab)) app.activeTab = resume.activeTab;
 
   document.title = titleFor(app.league, kind);
 
@@ -3078,8 +3063,8 @@ async function main() {
   warmPools();
 
   // Drag the board sideways to turn the week. The surfaces are the regions a
-  // week is about - its card, the coach's case for it, the team list and the
-  // drive - each bound once rather than to anything a render replaces. The
+  // week is about - its card, the coach's case for it and the team list - each
+  // bound once rather than to anything a render replaces. The
   // field is not one of them: it pans its own yard lines, while trackFieldTurn
   // carries its selected-week bracket with these pages. Nor is the depth chart,
   // which says the same thing whatever week is open. What is left to skip is
@@ -3093,7 +3078,7 @@ async function main() {
       track: trackFieldTurn,
     },
     {
-      surfaces: [el.call, el.coach, el.weekPanel, el.pathPanel],
+      surfaces: [el.call, el.coach, el.weekPanel],
       ignore: ["input", "textarea", "select", "dialog", ".league-bar__menu"],
     },
   );
@@ -3109,7 +3094,7 @@ async function main() {
   // gesture that opens it has to be taken from the head itself.
   watchRaise(
     { raisable: canRaise, raised: () => app.raised, toggle: toggleRaised },
-    { surfaces: [el.weekPanel, el.pathPanel, el.burnPanel, el.tabs, el.grab] },
+    { surfaces: [el.weekPanel, el.burnPanel, el.tabs, el.grab] },
   );
 
   // Back and forward, and a link tapped while the app is already open.

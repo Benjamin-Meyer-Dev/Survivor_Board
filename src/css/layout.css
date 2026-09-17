@@ -58,7 +58,7 @@
 /* board --------------------------------------------------------------------- */
 
 /* The surfaces a sideways drag turns the week on (ui/swipe.js): the week's
-   card, the coach's case for it, and the drawer's two panels that are about a
+   card, the coach's case for it, and the drawer's one panel that is about a
    week. Sideways panning is ours on these, up-and-down is still the browser's,
    which is what lets the drag be tracked with pointer events at all - without
    pan-y the vertical scroller takes the gesture and cancels the pointer on the
@@ -66,8 +66,7 @@
    sideways themselves, and the bench is not about a week. */
 #call,
 #coach,
-#view-week,
-#view-path {
+#view-week {
   touch-action: pan-y;
 }
 
@@ -327,7 +326,6 @@
      shuts the drawer is taken from the top of the list, where there was
      nothing to scroll to. */
   .board:not(.is-raised) #view-week,
-  .board:not(.is-raised) #view-path,
   .board:not(.is-raised) #view-burn,
   .board:not(.is-raised) .drawer__tabs,
   .board:not(.is-raised) .drawer__grab {
@@ -705,7 +703,6 @@
      back to being a bar: the rules above are the price of a gesture this
      screen does not have. */
   .board:not(.is-raised) #view-week,
-  .board:not(.is-raised) #view-path,
   .board:not(.is-raised) #view-burn {
     touch-action: pan-y;
   }
@@ -725,9 +722,9 @@
 /* wide ----------------------------------------------------------------------- */
 
 /* The desktop follows the phone: the same field across the top, the call under
-   it, and the drawer's three panels open side by side rather than behind
-   tabs. The height is asked about as well as the width, because a phone turned
-   sideways is 900 across too - and a three-column board 430 tall is three
+   it, and the drawer's two panels open side by side rather than behind tabs.
+   The height is asked about as well as the width, because a phone turned
+   sideways is 900 across too - and a two-column board 430 tall is a pair of
    slivers, each scrolling a list five times its own height. */
 @media (min-width: 900px) and (min-height: 561px) {
   .shell {
@@ -746,7 +743,7 @@
   /* The coach's case beside the card rather than over it.
 
      On a phone the case fills a band that had nothing in it. The desktop has
-     no such band - the drawer's three panels stand under the readout and every
+     no such band - the drawer's panels stand under the readout and every
      pixel added above them pushes them down the page, which is how a 187-pixel
      table turned a board that scrolled twenty into one that scrolled two
      hundred and seventy. What this screen has spare is width: 1240 of it, with
@@ -760,7 +757,7 @@
      containment the phone uses (above): worth nothing intrinsically, it takes
      the card's height and its own gates fit the drawings to it. Left to its
      content it grew past the card - captions, a strip sized against the
-     viewport - and pushed the drawer's three panels down the page by the
+     viewport - and pushed the drawer's panels down the page by the
      difference. */
   .readout {
     display: grid;
@@ -795,7 +792,7 @@
 
   /* How the run ended, lined up with the panels above it rather than with the
      screen: on a phone it is a band the width of the drawer, and here the
-     drawer is three columns that start at 1240 centred. A line of text
+     drawer is two columns that start at 1240 centred. A line of text
      beginning twenty pixels to the left of the column it closes is a line that
      belongs to something else. */
   .review {
@@ -804,9 +801,12 @@
     margin: 0 auto;
   }
 
+  /* The team list and the depth chart, in the 5:3 they always stood in - the
+     4fr between them was the drive, and the season it listed is the route
+     graph's now (ui/coach.js). */
   .drawer__panels {
     display: grid;
-    grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 3fr);
+    grid-template-columns: minmax(0, 5fr) minmax(0, 3fr);
     gap: 14px;
     max-width: 1240px;
     width: 100%;

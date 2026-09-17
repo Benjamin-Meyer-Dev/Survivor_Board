@@ -88,15 +88,13 @@ export function renderNotices(root, { store = null, board = null, message = "" }
  *
  * The drawer is emptied when this arrives, and this is what is left in it. The
  * bar goes, because nothing can be picked and so there is nothing to switch
- * between; the three lists go with it, because not one of them is about a
- * season that is over. The sideline is a list you cannot pick from, the bench
- * a list of teams you will not need, and the drive is the season the field
- * above already draws - week by week, with a row of "not played" for every
- * week the run never reached, under the one row that ended it. So the drawer
- * holds the ending and nothing else (app.js puts the rest away).
+ * between; the lists go with it, because neither of them is about a season
+ * that is over. The sideline is a list you cannot pick from, and the bench a
+ * list of teams you will not need. So the drawer holds the ending and nothing
+ * else (app.js puts the rest away).
  *
- * Still on the bottom edge, which is where it stood under the drive and where
- * the list it replaces began: the run reads down the board, and the ending
+ * Still on the bottom edge, which is where the list it replaces began: the run
+ * reads down the board, and the ending
  * belongs at the end of it rather than above the season it is the last line
  * of. The band itself takes the whole of the drawer, because a chalkboard left
  * bare over three lines reads as something that failed to load rather than as
