@@ -1035,13 +1035,16 @@
    it - NORTHWESTERN came out as NORTHWESTEF at 152 - and because a field is
    the one thing on this board that is better for being bigger.
 
-   The ceiling is 200, down from 232. The field was the only thing on the board
-   spending the phone's spare height, and it pinned itself to the ceiling on
-   every phone there is while the case under it was left folding its graph away
-   at 45 pixels of plot. A name still reads at 200 - the lane leaves 150 for it
-   where the 152 that cut NORTHWESTERN left 102 - so the last 32 were the field
-   being bigger, not the field being readable, and the working is what they buy
-   instead.
+   The ceiling is 176, down from 200 and from 232 before that. The field was
+   the only thing on the board spending the phone's spare height, and it pinned
+   itself to the ceiling on every phone there is while the case under it was
+   left folding its graph away at 45 pixels of plot. A name still reads at 176
+   - the lane leaves 100 for it where the 152 that cut NORTHWESTERN left 76,
+   and NORTHWESTERN is 88 - so what comes off is the field being bigger, not
+   the field being readable, and the graph under it is what the pixels buy
+   instead. The three longest names either schedule has - SOUTH CAROLINA,
+   MICHIGAN STATE and OKLAHOMA STATE, fourteen letters and about 103 - take the
+   ellipsis the lane has always been ready to give them.
 
    Down, because a banner over the board is height the readout no longer has,
    and a field that will not give any up is a board that scrolls. 124 is the
@@ -1055,7 +1058,7 @@
   flex: 1 1 auto;
   height: 152px;
   min-height: 124px;
-  max-height: 200px;
+  max-height: 176px;
   border: 2px solid var(--chalk);
   background: var(--turf-3);
   overflow-x: auto;
@@ -2058,11 +2061,12 @@
 /* Four stops on a route, in four equal quarters of the block - the columns
    the drive line's readouts stand in, so the model's line sits under the
    lines pull, the market's under the buy backs, the probability under the
-   lock preview and the tier under the season tile. Each stop is a chalk dot
-   on a dashed rule with its key, number and note hung under it, left-aligned
-   in its quarter the way the readouts above are - all but the last, which
-   reads from the right edge so its dot ends the rule; the rule runs from the
-   first dot to the last, lit, one. */
+   lock preview and the tier under the season tile. Every stop has its key,
+   number and note left-aligned in its quarter the way the readouts above are
+   - all but the last, which reads from the right edge, under the lit dot that
+   ends the rule. The dots themselves are spaced off the rule rather than off
+   the quarters (below), and the rule runs from the first of them to the
+   last. */
 .chain {
   position: relative;
   display: grid;
@@ -2090,7 +2094,6 @@
 }
 
 .chain__stop {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -2100,12 +2103,34 @@
   text-align: left;
 }
 
-/* The dot, over the left edge of the stop. */
+/* The dots are the route's, not the stops': four of them spread evenly along
+   the rule, one at either end and the other two cutting what is between them
+   into thirds. Hung on the chain rather than on the stop each belongs to -
+   the stops stand in four equal quarters, and a dot pinned to the head of its
+   own quarter put the four at nought, a quarter, a half and the far edge,
+   which is a rule with a hole in the end of it rather than a route.
+
+   Placed off --at, the stop's place in the order, so the arithmetic is the
+   bracket's and the tab marker's: the centres run from the first dot's to the
+   last one's, which is the width less the one dot that has to fit inside
+   either end, and each is a third of that along. */
+.chain__stop:nth-child(2) {
+  --at: 1;
+}
+
+.chain__stop:nth-child(3) {
+  --at: 2;
+}
+
+.chain__stop:nth-child(4) {
+  --at: 3;
+}
+
 .chain__stop::before {
   content: "";
   position: absolute;
   top: 0;
-  left: 0;
+  left: calc(var(--at, 0) * (100% - 7px) / 3);
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -2122,8 +2147,6 @@
 }
 
 .chain__stop:last-child::before {
-  left: auto;
-  right: 0;
   background: var(--flag);
   box-shadow: 0 0 6px var(--flag);
 }
@@ -2602,14 +2625,32 @@
    and key: the eyebrow, the figures on the marks and the saved-week label go
    while the two routes, their marks and the season figures remain. In the
    shortest useful band the supporting head and pricing chain leave instead;
-   the graph is the one part every live pool keeps. */
-@container (max-height: 267px) {
+   the graph is the one part every live pool keeps.
+
+   Each gate is the height every part above it needs, added up, rather than a
+   figure read off a phone: the head and the chain are 97 with their gaps, the
+   folded chart's floor is 66 and the full one's is 118, and the facts are 43
+   and the gap over them. So the chain leaves at 163 rather than 148 - between
+   the two the board kept a chain it had no room for and cut the graph off
+   inside its own box, which a 360 phone with a two-slot college card landed in
+   the moment the field handed its thirty pixels down (.pitch__field) - and the
+   full chart waits for 215 rather than 213, which is the two pixels its own
+   floor was short.
+
+   The facts wait longer than they need: 275, not the 267 they cost. The thirty
+   the field gave up were handed down for the chart to draw in, and on a
+   390 phone they landed five pixels under the old gate - a card a nudge
+   shorter and the band would have spent the lot on a fourth part instead, the
+   chart dropping from 165 to 118 to pay for it. The eight are the most that
+   can go there: past 289 the desktop's own box, which never grew, would lose
+   the facts it has always had. */
+@container (max-height: 275px) {
   .facts {
     display: none;
   }
 }
 
-@container (max-height: 213px) {
+@container (max-height: 215px) {
   .route {
     gap: 4px;
     min-height: 66px;
@@ -2628,7 +2669,7 @@
   }
 }
 
-@container (max-height: 148px) {
+@container (max-height: 163px) {
   .coach {
     gap: 0;
   }
@@ -2656,17 +2697,20 @@
 
    Whether there is a field to raise the drawer over at all is a question about
    the shape of the screen, so where it shows is layout.css's. */
-/* 20 tall, and the bar runs the full width of the drawer: the strip is a grab
+/* 14 tall, and the bar runs the full width of the drawer: the strip is a grab
    for a thumb travelling up the screen rather than a target to be hit, and the
    tab bar under it is the other 44 of the same edge - a thumb that misses the
    strip lands on a tab, which opens the drawer too. Shut, those pixels are
    height the board is spending on its own handle, and the case above would
-   rather have them for the graph. */
+   rather have them for the graph, so the strip is the bar and the five pixels
+   of air it needs to be a thing you pull rather than a rule ruled across the
+   chalkboard: any more of them is a gap between the handle and its own tabs.
+   (--drawer-shut in layout.css counts this height; the two move together.) */
 .drawer__grab {
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 20px;
+  height: 14px;
   padding: 0;
   border: 0;
   border-radius: 0;

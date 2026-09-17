@@ -278,7 +278,7 @@
      got the chance - nothing had told the column it was allowed to be
      narrower. Nought is that permission. */
   .board {
-    --drawer-shut: calc(6px + 20px + 45px + env(safe-area-inset-bottom));
+    --drawer-shut: calc(6px + 14px + 45px + env(safe-area-inset-bottom));
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(auto, 1fr) minmax(var(--drawer-shut), 0fr);
@@ -445,12 +445,12 @@
   .board:not(.is-raised) .readout > #pitch {
     min-height: calc(124px + 8px + 37px);
     /* And a ceiling written the same way, for the same reason turned round.
-       The field stops at 200 (.pitch__field) but the box it stands in would
+       The field stops at 176 (.pitch__field) but the box it stands in would
        not: a box told to grow takes every pixel going and leaves the ones the
        field cannot use as turf inside itself, which is the same dead band in a
        different place. Capped, the box stops when the field does and what is
        left over goes to the case below it. */
-    max-height: calc(200px + 8px + 37px);
+    max-height: calc(176px + 8px + 37px);
   }
 
   /* The case has what the field and the card leave, and never asks for a pixel
