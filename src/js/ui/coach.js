@@ -37,6 +37,23 @@ import { TIER_LABEL, DEFAULT_TIERS } from "../core/probability.js";
 import { frame, reconcile } from "./patch.js";
 
 /**
+ * The tier in one word, for the chain's last stop.
+ *
+ * The board's own names for two of the five are two words - CLOSE CALL, UPSET
+ * ALERT - and at ninety-odd pixels they are wider than the third of a phone
+ * the tier shares with the win probability beside it. The card under the chart
+ * calls the tier by its full name at full size; here it is the fourth figure
+ * in a row of four, and one word is what there is room for.
+ */
+const TIER_WORD = Object.freeze({
+  safe: "Lock",
+  solid: "Solid",
+  thin: "Shaky",
+  close: "Close",
+  danger: "Upset",
+});
+
+/**
  * @param {HTMLElement} root
  * @param {object} board Result of buildBoard().
  * @param {number} viewWeek The week being looked at (1-based).
@@ -61,7 +78,9 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0) {
           board.previewPathProbability ?? "",
           board.previewPending ? "pending" : "settled",
         ].join("|")
-      : "empty";
+      : state.kind === "past"
+        ? `past|${state.week.week}`
+        : "empty";
   panel.setAttribute("aria-live", "polite");
   panel.classList.toggle("coach--picked", state.selection === "picked");
   panel.classList.toggle("coach--locked", state.selection === "locked");
@@ -72,14 +91,13 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0) {
   panel.classList.toggle("coach--empty", state.kind === "none");
   // The head and the chain are the week's page: they turn with the card, so
   // they travel with it under a finger (SLIDING in app.js names this box). The
-  // chart is the season and stays where it is.
-  reconcile(
-    panel,
-    state.kind === "none"
-      ? ""
-      : `<div class="coach__page" data-key="page">${head(state)}${chain(state, board)}</div>` +
-          route(state, board),
-  );
+  // chart is the season and stays where it is - and on a week already played
+  // it is all there is.
+  const page =
+    state.kind === "working"
+      ? `<div class="coach__page" data-key="page">${head(state)}${chain(state, board)}</div>`
+      : "";
+  reconcile(panel, state.kind === "none" ? "" : page + route(state, board));
   // The live board only. A week being staged for a swipe is rendered into a
   // detached box (stageWeek in app.js), and a copy that is about to be thrown
   // away has nothing to answer a touch about.
@@ -97,8 +115,23 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0) {
  */
 function stateFor(board, week, activeSlot) {
   if (board.eliminated) return { kind: "none" };
+  // A week that has been played has no model read left to make - its pricing
+  // is history and the field, the drive line and the card all carry the
+  // result. The chart is not a read, though: it is the season, and the season
+  // did not stop having a shape because the week you are looking at is behind
+  // you. So a settled week keeps the chart, with the band standing on it, and
+  // loses the head and the chain above it.
   const settled = week.picks.every((pick) => pick.status.result) || week.week < board.currentWeek;
-  if (settled) return { kind: "none" };
+  if (settled) {
+    return {
+      kind: "past",
+      week,
+      teams: week.picks.map((pick) => pick.team).filter(Boolean),
+      opening: [],
+      coachOpening: [],
+      selection: "locked",
+    };
+  }
 
   const pick = week.picks[Math.min(activeSlot, week.picks.length - 1)];
   // The team on the card for this slot, or failing that the coach's first
@@ -254,7 +287,7 @@ function chain(state, board) {
     </li>
     <li class="chain__stop" title="Where that probability falls on this league's confidence scale">
       <span class="chain__key">Tier</span>
-      <span class="chain__value"><span class="chip chip--${tier}">${TIER_LABEL[tier] ?? tier}</span></span>
+      <span class="chain__value"><span class="chip chip--${tier}">${TIER_WORD[tier] ?? TIER_LABEL[tier] ?? tier}</span></span>
       <span class="chain__sub">${tierBand(tier, tiers)}</span>
     </li>
   </ol>`;

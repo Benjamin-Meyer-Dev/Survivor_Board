@@ -2073,25 +2073,28 @@
 /* Four stops on a route: a dot on a rule with the key, the number and the note
    hung under it, every one of them reading from its own dot.
 
-   Three equal columns and a fourth as wide as the tier's chip needs to be.
-   Equal is what puts the dots on even ground - each stands at the head of its
-   own column, so the four are a column apart whatever the last one is doing -
-   and the fourth is the exception because its value is a chip rather than a
-   figure: CLOSE CALL and UPSET ALERT are ninety-odd pixels where SHAKY is
-   sixty, and a quarter of a 360 phone is seventy-seven. It used to read from
-   the right edge to get away with that, which left its dot at the end of the
-   rule and its words a quarter of the block to the left of it - and then the
-   other three dots were spread evenly over a rule whose stops were not, so
-   the middle two floated between the columns they belonged to. A column that
-   is worth what it holds fixes both: the words sit under their dot, and the
-   three that are left share what is over. The rule under them is the block's
-   own width whatever the tier is doing (below), so the last dot stands on the
-   line rather than ending it. */
+   Three columns, each an exact third of the block, and the tier standing in
+   the last of them against the right edge. That is the one arrangement that
+   answers all four things this row has to do at once: the rule runs the block's
+   full width, a dot ends it, the four dots are evenly spread over it - nought,
+   a third, two thirds, the end - and every stop's words sit under its own dot.
+   The first three read from their dot leftwards off the head of their column;
+   the tier reads back from the end of the rule, because its dot is the end of
+   the rule.
+
+   Which leaves the tier sharing the last third with the win probability, and
+   the two of them have to fit: the chip is the compact one (below) and the
+   word in it is one word, so the widest pair on a 360 phone is WIN PROB at 54
+   and SHAKY at 46 inside a third of 110. --tier-room holds the far edge open
+   for it, so a narrower phone cuts the key rather than running the two into
+   each other. */
 .chain {
+  --tier-room: 52px;
+
   position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
-  gap: 6px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 0;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -2106,7 +2109,37 @@
   gap: 2px;
   min-width: 0;
   padding-top: 10px;
+  padding-right: 8px;
   text-align: left;
+}
+
+/* Placed rather than flowed, because the tier shares the third column with the
+   win probability and auto-placement would have put it on a second row. */
+.chain__stop:nth-child(1) {
+  grid-area: 1 / 1;
+}
+
+.chain__stop:nth-child(2) {
+  grid-area: 1 / 2;
+}
+
+.chain__stop:nth-child(3) {
+  grid-area: 1 / 3;
+  padding-right: var(--tier-room);
+}
+
+/* Even along the rule, not even along the columns. The first dot starts at the
+   block's edge and the last one ends at it, so the run between their centres
+   is the width less one dot - and the two in the middle belong a third and two
+   thirds along THAT, which is two and five pixels to the left of the columns
+   they head. Whole pixels off a constant, because the amount is one dot's
+   width split three ways and has nothing to do with how wide the block is. */
+.chain__stop:nth-child(2)::before {
+  left: -2px;
+}
+
+.chain__stop:nth-child(3)::before {
+  left: -5px;
 }
 
 /* The dot, over the left edge of the stop. */
@@ -2139,9 +2172,32 @@
   background: linear-gradient(90deg, var(--line-soft), var(--line-strong) 52%, var(--flag) 75%);
 }
 
+/* The tier, at the end of the rule: the words read back from the right edge so
+   the lit dot that finishes the line stands over them rather than a column's
+   width to their left. */
+.chain__stop:last-child {
+  grid-area: 1 / 3;
+  justify-self: end;
+  align-items: flex-end;
+  padding-right: 0;
+  text-align: right;
+}
+
 .chain__stop:last-child::before {
+  left: auto;
+  right: 0;
   background: var(--flag);
   box-shadow: 0 0 6px var(--flag);
+}
+
+/* The chip in the chain is the small one: the row is 10px keys and 11px notes,
+   and the card two boxes down is where the tier is called by its full name at
+   full size. */
+.chain__value .chip {
+  height: 20px;
+  padding: 0 5px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
 }
 
 /* Cut rather than collided: a key is one word longer than its column on the
