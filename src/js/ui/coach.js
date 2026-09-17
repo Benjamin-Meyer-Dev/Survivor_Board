@@ -74,6 +74,10 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0) {
     panel,
     state.kind === "none" ? "" : head(state) + chain(state, board) + route(state, board),
   );
+  // The live board only. A week being staged for a swipe is rendered into a
+  // detached box (stageWeek in app.js), and a copy that is about to be thrown
+  // away has nothing to answer a touch about.
+  if (root.isConnected) watchChart(panel);
 }
 
 /**
@@ -432,12 +436,16 @@ function route(state, board) {
       .join("");
   };
 
+  // Each mark carries its own week, team and figure, because a touch on the
+  // chart is answered out of the marks themselves (watchChart): the week is
+  // the column, and what is standing in it is what the callout reads back.
+  // They used to carry a `title` instead, which is a tooltip, which is a thing
+  // a phone does not have.
   const dotsOf = (entry, kind) =>
     entry.stops
       .map((stop, index) => {
         if (stop.prob === null) return "";
-        const title = `Wk ${stop.week} · ${nameOf(stop.options)} · ${formatPercent(stop.prob, 0)}`;
-        return `<span class="route__dot route__dot--${kind}${index === at ? " route__dot--here" : ""}" style="left:${pct(xAt(index))};top:${pct(yAt(stop.prob))};--order:${index}" title="${escapeHtml(title)}"></span>`;
+        return `<span class="route__dot route__dot--${kind}${index === at ? " route__dot--here" : ""}" style="left:${pct(xAt(index))};top:${pct(yAt(stop.prob))};--order:${index}" data-at="${index}" data-week="${stop.week}" data-kind="${kind}" data-team="${escapeHtml(nameOf(stop.options))}" data-prob="${formatPercent(stop.prob, 0)}"></span>`;
       })
       .join("");
 
@@ -476,7 +484,7 @@ function route(state, board) {
     .join("");
 
   const loneMark = lone
-    ? `<span class="route__dot route__dot--coach route__dot--here route__dot--lone" style="left:${pct(xAt(at))};top:${pct(yAt(lone.prob))}" title="${escapeHtml(`Coach: ${nameOf(lone.options)} · ${formatPercent(lone.prob, 0)}`)}"></span>`
+    ? `<span class="route__dot route__dot--coach route__dot--here route__dot--lone" style="left:${pct(xAt(at))};top:${pct(yAt(lone.prob))}" data-at="${at}" data-week="${weeks[at].week}" data-kind="coach" data-team="${escapeHtml(nameOf(lone.options))}" data-prob="${formatPercent(lone.prob, 0)}"></span>`
     : "";
 
   // Where the coach's route spends the team being looked at: saved for a
@@ -498,7 +506,7 @@ function route(state, board) {
   const axis = weeks
     .map(
       (week, index) =>
-        `<span class="route__week${index === at ? " route__week--here" : ""}${index === savedAt ? " route__week--saved" : ""}" style="left:${pct(xAt(index))}">${index === 0 ? "Wk " : ""}${week.week}</span>`,
+        `<span class="route__week${index === at ? " route__week--here" : ""}${index === savedAt ? " route__week--saved" : ""}" style="left:${pct(xAt(index))}">${week.week}</span>`,
     )
     .join("");
 
@@ -546,7 +554,133 @@ function route(state, board) {
       ${saved}
       ${coach ? dotsOf(coach, "coach") : ""}${you ? dotsOf(you, "you") : ""}${loneMark}
       ${figures}
+      <span class="route__callout" hidden></span>
     </div>
     <div class="route__axis" aria-hidden="true">${axis}</div>
   </section>`;
+}
+
+/** How far a finger may travel and still be a touch rather than a swipe. */
+const TAP_SLOP = 8;
+
+/**
+ * Touch a week on the chart and it says who is standing there.
+ *
+ * The marks carried a `title` and nothing else, which is a tooltip: a thing a
+ * mouse has and a phone does not, on a board that is a phone first. So the
+ * chart answers a touch instead - anywhere in a week's column, not on the
+ * eight pixels of the mark itself - with the week, the team on each route and
+ * the chance it carries, in a callout over the mark.
+ *
+ * Bound once, to the panel, which survives every render (frame in ui/patch.js);
+ * the callout lives in the chart's own markup, so a render that redraws the
+ * chart takes it down with the numbers it was quoting, and a render that does
+ * not leaves it up.
+ *
+ * On the release, and only for a finger that stayed put: the case is one of
+ * the surfaces a sideways drag turns the week on (watchDrags in app.js), and a
+ * swipe that flashed a callout on its way past would be the chart answering a
+ * question about a week nobody is looking at any more. A mouse gets it on the
+ * move, as the tooltip used to be, and loses it at the edge of the case.
+ */
+function watchChart(panel) {
+  if (panel.dataset.chartWatched) return;
+  panel.dataset.chartWatched = "yes";
+
+  let down = null;
+  const plotOf = (target) => target?.closest?.(".route__plot") ?? null;
+
+  panel.addEventListener("pointerdown", (event) => {
+    const plot = plotOf(event.target);
+    down = plot && event.isPrimary ? { x: event.clientX, y: event.clientY, plot } : null;
+  });
+
+  panel.addEventListener("pointerup", (event) => {
+    const start = down;
+    down = null;
+    if (!start) return;
+    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > TAP_SLOP) return;
+    reveal(start.plot, event.clientX);
+  });
+
+  panel.addEventListener("pointercancel", () => {
+    down = null;
+  });
+
+  panel.addEventListener("pointermove", (event) => {
+    if (event.pointerType !== "mouse") return;
+    const plot = plotOf(event.target);
+    if (plot) reveal(plot, event.clientX);
+  });
+
+  panel.addEventListener("pointerleave", () => hideCallout(panel));
+
+  // A touch anywhere else puts it away - including elsewhere on the board,
+  // which is the only way a finger has of saying it has read it. Once for the
+  // page rather than once per panel: the board has one case, but it renders a
+  // second copy of it for every week it swipes past.
+  if (dismissWatched) return;
+  dismissWatched = true;
+  document.addEventListener("pointerdown", (event) => {
+    if (!plotOf(event.target)) hideCallout(document);
+  });
+}
+
+/** Whether the page-wide dismissal is already listening. */
+let dismissWatched = false;
+
+function hideCallout(root) {
+  for (const callout of root.querySelectorAll(".route__callout")) callout.hidden = true;
+}
+
+/**
+ * Name what is standing in the column under `clientX`.
+ *
+ * The marks say where they are in their own inline styles, as percentages of
+ * the plot, so the callout is placed off those rather than off a second
+ * measurement of the page: the column is the nearest mark's, and the callout
+ * stands over the highest mark in it. Against the ends of the chart it hangs
+ * from the side it has room on, and against the top it drops under the mark,
+ * because the case clips what leaves it.
+ */
+function reveal(plot, clientX) {
+  const callout = plot.querySelector(".route__callout");
+  if (!callout) return;
+  const dots = [...plot.querySelectorAll(".route__dot[data-at]")];
+  if (!dots.length) return;
+
+  const box = plot.getBoundingClientRect();
+  const wanted = box.width > 0 ? ((clientX - box.left) / box.width) * 100 : 0;
+  const xOf = (dot) => parseFloat(dot.style.left);
+  const nearest = dots.reduce((best, dot) =>
+    Math.abs(xOf(dot) - wanted) < Math.abs(xOf(best) - wanted) ? dot : best,
+  );
+  const column = dots.filter((dot) => dot.dataset.at === nearest.dataset.at);
+
+  // Your route first, and one line where both routes are on the same team:
+  // that is the one mark the chart draws for them.
+  const rows = [];
+  const order = (dot) => (dot.dataset.kind === "you" ? 0 : 1);
+  for (const dot of [...column].sort((a, b) => order(a) - order(b))) {
+    const { kind, team, prob } = dot.dataset;
+    if (rows.some((row) => row.team === team && row.prob === prob)) continue;
+    rows.push({ kind, team, prob });
+  }
+
+  const x = xOf(nearest);
+  const y = Math.min(...column.map((dot) => parseFloat(dot.style.top)));
+  callout.innerHTML =
+    `<b class="route__callout-week">Wk ${escapeHtml(nearest.dataset.week)}</b>` +
+    rows
+      .map(
+        (row) =>
+          `<span class="route__callout-row route__callout-row--${row.kind}"><i class="route__swatch" aria-hidden="true"></i><span class="route__callout-team">${escapeHtml(row.team)}</span><b class="route__callout-prob">${escapeHtml(row.prob)}</b></span>`,
+      )
+      .join("");
+  callout.style.left = `${x.toFixed(2)}%`;
+  callout.style.top = `${y.toFixed(2)}%`;
+  callout.classList.toggle("route__callout--right", x < 22);
+  callout.classList.toggle("route__callout--left", x > 78);
+  callout.classList.toggle("route__callout--below", y < 34);
+  callout.hidden = false;
 }
