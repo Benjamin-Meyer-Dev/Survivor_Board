@@ -97,11 +97,107 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0) {
     state.kind === "working"
       ? `<div class="coach__page" data-key="page">${head(state)}${chain(state, board)}</div>`
       : "";
-  reconcile(panel, state.kind === "none" ? "" : page + route(state, board));
+  const routeMarkup = state.kind === "none" ? "" : route(state, board);
+  // Keep the chart's outer frame independent of the markup inside it. The
+  // selected week changes its band, figures and axis, but usually not the SVG
+  // route underneath; replacing the whole section for those small changes
+  // made the line disappear and reappear for a frame at the end of a swipe.
+  const routeShell = routeMarkup ? `<section class="route" data-key="route"></section>` : "";
+  reconcile(panel, state.kind === "none" ? "" : page + routeShell);
+  if (routeMarkup) renderRoute(panel.querySelector(':scope > [data-key="route"]'), routeMarkup);
   // The live board only. A week being staged for a swipe is rendered into a
   // detached box (stageWeek in app.js), and a copy that is about to be thrown
   // away has nothing to answer a touch about.
   if (root.isConnected) watchChart(panel);
+}
+
+/**
+ * Update the season chart without remounting the route line.
+ *
+ * The outer route and plot are stable frames. Their direct children are keyed,
+ * so the selected week's band, figures and axis can change independently while
+ * an unchanged SVG is retained exactly as it stands on the compositor. A real
+ * plan change still changes the SVG markup and reconcile replaces it normally.
+ */
+function renderRoute(current, markup) {
+  if (!current) return;
+  const template = document.createElement("template");
+  template.innerHTML = markup;
+  const next = template.content.firstElementChild;
+  if (!next) return;
+  const previousWeek = current.dataset.viewWeek;
+
+  current.classList.toggle("route--compared", next.classList.contains("route--compared"));
+  current.classList.toggle("route--pending", next.classList.contains("route--pending"));
+  for (const attribute of [
+    "data-motion-key",
+    "data-motion-signature",
+    "data-view-week",
+    "aria-label",
+  ]) {
+    const value = next.getAttribute(attribute);
+    if (value === null) current.removeAttribute(attribute);
+    else current.setAttribute(attribute, value);
+  }
+
+  const head = next.querySelector(':scope > [data-key="head"]');
+  const plot = next.querySelector(':scope > [data-key="plot"]');
+  const axis = next.querySelector(':scope > [data-key="axis"]');
+  const lines = plot?.querySelector(':scope > [data-key="lines"]');
+  if (!head || !plot || !axis || !lines) return;
+  const nextLines = [...lines.children];
+  // Reconcile sees a constant SVG shell. The polylines are updated in place
+  // below, including when a viewed pick genuinely changes the route, so the
+  // browser never has to drop and recreate the drawing surface.
+  lines.replaceChildren();
+
+  reconcile(
+    current,
+    `${head.outerHTML}<div class="route__plot" data-key="plot" aria-hidden="true"></div>${axis.outerHTML}`,
+  );
+  const currentPlot = current.querySelector(':scope > [data-key="plot"]');
+  reconcile(currentPlot, plot.innerHTML);
+  patchRouteLines(currentPlot?.querySelector(':scope > [data-key="lines"]'), nextLines);
+
+  // A callout quotes one column. If the band moved to another one, close the
+  // old quote even though its stable node was deliberately retained.
+  if (previousWeek && previousWeek !== current.dataset.viewWeek) {
+    const callout = current.querySelector('.route__callout[data-key="callout"]');
+    if (callout) {
+      callout.hidden = true;
+      callout.replaceChildren();
+    }
+  }
+}
+
+/** Keep each SVG route line mounted and change only the attributes it draws. */
+function patchRouteLines(current, nextLines) {
+  if (!current) return;
+  const existing = new Map([...current.children].map((line) => [line.dataset.key, line]));
+  const wanted = [];
+
+  for (const next of nextLines) {
+    const held = existing.get(next.dataset.key) ?? next.cloneNode(true);
+    existing.delete(next.dataset.key);
+
+    const attributes = new Set([...next.attributes].map((attribute) => attribute.name));
+    for (const attribute of [...held.attributes]) {
+      if (!attributes.has(attribute.name)) held.removeAttribute(attribute.name);
+    }
+    for (const attribute of [...next.attributes]) {
+      held.setAttribute(attribute.name, attribute.value);
+    }
+    wanted.push(held);
+  }
+
+  const keep = new Set(wanted);
+  wanted.forEach((line, index) => {
+    const at = current.children[index] ?? null;
+    if (at !== line) current.insertBefore(line, at);
+  });
+  for (const line of [...current.children]) {
+    if (!keep.has(line)) line.remove();
+  }
 }
 
 /**
@@ -492,7 +588,7 @@ function route(state, board) {
   const grid = rules
     .map(
       (level) =>
-        `<span class="route__rule" style="top:${pct(yAt(level))}"><span class="route__rule-label">${Math.round(level * 100)}%</span></span>`,
+        `<span class="route__rule" data-key="rule-${Math.round(level * 1000)}" style="top:${pct(yAt(level))}"><span class="route__rule-label">${Math.round(level * 100)}%</span></span>`,
     )
     .join("");
 
@@ -516,8 +612,8 @@ function route(state, board) {
     return runs
       .filter((points) => points.length > 1)
       .map(
-        (points) =>
-          `<polyline class="route__line route__line--${kind}" points="${points.join(" ")}" />`,
+        (points, index) =>
+          `<polyline class="route__line route__line--${kind}" data-key="line-${kind}-${index}" points="${points.join(" ")}" />`,
       )
       .join("");
   };
@@ -532,7 +628,7 @@ function route(state, board) {
       .map((stop, index) => {
         if (stop.prob === null) return "";
         const lost = stop.result === "L" ? " route__dot--lost" : "";
-        return `<span class="route__dot route__dot--${kind}${lost}${index === at ? " route__dot--here" : ""}" style="left:${pct(xAt(index))};top:${pct(yAt(stop.prob))};--order:${index}" data-at="${index}" data-week="${stop.week}" data-kind="${kind}"${stop.result ? ` data-result="${stop.result}"` : ""} data-team="${escapeHtml(nameOf(stop.options))}" data-prob="${formatPercent(stop.prob, 0)}"></span>`;
+        return `<span class="route__dot route__dot--${kind}${lost}${index === at ? " route__dot--here" : ""}" data-key="dot-${kind}-${index}" style="left:${pct(xAt(index))};top:${pct(yAt(stop.prob))};--order:${index}" data-at="${index}" data-week="${stop.week}" data-kind="${kind}"${stop.result ? ` data-result="${stop.result}"` : ""} data-team="${escapeHtml(nameOf(stop.options))}" data-prob="${formatPercent(stop.prob, 0)}"></span>`;
       })
       .join("");
 
@@ -573,12 +669,12 @@ function route(state, board) {
             ? " route__figure--below route__figure--second"
             : " route__figure--below";
       }
-      return `<span class="route__figure route__figure--${mark.kind}${place}" style="left:${pct(xAt(at))};top:${pct(y)}">${formatPercent(mark.prob, 0)}</span>`;
+      return `<span class="route__figure route__figure--${mark.kind}${place}" data-key="figure-${index}" style="left:${pct(xAt(at))};top:${pct(y)}">${formatPercent(mark.prob, 0)}</span>`;
     })
     .join("");
 
   const loneMark = lone
-    ? `<span class="route__dot route__dot--coach route__dot--here route__dot--lone" style="left:${pct(xAt(at))};top:${pct(yAt(lone.prob))}" data-at="${at}" data-week="${weeks[at].week}" data-kind="coach" data-team="${escapeHtml(nameOf(lone.options))}" data-prob="${formatPercent(lone.prob, 0)}"></span>`
+    ? `<span class="route__dot route__dot--coach route__dot--here route__dot--lone" data-key="dot-lone" style="left:${pct(xAt(at))};top:${pct(yAt(lone.prob))}" data-at="${at}" data-week="${weeks[at].week}" data-kind="coach" data-team="${escapeHtml(nameOf(lone.options))}" data-prob="${formatPercent(lone.prob, 0)}"></span>`
     : "";
 
   // Where the coach's route spends the team being looked at: saved for a
@@ -594,7 +690,7 @@ function route(state, board) {
       : [];
   const saved =
     savedAt >= 0
-      ? `<span class="route__saved${savedAt / n > 0.62 ? " route__saved--left" : ""}" style="left:${pct(xAt(savedAt))}"><span class="route__saved-label">Coach ${savedAt > at ? "saves" : "plays"} ${escapeHtml(nameOf(savedTeams))}</span></span>`
+      ? `<span class="route__saved${savedAt / n > 0.62 ? " route__saved--left" : ""}" data-key="saved" style="left:${pct(xAt(savedAt))}"><span class="route__saved-label">Coach ${savedAt > at ? "saves" : "plays"} ${escapeHtml(nameOf(savedTeams))}</span></span>`
       : "";
 
   const axis = weeks
@@ -642,23 +738,23 @@ function route(state, board) {
     .map((entry) => `${entry.stops.map((stop) => nameOf(stop.options)).join(">")}@${entry.season}`)
     .join("|");
 
-  return `<section class="route${you && coach ? " route--compared" : ""}${pending ? " route--pending" : ""}" data-key="route" data-motion-key="coach-route" data-motion-signature="${escapeHtml(signature)}" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
-    <div class="route__head">
+  return `<section class="route${you && coach ? " route--compared" : ""}${pending ? " route--pending" : ""}" data-key="route" data-motion-key="coach-route" data-motion-signature="${escapeHtml(signature)}" data-view-week="${viewed.week}" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
+    <div class="route__head" data-key="head">
       <span class="route__eyebrow">Survival chance by week</span>
       <ul class="route__legend">${legend}</ul>
     </div>
-    <div class="route__plot" aria-hidden="true">
-      <span class="route__band" style="left:${pct((at / n) * 100)};width:${pct(100 / n)}"></span>
+    <div class="route__plot" data-key="plot" aria-hidden="true">
+      <span class="route__band" data-key="band" style="left:${pct((at / n) * 100)};width:${pct(100 / n)}"></span>
       ${grid}
-      <svg class="route__lines" viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
+      <svg class="route__lines" data-key="lines" viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
         ${anyPlayed ? lineOf(played, "played", liveTail) : ""}${coach ? lineOf(coach, "coach") : ""}${you ? lineOf(you, "you") : ""}
       </svg>
       ${saved}
       ${anyPlayed ? dotsOf(played, "played") : ""}${coach ? dotsOf(coach, "coach") : ""}${you ? dotsOf(you, "you") : ""}${loneMark}
       ${figures}
-      <span class="route__callout" hidden></span>
+      <span class="route__callout" data-key="callout" hidden></span>
     </div>
-    <div class="route__axis" aria-hidden="true">${axis}</div>
+    <div class="route__axis" data-key="axis" aria-hidden="true">${axis}</div>
   </section>`;
 }
 

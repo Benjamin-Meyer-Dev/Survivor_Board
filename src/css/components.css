@@ -2810,16 +2810,25 @@
    tab bar under it is the other 44 of the same edge - a thumb that misses the
    strip lands on a tab, which opens the drawer too. Shut, those pixels are
    height the board is spending on its own handle, and the case above would
-   rather have them for the graph, so the strip is the bar and the five pixels
-   of air it needs to be a thing you pull rather than a rule ruled across the
-   chalkboard: any more of them is a gap between the handle and its own tabs.
-   (--drawer-shut in layout.css counts this height; the two move together.) */
+   rather have them for the graph, so the strip is the bar and the air it needs
+   to be a thing you pull rather than a rule ruled across the chalkboard.
+   (--drawer-shut in layout.css counts this height; the two move together.)
+
+   The bar is held against the foot of the strip rather than in the middle of
+   it, because the air under it is not the strip's to give: the tab box is 44
+   tall with a 15px word centred in it, so there are 12.8 pixels of lead below
+   the strip before the word's ink starts. Centred, the bar had 5 above and
+   nearly 18 below and sat glued to the chalkboard's top edge. On the foot it
+   has 9 and 13.8 - as near even as a 14px strip reaches - and the pixel it is
+   held off by is relief, not spacing, which is why it is written from the
+   bottom: the pressed bar changes width, but a bar that ever changed height
+   would walk down the strip if this were a lead from the top. */
 .drawer__grab {
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   width: 100%;
   height: 14px;
-  padding: 0;
+  padding: 0 0 1px;
   border: 0;
   border-radius: 0;
   background: none;

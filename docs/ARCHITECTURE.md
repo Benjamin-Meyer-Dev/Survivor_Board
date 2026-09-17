@@ -813,11 +813,11 @@ be reached at all and nothing is held.
 The adjacent week is rendered into inert staging nodes when the drag declares a
 direction. Those nodes sit one frame-width and a narrow strip of turf beyond the
 current card, model read and visible drawer panel, so both weeks follow the
-finger and settle as one track: the next graph is already drawn while the
-previous one leaves. The field stays a navigator rather than becoming another
-page, but its selected-week bracket follows the same normalized drag to the
-adjacent yard and settles with the pages. At the end the staged copy covers the
-real nodes for the one task in which `turnWeek` adopts the new week.
+finger and settle as one track: the next pricing read is already drawn while
+the previous one leaves. The field and the season chart stay navigators rather
+than becoming pages, but their one-week selection marks follow the same
+normalized drag and settle with the pages. At the end the staged copy covers
+the real nodes for the one task in which `turnWeek` adopts the new week.
 `week-slide-in` in `motion.css` remains as a fallback if a render interrupts
 staging, and every class either path sets is cleared again by the next full
 render, so a lock or another device's change arriving mid-turn cannot leave a
@@ -828,7 +828,11 @@ losers. Its probabilities mean surviving that pool's week, so the same chart
 also reads correctly when advancing requires a team to lose. When a two-pick
 card or a short screen leaves the model band tight, the supporting pricing rows
 fold away before the route does; pool shape must not decide whether the graph
-exists.
+exists. Turning the week keeps the route frame, plot, SVG and each polyline
+mounted; keyed overlays update around them, and a line changes its drawing
+attributes in place only when the underlying route genuinely changed. The
+selection band can therefore move without making the chart blink as though it
+had been recalculated.
 
 Colour is the one thing that does not come off the board: `app.js` stamps
 `data-league` and `data-objective` on the root element and `src/css/leagues.css`
