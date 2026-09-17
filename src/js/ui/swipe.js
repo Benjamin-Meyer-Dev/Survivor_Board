@@ -7,10 +7,11 @@
  * finished asking. Nothing was dropped, and it still felt slow, because the
  * part of a swipe a person reads is the part their finger is still in.
  *
- * So the card, the team list and the drive move with the drag, and the release
- * either finishes the turn from wherever it got to or springs it back. A drag
- * that is too short, or too much up-and-down to be a swipe, is a spring back
- * and turns nothing.
+ * So the card, the model read, the team list and the drive move with the drag,
+ * with the adjacent week's already-rendered copy following directly behind.
+ * The release either finishes that one continuous turn from wherever it got
+ * to or springs both copies back. A drag that is too short, or too much
+ * up-and-down to be a swipe, is a spring back and turns nothing.
  *
  * Pointer events, which this file argued against for years and can now use.
  * The objection was real: the board scrolls vertically, so the moment a finger
@@ -54,16 +55,20 @@ const RUBBER = 0.25;
  * Watch the regions that turn with the week.
  *
  * @param {object} handlers
- * @param {() => Array<{clip:HTMLElement, moves:HTMLElement}>} handlers.parts The
- *   regions to move, as element pairs, freshly looked up per gesture: a box
- *   that clips the travel and the thing inside it that moves across. Only those
- *   on screen, so a panel behind another tab is not dragged.
+ * @param {() => Array<{key:string, clip:HTMLElement, moves:HTMLElement}>} handlers.parts
+ *   The regions to move, freshly looked up per gesture: a box that clips the
+ *   travel and the thing inside it that moves across. Only those on screen, so
+ *   a panel behind another tab is not dragged.
  * @param {(direction:1|-1) => boolean} handlers.canTurn Whether there is a week
  *   that way. A drag towards nothing rubber-bands and springs back.
- * @param {(direction:1|-1) => void} handlers.turn Turn the week: called once
- *   the regions have travelled off their own edge, with 1 for a drag to the
- *   left - the way you push a page aside to bring the next one on - and -1 for
- *   a drag to the right. The caller renders the new week and plays it in.
+ * @param {(direction:1|-1, options:{alreadyVisible:boolean}) => void} handlers.turn
+ *   Turn the week once the regions reach their final position, with 1 for a
+ *   drag to the left and -1 for a drag to the right. `alreadyVisible` says the
+ *   staged week is covering the frame while the caller adopts it.
+ * @param {(direction:1|-1, parts:Array<object>) => Array<HTMLElement|null>} [handlers.stage]
+ *   Render the adjacent week for each moving region. The returned nodes are
+ *   laid beside their current counterparts and do not become interactive; the
+ *   real render is adopted under them at the end of the move.
  * @param {object} [options]
  * @param {HTMLElement[]} [options.surfaces] The elements to watch. Listeners
  *   are bound once and read the event's target, so the markup under them can be
@@ -72,7 +77,7 @@ const RUBBER = 0.25;
  *   inside: anything modal over the top, and anything a drag already means
  *   something in.
  */
-export function watchDrags({ parts, canTurn, turn }, { surfaces = [], ignore = [] } = {}) {
+export function watchDrags({ parts, canTurn, turn, stage }, { surfaces = [], ignore = [] } = {}) {
   /** The drag in hand: where it started, which pointer, and what it is moving. */
   let drag = null;
   /** Set for the length of the release, so a second finger cannot cut in. */
@@ -104,6 +109,7 @@ export function watchDrags({ parts, canTurn, turn }, { surfaces = [], ignore = [
         }
         if (Math.abs(across) < SLOP_PX) return;
         if (Math.abs(across) < Math.abs(down) * DOMINANCE) return;
+        drag.across = across;
         begin(drag);
       }
 
@@ -142,11 +148,12 @@ export function watchDrags({ parts, canTurn, turn }, { surfaces = [], ignore = [
   function begin(current) {
     current.moving = true;
     current.parts = parts();
-    current.width = current.parts[0]?.clip.getBoundingClientRect().width ?? 0;
     for (const { clip, moves } of current.parts) {
       clip.classList.add("is-dragging");
       moves.classList.remove("is-slide-in");
+      moves.classList.add("is-swipe-current");
     }
+    stageDirection(current, current.across < 0 ? 1 : -1);
     // Keeps the moves coming once the finger leaves the region it started in.
     try {
       current.surface.setPointerCapture(current.id);
@@ -159,9 +166,56 @@ export function watchDrags({ parts, canTurn, turn }, { surfaces = [], ignore = [
     frame = 0;
     if (!drag?.moving) return;
     const direction = drag.across < 0 ? 1 : -1;
+    stageDirection(drag, direction);
     // A week that is not there pulls against you rather than moving.
     const offset = canTurn(direction) ? drag.across : drag.across * RUBBER;
-    for (const { moves } of drag.parts) moves.style.transform = `translateX(${offset}px)`;
+    for (const part of drag.parts) {
+      part.moves.style.transform = `translateX(${offset}px)`;
+      if (part.incoming) {
+        part.incoming.style.transform = `translateX(calc(${direction * 100}% + ${offset}px))`;
+      }
+    }
+  }
+
+  /** Put the week on the approached side of the frame, changing sides on a reversal. */
+  function stageDirection(current, direction) {
+    const shouldStage = Boolean(stage && canTurn(direction));
+    const intact =
+      current.parts.length > 0 &&
+      current.parts.every(({ clip, incoming }) => incoming?.parentElement === clip);
+    if (current.direction === direction && (!shouldStage || intact)) return;
+
+    current.direction = direction;
+    clearIncoming(current.parts);
+    if (!shouldStage) return;
+
+    // A full render deliberately clears an in-progress turn. If one lands
+    // between pointer moves, the long-lived frames are still the same nodes;
+    // restore their clip/current markers as the adjacent page is restaged.
+    for (const { clip, moves } of current.parts) {
+      clip.classList.add("is-dragging");
+      moves.classList.add("is-swipe-current");
+    }
+
+    const incoming = stage(direction, current.parts) ?? [];
+    current.parts.forEach((part, index) => {
+      const node = incoming[index];
+      if (!node) return;
+
+      // Match the current region exactly. This matters most for the model read,
+      // whose height is allotted by the surrounding layout rather than by its
+      // graph, and for drawer panels whose content begins inside their padding.
+      node.classList.add("is-swipe-preview");
+      node.setAttribute("aria-hidden", "true");
+      node.inert = true;
+      node.style.left = `${part.moves.offsetLeft}px`;
+      node.style.top = `${part.moves.offsetTop}px`;
+      node.style.width = `${part.moves.offsetWidth}px`;
+      node.style.height = `${part.moves.offsetHeight}px`;
+      node.style.transform = `translateX(${direction * 100}%)`;
+      part.clip.append(node);
+      part.incoming = node;
+    });
   }
 
   async function finish(current, cancelled) {
@@ -169,30 +223,53 @@ export function watchDrags({ parts, canTurn, turn }, { surfaces = [], ignore = [
     const turning =
       !cancelled && Math.abs(current.across ?? 0) >= DISTANCE_PX && canTurn(direction);
 
+    stageDirection(current, direction);
+    const alreadyVisible =
+      turning &&
+      current.parts.length > 0 &&
+      current.parts.every(({ clip, incoming }) => incoming?.parentElement === clip);
+
+    // A render landing in the middle of the gesture may have cleared a staged
+    // copy. In that rare case use the old exit/entrance fallback as a complete
+    // pair rather than showing some regions twice and some once.
+    if (turning && !alreadyVisible) clearIncoming(current.parts);
+
     settling = true;
     dragged = true;
     try {
-      for (const { moves } of current.parts) {
+      for (const { moves, incoming } of current.parts) {
         moves.classList.add("is-drag-settling");
         // From wherever the finger left it: the rest of the way off its own
         // edge, or back where it came from.
         moves.style.transform = turning ? `translateX(${direction * -100}%)` : "";
-        if (turning) moves.style.opacity = "0";
+        if (turning && !alreadyVisible) moves.style.opacity = "0";
+        if (incoming) {
+          incoming.classList.add("is-drag-settling");
+          incoming.style.transform = turning ? "" : `translateX(${direction * 100}%)`;
+        }
       }
       // Reduced motion has no settle to wait for, and no travel either.
       if (!prefersReducedMotion() && current.parts.length) {
         await afterMotion(current.parts[0].moves, { subtree: false });
       }
 
-      for (const { clip, moves } of current.parts) {
-        moves.classList.remove("is-drag-settling");
+      // While the staged week covers the frame, render that same week into the
+      // real, interactive nodes waiting just off screen. Removing the cover and
+      // putting those nodes in place in this task is visually atomic, so the
+      // graph never empties and redraws between the two halves of a turn.
+      if (turning && alreadyVisible) turn(direction, { alreadyVisible: true });
+
+      for (const { clip, moves, incoming } of current.parts) {
+        incoming?.remove();
+        moves.classList.remove("is-drag-settling", "is-swipe-current");
         moves.style.removeProperty("transform");
         moves.style.removeProperty("opacity");
-        if (!turning) clip.classList.remove("is-dragging");
+        // The fallback entrance still needs its clip until its own keyframe is
+        // over; turnWeek owns that half exactly as it did before staging.
+        if (!turning || alreadyVisible) clip.classList.remove("is-dragging");
       }
 
-      // The clip stays on for the arriving week, which travels the same way.
-      if (turning) turn(direction);
+      if (turning && !alreadyVisible) turn(direction, { alreadyVisible: false });
     } finally {
       settling = false;
       // Long enough for the click the release would have produced to have been
@@ -200,6 +277,13 @@ export function watchDrags({ parts, canTurn, turn }, { surfaces = [], ignore = [
       setTimeout(() => {
         dragged = false;
       }, 0);
+    }
+  }
+
+  function clearIncoming(partsToClear) {
+    for (const part of partsToClear) {
+      part.incoming?.remove();
+      part.incoming = null;
     }
   }
 }

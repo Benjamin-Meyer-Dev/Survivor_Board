@@ -809,11 +809,22 @@ browser gives every modal `<dialog>` a watcher of its own, created later and so
 offered the request first. Where there is no `CloseWatcher` the gesture cannot
 be reached at all and nothing is held.
 
-The half going out is the drag itself; the half coming in is a keyframe, because
-the markup between them is replaced (`turnWeek` in `app.js`,
-`week-slide-in` in `motion.css`), and every class either sets is cleared again
-by the next full render, so a lock or another device's change arriving mid-turn
-cannot leave a card sitting off its own edge.
+The adjacent week is rendered into inert staging nodes when the drag declares a
+direction. Those nodes sit one frame-width beyond the current card, model read
+and visible drawer panel, so both weeks follow the finger and settle as one
+track: the next graph is already drawn while the previous one leaves. At the end
+the staged copy covers the real nodes for the one task in which `turnWeek` adopts
+the new week. `week-slide-in` in `motion.css` remains as a fallback if a render
+interrupts staging, and every class either path sets is cleared again by the
+next full render, so a lock or another device's change arriving mid-turn cannot
+leave a card sitting off its own edge.
+
+The route graph is shared by every live pool kind: NFL and college, winners and
+losers. Its probabilities mean surviving that pool's week, so the same chart
+also reads correctly when advancing requires a team to lose. When a two-pick
+card or a short screen leaves the model band tight, the supporting pricing rows
+fold away before the route does; pool shape must not decide whether the graph
+exists.
 
 Colour is the one thing that does not come off the board: `app.js` stamps
 `data-league` and `data-objective` on the root element and `src/css/leagues.css`

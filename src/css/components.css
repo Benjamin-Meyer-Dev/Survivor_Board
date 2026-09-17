@@ -1033,9 +1033,15 @@
 
    Up, because the height of a yard line is the length of the name written down
    it - NORTHWESTERN came out as NORTHWESTEF at 152 - and because a field is
-   the one thing on this board that is better for being bigger. Not without
-   end: the column is 44 wide, and past about 230 the weeks stop reading as a
-   field and start reading as railings.
+   the one thing on this board that is better for being bigger.
+
+   The ceiling is 200, down from 232. The field was the only thing on the board
+   spending the phone's spare height, and it pinned itself to the ceiling on
+   every phone there is while the case under it was left folding its graph away
+   at 45 pixels of plot. A name still reads at 200 - the lane leaves 150 for it
+   where the 152 that cut NORTHWESTERN left 102 - so the last 32 were the field
+   being bigger, not the field being readable, and the working is what they buy
+   instead.
 
    Down, because a banner over the board is height the readout no longer has,
    and a field that will not give any up is a board that scrolls. 124 is the
@@ -1049,7 +1055,7 @@
   flex: 1 1 auto;
   height: 152px;
   min-height: 124px;
-  max-height: 232px;
+  max-height: 200px;
   border: 2px solid var(--chalk);
   background: var(--turf-3);
   overflow-x: auto;
@@ -2054,8 +2060,9 @@
    lines pull, the market's under the buy backs, the probability under the
    lock preview and the tier under the season tile. Each stop is a chalk dot
    on a dashed rule with its key, number and note hung under it, left-aligned
-   in its quarter the way the readouts above are; the rule runs from the first
-   dot to the last, lit, one. */
+   in its quarter the way the readouts above are - all but the last, which
+   reads from the right edge so its dot ends the rule; the rule runs from the
+   first dot to the last, lit, one. */
 .chain {
   position: relative;
   display: grid;
@@ -2067,17 +2074,17 @@
   flex: none;
 }
 
-/* The rule runs the whole width of the block: from the first dot's centre to
-   the right edge, lit from the last stop onwards, so the route arrives rather
-   than stopping three quarters of the way across. The flag stop is at the
-   tier's dot and holds to the end - the lit stretch is the arrival, and the
-   line still reaches the edge the drive line's season tile reaches. */
+/* The rule runs the whole width of the block, from the first dot's centre to
+   the last one's, so the route arrives rather than stopping three quarters of
+   the way across and no line is left hanging past its end. It is lit over the
+   last stretch - that stretch is the arrival - and the line still reaches the
+   edge the drive line's season tile reaches. */
 .chain::before {
   content: "";
   position: absolute;
   top: 3px;
   left: 3px;
-  right: 0;
+  right: 3px;
   height: 1px;
   background: linear-gradient(90deg, var(--line-soft), var(--line-strong) 52%, var(--flag) 75%);
 }
@@ -2105,8 +2112,18 @@
   background: var(--chalk-3);
 }
 
-/* The last stop is where the number arrives, and its dot is lit. */
+/* The last stop is where the number arrives, so it stands at the end of the
+   line rather than at the head of the last quarter: its lit dot caps the rule
+   at the right edge and the key, number and note hang back under it, read from
+   that edge the way the drive line's season tile above is. */
+.chain__stop:last-child {
+  align-items: flex-end;
+  text-align: right;
+}
+
 .chain__stop:last-child::before {
+  left: auto;
+  right: 0;
   background: var(--flag);
   box-shadow: 0 0 6px var(--flag);
 }
@@ -2583,8 +2600,9 @@
    The facts leave first: with them the chart needs 270 to draw in full, and
    under that it would rather have the room. The chart then folds to its lines
    and key: the eyebrow, the figures on the marks and the saved-week label go
-   while the two routes, their marks and the season figures remain. Only when
-   even that will not fit does the chart leave too. */
+   while the two routes, their marks and the season figures remain. In the
+   shortest useful band the supporting head and pricing chain leave instead;
+   the graph is the one part every live pool keeps. */
 @container (max-height: 267px) {
   .facts {
     display: none;
@@ -2611,12 +2629,17 @@
 }
 
 @container (max-height: 148px) {
-  .route {
+  .coach {
+    gap: 0;
+  }
+
+  .coach__head,
+  .chain {
     display: none;
   }
 }
 
-@container (max-height: 93px) {
+@container (max-height: 82px) {
   .coach {
     display: none;
   }
@@ -2633,11 +2656,17 @@
 
    Whether there is a field to raise the drawer over at all is a question about
    the shape of the screen, so where it shows is layout.css's. */
+/* 20 tall, and the bar runs the full width of the drawer: the strip is a grab
+   for a thumb travelling up the screen rather than a target to be hit, and the
+   tab bar under it is the other 44 of the same edge - a thumb that misses the
+   strip lands on a tab, which opens the drawer too. Shut, those pixels are
+   height the board is spending on its own handle, and the case above would
+   rather have them for the graph. */
 .drawer__grab {
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 26px;
+  height: 20px;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -2792,11 +2821,13 @@
   pointer-events: none;
 }
 
+/* 44 tall: the tap target's floor, and the shut drawer's head is this plus the
+   grab, so a pixel over it is a pixel the field and the case do not have. */
 .tab {
   appearance: none;
   position: relative;
   flex: 1;
-  height: 48px;
+  height: 44px;
   padding: 0 8px;
   border: 0;
   border-radius: 0;

@@ -697,10 +697,15 @@
    keyframe would have to start from somewhere and the whole point is that it
    starts from the hand.
 
-   The half coming in is a keyframe, because the markup is replaced between the
-   two: the render happens while the old week is off screen, and what arrives
-   animates in from the other side. `--slide` is +1 for a drag to the left and
-   -1 for one to the right, so one pair of keyframes serves both directions.
+   The adjacent week is rendered beside it as soon as the drag declares a
+   direction. Both copies follow the finger and settle together, so the next
+   card and graph enter while the previous ones leave. At the end that staged,
+   inert copy covers the frame for the one task in which the real nodes adopt
+   its week. There is no empty frame and no graph redraw to see.
+
+   The keyframe below remains as a fallback for a staged copy interrupted by a
+   render. `--slide` is +1 for a drag to the left and -1 for one to the right,
+   so one pair of keyframes serves both directions.
 
    A full width of travel, which is why the parent clips - and clips only while
    this is running, so a focus ring or a shadow that overflows its box on
@@ -714,7 +719,25 @@
    read as a dissolve rather than as a push. */
 
 .is-dragging {
+  position: relative;
   overflow: hidden;
+}
+
+/* The neighbouring week is a visual page only. Its measurements are written
+   beside the live page by ui/swipe.js, because the coach gets its height from
+   layout and the drawer pages begin inside a scrolling panel's padding. */
+.is-swipe-preview {
+  position: absolute !important;
+  z-index: 2;
+  max-width: none !important;
+  margin: 0 !important;
+  overflow: hidden;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.is-swipe-current {
+  will-change: transform;
 }
 
 /* The release. Quick and accelerating away when the turn is being finished,

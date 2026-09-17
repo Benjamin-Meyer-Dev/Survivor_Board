@@ -190,10 +190,10 @@ const EFFECT_FOR = { lock: "fx-lock", pick: "fx-swap" };
  * is open.
  */
 const SLIDING = [
-  { clip: "#call", moves: ".call" },
-  { clip: "#coach", moves: ".coach" },
-  { clip: "#view-week", moves: "#sideline" },
-  { clip: "#view-path", moves: "#drive" },
+  { key: "call", clip: "#call", moves: ".call" },
+  { key: "coach", clip: "#coach", moves: ".coach" },
+  { key: "week", clip: "#view-week", moves: "#sideline" },
+  { key: "path", clip: "#view-path", moves: "#drive" },
 ];
 
 /**
@@ -1188,17 +1188,18 @@ function canTurn(direction) {
  * Turn the board a week, once a drag has carried the week on screen off its
  * own edge (ui/swipe.js).
  *
- * The half going out was the drag itself. This is the other half: the render
- * happens while nothing is on screen, and the week that arrives comes in from
- * the side the drag came from. `--slide` carries the direction, so one pair of
- * keyframes serves both ways (see motion.css).
+ * Normally the adjacent week has travelled in alongside the outgoing one. It
+ * covers the frame while `lookAt` adopts the same week in the real interactive
+ * nodes, so even the route graph is continuously present. `alreadyVisible` is
+ * false only as a fallback when staging was unavailable or interrupted; that
+ * path keeps the old entrance keyframe.
  *
  * Looked up again after the render, because the call's card is a new element by
  * then, where the drawer's panels are the ones the markup ships and stay put.
  * The clip goes off after the arrival, so nothing that overflows its box on
  * purpose - a focus ring, a shadow - is clipped for the rest of the time.
  */
-function turnWeek(direction) {
+function turnWeek(direction, { alreadyVisible = false } = {}) {
   const next = weekAlong(direction);
   if (!next) {
     settleTurn();
@@ -1206,6 +1207,7 @@ function turnWeek(direction) {
   }
 
   lookAt(next.week);
+  if (alreadyVisible) return;
   for (const { clip, moves } of slidingParts()) {
     moves.style.setProperty("--slide", String(direction));
     moves.classList.add("is-slide-in");
@@ -1220,13 +1222,65 @@ function turnWeek(direction) {
 /** The regions to turn, as element pairs, skipping any that is not on screen. */
 function slidingParts() {
   const parts = [];
-  for (const { clip, moves } of SLIDING) {
+  for (const { key, clip, moves } of SLIDING) {
     const box = document.querySelector(clip);
     const inner = box?.querySelector(moves);
     // A panel behind another tab has nothing to show for a turn.
-    if (inner && box.offsetParent !== null) parts.push({ clip: box, moves: inner });
+    if (inner && box.offsetParent !== null) parts.push({ key, clip: box, moves: inner });
   }
   return parts;
+}
+
+/**
+ * Render the week beside the one under the finger.
+ *
+ * These roots are deliberately detached: the renderers can build the exact
+ * card, graph or list without disturbing the live nodes. Swipe makes the
+ * result inert and positions it over the approached edge; `turnWeek` still
+ * performs the real render at the end, which keeps the app state, delegated
+ * handlers and patch caches on their usual long-lived roots.
+ */
+function stageWeek(direction, parts) {
+  const next = weekAlong(direction);
+  if (!next || !lastBoard) return [];
+
+  const canWrite = app.store.canWrite && !lastBoard.eliminated;
+  return parts.map(({ key, moves }) => {
+    const root = document.createElement("div");
+    switch (key) {
+      case "call":
+        renderCall(root, lastBoard, next.week, 0, {
+          canWrite,
+          onAction: () => {},
+          onSlot: () => {},
+        });
+        return root.firstElementChild;
+      case "coach":
+        renderCoach(root, lastBoard, next.week, 0);
+        return root.firstElementChild;
+      case "week":
+        renderSideline(root, lastBoard, next.week, 0, {
+          canWrite,
+          onAction: () => {},
+        });
+        return stagedRoot(moves, root);
+      case "path":
+        renderDrive(root, lastBoard, next.week, () => {});
+        return stagedRoot(moves, root);
+      default:
+        return null;
+    }
+  });
+}
+
+/** Keep a stable panel root's box while filling it with detached rendered content. */
+function stagedRoot(current, rendered) {
+  const root = current.cloneNode(false);
+  root.removeAttribute("id");
+  root.removeAttribute("style");
+  root.classList.remove("is-swipe-current", "is-drag-settling", "is-slide-in");
+  root.append(...rendered.childNodes);
+  return root;
 }
 
 /**
@@ -1240,8 +1294,9 @@ function settleTurn() {
   for (const { clip, moves } of SLIDING) {
     const box = document.querySelector(clip);
     box?.classList.remove("is-dragging");
+    box?.querySelectorAll(".is-swipe-preview").forEach((node) => node.remove());
     const inner = box?.querySelector(moves);
-    inner?.classList.remove("is-slide-in", "is-drag-settling");
+    inner?.classList.remove("is-slide-in", "is-drag-settling", "is-swipe-current");
     inner?.style.removeProperty("--slide");
     inner?.style.removeProperty("transform");
     inner?.style.removeProperty("opacity");
@@ -2952,7 +3007,7 @@ async function main() {
   // chart, which says the same thing whatever week is open. What is left to
   // skip is what a sideways drag already means something in.
   watchDrags(
-    { parts: slidingParts, canTurn, turn: turnWeek },
+    { parts: slidingParts, canTurn, turn: turnWeek, stage: stageWeek },
     {
       surfaces: [el.call, el.coach, el.weekPanel, el.pathPanel],
       ignore: ["input", "textarea", "select", "dialog", ".league-bar__menu"],

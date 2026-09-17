@@ -522,9 +522,9 @@ function route(state, board) {
     )
     .join("; ");
 
-  return `<section class="route${you && coach ? " route--compared" : ""}${pending ? " route--pending" : ""}" data-key="route" aria-label="${escapeHtml(`Win chance by week - ${summary}`)}">
+  return `<section class="route${you && coach ? " route--compared" : ""}${pending ? " route--pending" : ""}" data-key="route" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
     <div class="route__head">
-      <span class="route__eyebrow">Win chance by week</span>
+      <span class="route__eyebrow">Survival chance by week</span>
       <ul class="route__legend">${legend}</ul>
     </div>
     <div class="route__plot" aria-hidden="true">

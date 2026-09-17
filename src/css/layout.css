@@ -278,7 +278,7 @@
      got the chance - nothing had told the column it was allowed to be
      narrower. Nought is that permission. */
   .board {
-    --drawer-shut: calc(6px + 26px + 49px + env(safe-area-inset-bottom));
+    --drawer-shut: calc(6px + 20px + 45px + env(safe-area-inset-bottom));
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(auto, 1fr) minmax(var(--drawer-shut), 0fr);
@@ -300,7 +300,7 @@
   }
 
   /* And the drawer answers, which it spends the rest of its life refusing to:
-     the nought below is how a drawer holding a list fits a track 81 pixels
+     the nought below is how a drawer holding a list fits a track 71 pixels
      tall, and the same nought here would fold the ending to nothing and post
      it off the bottom of the screen. */
   .board:has(.drawer__panels[hidden]) .drawer {
@@ -342,7 +342,7 @@
      shut drawer and the bottom edge. Down to nothing rather than to auto: the
      track above says how tall the drawer is, and a grid item floored at what
      is inside it would stand its list out through the bottom of a track that
-     is 81 pixels tall.
+     is 71 pixels tall.
 
      And shut, the drawer is what the home indicator runs into, so the inset is
      its to carry - handed back over the length of the open, because the panel
@@ -445,12 +445,12 @@
   .board:not(.is-raised) .readout > #pitch {
     min-height: calc(124px + 8px + 37px);
     /* And a ceiling written the same way, for the same reason turned round.
-       The field stops at 232 (.pitch__field) but the box it stands in would
+       The field stops at 200 (.pitch__field) but the box it stands in would
        not: a box told to grow takes every pixel going and leaves the ones the
        field cannot use as turf inside itself, which is the same dead band in a
        different place. Capped, the box stops when the field does and what is
        left over goes to the case below it. */
-    max-height: calc(232px + 8px + 37px);
+    max-height: calc(200px + 8px + 37px);
   }
 
   /* The case has what the field and the card leave, and never asks for a pixel
@@ -750,9 +750,11 @@
      pixel added above them pushes them down the page, which is how a 187-pixel
      table turned a board that scrolled twenty into one that scrolled two
      hundred and seventy. What this screen has spare is width: 1240 of it, with
-     the call card using about half. Standing side by side the table costs the
-     page nothing at all, and the two things about the week on the clock - what
-     the coach calls, and what it weighed - read as one row about one week.
+     the call card using half. Standing side by side the table costs the page
+     nothing at all, and the two things about the week on the clock - what the
+     coach calls, and what it weighed - read as one row about one week. Equal
+     columns give the route graph enough horizontal room to read its weeks and
+     labels without making the card narrow enough to change its layout.
 
      The row is as tall as the card and the case is told so, by the same
      containment the phone uses (above): worth nothing intrinsically, it takes
@@ -762,7 +764,7 @@
      difference. */
   .readout {
     display: grid;
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-areas:
       "pitch pitch"
       "call coach";
