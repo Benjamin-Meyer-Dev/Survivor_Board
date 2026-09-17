@@ -1584,10 +1584,38 @@
 
 /* One slot per pick the week takes. Two share the row; the one the sideline
    is filling wears the bracket, and tapping the other hands it the sideline. */
+/* The floor is the tallest week of the season, measured (holdEveryWeek in
+   ui/call.js) and written here as a length. The card is the same height in
+   every week, which is what leaves the coach's case - and the chart in it - the
+   same box to draw in whatever week the board is turned to. The row stretches
+   to it, so the reserved pixels are air under the name rather than under the
+   card, and the game line and its tiles hold the foot of the slot as they
+   already do. */
 .call__slots {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 8px;
+  min-height: var(--call-floor, 0);
+}
+
+/* Raised, the card is its name and nothing else, and a floor measured for the
+   whole card would hold the drawer off half the screen. */
+.board.is-raised .call__slots {
+  min-height: 0;
+}
+
+/* Where the weeks are laid out to be measured. Out of the flow, never painted
+   and never in the tab order: it is in the card for one layout and gone again
+   inside the same task.
+
+   The floor is dropped inside it, because the floor is what it is measuring:
+   the weeks standing in here at the height the last measurement gave them
+   could only ever agree with it, and a card that had been given a taller
+   screen would hold the taller screen's floor for good. */
+.call__probe {
+  position: absolute;
+  visibility: hidden;
+  --call-floor: 0;
 }
 
 /* Two slots are drawn as boxes - each takes the bracket, and the bracket is a

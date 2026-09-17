@@ -25,6 +25,7 @@ export default [
         CloseWatcher: "readonly",
         performance: "readonly",
         PerformanceObserver: "readonly",
+        ResizeObserver: "readonly",
         navigator: "readonly",
         process: "readonly",
         URL: "readonly",

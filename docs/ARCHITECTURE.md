@@ -834,6 +834,21 @@ attributes in place only when the underlying route genuinely changed. The
 selection band can therefore move without making the chart blink as though it
 had been recalculated.
 
+Keeping the nodes was only half of it. The case is handed whatever the field
+and the card leave over, so the card's height is the chart's: a week whose team
+name wraps to two lines, or whose kickoff is known and takes a line of its own,
+left the plot a different box to draw in from the week beside it, and turning
+the week rescaled the whole graph - and within a fold of one of the case's
+gates, took the pricing rows with it. The card is the part that is about the
+week, so the card is the part that reserves the room: `holdEveryWeek` in
+`ui/call.js` lays every week of the season out once, off the page and at the
+card's own width, and floors the card at the tallest of them. Measured rather
+than assumed, because a blanket line for the name and another for the kickoff
+would hold every week and spend the room on pools that never wrap - an NFL card
+at phone width is the same height in all eighteen weeks. The measurement is
+keyed by the markup it measured, so it is taken when the season's names change,
+on a resize and once the display face has loaded, rather than on every tap.
+
 Colour is the one thing that does not come off the board: `app.js` stamps
 `data-league` and `data-objective` on the root element and `src/css/leagues.css`
 repaints the end zones and the league's mark from them. Everything else is the

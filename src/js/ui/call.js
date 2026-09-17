@@ -106,18 +106,118 @@ export function renderCall(root, board, viewWeek, activeSlot, handlers) {
     <div class="call__slots${two ? " call__slots--two" : ""}" data-key="slots"></div>`,
   );
   const slots = box.querySelector(".call__slots");
-  reconcile(
-    slots,
-    week.picks.map((pick, index) => slotMarkup(pick, board, two, index === active)).join("") +
-      // The bracket round the active slot, as one element that travels rather
-      // than as a border lit on one slot and put out on the other: a slot's
-      // markup changes on every pick and lock, so a border carried in it is
-      // rebuilt - and a rebuilt border has nothing to move from. Which slot it
-      // stands on is written on the row below, not in the markup, for the same
-      // reason.
-      (two ? `<span class="call__marker" data-key="marker" aria-hidden="true"></span>` : ""),
-  );
+  reconcile(slots, slotsMarkup(week, board, active));
   if (two) slots.style.setProperty("--active", String(active));
+  holdEveryWeek(root, slots, board);
+}
+
+/**
+ * The week's slots, and the bracket that travels between them.
+ *
+ * The bracket is one element that moves rather than a border lit on one slot
+ * and put out on the other: a slot's markup changes on every pick and lock, so
+ * a border carried in it is rebuilt - and a rebuilt border has nothing to move
+ * from. Which slot it stands on is written on the row below, not in the
+ * markup, for the same reason.
+ */
+function slotsMarkup(week, board, active) {
+  const two = week.picks.length > 1;
+  return (
+    week.picks.map((pick, index) => slotMarkup(pick, board, two, index === active)).join("") +
+    (two ? `<span class="call__marker" data-key="marker" aria-hidden="true"></span>` : "")
+  );
+}
+
+/** The markup a card's floor was measured from. */
+const held = new WeakMap();
+
+/** What each card is currently showing, for a re-measure off a resize. */
+const latest = new WeakMap();
+
+/** Cards whose width is already being watched. */
+const watching = new WeakSet();
+
+/**
+ * Stand the card at the same height in every week of the season.
+ *
+ * The coach's case above the card is handed whatever the field and the card
+ * leave over (layout.css). So the card's height is the chart's height: a week
+ * whose name wraps to two lines, or whose kickoff is known and takes a line of
+ * its own, hands the case a shorter box than the week beside it does. Turning
+ * the week then re-laid the whole chart - the plot rescaled, every mark and
+ * both routes moved with it, and within a fold of one of the case's gates the
+ * pricing chain itself came and went. Nothing about the season had changed;
+ * the card had. It read as the board working the season out again every time
+ * the week turned, which is the one thing the chart is built not to do (the
+ * band moves, the season holds still - see ui/coach.js).
+ *
+ * The card is the part whose contents are about the week, so the card is the
+ * part that reserves the room. The slots grow to the floor and the game line
+ * and tiles stay at their foot, which is where they already stand.
+ *
+ * Measured rather than assumed. Two lines for the name and one for the kickoff
+ * would hold every week of every pool, and would spend the room on pools that
+ * never needed it - an NFL card is the same height in all eighteen weeks of a
+ * 430 phone, and would have given up fifty pixels of chart for a wrap that
+ * never happens. So every week is laid out once, off the page and at the
+ * card's own width, and the floor is the tallest of them. It is keyed by the
+ * markup it measured, so it is taken again when the season's names change and
+ * not on every tap.
+ */
+function holdEveryWeek(root, slots, board) {
+  // The live card only. A week staged for a swipe is rendered into a detached
+  // root (stageWeek in app.js) and then laid over the edge of this one, where
+  // it inherits the floor already measured here - a copy that is about to
+  // travel across the screen has nothing to measure and no time to do it in.
+  if (!root.isConnected) return;
+
+  latest.set(root, { slots, board });
+  if (!watching.has(root)) {
+    watching.add(root);
+    // A rotation changes the width without a render, and a floor measured at
+    // the other width is a card held at the wrong height with nothing coming
+    // to correct it.
+    new ResizeObserver(() => measureEveryWeek(root)).observe(root);
+    // The display face is fetched rather than shipped (index.html, swap), so
+    // the first measurement can be of a name in the fallback, which is not the
+    // name that ends up drawn.
+    document.fonts?.ready?.then(() => measureEveryWeek(root));
+  }
+  measureEveryWeek(root);
+}
+
+function measureEveryWeek(root) {
+  const { slots, board } = latest.get(root) ?? {};
+  // Raised, the card is trimmed to its name alone and the case is not on the
+  // screen to be steadied (components.css drops the floor with it), so there
+  // is nothing to measure and the floor already taken is still the right one.
+  if (!slots?.isConnected || root.closest(".board")?.classList.contains("is-raised")) return;
+  const width = slots.clientWidth;
+  if (!width) return;
+
+  const markup = board.weeks
+    .map((week) => `<div class="${slots.className}">${slotsMarkup(week, board, 0)}</div>`)
+    .join("");
+  const key = `${width}|${markup}`;
+  if (held.get(root) === key) return;
+
+  // One box, one layout: every week stands in it at once and is read in a
+  // single pass, and it is gone again before the frame it was built in goes
+  // out - nothing is ever painted, and nothing it holds can be tabbed to.
+  const probe = document.createElement("div");
+  probe.className = "call__probe";
+  probe.setAttribute("aria-hidden", "true");
+  probe.style.width = `${width}px`;
+  probe.innerHTML = markup;
+  slots.parentElement.append(probe);
+  const floor = Math.max(0, ...[...probe.children].map((week) => week.offsetHeight));
+  probe.remove();
+
+  held.set(root, key);
+  // On the card's own root rather than on the row it floors, so the week a
+  // swipe stages inside it stands at the same height as the week it is
+  // replacing.
+  root.style.setProperty("--call-floor", `${Math.round(floor)}px`);
 }
 
 function isNow(week, board) {
