@@ -29,16 +29,17 @@
  * in the same weight as the thing it supports is not read as a footnote: the
  * band is the price and the trade, and the room the cards took is the chart's.
  *
- * A week already played keeps the band, with the closing numbers in it: the
- * line the market went to the game with and what that priced the pick at. The
- * model's own projection goes, because it is a live number - the ratings behind
- * it have moved on since - and a projection quoted next to a result reads as
- * what the model says now about a game that is over. Read-only.
+ * A week already played keeps the band and all four stops: the model's line,
+ * the line the market went to the game with, what that priced the pick at, and
+ * the tier. The model's line there is a live number - the ratings behind it are
+ * refitted every week - so it is what the model makes of that game today rather
+ * than what it said at kickoff, and its tooltip says so. Read side by side with
+ * the closing line and the result underneath, that is the one comparison a
+ * finished week is good for. Read-only.
  */
 
 import { formatPercent, formatSpread, formatMatchup, escapeHtml } from "../core/format.js";
 import { TIER_LABEL, DEFAULT_TIERS } from "../core/probability.js";
-import { survival } from "../core/survival.js";
 import { frame, reconcile } from "./patch.js";
 
 /**
@@ -372,11 +373,10 @@ function head(state) {
  * says how far the projection is expected to miss instead - the widening the
  * simulations are drawn with (core/probability.js horizonVariance).
  *
- * A settled week takes three of the four: the line the game was played on, what
- * it priced the pick at, and the tier that fell in. The model's own projection
- * is the stop that goes - it is built from ratings that have been refitted
- * every week since, so on a game that is over it is not what anyone read at the
- * time, and the market's closing line is.
+ * A settled week takes the same four, and only the words around them change:
+ * the market's stop is the line the game was played on rather than the one it
+ * is posting, and the model's stop carries the caveat that its ratings have
+ * been refitted every week since.
  */
 function chain(state, board) {
   const { subject } = state;
@@ -449,16 +449,23 @@ function chain(state, board) {
         p.horizonSd ? `, widened by ±${p.horizonSd.toFixed(1)} for the weeks ahead` : ""
       }`;
 
-  const modelStop = closed
-    ? ""
-    : `<li class="chain__stop" title="The model's own line: what the two teams' power ratings come to on their own, before the market is looked at. ${escapeHtml(subject.team)} is rated ${rating(p.team.rating)} and ${escapeHtml(subject.opponent)} ${rating(p.opponent.rating)}${homeNote} - the fitted ratings where the season has data, the preseason ones where it does not">
+  // The model's line stands on a played week too. It is a live number there -
+  // the ratings behind it are refitted every week, so what it says is what the
+  // model makes of that game now rather than what it made of it then - and the
+  // tooltip says so, because the reader comparing it with the closing line
+  // beside it is doing the one thing the number is good for: seeing where the
+  // model and the market disagreed, with the result underneath to settle it.
+  const rated = `${subject.team} is rated ${rating(p.team.rating)} and ${subject.opponent} ${rating(p.opponent.rating)}${homeNote}`;
+  const modelTitle = closed
+    ? `The model's own line for that game, as it stands now: the ratings behind it have been refitted every week since, so this is what the model makes of it today rather than what it said at kickoff. ${rated}`
+    : `The model's own line: what the two teams' power ratings come to on their own, before the market is looked at. ${rated} - the fitted ratings where the season has data, the preseason ones where it does not`;
+
+  return `<ol class="chain" data-key="chain" aria-label="How ${escapeHtml(subject.team)} ${closed ? "closed" : "was priced"}">
+    <li class="chain__stop" title="${escapeHtml(modelTitle)}">
       <span class="chain__key">Model line</span>
       <span class="chain__value">${formatSpread(p.projected)}</span>
       <span class="chain__sub">${ratingsSub}</span>
-    </li>`;
-
-  return `<ol class="chain" data-key="chain" aria-label="How ${escapeHtml(subject.team)} ${closed ? "closed" : "was priced"}">
-    ${modelStop}
+    </li>
     <li class="chain__stop" title="${escapeHtml(marketTitle)}">
       <span class="chain__key">${closed ? "Closing line" : "Market line"}</span>
       <span class="chain__value">${marketValue}</span>
@@ -588,20 +595,12 @@ function route(state, board) {
   const played = {
     stops: weeks.map((week) => {
       if (week.week >= board.currentWeek) {
-        return { week: week.week, options: [], picks: [], prob: null };
+        return { week: week.week, options: [], prob: null };
       }
       const done = week.picks.filter((pick) => pick.status.result && pick.onPath);
       return {
         week: week.week,
         options: done.map((pick) => pick.onPath),
-        // The same weeks as the survival model reads them: a result rather than
-        // a chance, which is what lets the figure over a mark be worked out on
-        // the pool's own terms further down.
-        picks: done.map((pick) => ({
-          week: week.week,
-          winProb: pick.winProb,
-          result: pick.status.result,
-        })),
         prob: done.length ? week.pathWinProb : null,
         result: done.some((pick) => pick.status.result === "L") ? "L" : "W",
       };
@@ -771,13 +770,21 @@ function route(state, board) {
       .join("");
   };
 
-  // Getting there: the chance of still being in the pool when a week kicks off,
-  // along the route the mark belongs to. The weeks already played are facts
-  // rather than chances - you are here - so they weigh nothing, and what is
-  // left is the plan between now and that week. The shared survival model does
-  // the arithmetic (core/survival.js), so a pool that grants buy backs reads
-  // the same on the chart as it does in the drive line: a week that can be lost
-  // and played through does not take the figure to the floor.
+  // Getting there: the chance of every pick before this week winning, along the
+  // route the mark belongs to. The weeks already played are facts rather than
+  // chances - you are here, however you got here - so they weigh nothing, and
+  // what is left is the plan between now and that week, multiplied through.
+  //
+  // Buy backs are deliberately not in it, which is the one place on the board
+  // that ignores them. A buy back is an option, not a result: the pool lets you
+  // pay to come back from a loss in a forgiving week, and whether that is worth
+  // doing is a decision for the week it happens in. Counting it here made the
+  // figure true and useless - a pool that forgives weeks 1 and 2 reported a
+  // hundred percent chance of reaching week 3 while week 2 was still a 78% game
+  // on the same chart, because losing it could not end the run. This is the run
+  // made on the picks alone. The season figures in the legend and on the drive
+  // line still count the buy back, because that is what the coach is planning
+  // for, and they are the entry's chances rather than this route's.
   //
   // Written to whichever precision keeps it true rather than to a fixed one: a
   // route that reaches the last week of an eighteen-week season two and a half
@@ -787,19 +794,12 @@ function route(state, board) {
   // tenth of the figure or more - and the test is on the figure as it would be
   // written, or a route at 9.96% comes out as "10.0%".
   const reachFigure = (value) => formatPercent(value, value * 100 >= 9.95 ? 0 : 1);
-  const settledPicks = played.stops.flatMap((stop) => stop.picks);
   const reachOf = (entry) => {
-    const picks = [...settledPicks];
+    let reach = 1;
     return entry.stops.map((stop) => {
-      const reach = survival({
-        picks,
-        buyBackWeeks: board.rules?.buyBackWeeks ?? [],
-        buyBacks: board.rules?.buyBacks ?? 0,
-      }).probability;
-      for (const option of stop.options) {
-        picks.push({ week: stop.week, winProb: option.winProb, result: null });
-      }
-      return stop.prob === null ? null : reach;
+      const here = reach;
+      for (const option of stop.options) reach *= option.winProb;
+      return stop.prob === null ? null : here;
     });
   };
 

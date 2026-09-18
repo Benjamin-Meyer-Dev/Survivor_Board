@@ -834,15 +834,29 @@ solid line at the week before and rejoining it at the week after, so a reader
 can see what the difference costs without tracing two full-length lines that
 agree almost everywhere. A touch on a column answers with two figures per
 route: the week's own chance, and the chance of getting there to play it - the
-plan's weeks up to that one, with the weeks already played counting as the
-facts they are. One cannot be read without the other, since a 90% week that the
-plan only reaches one season in thirty is not a 90% week.
+plan's weeks up to that one multiplied through, with the weeks already played
+counting as the facts they are. One cannot be read without the other, since a
+90% week that the plan only reaches one season in thirty is not a 90% week.
 
-A week that has been played keeps the band, on the numbers the game was played
-on: the closing line, what it priced the pick at, and the tier that fell in.
-The model's own projection is the one stop that goes, because it is built from
-ratings refitted every week since and a live projection quoted beside a result
-reads as what the model says now about a game that is over. A week nobody
+That second figure is the one number on the board that ignores buy backs, and
+it ignores them on purpose. `survival()` treats a loss in a forgiving week as a
+buy back spent rather than a run ended, which is right for the season figures -
+it is what the coach plans for - but it made the reach both true and useless: a
+pool that forgives weeks 1 and 2 reported a hundred percent chance of reaching
+week 3 while week 2 stood on the same chart as a 78% game, because losing it
+could not end the run. A buy back is an option and not a result, and whether it
+is worth taking is a decision for the week it happens in, so the reach is the
+run made on the picks alone. The legend's season figures and the drive line
+still count it.
+
+A week that has been played keeps the band and all four of its stops: the
+model's line, the closing line the game was played on, what that priced the
+pick at, and the tier that fell in. The model's line is the one live number
+among them - its ratings are refitted every week, so it is what the model makes
+of that game today, not what it said at kickoff, and the tooltip says so rather
+than the stop being dropped. Beside the closing line, with the result on the
+field above, it is what says where the model and the market disagreed and who
+was right. A week nobody
 picked has no band at all - once every game in a week has been played there are
 no callable teams left in it, so the coach's board for that week is empty
 (`week.coachRanked`) and there is nothing anybody priced to quote.
