@@ -42,7 +42,7 @@ import {
   resolveModel,
   DEFAULT_TIERS,
 } from "./probability.js";
-import { recommendForBoard, searchRequestFor } from "./recommend.js";
+import { recommendForBoard, searchRequestFor, ENGINE_VERSION } from "./recommend.js";
 import { announceSearchSettled, searchRunner } from "./search.js";
 import { advanceProb, advanceResult, bySpread, dangerSign } from "./objective.js";
 import { mergeRules, sameRules } from "./rules.js";
@@ -1498,6 +1498,12 @@ function rehearsed(signature) {
  */
 function signatureBase(board, plan, odds, form, inputs) {
   return [
+    // Which engine would produce this plan. Everything else here describes the
+    // board; this describes the search, and without it a plan outlives the code
+    // that made it - a deploy that changes the coach's mind is answered out of
+    // the old engine's cache until the next odds pull moves the board on
+    // (ENGINE_VERSION in core/recommend.js).
+    ENGINE_VERSION,
     plan.league ?? "cfb",
     board.currentWeek,
     board.buyBack?.left ?? 0,

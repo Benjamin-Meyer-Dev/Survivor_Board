@@ -47,7 +47,14 @@ import { survival } from "./survival.js";
 import { assignPath, FORBIDDEN } from "./assignment.js";
 import { scenarioSet } from "./scenarios.js";
 import { DEFAULT_MODEL } from "./probability.js";
-import { equityOverlay, rankOpenings } from "./equity.js";
+import {
+  equityOverlay,
+  rankOpenings,
+  TIE_MARGIN,
+  DEFAULT_FLOOR,
+  COVERED_FLOOR,
+  DEFAULT_MODE,
+} from "./equity.js";
 
 /** Beams carried between weeks. Higher = better paths, slower. */
 const BEAM_WIDTH = 160;
@@ -108,6 +115,47 @@ export const COACH_DEPTH = 2;
  * of the best candidate's survival there.
  */
 const ROBUST_MARGIN = 0.03;
+
+/**
+ * Which engine produced a plan, for the cache that keeps plans between launches
+ * (storage.plans in config.js, signatureBase in core/plan.js).
+ *
+ * A plan is the output of this file and cannot describe the search that made
+ * it, so a cached plan from an older engine is served as though the new one had
+ * agreed with it - for as long as the board's inputs hold still, which between
+ * two odds pulls is the best part of a day. That is not hypothetical: on
+ * 2026-09-18 the coach's own ordering changed, the deploy went out, and a phone
+ * went on calling the week for the team the previous ordering liked, through
+ * every reload, because the plan behind the call had been worked out forty
+ * seconds before the new code landed and nothing in its key said so.
+ *
+ * Two halves. The tuning constants are read here rather than restated, so a
+ * change to any of them invalidates every stored plan on its own - the change
+ * that caused the above was one of these numbers and nothing else. The leading
+ * count is for everything that is code rather than a number: BUMP IT WHENEVER
+ * THE SEARCH OR THE RANKING CHANGES SHAPE, the same ritual as CACHE in sw.js.
+ *
+ * Bumping storage.plans still works and is still there for a change to the
+ * shape of what is stored, but it no longer has to carry this: it lives in
+ * config.js, a file away from anything it is guarding, and a launch that took
+ * the new config.js beside this file's older self - which is exactly what the
+ * cache-first worker allows for a few seconds after a deploy - would write the
+ * old engine's plan under the new key and poison it. A version the engine
+ * carries itself cannot be paired with the wrong engine.
+ */
+export const ENGINE_VERSION = [
+  "e1",
+  DEFAULT_MODE,
+  TIE_MARGIN,
+  DEFAULT_FLOOR,
+  COVERED_FLOOR,
+  SCENARIO_COUNT,
+  ROBUST_MARGIN,
+  BEAM_WIDTH,
+  CANDIDATE_WIDTH,
+  FINALISTS,
+  COACH_DEPTH,
+].join(",");
 
 /** Probabilities multiply, so we add logs and avoid underflow across 26 picks. */
 const logp = (p) => Math.log(Math.max(p, 1e-9));

@@ -75,11 +75,15 @@ export const CONFIG = Object.freeze({
    *   plans     the coach's last few season plans, so a launch opens on a
    *             board that is already planned (store/plans.js)
    *
-   * `plans` carries a version of its own because a plan is the output of the
-   * search and its key cannot describe the search itself: BUMP IT WHENEVER
-   * core/recommend.js CHANGES, the same ritual as CACHE in sw.js, or a deploy
-   * is answered out of the old version's plans until the next lock moves the
-   * board on. Nothing else here needs that - the rest is what people typed.
+   * `plans` carries a version of its own for the shape of what is stored. It
+   * used to carry the engine's version too - bumped by hand whenever
+   * core/recommend.js changed - and that is now ENGINE_VERSION, which the
+   * engine keeps beside itself and which is part of every plan's key
+   * (signatureBase in core/plan.js). A version a file away from the code it
+   * guards can be paired with the wrong code: a launch in the seconds after a
+   * deploy can take this file new and the engine old, and then the old engine
+   * writes its plan under the new key and the key is worth nothing. Nothing
+   * else here needs a version - the rest is what people typed.
    */
   storage: Object.freeze({
     passcode: `${STORAGE_PREFIX}passcode`,
