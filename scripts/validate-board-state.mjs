@@ -23,13 +23,18 @@ import { CONFIG } from "../src/js/config.js";
 import { confidenceTier, TIER_LABEL } from "../src/js/core/probability.js";
 import { recommendPath } from "../src/js/core/recommend.js";
 import { setSearchRunner } from "../src/js/core/search.js";
+import { atKickoff } from "./lib/feed.mjs";
 
 const readJson = async (name) =>
   JSON.parse(await readFile(new URL(`../data/nfl/${name}`, import.meta.url), "utf8"));
 
-const [plan, odds, teams, schedule, ratings] = await Promise.all(
+const [plan, feed, teams, schedule, ratings] = await Promise.all(
   ["plan.json", "odds.json", "teams.json", "schedule.json", "ratings.json"].map(readJson),
 );
+
+// The feed the checks below read: the open week whole, so what they describe
+// is the board rather than the day CI happened to run on.
+const odds = atKickoff(feed);
 
 const build = (entry, sourceOdds = odds, allowSearch = true, inHand = null) =>
   buildBoard({
@@ -56,7 +61,14 @@ assert.equal(TIER_LABEL.danger, "Upset alert");
 // An untouched board: no team in any slot, nothing spent, and a suggestion
 // standing in for every open slot.
 const empty = build(nothing());
-const first = empty.weeks[0].picks[0];
+// The board keeps the whole season, played weeks included, so the week under
+// test is the one on the clock rather than the first in the array: once the
+// feed moves the season on, week one is history and the coach has no call left
+// to make there. Every board below is built off the same feed, so the one index
+// serves them all.
+const live = empty.weeks.findIndex((week) => week.week === empty.currentWeek);
+assert.ok(live >= 0, "the season has a week on the clock");
+const first = empty.weeks[live].picks[0];
 assert.equal(first.team, null, "an untouched slot holds no team");
 assert.equal(first.status.picked, false);
 assert.equal(first.status.locked, false);
@@ -65,8 +77,8 @@ assert.equal(empty.pickedCount, 0);
 assert.ok(first.suggestion?.team, "the coach suggests a team for an open slot");
 assert.equal(first.onPath?.kind, "coach", "the path shows the suggestion as the coach's");
 assert.equal(
-  empty.weeks[0].pathTier,
-  confidenceTier(empty.weeks[0].pathWinProb, plan.tiers),
+  empty.weeks[live].pathTier,
+  confidenceTier(empty.weeks[live].pathWinProb, plan.tiers),
   "the combined weekly probability uses the same confidence scale",
 );
 assert.ok(empty.plannedCount > 0, "the coach path is represented separately");
@@ -132,15 +144,13 @@ for (const week of empty.weeks.filter((entry) => entry.week >= empty.currentWeek
 
 const key = slotKey(first.week, first.slot);
 const coachTeam = first.suggestion.team;
+const authoredTeam = plan.weeks.find((week) => week.week === first.week).picks[0].team;
 // Two teams the coach did NOT suggest, so advice and choice can be told apart
 // below. The authored plan is excluded as well: it seeds the optimiser, so its
 // team is not reliably a team the coach passed over.
 const notTheCoachs = first.options.filter(
   (option) =>
-    !option.disabled &&
-    !option.result &&
-    option.team !== coachTeam &&
-    option.team !== plan.weeks[0].picks[0].team,
+    !option.disabled && !option.result && option.team !== coachTeam && option.team !== authoredTeam,
 );
 // `other` is given a final below, so it is the team the lock and the
 // played-game rules are tested on. `pending` keeps its game ahead of it, which
@@ -158,13 +168,13 @@ withFeedResult.results[lineKey(first.week, other)] = "W";
 
 // A feed result cannot turn a suggestion into a pick.
 const advised = build(nothing(), withFeedResult);
-assert.equal(advised.weeks[0].picks[0].team, null, "the feed cannot pick a team");
-assert.equal(advised.weeks[0].picks[0].status.result, null, "advice cannot receive a result");
+assert.equal(advised.weeks[live].picks[0].team, null, "the feed cannot pick a team");
+assert.equal(advised.weeks[live].picks[0].status.result, null, "advice cannot receive a result");
 
 // Picking a team is not locking it: nothing is spent, no result lands, and the
 // coach's plan does not move.
 const picked = build({ picks: {}, swaps: { [key]: pending } }, withFeedResult);
-const pickedSlot = picked.weeks[0].picks[0];
+const pickedSlot = picked.weeks[live].picks[0];
 assert.equal(pickedSlot.team, pending, "the slot holds the team the user picked");
 assert.equal(pickedSlot.status.picked, true);
 assert.equal(pickedSlot.status.locked, false);
@@ -197,8 +207,8 @@ assert.ok(
 // the coach's board for the week is the one it was, rank for rank, and the
 // team list still badges the call that was passed over as the first of them.
 assert.deepEqual(
-  picked.weeks[0].coachRanked.map((option) => `${option.rank}:${option.team}`),
-  empty.weeks[0].coachRanked.map((option) => `${option.rank}:${option.team}`),
+  picked.weeks[live].coachRanked.map((option) => `${option.rank}:${option.team}`),
+  empty.weeks[live].coachRanked.map((option) => `${option.rank}:${option.team}`),
   "a pick of your own leaves the coach's ranking where it was",
 );
 assert.equal(
@@ -270,7 +280,7 @@ assert.equal(
 // lock alone: the other pick stays unlocked, and the coach plans past it. A
 // rehearsal that held both priced a board no lock could produce - 0.8% against
 // the 1.0% the lock then showed - which is the regression this holds.
-const secondWeek = empty.weeks[1];
+const secondWeek = empty.weeks[live + 1];
 const secondKey = slotKey(secondWeek.week, 0);
 const secondTeam = secondWeek.picks[0].options.find(
   (option) =>
@@ -286,11 +296,11 @@ const twoPending = { picks: {}, swaps: { [key]: rehearsedTeam, [secondKey]: seco
 const inHand = build(twoPending, withFeedResult, true, { week: first.week, slot: first.slot });
 assert.equal(inHand.previewPending, false, "the lock in hand was rehearsed before the second pick");
 assert.equal(
-  inHand.weeks[1].picks[0].team,
+  inHand.weeks[live + 1].picks[0].team,
   secondTeam,
   "the other pick stays in its slot while the first is weighed",
 );
-assert.equal(inHand.weeks[1].picks[0].onPath.kind, "picked");
+assert.equal(inHand.weeks[live + 1].picks[0].onPath.kind, "picked");
 const lockedInHand = build(
   { picks: { [key]: { locked: true } }, swaps: twoPending.swaps },
   withFeedResult,
@@ -331,7 +341,10 @@ assert.equal(
 // other weeks - has no lock for "if locked" to price, and the readout shows a
 // dash there. Every pick pending is still held for the ghosts, so the path on
 // screen is one that could actually be locked.
-const noneInHand = build(twoPending, withFeedResult, true, { week: empty.weeks[2].week, slot: 0 });
+const noneInHand = build(twoPending, withFeedResult, true, {
+  week: empty.weeks[live + 2].week,
+  slot: 0,
+});
 assert.equal(noneInHand.previewPathProbability, null, "nothing in hand to lock, so no number");
 assert.deepEqual(
   new Set(
@@ -358,7 +371,7 @@ const locked = build(
   { picks: { [key]: { locked: true, coachTeam } }, swaps: { [key]: other } },
   withFeedResult,
 );
-const lockedSlot = locked.weeks[0].picks[0];
+const lockedSlot = locked.weeks[live].picks[0];
 assert.equal(lockedSlot.team, other);
 assert.equal(lockedSlot.status.locked, true);
 assert.equal(lockedSlot.onPath.kind, "locked");
@@ -373,28 +386,28 @@ assert.equal(lockedSlot.status.result, "W", "locked picks receive feed results")
 // and the results and to nothing the user does. This lock saved the call alone -
 // an entry from before the ranking was kept with a lock - and needs no snapshot
 // to keep the board, because the board never moved.
-const board = empty.weeks[0].coachRanked.map((option) => `${option.rank}:${option.team}`);
+const board = empty.weeks[live].coachRanked.map((option) => `${option.rank}:${option.team}`);
 assert.ok(board.length > 1, "the coach ranks more than its own call for an open week");
 assert.deepEqual(
-  locked.weeks[0].coachRanked.map((option) => `${option.rank}:${option.team}`),
+  locked.weeks[live].coachRanked.map((option) => `${option.rank}:${option.team}`),
   board,
   "a locked week keeps the whole board the coach gave it",
 );
 assert.equal(
-  locked.weeks[0].picks[0].options.find((option) => option.team === coachTeam)?.coachRank,
+  locked.weeks[live].picks[0].options.find((option) => option.team === coachTeam)?.coachRank,
   1,
   "and the team list badges the call first",
 );
 assert.equal(
-  locked.weeks[0].picks[0].options.find((option) => option.team === other)?.coachRank,
-  empty.weeks[0].coachRanked.findIndex((option) => option.team === other) + 1 || null,
+  locked.weeks[live].picks[0].options.find((option) => option.team === other)?.coachRank,
+  empty.weeks[live].coachRanked.findIndex((option) => option.team === other) + 1 || null,
   "and the lock wears the rank the coach gave it, or none",
 );
 // A lock made from the board carries the week's ranking as it stood (app.js).
 // It changes nothing while the week is still live - the board is the same
 // board - and is what the week reads back from once there is no plan left to
 // rank it, an eliminated entry or a week now in the past.
-const ranking = empty.weeks[0].coachRanked.map((option) => option.team);
+const ranking = empty.weeks[live].coachRanked.map((option) => option.team);
 const kept = build(
   {
     picks: { [key]: { locked: true, coachTeam, coachRanked: ranking, at: 1 } },
@@ -403,17 +416,17 @@ const kept = build(
   withFeedResult,
 );
 assert.deepEqual(
-  kept.weeks[0].coachRanked.map((option) => `${option.rank}:${option.team}`),
+  kept.weeks[live].coachRanked.map((option) => `${option.rank}:${option.team}`),
   board,
   "a snapshot saved with a lock agrees with the board the week keeps",
 );
 assert.equal(
-  kept.weeks[0].picks[0].options.find((option) => option.team === ranking[1])?.coachRank,
+  kept.weeks[live].picks[0].options.find((option) => option.team === ranking[1])?.coachRank,
   2,
   "the coach's second choice is still badged second in the team list",
 );
 assert.equal(
-  kept.weeks[0].picks[0].options.find((option) => option.team === other)?.coachRank,
+  kept.weeks[live].picks[0].options.find((option) => option.team === other)?.coachRank,
   ranking.indexOf(other) + 1 || null,
   "the lock wears the rank the coach gave it, or none",
 );
@@ -438,7 +451,7 @@ assert.ok(
 // gave it.
 const twoPerWeek = (picks, swaps) => build({ picks, swaps, rules: { picksPerWeek: 2 } });
 const pair = twoPerWeek({}, {});
-const pairWeek = pair.weeks[0];
+const pairWeek = pair.weeks[live];
 assert.equal(pairWeek.picks.length, 2, "the pool takes two picks a week");
 const pairBoard = pairWeek.coachRanked.map((option) => option.team);
 assert.equal(pairBoard.length, 4, "and the coach ranks four for it - twice what the week needs");
@@ -451,7 +464,7 @@ for (const team of [...pairBoard, stranger]) {
     { [slot]: { locked: true, coachTeam: pairBoard[0], coachRanked: pairBoard, at: 1 } },
     { [slot]: team },
   );
-  const week = after.weeks[0];
+  const week = after.weeks[live];
   const rival = pairWeek.optionByTeam.get(team)?.opponent;
   // Everything the coach said about the week, except a call the lock has just
   // made unplayable by taking the other side of its game. That name leaves the
@@ -480,7 +493,7 @@ for (const team of [...pairBoard, stranger]) {
 assert.equal(lockedSlot.sinceLock, null, "a lock without a saved spread has no movement");
 const sinceLockOf = (spread) =>
   build({ picks: { [key]: { locked: true, spread } }, swaps: { [key]: other } }, withFeedResult)
-    .weeks[0].picks[0].sinceLock;
+    .weeks[live].picks[0].sinceLock;
 assert.equal(
   sinceLockOf(lockedSlot.spread + 1),
   1,
@@ -499,9 +512,9 @@ for (const [lineId, line] of Object.entries(withKickoff.lines)) {
   if (lineId.startsWith(first.week + "|")) line.kickoff = kickoffAt;
 }
 const timed = build({ picks: {}, swaps: { [key]: pending } }, withKickoff);
-assert.equal(timed.weeks[0].picks[0].kickoff, kickoffAt, "a pick carries its game's kickoff");
+assert.equal(timed.weeks[live].picks[0].kickoff, kickoffAt, "a pick carries its game's kickoff");
 assert.ok(
-  timed.weeks[0].options.some((option) => option.kickoff === kickoffAt),
+  timed.weeks[live].options.some((option) => option.kickoff === kickoffAt),
   "the week's options carry the kickoff the feed timed them with",
 );
 assert.equal(lockedSlot.status.resultSource, "final");
@@ -515,19 +528,21 @@ assert.equal(locked.plannedTeams[other], undefined, "a locked team is not a coac
 assert.equal(locked.pickedTeams[other], undefined, "a locked team is no longer merely picked");
 assert.equal(lockedSlot.isRecommended, false, "a locked team earns no coach badge");
 assert.ok(
-  locked.weeks[0].pathRecommendation.some((option) => option.team === other),
+  locked.weeks[live].pathRecommendation.some((option) => option.team === other),
   "the optimized path honours the lock",
 );
 assert.ok(
-  locked.weeks[0].recommended.some((option) => option.team === coachTeam),
+  locked.weeks[live].recommended.some((option) => option.team === coachTeam),
   "the displayed coach call stays on the pre-lock suggestion",
 );
 assert.ok(
-  locked.weeks[0].recommended.every((option) => option.team !== other),
+  locked.weeks[live].recommended.every((option) => option.team !== other),
   "the locked team is not relabelled as the coach's suggestion",
 );
 assert.ok(
-  locked.weeks.slice(1).every((week) => week.recommended.every((option) => option.team !== other)),
+  locked.weeks
+    .slice(live + 1)
+    .every((week) => week.recommended.every((option) => option.team !== other)),
   "the coach builds the future path around the lock",
 );
 
@@ -536,13 +551,13 @@ assert.ok(
 // the coach's suggestion stands in - the alternative is a slot holding a team
 // the board will not let anyone lock, priced off a line that is history.
 const abandoned = build({ picks: {}, swaps: { [key]: other } }, withFeedResult);
-const abandonedSlot = abandoned.weeks[0].picks[0];
+const abandonedSlot = abandoned.weeks[live].picks[0];
 assert.equal(abandonedSlot.team, null, "an unlocked pick whose game has been played is no pick");
 assert.equal(abandonedSlot.status.picked, false);
 assert.equal(abandonedSlot.status.result, null, "and it takes no result: nothing was committed");
 assert.equal(
   abandonedSlot.suggestion?.team,
-  advised.weeks[0].picks[0].suggestion.team,
+  advised.weeks[live].picks[0].suggestion.team,
   "the slot falls back to the coach, exactly as if it had never been picked",
 );
 assert.equal(abandonedSlot.onPath.kind, "coach");
@@ -559,10 +574,10 @@ assert.equal(
 // whether or not anyone did. That is a fact about the fixture rather than
 // about an entry, so unlike a pick's result it needs no lock behind it.
 const settledWeek = first.week;
-const settledTeam = empty.weeks[0].options.find((option) => option.team !== coachTeam).team;
+const settledTeam = empty.weeks[live].options.find((option) => option.team !== coachTeam).team;
 // A later week this team plays again, to show the block is per week.
 const laterWeek = empty.weeks
-  .slice(1)
+  .slice(live + 1)
   .find((week) => week.options.some((option) => option.team === settledTeam));
 assert.ok(laterWeek, "the fixture needs a team that plays more than once");
 
@@ -571,13 +586,15 @@ withSettled.updatedAt = `${odds.updatedAt}-settled-check`;
 withSettled.results[lineKey(settledWeek, settledTeam)] = "L";
 
 const settled = build(nothing(), withSettled);
-const settledRow = settled.weeks[0].picks[0].options.find((option) => option.team === settledTeam);
+const settledRow = settled.weeks[live].picks[0].options.find(
+  (option) => option.team === settledTeam,
+);
 assert.equal(settledRow.result, "L", "a played game carries its result into the list");
 assert.equal(settledRow.disabled, true, "a played game cannot be picked");
 assert.equal(settledRow.reason, "Lost", "the row says how it went in place of its line");
 assert.equal(settledRow.isCoach, false, "the coach never advises a game already played");
 assert.ok(
-  settled.weeks[0].recommended.every((option) => option.team !== settledTeam),
+  settled.weeks[live].recommended.every((option) => option.team !== settledTeam),
   "a played game is no candidate for its week",
 );
 assert.equal(
@@ -586,7 +603,7 @@ assert.equal(
   "a played game nobody locked spends nothing: only a lock burns a team",
 );
 assert.equal(
-  settled.weeks[0].picks[0].status.result,
+  settled.weeks[live].picks[0].status.result,
   null,
   "a played game does not put a result on a slot nobody picked",
 );
@@ -601,7 +618,7 @@ assert.equal(laterRow.disabled, false, "a played game leaves the team's other we
 // stays teams that can actually be taken. The feed may already carry finals
 // for the week - it does once the season is under way - so the settled row is
 // checked against the games still to come rather than for last place.
-const rowsWhenFree = settled.weeks[0].picks[0].options;
+const rowsWhenFree = settled.weeks[live].picks[0].options;
 const firstPlayed = rowsWhenFree.findIndex((option) => option.result);
 assert.ok(
   firstPlayed >= 0 && rowsWhenFree.slice(firstPlayed).every((option) => option.result),
@@ -613,7 +630,7 @@ assert.ok(
 );
 assert.equal(
   rowsWhenFree.filter((option) => option.result).length,
-  empty.weeks[0].picks[0].options.filter((option) => option.result).length + 1,
+  empty.weeks[live].picks[0].options.filter((option) => option.result).length + 1,
   "only the settled fixture is newly marked settled",
 );
 
@@ -624,13 +641,13 @@ assert.equal(
 const pickedKey = slotKey(settledWeek, 0);
 const heldEntry = { picks: { [pickedKey]: { locked: true } }, swaps: { [pickedKey]: settledTeam } };
 const indexOf = (board) =>
-  board.weeks[0].picks[0].options.findIndex((option) => option.team === settledTeam);
+  board.weeks[live].picks[0].options.findIndex((option) => option.team === settledTeam);
 assert.equal(
   indexOf(build(heldEntry, withSettled)),
   indexOf(build(heldEntry, odds)),
   "the slot's own team holds its place in the list when its game goes final",
 );
-const heldRow = build(heldEntry, withSettled).weeks[0].picks[0].options.find(
+const heldRow = build(heldEntry, withSettled).weeks[live].picks[0].options.find(
   (option) => option.team === settledTeam,
 );
 assert.equal(heldRow.isCurrent, true);
@@ -650,19 +667,22 @@ assert.ok(
 // without storing it. That is still a lock on that team.
 const legacy = build({ picks: { [key]: { locked: true } }, swaps: {} });
 assert.equal(
-  legacy.weeks[0].picks[0].team,
-  plan.weeks[0].picks[0].team,
+  legacy.weeks[live].picks[0].team,
+  authoredTeam,
   "a legacy lock resolves to the authored plan's team",
 );
-assert.equal(legacy.weeks[0].picks[0].status.locked, true);
+assert.equal(legacy.weeks[live].picks[0].status.locked, true);
 
 // A loss in a forgiving week costs the buy back, not the run. The season ships
 // no buy back - a pool that grants one says so in its own rules - so the pool
 // under test grants itself one rather than reading the plan's default, which
 // is a number the repo is free to change without changing what a buy back does.
-const forgivingRules = { buyBacks: 1, buyBackWeeks: [1, 2] };
+// The forgiving weeks are counted off the week under test rather than off the
+// calendar: a week already played has no fixture left to lock a loss onto.
+const forgivingRules = { buyBacks: 1, buyBackWeeks: [first.week, first.week + 1] };
 const forgiving = forgivingRules.buyBackWeeks[0];
-const forgivingSlot = empty.weeks[forgiving - 1].picks[0];
+const weekOf = (board, week) => board.weeks.find((entry) => entry.week === week);
+const forgivingSlot = weekOf(empty, forgiving).picks[0];
 const forgivingTeam = forgivingSlot.options.find((option) => !option.disabled).team;
 const softLoss = structuredClone(odds);
 softLoss.updatedAt = `${odds.updatedAt}-soft-loss`;
@@ -683,8 +703,10 @@ assert.equal(bought.elimination, null);
 // A loss nothing covers ends the run, and the board goes into review: the week
 // is named, the coach stands down without a search, and later weeks are open
 // to nothing.
-const fatal = plan.weeks.find((week) => !forgivingRules.buyBackWeeks.includes(week.week)).week;
-const fatalSlot = empty.weeks[fatal - 1].picks[0];
+const fatal = plan.weeks.find(
+  (week) => week.week > first.week && !forgivingRules.buyBackWeeks.includes(week.week),
+).week;
+const fatalSlot = weekOf(empty, fatal).picks[0];
 const fatalTeam = fatalSlot.options.find((option) => !option.disabled).team;
 const hardLoss = structuredClone(odds);
 hardLoss.updatedAt = `${odds.updatedAt}-hard-loss`;
@@ -707,17 +729,21 @@ assert.deepEqual(
 assert.equal(out.pathProbability, 0);
 assert.equal(out.recommendationPending, false, "review waits on no search");
 assert.deepEqual(out.recommendation.picks, {}, "the coach stands down in review");
-assert.equal(out.weeks[fatal].picks[0].suggestion, null, "no suggestion for a week never played");
+assert.equal(
+  weekOf(out, fatal + 1).picks[0].suggestion,
+  null,
+  "no suggestion for a week never played",
+);
 assert.ok(
   out.weeks.filter((week) => week.week !== fatal).every((week) => week.coachRanked.length === 0),
   "and nothing ranked either: in review the coach has stood down",
 );
 assert.deepEqual(
-  out.weeks[fatal - 1].coachRanked.map((option) => option.team),
-  out.weeks[fatal - 1].recommended.map((option) => option.team),
+  weekOf(out, fatal).coachRanked.map((option) => option.team),
+  weekOf(out, fatal).recommended.map((option) => option.team),
   "but the week the run ended on keeps the call it was decided against, as history",
 );
-assert.equal(out.weeks[fatal - 1].picks[0].status.result, "L");
+assert.equal(weekOf(out, fatal).picks[0].status.result, "L");
 
 // A week can run out of games before it runs out of slots. Two picks a week is
 // the college pool's rule, so that is the board these checks need: late on a
@@ -727,9 +753,13 @@ assert.equal(out.weeks[fatal - 1].picks[0].status.result, "L");
 const readCollege = async (name) =>
   JSON.parse(await readFile(new URL(`../data/cfb/${name}`, import.meta.url), "utf8"));
 
-const [cfbPlan, cfbOdds, cfbTeams, cfbSchedule, cfbRatings] = await Promise.all(
+const [cfbPlan, cfbFeed, cfbTeams, cfbSchedule, cfbRatings] = await Promise.all(
   ["plan.json", "odds.json", "teams.json", "schedule.json", "ratings.json"].map(readCollege),
 );
+// Wound back to the Saturday morning for the same reason, and these checks
+// need it more than most: they play the open week down to one game themselves,
+// so a week the Saturday has already emptied is no starting point.
+const cfbOdds = atKickoff(cfbFeed);
 
 assert.equal(cfbPlan.rules.picksPerWeek, 2, "the college pool takes two picks a week");
 
@@ -881,8 +911,8 @@ assert.equal(losers.rules.picksPerWeek, 1, "one pick a week");
 assert.equal(losers.rules.buyBacks, 0, "and no forgiveness");
 assert.equal(losers.buyBack, null, "a pool with no buy back shows no buy back cell");
 
-const losersWeek = losers.weeks.find((week) => week.week === losers.currentWeek);
-const winnersWeek = empty.weeks.find((week) => week.week === empty.currentWeek);
+const losersWeek = losers.weeks.find((week) => week.week === first.week);
+const winnersWeek = empty.weeks[live];
 const winnersProb = new Map(winnersWeek.options.map((option) => [option.team, option.winProb]));
 
 // Every option is the other side of the same number, and the spread it is

@@ -29,6 +29,7 @@ import { resolveModel, winProbFromSpread, DEFAULT_MODEL } from "../src/js/core/p
 import { buildBoard } from "../src/js/core/plan.js";
 import { CONFIG } from "../src/js/config.js";
 import { cfbEfficiencyFromPpa, boardNameResolver, pullEfficiency } from "./lib/stats.mjs";
+import { atKickoff } from "./lib/feed.mjs";
 
 const close = (a, b, tolerance, message) =>
   assert.ok(Math.abs(a - b) <= tolerance, `${message}: ${a} vs ${b}`);
@@ -726,7 +727,9 @@ const close = (a, b, tolerance, message) =>
   ]);
   const base = {
     plan,
-    odds,
+    // The open week whole: the frontier below is the week on the clock's, and
+    // the committed feed has that week played out for part of every week.
+    odds: atKickoff(odds),
     teams,
     schedule,
     ratings,

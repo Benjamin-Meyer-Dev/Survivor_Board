@@ -2436,9 +2436,21 @@
   opacity: 0.5;
 }
 
-/* The plot proper, with a gutter to its left for the rules' labels. */
+/* The plot proper, with a gutter to its left for the rules' labels.
+
+   Over the rest of the chart rather than level with it, because the one thing
+   in it that leaves its box is the callout, and what it leaves into is the row
+   of week numbers under the axis. Every child of .route is given a layer above
+   the turf (`.route > *`), which makes the plot a stacking context and shuts
+   the callout inside it, however high the callout's own z-index: the axis
+   comes after the plot, so at the same layer the week numbers painted through
+   a callout hanging over them and a college week's bottom line was read over
+   the top of "9 10 11 12". The plot takes the layer above instead, and the
+   callout covers what it hangs over at both ends - it already covered the key
+   above it, for the same reason in the other direction. */
 .route__plot {
   position: relative;
+  z-index: 2;
   flex: 1 1 auto;
   min-height: 56px;
   margin-left: 28px;
@@ -2612,13 +2624,25 @@
    rows of small chalk with nothing between them, reading as one crowded one.
    It stands a little inside the plot now, in a box with room around the words
    - the height it gains is turf the chart was not drawing in, and the tag is
-   the one label on this chart that is a sentence rather than a number. */
+   the one label on this chart that is a sentence rather than a number.
+
+   It is planted on its week rather than floating near it. Hung seven pixels
+   clear of the anchor it read as a tag dropped on the chart at random: it was
+   standing on the right week and nothing in it said so, and the only other
+   mark on that week is the number under the axis, a chart's height away. So
+   the box starts exactly on the week and takes a neutral edge down that side -
+   the same edge the route's own case is drawn with, in the same neutral the
+   axis paints the saved week's number in. The tag is a flag planted on the
+   column, and the number under it is the other end of the same mark. Past the
+   far end of the season the tag runs the other way and the edge swaps with
+   it, so the pole is always the side the week is on. */
 .route__saved-label {
   position: absolute;
   top: 8px;
-  left: 7px;
-  padding: 3px 6px;
-  border-radius: 3px;
+  left: 0;
+  padding: 3px 6px 3px 5px;
+  border-left: 2px solid var(--neutral);
+  border-radius: 0 3px 3px 0;
   background: color-mix(in srgb, var(--turf-2) 88%, transparent);
   font-family: var(--font-display);
   font-weight: 700;
@@ -2632,7 +2656,33 @@
 
 .route__saved--left .route__saved-label {
   left: auto;
-  right: 7px;
+  right: 0;
+  padding: 3px 5px 3px 6px;
+  border-right: 2px solid var(--neutral);
+  border-left: 0;
+  border-radius: 3px 0 0 3px;
+}
+
+/* A short descender off the foot of the pole, so the tag points down its own
+   column instead of being read as a caption that happens to end there. It is
+   the label's own mark rather than a rule of its own: it leaves when the label
+   leaves on a short chart, which is what left the old full-height rule
+   standing over the plot with nothing to say what it marked. Ten pixels, in
+   the thinned neutral - long enough to say "this column", short enough not to
+   be mistaken for the coach's own dashed line running through it. */
+.route__saved-label::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: -2px;
+  width: 2px;
+  height: 10px;
+  background: linear-gradient(var(--neutral-line), transparent);
+}
+
+.route__saved--left .route__saved-label::after {
+  left: auto;
+  right: -2px;
 }
 
 /* Touch a week and the chart says who is standing there (watchChart in
@@ -2643,12 +2693,23 @@
   --shift-x: -50%;
   --shift-y: calc(-100% - 12px);
 
+  /* One width for both columns of figures and their heads, and one gutter
+     between them, so the two columns are set once rather than in four places.
+     The column is as wide as the widest thing that stands in it, which is the
+     word over it rather than the figure under it now that the heads are big
+     enough to read. The gutter is the space the columns do not have on their
+     own: every figure is right-aligned in its box, so two full six-character
+     figures - "100.0%" against a week written to a tenth - met with nothing
+     between them but the row's own five pixels and read as one number. */
+  --callout-col: 54px;
+  --callout-gutter: 9px;
+
   position: absolute;
   z-index: 5;
   display: grid;
   gap: 2px;
   padding: 5px 7px;
-  transform: translate(var(--shift-x), var(--shift-y));
+  transform: translate(var(--shift-x), calc(var(--shift-y) + var(--nudge-y, 0px)));
   border: 1px solid var(--line);
   border-radius: 3px;
   background: var(--turf-3);
@@ -2679,37 +2740,48 @@
 /* The head of the callout's little table: the week on the left, and over each
    column of figures the word for what it is. The two figures are a week's own
    chance and the chance of getting to the week to play it, and a pair of bare
-   numbers in a box says neither. */
+   numbers in a box says neither.
+
+   Which they only say if they can be read. The head was the chart's faintest
+   chalk at its smallest size, over figures in full white - a row of ghosts
+   over the only two numbers in the box that need naming, which is the head
+   failing at the one job it has. It is the second chalk now, a pixel larger,
+   and a hairline under it makes the row a head rather than a first line. */
 .route__callout-head {
   display: flex;
   align-items: baseline;
   gap: 5px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .route__callout-week {
   margin-right: auto;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--chalk-4);
+  color: var(--chalk-2);
 }
 
 /* The column heads and the figures under them share one width, so the two
    columns line up without the callout becoming a grid: everything in here is
-   one line of nowrap type and the widest figure is six characters - every
-   chance on the chart is written to a tenth, and "To here" is 100.0% in the
-   week the route starts from. */
+   one line of nowrap type and the widest thing in the column is the head. */
 .route__callout-label {
-  min-width: 44px;
+  min-width: var(--callout-col);
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   text-align: right;
-  color: var(--chalk-4);
+  color: var(--chalk-2);
+}
+
+/* "To here" is the second column, in the head as in every row under it. */
+.route__callout-label + .route__callout-label {
+  margin-left: var(--callout-gutter);
 }
 
 .route__callout-row {
@@ -2752,7 +2824,7 @@
 }
 
 .route__callout-prob {
-  min-width: 44px;
+  min-width: var(--callout-col);
   margin-left: auto;
   font-family: var(--font-mono);
   font-weight: 650;
@@ -2766,7 +2838,8 @@
    number for every team standing in the column and the week's chance is the
    one that changes with the pick. */
 .route__callout-reach {
-  min-width: 44px;
+  min-width: var(--callout-col);
+  margin-left: var(--callout-gutter);
   font-family: var(--font-mono);
   font-weight: 650;
   font-size: 12px;
@@ -3613,8 +3686,13 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  /* 10px rather than 9: at the phone's 14px the text box is 21px, and 9px each
+     side left the notice 39px against a 40px floor - so the centring split the
+     last pixel and put the line half a pixel off its own box. 10 clears the
+     floor outright, and on the desktop's 12px the 2px that are left divide
+     whole. */
   min-height: 40px;
-  padding: 9px 12px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
   border-left: 4px solid var(--chalk-3);
   border-radius: var(--radius-sm);
@@ -3731,9 +3809,13 @@
   color: var(--neutral-2);
 }
 
-.home__message {
-  margin: 0;
-}
+/* No margin rule of its own. A line above the list is one of the page's bands
+   and takes its space from the band rule above (`.home > * + *`), which is the
+   same space the grow and shrink keyframes animate it in and out of
+   (--motion-gap, motion.css). It used to say `margin: 0` here - written before
+   that rule existed, and left behind by it - and since the two have the same
+   weight the later one won: the line arrived by growing into a gap it then did
+   not keep, and sat welded to the head above it and the buttons below. */
 
 .home__list {
   display: grid;

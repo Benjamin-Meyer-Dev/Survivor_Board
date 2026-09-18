@@ -1150,10 +1150,32 @@ function reveal(plot, clientX) {
   // third of the plot, which was the right number for a callout of a week and
   // two teams and the wrong one the moment a second column of figures gave it
   // a heading row - a high mark then put it over the legend, which is the pair
-  // of season figures the whole chart is a comparison of. The plot is unhidden
-  // and it is the case that clips (components.css), so what this protects is
-  // what can be read, not what fits.
-  const room = plotBox.height;
-  const needed = room ? ((callout.offsetHeight + CALLOUT_GAP) / room) * 100 : 0;
-  callout.classList.toggle("route__callout--below", y < needed);
+  // of season figures the whole chart is a comparison of.
+  //
+  // Both the room and the overflow are the chart's, not the plot's: the plot is
+  // unhidden and the box that clips is the chart around it (components.css),
+  // which is the plot plus the key over it and the week numbers under it. The
+  // callout is allowed to hang over both of those - it is answering a question
+  // and they are still there when it goes - and it is not allowed to leave the
+  // chart, because what leaves is cut rather than scrolled. Measuring the plot
+  // instead did both halves wrong: it sent a callout below that had the room
+  // above it, and then let the one it sent below run out of the bottom of the
+  // chart, which cut a team off mid-row in a college week of four lines.
+  const clipBox = (plot.closest(".route") ?? plot).getBoundingClientRect();
+  const markY = plotBox.top + (y / 100) * plotBox.height;
+  const needed = callout.offsetHeight + CALLOUT_GAP;
+  const over = markY - clipBox.top;
+  const under = clipBox.bottom - markY;
+  callout.classList.toggle("route__callout--below", over < needed && under > over);
+
+  // And where neither side has the room - a four-line callout on a phone's
+  // chart - it is pushed back inside rather than left hanging out of the box.
+  // The mark it belongs to is still named at the top of it, so a callout an
+  // inch off its own column still reads; half a callout does not.
+  callout.style.setProperty("--nudge-y", "0px");
+  const placed = callout.getBoundingClientRect();
+  let nudge = 0;
+  if (placed.bottom > clipBox.bottom) nudge = clipBox.bottom - placed.bottom;
+  if (placed.top + nudge < clipBox.top) nudge = clipBox.top - placed.top;
+  if (nudge) callout.style.setProperty("--nudge-y", `${Math.round(nudge)}px`);
 }

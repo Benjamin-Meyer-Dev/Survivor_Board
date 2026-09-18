@@ -29,6 +29,7 @@ import {
   MAX_BUY_BACKS,
 } from "../src/js/core/rules.js";
 import { CONFIG } from "../src/js/config.js";
+import { atKickoff } from "./lib/feed.mjs";
 import {} from "../src/js/sports.js";
 
 // ---------------------------------------------------------------------------
@@ -203,7 +204,9 @@ const load = async (league) => {
       read(league, name),
     ),
   );
-  return { plan, odds, teams, schedule, ratings };
+  // The open week whole: the checks below read the coach's calls off it, and
+  // the committed feed has it half played for half of every week.
+  return { plan, odds: atKickoff(odds), teams, schedule, ratings };
 };
 
 const nfl = await load("nfl");
@@ -424,7 +427,9 @@ assert.notDeepEqual(
 // the sheet's step stops at; sixteen weeks has room for both.
 assert.equal(boardFor(nfl, withRules({ picksPerWeek: 2, endWeek: 16 })).spentCount, 0);
 const twoAWeek = boardFor(nfl, withRules({ picksPerWeek: 2, endWeek: 16 }));
-for (const week of twoAWeek.weeks) {
+// The weeks still to play: the coach plans nothing for a week the feed has
+// already run, so a season under way has weeks with no calls in them by right.
+for (const week of twoAWeek.weeks.filter((week) => week.week >= twoAWeek.currentWeek)) {
   assert.equal(week.pathRecommendation.length, 2, `week ${week.week} is fully planned`);
 }
 

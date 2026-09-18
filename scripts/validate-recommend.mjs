@@ -26,6 +26,7 @@ import { buildBoard, slotKey, searchesSettled } from "../src/js/core/plan.js";
 import { setSearchRunner } from "../src/js/core/search.js";
 import { CONFIG } from "../src/js/config.js";
 import { SPORT_IDS } from "../src/js/sports.js";
+import { atKickoff } from "./lib/feed.mjs";
 
 const close = (a, b, tolerance, message) =>
   assert.ok(Math.abs(a - b) <= tolerance, `${message}: ${a} vs ${b}`);
@@ -546,7 +547,11 @@ for (const league of SPORT_IDS) {
   ]);
   const inputs = {
     plan,
-    odds,
+    // The open week whole. The week on the clock is played out over three days
+    // and the committed feed catches it mid-way for half of every week - and
+    // with nothing left in it between the last whistle and the next morning's
+    // pull, which is a board with no frontier for the checks below to read.
+    odds: atKickoff(odds),
     teams,
     schedule,
     ratings,
@@ -571,9 +576,16 @@ for (const league of SPORT_IDS) {
       fixed: [],
     }));
 
-  // Against the exact relaxation: the path can only fall short of it where a
-  // same-game pair or a slot the relaxation left open is involved, and here
-  // it does not.
+  // Against the exact relaxation, on survival alone - which is what the futures
+  // are turned off for here. The search can only fall short of the relaxation
+  // where a same-game pair or a slot the relaxation left open is involved, and
+  // here neither is; with the futures on it falls short for a third reason
+  // that is not a shortfall at all. The frontier judges the opening across 128
+  // simulated seasons rather than on today's numbers, and where it prefers a
+  // different one the path shown is the best path through that opening - by
+  // construction no better than the unconstrained optimum, and on the college
+  // board about two parts in a thousand below it. That is the coach working as
+  // designed, and it is the ten-percent check below that holds it.
   const relaxed = assignPath({
     weeks: upcoming,
     burned: new Set(),
@@ -589,6 +601,7 @@ for (const league of SPORT_IDS) {
       buyBacks: board.rules.buyBacks,
       model: board.model,
       pool: PURE,
+      scenarios: 0,
     });
     assert.ok(
       safest.pathProbability >= relaxedSurvival - 1e-9,

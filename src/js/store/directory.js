@@ -551,7 +551,13 @@ async function patchPoolEntry(client, code, kind, change, known = null) {
  */
 function explain(error) {
   const message = error?.message ?? String(error);
-  if (/schema cache|does not exist/i.test(message)) {
+  // "permission denied for table leagues" is the same thing said by the grant
+  // rather than by the schema cache: the role the publishable key carries has
+  // not been given the right this statement needs, which is a project that has
+  // not run the file since that grant was written into it. It used to fall
+  // through to the line below and reach the page as the raw sentence Postgres
+  // wrote, which names the table and the failure and nothing anyone can do.
+  if (/schema cache|does not exist|permission denied/i.test(message)) {
     return `the database is behind this version of the app. ${RUN_SCHEMA}`;
   }
   return message;
