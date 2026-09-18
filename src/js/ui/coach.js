@@ -65,19 +65,12 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0) {
   const state = stateFor(board, week, activeSlot);
 
   // The frame survives every render. Keep its identity stable for the shared
-  // data-settle motion, while the signature says when the team or one of its
-  // live estimates has changed.
+  // data-settle motion, while the signature says when the read it is showing
+  // has changed.
   panel.dataset.motionKey = "coach-read";
   panel.dataset.motionSignature =
     state.kind === "working"
-      ? [
-          state.subject.team,
-          state.teams.join("+"),
-          state.subject.winProb,
-          state.candidate?.season ?? "",
-          board.previewPathProbability ?? "",
-          board.previewPending ? "pending" : "settled",
-        ].join("|")
+      ? readSignature(state)
       : state.kind === "past"
         ? `past|${state.week.week}`
         : "empty";
@@ -275,6 +268,45 @@ function sameTeams(a, b) {
   if (!Array.isArray(a) || a.length !== b.length) return false;
   const sorted = (list) => [...list].sort().join("|");
   return sorted(a) === sorted(b);
+}
+
+/**
+ * What the head and the chain are showing, as one string.
+ *
+ * Every figure the page prints, and nothing else. The settle is for a read
+ * that changed, and a number this page does not show is not one: the "if
+ * locked" rehearsal and the coach's own season figure used to be in here, and
+ * both of those land a beat after a week turns - so the model read replayed
+ * its entrance over four figures that had not moved, which is what flickered
+ * at the end of every swipe. The chart below keeps its own key for the same
+ * reason: it settles when the plan it draws changes, not when the band over it
+ * moves.
+ *
+ * The sub-lines are covered by the terms they are made of rather than named
+ * separately - the ratings gap by the two ratings, the books and the opening
+ * line by the market, the moneyline sub-line by its price and weight.
+ */
+function readSignature(state) {
+  const { subject, week, selection } = state;
+  const p = subject.pricing;
+  const market = p.market;
+  return [
+    selection,
+    week.week,
+    subject.team,
+    subject.site,
+    subject.opponent,
+    p.projected,
+    p.team.rating,
+    p.opponent.rating,
+    p.homeField,
+    market
+      ? [market.spread, market.opened, market.books, market.moneyline, market.weight].join("/")
+      : `±${p.horizonSd}`,
+    p.sigma,
+    subject.winProb,
+    subject.tier,
+  ].join("|");
 }
 
 function head(state) {

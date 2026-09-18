@@ -849,6 +849,21 @@ at phone width is the same height in all eighteen weeks. The measurement is
 keyed by the markup it measured, so it is taken when the season's names change,
 on a resize and once the display face has loaded, rather than on every tap.
 
+What was left after both of those was the pricing chain blinking a beat after
+the swipe had finished, which is a different thing again: not the turn, but the
+settle
+(`playDataUpdates` in `app.js`) firing over a page whose figures had not moved.
+Turning the week changes what the drive line's "if locked" rehearsal is pricing,
+and that lands on its own about four hundred milliseconds later
+(`BRACKET_SETTLE_MS`); the model read's signature carried that number and the
+coach's season figure, neither of which the head or the chain prints, so the
+whole read replayed its entrance over four unchanged stops. The signature
+(`readSignature` in `ui/coach.js`) now names every figure the page prints and
+nothing else - the rule the chart beside it already followed, which leaves the
+week it is being looked at from out for the same reason. A read that genuinely
+changes - another team on the card, an odds refresh moving the line - still
+settles in.
+
 Colour is the one thing that does not come off the board: `app.js` stamps
 `data-league` and `data-objective` on the root element and `src/css/leagues.css`
 repaints the end zones and the league's mark from them. Everything else is the

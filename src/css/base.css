@@ -78,6 +78,33 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* And nothing on the board is text to be selected. It is a board, not a page:
+   every surface is dragged - the field sideways, the week across, the drawer
+   up - and a drag that catches a word instead leaves a blue wash over the turf
+   and a callout asking whether to look it up. The callout goes with it, which
+   is the iOS half of the same long press.
+
+   The codes are the one thing anybody would have wanted to select, and each
+   one is a tap on the copy button beside it instead (ui/home.js, ui/settings.js)
+   - they are also drawn to be read off a screen and typed back in, which is
+   what they were for before a clipboard was involved. */
+html {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Except what you type into. Selection there is not highlighting the page, it
+   is the caret, a double tap to correct a word, and the paste that puts a
+   league code someone sent into the box - and the door selects what was typed
+   for you after a wrong code (ui/passcode.js), which needs the same. */
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-touch-callout: default;
+}
+
 :focus-visible {
   outline: 2px solid var(--flag);
   outline-offset: 2px;

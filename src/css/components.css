@@ -773,7 +773,6 @@
   font-weight: 600;
   font-size: 14px;
   letter-spacing: 0.12em;
-  user-select: all;
   overflow-wrap: anywhere;
 }
 
@@ -1065,8 +1064,6 @@
   overflow-y: hidden;
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
-  user-select: none;
-  -webkit-user-select: none;
 }
 
 .pitch__zone {
@@ -4048,7 +4045,6 @@
   font-size: 15px;
   letter-spacing: 0.14em;
   color: var(--flag);
-  user-select: all;
   overflow-wrap: anywhere;
 }
 
@@ -4230,7 +4226,6 @@
   font-weight: 600;
   font-size: 16px;
   letter-spacing: 0.14em;
-  user-select: all;
   overflow-wrap: anywhere;
 }
 
@@ -4395,6 +4390,36 @@
 
 .is-starting .shell {
   visibility: hidden;
+}
+
+/* The Google faces are discovered only after the first layout. Without this
+   hold, the startup copy gets one painted frame in the wide system fallback
+   before Big Shoulders and Plex arrive, and the wordmark visibly snaps inward.
+   app.js releases these three pieces only after their exact faces have loaded;
+   if that takes too long it pins them to the fallback for the rest of this
+   startup instead, so a late font can never change a layer that is on screen. */
+.startup__scene,
+.startup__brand,
+.startup__status {
+  opacity: 0;
+}
+
+.startup.is-typography-ready .startup__scene,
+.startup.is-typography-ready .startup__brand,
+.startup.is-typography-ready .startup__status {
+  opacity: 1;
+  transition: opacity 0.14s ease-out;
+}
+
+.startup.is-typography-fallback,
+.startup.is-typography-fallback .startup__yard,
+.startup.is-typography-fallback .startup__brand,
+.startup.is-typography-fallback .startup__status {
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
 }
 
 .startup__scene {

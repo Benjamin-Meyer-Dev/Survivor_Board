@@ -2821,6 +2821,9 @@ const PLAY_LANDED = 0.74;
 /** How long the handoff takes: the layer fading out over the board rising in. */
 const HANDOFF_MS = 700;
 
+/** Do not hold an offline launch indefinitely for Google's font files. */
+const STARTUP_TYPE_TIMEOUT_MS = 1000;
+
 /** Every animation the startup play is made of, the route's own included. */
 function startupPlays() {
   if (!el.startup || !document.getAnimations) return [];
@@ -2832,6 +2835,42 @@ function startupPlays() {
 /** How long one cycle of the play lasts, as the animation itself reports it. */
 function playCycle(play) {
   return Number(play?.effect?.getComputedTiming?.().duration) || 0;
+}
+
+/**
+ * Make the startup copy's first painted face the one it keeps.
+ *
+ * A web font is not requested until layout discovers text that uses it. That
+ * left the loading layer visible for one frame in the wide fallback before its
+ * condensed display face arrived. The stylesheet holds the copy transparent;
+ * ask for the three faces it uses, then reveal it. If they cannot answer in a
+ * second, pin this startup to the system face before revealing it so a font
+ * arriving later cannot cause the same snap after the timeout.
+ */
+async function settleStartupTypography() {
+  if (!el.startup) return;
+  if (!document.fonts?.load) {
+    el.startup.classList.add("is-typography-fallback", "is-typography-ready");
+    return;
+  }
+
+  const requested = [
+    ['900 32px "Big Shoulders Display"', "Sudden Death"],
+    ['800 12px "Big Shoulders Display"', "2040"],
+    ['400 12px "IBM Plex Sans"', "Chalking up the field"],
+  ];
+  let timer;
+  const loaded = Promise.all(requested.map(([face, sample]) => document.fonts.load(face, sample)))
+    .then((matches) => matches.every((faces) => faces.length > 0))
+    .catch(() => false);
+  const ceiling = new Promise((resolve) => {
+    timer = setTimeout(() => resolve(false), STARTUP_TYPE_TIMEOUT_MS);
+  });
+  const available = await Promise.race([loaded, ceiling]);
+  clearTimeout(timer);
+
+  if (!available) el.startup.classList.add("is-typography-fallback");
+  el.startup.classList.add("is-typography-ready");
 }
 
 /**
@@ -2863,9 +2902,9 @@ function firstPaint(ceiling) {
 }
 
 /**
- * Hold the pre-game play at its first frame until the page is on screen, and
- * hand back the play itself, which is the clock everything after this is timed
- * against.
+ * Hold the pre-game play at its first frame until the page is on screen and
+ * its copy has one stable face, then hand back the play itself, which is the
+ * clock everything after this is timed against.
  *
  * The play is a CSS animation, so its clock starts the moment the stylesheets
  * apply - and that is well before anything is painted. The fonts arrive from
@@ -2893,13 +2932,13 @@ function firstPaint(ceiling) {
 async function startTheStartupPlay() {
   const plays = startupPlays();
   const play = plays.find((entry) => entry.animationName === "startup-throw") ?? plays[0] ?? null;
-  if (!play) return null;
   for (const entry of plays) {
     entry.pause();
     entry.currentTime = 0;
   }
-  const cycle = playCycle(play);
-  await firstPaint(cycle || HANDOFF_MS);
+  const cycle = playCycle(play) || HANDOFF_MS;
+  await Promise.all([firstPaint(cycle), settleStartupTypography()]);
+  if (!play) return null;
   // Released both ways: the class is for the stylesheet's hold, play() for the
   // animations themselves, so the play starts here whether or not the browser
   // keeps honouring animation-play-state once a script has touched an animation.
