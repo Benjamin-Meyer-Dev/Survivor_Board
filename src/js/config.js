@@ -87,7 +87,7 @@ export const CONFIG = Object.freeze({
     who: `${STORAGE_PREFIX}who`,
     leagues: `${STORAGE_PREFIX}leagues/v1`,
     entryPrefix: `${STORAGE_PREFIX}entry/v2`,
-    plans: `${STORAGE_PREFIX}plans/v4`,
+    plans: `${STORAGE_PREFIX}plans/v5`,
     /** Session storage: the week and slot a refresh reloaded out of (app.js stashResume). */
     resume: `${STORAGE_PREFIX}resume`,
   }),

@@ -36,12 +36,15 @@
  *   balanced  the highest survival x leverage
  *   equity    the highest survival x leverage, with no floor
  *
- * And one rule for a week a buy back covers: the loss is paid for, so what is
- * at stake is the team spent. Among the openings within a whisker of the best
- * on the mode's measure, the coach spends the weakest team and keeps the
- * stronger ones for the weeks that can end the season, and the floor drops to
- * let it - though never below a two-to-one favourite. Both are the file's to
- * tune (`coveredFloor`, `coveredMargin`).
+ * And under all three, the week itself breaks the ties. The measure is a mean
+ * over a sample of futures and it has a resolution; openings inside it are not
+ * close, they are the same answer, and a coach that reads the last decimal of
+ * them anyway is reading noise. So openings are banded by what they cost
+ * against the best (TIE_MARGIN), and inside a band the best chance this week
+ * leads. It matters most where a buy back covers the week: the season maths
+ * then prices a loss at nothing, every legal opening comes back on the same
+ * number, and the whole call falls to the band - which is to say, to the week.
+ * The floor drops in that week too, since the season is not what is at risk.
  *
  * Pure and environment-free.
  */
@@ -59,17 +62,32 @@ export const DEFAULT_FLOOR = 0.7;
 
 /**
  * The floor in a week a buy back in hand covers: the loss costs the cushion,
- * not the season, so the coach will spend a weaker team - but no worse than a
- * two-to-one favourite. Lower and the call on the live board fell to a 60%
- * team the futures rated within the margin, which is a coin flip dressed up.
+ * not the season, so an opening the season maths likes is worth taking at a
+ * weaker number - but no worse than a two-to-one favourite. Lower and the call
+ * on the live board fell to a 60% team, which is a coin flip dressed up.
  */
 export const COVERED_FLOOR = 2 / 3;
 
 /**
- * In a covered week, openings within this share of the best on equity are
- * near enough equal that the team kept in hand decides between them.
+ * How far apart two openings have to be on the mode's measure before the coach
+ * will claim to know which is better, as a share of the best.
+ *
+ * The measure is a mean over SCENARIO_COUNT futures, so it carries the sample's
+ * own error: paired against each other over the 128 futures, neighbouring
+ * openings on the live NFL board separate with a standard error of about four
+ * parts in a thousand of the mean. Half a percent is inside that - roughly one
+ * standard error - so openings that close are one answer, not two, and what
+ * decides between them is the week they actually have to win.
+ *
+ * The degenerate case is the one that made this necessary. Where a buy back in
+ * hand covers the week and nothing the week could spend is wanted later, the
+ * season maths returns the identical number for every legal opening - the
+ * live board came back with 3.50028348194% against all thirty-two, from a 78%
+ * favourite down to a 26% dog. Read strictly, that ordering is arbitrary.
+ * Banded, it is the week's own chance, which is the only thing left that is
+ * real.
  */
-export const COVERED_MARGIN = 0.05;
+export const TIE_MARGIN = 0.005;
 
 /**
  * Softmax temperature for the implied field, in units of win probability. At
@@ -112,7 +130,7 @@ export function impliedPopularity(options, temperature = IMPLIED_TEMPERATURE) {
  *   field. Without them a file that says nothing about the week is inactive,
  *   and no file at all is null.
  * @returns {{active:boolean, mode:string, floor:number, coveredFloor:number,
- *            coveredMargin:number, source:"file"|"implied"|null,
+ *            tieMargin:number, source:"file"|"implied"|null,
  *            entriesAlive:number|null, popularity:Map<string,number>}|null}
  */
 export function poolSettings(pool, week, options = null) {
@@ -133,7 +151,7 @@ export function poolSettings(pool, week, options = null) {
     mode: MODES.includes(file?.mode) ? file.mode : DEFAULT_MODE,
     floor: Number.isFinite(file?.floor) ? file.floor : DEFAULT_FLOOR,
     coveredFloor: Number.isFinite(file?.coveredFloor) ? file.coveredFloor : COVERED_FLOOR,
-    coveredMargin: Number.isFinite(file?.coveredMargin) ? file.coveredMargin : COVERED_MARGIN,
+    tieMargin: Number.isFinite(file?.tieMargin) ? file.tieMargin : TIE_MARGIN,
     source,
     entriesAlive: Number.isFinite(file?.entriesAlive) ? file.entriesAlive : null,
     popularity: shares,
@@ -234,39 +252,76 @@ export function fieldAfterWeek({ teams, options, popularity, picksPerWeek = 1, c
   };
 }
 
+/** What the mode ranks openings by. */
+const measureOf = (mode) => (mode === "safest" ? (c) => c.scenarioMean : (c) => c.equity);
+
+/**
+ * A week's openings in the order the coach would take them: the season first,
+ * as far as the futures can actually see it, and the chance this week wherever
+ * they cannot.
+ *
+ * Each opening is banded by what it costs against the best on the mode's
+ * measure, in steps of `tieMargin`, and the band is what is compared first.
+ * Inside one band the best chance this week leads, and the measure itself is
+ * only the tie break of last resort. Banding rather than comparing with a
+ * tolerance is deliberate: a tolerance is not transitive, and a sort on an
+ * inconsistent comparator is an order nobody can predict or reproduce. The
+ * band is a number each opening carries on its own, so the order is total.
+ *
+ * @param {Array<object>} candidates Carrying `weekWinProb`, `scenarioMean`,
+ *   `season` and, when the field is priced, `equity`.
+ * @param {string} [mode]
+ * @param {number} [tieMargin] Zero bands nothing and reads the measure
+ *   strictly, which is what a caller after the untilted optimum wants.
+ * @returns {Array<object>} A new array; the input is left alone.
+ */
+export function rankOpenings(candidates, mode = DEFAULT_MODE, tieMargin = TIE_MARGIN) {
+  const measure = measureOf(mode);
+  const rank = mode === "safest" ? bySurvival : byEquity;
+  if (!(tieMargin > 0)) return [...candidates].sort(rank);
+
+  const value = (candidate) => (Number.isFinite(measure(candidate)) ? measure(candidate) : 0);
+  const best = Math.max(0, ...candidates.map(value));
+  // Everything sits in band 0 when the best is nothing, which is the honest
+  // reading of a week no opening survives: the week is all there is to go on.
+  const band = (candidate) =>
+    best > 0 ? Math.floor((1 - value(candidate) / best) / tieMargin) : 0;
+  return candidates
+    .map((candidate) => ({ candidate, band: band(candidate) }))
+    .sort(
+      (a, b) =>
+        a.band - b.band ||
+        b.candidate.weekWinProb - a.candidate.weekWinProb ||
+        rank(a.candidate, b.candidate),
+    )
+    .map((entry) => entry.candidate);
+}
+
 /**
  * The opening the mode calls, from candidates already carrying `weekWinProb`,
  * `scenarioMean`, `season` and, when the field is priced, `equity`.
  *
  * @param {Array<object>} candidates
- * @param {{mode:string, floor:number, coveredFloor?:number, coveredMargin?:number}} settings
+ * @param {{mode:string, floor:number, coveredFloor?:number, tieMargin?:number}} settings
  * @param {object} [state]
  * @param {boolean} [state.covered] This week is forgiving and a buy back is in
- *   hand, so a loss costs the cushion rather than the season.
+ *   hand, so a loss costs the cushion rather than the season. The floor drops
+ *   to match; nothing else about the call changes, because a week the season
+ *   maths has already priced at nothing needs no second rule about it.
  * @returns {object|null} The chosen candidate, or null with none to choose.
  */
 export function chooseCall(
   candidates,
-  { mode, floor, coveredFloor = COVERED_FLOOR, coveredMargin = COVERED_MARGIN },
+  { mode, floor, coveredFloor = COVERED_FLOOR, tieMargin = TIE_MARGIN },
   { covered = false } = {},
 ) {
   if (candidates.length === 0) return null;
-  const rank = mode === "safest" ? bySurvival : byEquity;
-  const measure = mode === "safest" ? (c) => c.scenarioMean : (c) => c.equity;
 
   // The floor: nothing under it while anything is over it. Equity mode has none.
   const bar = covered ? Math.min(floor, coveredFloor) : floor;
   const eligible = candidates.filter((candidate) => candidate.weekWinProb >= bar);
   const field = mode !== "equity" && eligible.length > 0 ? eligible : candidates;
-  const ranked = [...field].sort(rank);
-  if (!covered) return ranked[0];
-
-  // Covered: the loss is paid for, so the team spent is what is at stake.
-  // Among the openings the futures cannot really separate, spend the weakest.
-  const top = measure(ranked[0]);
-  return ranked
-    .filter((candidate) => measure(candidate) >= top * (1 - coveredMargin))
-    .sort((a, b) => a.weekWinProb - b.weekWinProb || rank(a, b))[0];
+  return rankOpenings(field, mode, tieMargin)[0];
 }
 
 /** Best across the futures; on the numbers as they stand when they cannot separate two. */
@@ -348,7 +403,7 @@ export function equityOverlay({
     pool: {
       mode: settings.mode,
       floor: covered ? Math.min(settings.floor, settings.coveredFloor) : settings.floor,
-      margin: covered ? settings.coveredMargin : 0,
+      margin: settings.tieMargin,
       source: settings.source,
       cover,
       covered,

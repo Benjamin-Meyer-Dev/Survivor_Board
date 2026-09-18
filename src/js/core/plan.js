@@ -660,11 +660,19 @@ export function buildBoard({
       const spentElsewhere = (team) =>
         spentTeams[team] !== undefined && spentTeams[team] !== week.week;
       // A row you cannot take sinks to the bottom, so the top of the list is
-      // teams you can actually have. The slot's own team is the exception and
-      // keeps its place even once its game is final, so a tap on the list
-      // never rearranges it under the thumb that made it.
-      const sunk = (option) =>
-        !option.isCurrent && (spentElsewhere(option.team) || Boolean(option.result));
+      // teams you can actually have, in three bands: what can be taken, then
+      // this week's games that have already been played, then - at the very
+      // foot of the list - the teams a lock in another week has burned. That
+      // last band is the season's record rather than the week's, so it is the
+      // furthest thing from the pick being made, and it runs backwards through
+      // the weeks below (week 1 is the last line in the list). The slot's own
+      // team is the exception and keeps its place even once its game is final,
+      // so a tap on the list never rearranges it under the thumb that made it.
+      const band = (option) => {
+        if (option.isCurrent) return 0;
+        if (spentElsewhere(option.team)) return 2;
+        return option.result ? 1 : 0;
+      };
       // Favourites first, or underdogs first in a losers pool: the same order
       // the week's own list came in (see weekOptions).
       const byObjective = bySpread(rules.objective);
@@ -686,6 +694,8 @@ export function buildBoard({
             // The other slot has not just picked this team but locked it: a
             // firmer hold, and the list wears the padlock for it.
             siblingLocked: takenBySibling && siblings.get(option.team) === true,
+            /** The week a lock burned this team, for any week but this one. */
+            spentWeek: usedElsewhere ? spentTeams[option.team] : null,
             reason: settled
               ? settled === "W"
                 ? "Won"
@@ -693,14 +703,17 @@ export function buildBoard({
               : takenBySibling
                 ? "Other Slot"
                 : usedElsewhere
-                  ? `Locked Week ${spentTeams[option.team]}`
+                  ? `Week ${spentTeams[option.team]}`
                   : "",
           };
         })
         .sort((a, b) => {
-          const aSunk = sunk(a);
-          const bSunk = sunk(b);
-          if (aSunk !== bSunk) return aSunk ? 1 : -1;
+          const aBand = band(a);
+          const bBand = band(b);
+          if (aBand !== bBand) return aBand - bBand;
+          // Inside the burned band the latest week comes first, so the weeks
+          // read back down to week 1 at the floor of the list.
+          if (aBand === 2 && a.spentWeek !== b.spentWeek) return b.spentWeek - a.spentWeek;
           return byObjective(a, b);
         });
     }

@@ -21,7 +21,7 @@ import {
 } from "../src/js/core/recommend.js";
 import { assignPath, maximumAssignment, FORBIDDEN } from "../src/js/core/assignment.js";
 import { survival } from "../src/js/core/survival.js";
-import { COVERED_FLOOR, COVERED_MARGIN } from "../src/js/core/equity.js";
+import { COVERED_FLOOR, TIE_MARGIN } from "../src/js/core/equity.js";
 import { buildBoard, slotKey, searchesSettled } from "../src/js/core/plan.js";
 import { setSearchRunner } from "../src/js/core/search.js";
 import { CONFIG } from "../src/js/config.js";
@@ -91,8 +91,8 @@ const SMALL = [
   ]),
 }));
 
-/** Survival alone, no floor and no covered tilt: the optimum brute force finds. */
-const PURE = { mode: "safest", floor: 0, coveredMargin: 0 };
+/** Survival alone, no floor and no banding: the optimum brute force finds. */
+const PURE = { mode: "safest", floor: 0, tieMargin: 0 };
 
 /** Every legal path, scored exactly. */
 function bruteForce(weeks, { picksPerWeek, buyBackWeeks, buyBacks }) {
@@ -196,9 +196,16 @@ function bruteForce(weeks, { picksPerWeek, buyBackWeeks, buyBacks }) {
   for (const candidate of frontier.candidates) {
     assert.ok(candidate.leverage >= 1 - 1e-9, "the field is priced for every opening");
     if (candidate.weekWinProb >= frontier.pool.floor) {
+      // Beats, or ties and takes no worse a week: the call is never behind on
+      // both at once.
       assert.ok(
-        call.scenarioMean >= candidate.scenarioMean - 1e-9,
+        call.scenarioMean >= candidate.scenarioMean * (1 - TIE_MARGIN) - 1e-9,
         `nothing above the floor beats the call across the futures: ${candidate.teams}`,
+      );
+      assert.ok(
+        call.scenarioMean >= candidate.scenarioMean - 1e-9 ||
+          call.weekWinProb >= candidate.weekWinProb - 1e-9,
+        `the call gives up the futures to ${candidate.teams} only for a better week`,
       );
     }
   }
@@ -219,9 +226,10 @@ function bruteForce(weeks, { picksPerWeek, buyBackWeeks, buyBacks }) {
   }
 }
 
-// A week a buy back covers: the loss is paid for, so among the openings the
-// futures rate within a whisker of each other the coach spends the weakest
-// team. With the buy back spent, the week is an ordinary one.
+// A week a buy back covers: the loss is paid for, so the floor drops and the
+// season maths stops caring which team goes. What is left to call it on is the
+// week, and the call is the best chance in it among the openings the futures
+// cannot separate. With the buy back spent, the week is an ordinary one.
 {
   const rules = { picksPerWeek: 1, buyBackWeeks: [1, 2], buyBacks: 1 };
   const found = recommendPath({ weeks: SMALL, burned: new Set(), ...rules });
@@ -232,18 +240,23 @@ function bruteForce(weeks, { picksPerWeek, buyBackWeeks, buyBacks }) {
     frontier.pool.cover > 0 && frontier.pool.cover < 1,
     "the field keeps part of its worth",
   );
+  // Everything below is judged against the openings the covered floor leaves
+  // standing: a team under it is not a candidate however the futures rate it.
   const call = frontier.candidates[0];
-  const best = Math.max(...frontier.candidates.map((candidate) => candidate.scenarioMean));
+  const above = frontier.candidates.filter((c) => c.weekWinProb >= COVERED_FLOOR - 1e-9);
+  assert.ok(above.length > 1, "the covered floor leaves more than one opening to choose between");
+  assert.ok(call.weekWinProb >= COVERED_FLOOR - 1e-9, "the call keeps the covered floor");
+  const best = Math.max(...above.map((candidate) => candidate.scenarioMean));
   assert.ok(
-    call.scenarioMean >= best * (1 - COVERED_MARGIN) - 1e-9,
-    "the call is within the margin of the best mean across the futures",
+    call.scenarioMean >= best * (1 - TIE_MARGIN) - 1e-9,
+    "the call is one the futures cannot fault",
   );
-  for (const candidate of frontier.candidates) {
-    const near = candidate.scenarioMean >= best * (1 - COVERED_MARGIN) - 1e-9;
-    if (near && candidate.weekWinProb >= COVERED_FLOOR) {
+  for (const candidate of above) {
+    const tied = candidate.scenarioMean >= best * (1 - TIE_MARGIN) - 1e-9;
+    if (tied) {
       assert.ok(
-        call.weekWinProb <= candidate.weekWinProb + 1e-9,
-        `the call spends no stronger a team than ${candidate.teams} within the margin`,
+        call.weekWinProb >= candidate.weekWinProb - 1e-9,
+        `the call takes no worse a week than ${candidate.teams}, which it ties`,
       );
     }
   }
@@ -661,14 +674,18 @@ for (const league of SPORT_IDS) {
       candidate.teams.length,
       `${league}: every team is described`,
     );
-    // Safest: nothing above the floor beats the call across the futures,
-    // unless the week is covered and the call spent a weaker team within the
-    // margin.
+    // Safest: nothing above the floor beats the call across the futures by
+    // more than the futures can resolve, and where it ties, the call took the
+    // better week.
     if (candidate.weekWinProb >= frontier.pool.floor) {
-      const allowed = frontier.pool.covered ? 1 - COVERED_MARGIN : 1;
       assert.ok(
-        call.scenarioMean >= candidate.scenarioMean * allowed - 1e-9,
+        call.scenarioMean >= candidate.scenarioMean * (1 - TIE_MARGIN) - 1e-9,
         `${league}: the call holds its own across the futures against ${candidate.teams.join("+")}`,
+      );
+      assert.ok(
+        call.scenarioMean >= candidate.scenarioMean - 1e-9 ||
+          call.weekWinProb >= candidate.weekWinProb - 1e-9,
+        `${league}: the call gives up the futures to ${candidate.teams.join("+")} only for a better week`,
       );
     }
   }
@@ -683,13 +700,20 @@ for (const league of SPORT_IDS) {
       `${league}: a covered call keeps the covered floor`,
     );
   }
+  // Alternatives are ordered the way the call was made: by what they cost
+  // across the futures, banded so that openings the futures cannot separate
+  // are ordered by the chance they have this week instead.
+  const best = Math.max(...frontier.candidates.map((c) => c.scenarioMean));
+  const bandOf = (c) => Math.floor((1 - c.scenarioMean / best) / frontier.pool.margin);
   const rest = frontier.candidates.slice(1);
-  const sorted = [...rest].sort((a, b) => b.scenarioMean - a.scenarioMean);
-  assert.deepEqual(
-    rest.map((c) => c.teams.join("+")),
-    sorted.map((c) => c.teams.join("+")),
-    `${league}: alternatives are ordered by how they do across the futures`,
-  );
+  for (let index = 1; index < rest.length; index += 1) {
+    const [before, after] = [rest[index - 1], rest[index]];
+    assert.ok(
+      bandOf(before) < bandOf(after) ||
+        (bandOf(before) === bandOf(after) && before.weekWinProb >= after.weekWinProb - 1e-9),
+      `${league}: ${after.teams.join("+")} is not ranked above ${before.teams.join("+")}`,
+    );
+  }
 
   // The same inputs give the same answer: the futures are seeded.
   const again = recommendForBoard(board);
@@ -758,7 +782,7 @@ for (const league of SPORT_IDS) {
 console.log(
   "Recommend OK: the optimum on an enumerable league with and without a buy back, one side of a " +
     "game only, locks honoured, continuation weights exact, the assignment solver against brute " +
-    "force, the call above a floor with a covered week spending the weaker team and leverage " +
+    "force, the call above a floor with a tie called on the week itself and leverage " +
     "priced beside it, on every board a deterministic frontier whose call is the path shown, and " +
     "twice each week's calls ranked behind it - a fallback being what the season would take " +
     "instead, checked against brute force.",

@@ -13,6 +13,13 @@
  * (selectTab in app.js). Nothing here knows that; the bar reports the tap and
  * the board decides what a tap on a tab is worth.
  *
+ * Shut, none of them is painted as open. A tablist has a selected tab whatever
+ * it is showing, so aria-selected and the roving tabindex go on saying which -
+ * it is the list the drawer will open on - and the stylesheet puts the light
+ * and the mark out until there is a panel under them to be open
+ * (components.css). Which means the state here is one tab's, always, and the
+ * bar only looks like it has none.
+ *
  * The bar is built ONCE and updated in place afterwards: renderTabs runs on
  * every board render, and rewriting the markup would drop the focus of a
  * keyboard user mid-arrow.

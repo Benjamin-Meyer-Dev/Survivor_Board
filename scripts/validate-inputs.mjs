@@ -23,6 +23,7 @@ import {
   chooseCall,
   equityOverlay,
   DEFAULT_MODE,
+  TIE_MARGIN,
 } from "../src/js/core/equity.js";
 import { resolveModel, winProbFromSpread, DEFAULT_MODEL } from "../src/js/core/probability.js";
 import { buildBoard } from "../src/js/core/plan.js";
@@ -452,10 +453,11 @@ const close = (a, b, tolerance, message) =>
     "an unknown mode is the safe one",
   );
   assert.equal(implied.coveredFloor, 2 / 3, "the covered floor is two in three unless set");
+  assert.equal(implied.tieMargin, TIE_MARGIN, "and the tie margin is the engine's unless set");
   assert.equal(
-    poolSettings({ coveredFloor: 0.75, coveredMargin: 0.02 }, 1, options).coveredMargin,
+    poolSettings({ coveredFloor: 0.75, tieMargin: 0.02 }, 1, options).tieMargin,
     0.02,
-    "the file can tune the covered rule",
+    "the file can tune what counts as a tie",
   );
 
   // The implied field: shares that sum to one, crowd the favourite, skip the dog.
@@ -594,42 +596,55 @@ const close = (a, b, tolerance, message) =>
     ["C"],
     "and takes the best equity above it",
   );
+  // Covered: the floor drops, and nothing else about the call changes. These
+  // three are 2% apart on the mean, which the futures can see, so the coach
+  // still reads them rather than reaching for the weakest.
   assert.deepEqual(
     call({ mode: "safest", floor: 0.7 }, { covered: true }),
-    ["E"],
-    "covered: the weakest team within the margin of the best mean, above the covered floor",
+    ["A"],
+    "covered: the best mean still wins where the futures can separate the openings",
   );
   assert.deepEqual(
     call({ mode: "balanced", floor: 0.7 }, { covered: true }),
-    ["E"],
-    "and within the margin of the best equity in balanced mode",
-  );
-  assert.deepEqual(
-    call({ mode: "safest", floor: 0.7, coveredMargin: 0.03 }, { covered: true }),
     ["C"],
-    "a tighter margin drops E at 4% below the best but still spends C at 2%",
-  );
-  assert.deepEqual(
-    call({ mode: "safest", floor: 0.7, coveredMargin: 0.01 }, { covered: true }),
-    ["A"],
-    "a margin nothing else clears keeps the favourite",
+    "and the best equity in balanced mode",
   );
   assert.deepEqual(
     call({ mode: "safest", floor: 0.75, coveredFloor: 0.75 }, { covered: true }),
     ["A"],
     "a covered floor at the week's own floor takes no more risk than an ordinary week",
   );
-  const far = candidates.map((c) => (c.teams[0] === "E" ? { ...c, equity: 0.1 } : c));
+
+  // The tie: a week whose season maths comes back the same for every opening -
+  // which is what a buy back in hand does to one - leaves the week itself as
+  // the only thing to call it on.
+  const tied = candidates.map((c) => ({ ...c, scenarioMean: 0.1, season: 0.1, equity: 0.11 }));
   assert.deepEqual(
-    chooseCall(far, { mode: "balanced", floor: 0.7 }, { covered: true }).teams,
-    ["C"],
-    "a covered week still spends nothing on an opening outside the margin",
+    chooseCall(tied, { mode: "safest", floor: 0.7 }, { covered: true }).teams,
+    ["A"],
+    "openings the futures cannot separate are called on the week, best chance first",
   );
-  const low = candidates.map((c) => (c.teams[0] === "E" ? { ...c, weekWinProb: 0.62 } : c));
   assert.deepEqual(
-    chooseCall(low, { mode: "safest", floor: 0.7 }, { covered: true }).teams,
+    chooseCall(tied, { mode: "safest", floor: 0.7 }).teams,
+    ["A"],
+    "and the same in an ordinary week, where a tie is a tie too",
+  );
+  const under = tied.map((c) => (c.teams[0] === "A" ? { ...c, weekWinProb: 0.6 } : c));
+  assert.deepEqual(
+    chooseCall(under, { mode: "safest", floor: 0.7 }, { covered: true }).teams,
     ["C"],
-    "nor on one under the covered floor",
+    "the floor still holds: A at 60% is under the covered floor and is not spent",
+  );
+  const apart = tied.map((c) => (c.teams[0] === "A" ? { ...c, scenarioMean: 0.11 } : c));
+  assert.deepEqual(
+    chooseCall(apart, { mode: "safest", floor: 0.7 }, { covered: true }).teams,
+    ["A"],
+    "a gap the futures can see is read, not banded away",
+  );
+  assert.deepEqual(
+    chooseCall(tied, { mode: "safest", floor: 0.7, tieMargin: 0 }, { covered: true }).teams,
+    ["A"],
+    "a pool that bands nothing reads the measure alone, and its own tie breaks the same way",
   );
 
   // The overlay on a frontier handed in: leverage, equity and the pool's

@@ -600,7 +600,10 @@ function route(state, board) {
       const done = week.picks.filter((pick) => pick.status.result && pick.onPath);
       return {
         week: week.week,
-        options: done.map((pick) => pick.onPath),
+        // Each slot keeps its own result as well as the week's: a pool that
+        // picks two teams can win one and lose the other, and the callout
+        // draws a line per team.
+        options: done.map((pick) => ({ ...pick.onPath, result: pick.status.result })),
         prob: done.length ? week.pathWinProb : null,
         result: done.some((pick) => pick.status.result === "L") ? "L" : "W",
       };
@@ -786,14 +789,15 @@ function route(state, board) {
   // line still count the buy back, because that is what the coach is planning
   // for, and they are the entry's chances rather than this route's.
   //
-  // Written to whichever precision keeps it true rather than to a fixed one: a
+  // Every chance the chart quotes is written to a tenth, here and on the marks
+  // and in the figures over them, so a column of them reads down as one kind of
+  // number. A whole percent was never enough at either end of the range: a
   // route that reaches the last week of an eighteen-week season two and a half
   // times in a hundred is not the "3%" a whole number makes of it, and one that
-  // gets there four times in a thousand is certainly not "0%". A tenth of the
-  // season is where a whole percent stops distorting - below it one point is a
-  // tenth of the figure or more - and the test is on the figure as it would be
-  // written, or a route at 9.96% comes out as "10.0%".
-  const reachFigure = (value) => formatPercent(value, value * 100 >= 9.95 ? 0 : 1);
+  // gets there four times in a thousand is certainly not "0%"; and at the other
+  // end two teams a point apart were both "84%" on the week they had to be told
+  // apart on.
+  const figureOf = (value) => formatPercent(value, 1);
   const reachOf = (entry) => {
     let reach = 1;
     return entry.stops.map((stop) => {
@@ -802,6 +806,18 @@ function route(state, board) {
       return stop.prob === null ? null : here;
     });
   };
+
+  // A mark is a week, and a week in a two-team pool is two games multiplied
+  // together. The mark plots the product, because that is the chance of getting
+  // through the week, but the product is not a thing you can check: 84% over a
+  // week is a different pick depending on whether it is two 92s or a 97 and a
+  // 87. So the mark carries its legs as well, and the callout gives each team
+  // its own line. One team is one leg and the leg is the week, so a pool that
+  // picks once a week is written the same way with nothing spare.
+  const legsOf = (options) =>
+    JSON.stringify(
+      options.map((option) => [option.team, figureOf(option.winProb), option.result ?? ""]),
+    );
 
   // Each mark carries its own week, team and figures, because a touch on the
   // chart is answered out of the marks themselves (watchChart): the week is
@@ -814,10 +830,8 @@ function route(state, board) {
         if (stop.prob === null || (only && !only[index])) return "";
         const lost = stop.result === "L" ? " route__dot--lost" : "";
         const reached =
-          reach && Number.isFinite(reach[index])
-            ? ` data-reach="${reachFigure(reach[index])}"`
-            : "";
-        return `<span class="route__dot route__dot--${kind}${lost}${index === at ? " route__dot--here" : ""}" data-key="dot-${kind}-${index}" style="left:${pct(xAt(index))};top:${pct(yAt(stop.prob))};--order:${index}" data-at="${index}" data-week="${stop.week}" data-kind="${kind}"${stop.result ? ` data-result="${stop.result}"` : ""} data-team="${escapeHtml(nameOf(stop.options))}" data-prob="${formatPercent(stop.prob, 0)}"${reached}></span>`;
+          reach && Number.isFinite(reach[index]) ? ` data-reach="${figureOf(reach[index])}"` : "";
+        return `<span class="route__dot route__dot--${kind}${lost}${index === at ? " route__dot--here" : ""}" data-key="dot-${kind}-${index}" style="left:${pct(xAt(index))};top:${pct(yAt(stop.prob))};--order:${index}" data-at="${index}" data-week="${stop.week}" data-kind="${kind}"${stop.result ? ` data-result="${stop.result}"` : ""} data-team="${escapeHtml(nameOf(stop.options))}" data-prob="${figureOf(stop.prob)}" data-legs="${escapeHtml(legsOf(stop.options))}"${reached}></span>`;
       })
       .join("");
 
@@ -858,12 +872,12 @@ function route(state, board) {
             ? " route__figure--below route__figure--second"
             : " route__figure--below";
       }
-      return `<span class="route__figure route__figure--${mark.kind}${place}" data-key="figure-${index}" style="left:${pct(xAt(at))};top:${pct(y)}">${formatPercent(mark.prob, 0)}</span>`;
+      return `<span class="route__figure route__figure--${mark.kind}${place}" data-key="figure-${index}" style="left:${pct(xAt(at))};top:${pct(y)}">${figureOf(mark.prob)}</span>`;
     })
     .join("");
 
   const loneMark = lone
-    ? `<span class="route__dot route__dot--coach route__dot--here route__dot--lone" data-key="dot-lone" style="left:${pct(xAt(at))};top:${pct(yAt(lone.prob))}" data-at="${at}" data-week="${weeks[at].week}" data-kind="coach" data-team="${escapeHtml(nameOf(lone.options))}" data-prob="${formatPercent(lone.prob, 0)}"></span>`
+    ? `<span class="route__dot route__dot--coach route__dot--here route__dot--lone" data-key="dot-lone" style="left:${pct(xAt(at))};top:${pct(yAt(lone.prob))}" data-at="${at}" data-week="${weeks[at].week}" data-kind="coach" data-team="${escapeHtml(nameOf(lone.options))}" data-prob="${figureOf(lone.prob)}" data-legs="${escapeHtml(legsOf(lone.options))}"></span>`
     : "";
 
   // Where the coach's route spends the team being looked at: saved for a
@@ -910,12 +924,7 @@ function route(state, board) {
     ),
     alternative && key("coach", "Coach", formatPercent(alternative.season, 1), "season"),
     lone &&
-      key(
-        "coach",
-        `Coach: ${escapeHtml(nameOf(lone.options))}`,
-        formatPercent(lone.prob, 0),
-        "this week",
-      ),
+      key("coach", `Coach: ${escapeHtml(nameOf(lone.options))}`, figureOf(lone.prob), "this week"),
   ]
     .filter(Boolean)
     .join("");
@@ -923,7 +932,7 @@ function route(state, board) {
   const summary = series
     .map(
       (entry) =>
-        `${entry === you ? "your route" : "the coach's route"}: ${formatPercent(entry.stops[at].prob ?? 0, 0)} this week, ${formatPercent(entry.season, 1)} for the season`,
+        `${entry === you ? "your route" : "the coach's route"}: ${figureOf(entry.stops[at].prob ?? 0)} this week, ${formatPercent(entry.season, 1)} for the season`,
     )
     .join("; ");
 
@@ -973,9 +982,9 @@ const CALLOUT_GAP = 14;
  * The marks carried a `title` and nothing else, which is a tooltip: a thing a
  * mouse has and a phone does not, on a board that is a phone first. So the
  * chart answers a touch instead - anywhere in a week's column, not on the
- * eight pixels of the mark itself - with the week, the team on each route, the
- * chance it carries and the chance of getting there to play it, in a callout
- * over the mark.
+ * eight pixels of the mark itself - with the week, a line per team on each
+ * route, the chance that team's own game carries and the chance of getting
+ * there to play the week, in a callout over the mark.
  *
  * Bound once, to the panel, which survives every render (frame in ui/patch.js);
  * the callout lives in the chart's own markup, so a render that redraws the
@@ -1064,13 +1073,34 @@ function reveal(plot, clientX) {
 
   // Your route first, and one line where both routes are on the same team:
   // that is the one mark the chart draws for them.
-  const rows = [];
+  const marks = [];
   const order = (dot) => (dot.dataset.kind === "you" ? 0 : 1);
   for (const dot of [...column].sort((a, b) => order(a) - order(b))) {
-    const { kind, team, prob, reach, result } = dot.dataset;
-    if (rows.some((row) => row.team === team && row.prob === prob)) continue;
-    rows.push({ kind, team, prob, reach, result });
+    const { kind, team, prob, reach, result, legs } = dot.dataset;
+    if (marks.some((mark) => mark.team === team && mark.prob === prob)) continue;
+    marks.push({ kind, team, prob, reach, result, legs: JSON.parse(legs || "[]") });
   }
+
+  // A line per team rather than per mark: a college pool picks two a week, and
+  // "Texas + Oregon 84%" is the product of two games neither of which is 84%.
+  // Each line carries the team's own chance; the week's own figure stands over
+  // the mark on the chart, which is where the product belongs. A leg that lost
+  // is drawn as lost on its own line, because the other one may have won.
+  // "To here" is the week's, not the team's, so it rides the first line of a
+  // mark and the rest of them leave the column standing empty.
+  const rows = marks.flatMap((mark) =>
+    mark.legs.length > 1
+      ? mark.legs.map(([team, prob, result], index) => ({
+          kind: mark.kind,
+          team,
+          prob,
+          result: result || null,
+          reach: mark.reach,
+          lead: index === 0,
+        }))
+      : [{ ...mark, lead: true }],
+  );
+  const split = marks.some((mark) => mark.legs.length > 1);
 
   // Two figures, because one of them cannot be read without the other: what the
   // week itself is worth, and the chance of being in the pool to play it - the
@@ -1085,23 +1115,36 @@ function reveal(plot, clientX) {
   callout.innerHTML =
     `<span class="route__callout-head"><b class="route__callout-week">Wk ${escapeHtml(nearest.dataset.week)}</b>${
       reached
-        ? `<span class="route__callout-label">Week</span><span class="route__callout-label">To here</span>`
+        ? `<span class="route__callout-label">${split ? "Game" : "Week"}</span><span class="route__callout-label">To here</span>`
         : ""
     }</span>` +
     rows
       .map(
         (row) =>
-          `<span class="route__callout-row route__callout-row--${row.kind}${row.result === "L" ? " route__callout-row--lost" : ""}"><i class="route__swatch" aria-hidden="true"></i><span class="route__callout-team">${escapeHtml(row.team)}</span><b class="route__callout-prob">${escapeHtml(row.prob)}</b>${
+          `<span class="route__callout-row route__callout-row--${row.kind}${row.result === "L" ? " route__callout-row--lost" : ""}${row.lead ? "" : " route__callout-row--leg"}"><i class="route__swatch" aria-hidden="true"></i><span class="route__callout-team">${escapeHtml(row.team)}</span><b class="route__callout-prob">${escapeHtml(row.prob)}</b>${
             reached
-              ? `<b class="route__callout-reach">${row.reach ? escapeHtml(row.reach) : "—"}</b>`
+              ? `<b class="route__callout-reach">${row.lead ? (row.reach ? escapeHtml(row.reach) : "—") : ""}</b>`
               : ""
           }</span>`,
       )
       .join("");
   callout.style.left = `${x.toFixed(2)}%`;
   callout.style.top = `${y.toFixed(2)}%`;
-  callout.classList.toggle("route__callout--right", x < 22);
-  callout.classList.toggle("route__callout--left", x > 78);
+  callout.hidden = false;
+
+  // Which end it hangs from is measured rather than guessed at. It was a fifth
+  // of the plot from either end, which was the right guess for a box as wide as
+  // a team name and one four-character figure and the wrong one for what it is
+  // now: two columns of figures written to a tenth, over a college week that
+  // puts two teams in the box. The widest of those ran a dozen pixels out of
+  // the chart on a phone. So it is centred on the mark where the box that makes
+  // fits inside the plot, and hung from whichever end it is running past where
+  // it does not.
+  callout.classList.remove("route__callout--right", "route__callout--left");
+  const plotBox = plot.getBoundingClientRect();
+  const centred = callout.getBoundingClientRect();
+  if (centred.left < plotBox.left) callout.classList.add("route__callout--right");
+  else if (centred.right > plotBox.right) callout.classList.add("route__callout--left");
   // Above the mark where there is room for it, under the mark where there is
   // not. How much room it needs is measured rather than assumed: it was a fixed
   // third of the plot, which was the right number for a callout of a week and
@@ -1110,8 +1153,7 @@ function reveal(plot, clientX) {
   // of season figures the whole chart is a comparison of. The plot is unhidden
   // and it is the case that clips (components.css), so what this protects is
   // what can be read, not what fits.
-  callout.hidden = false;
-  const room = plot.getBoundingClientRect().height;
+  const room = plotBox.height;
   const needed = room ? ((callout.offsetHeight + CALLOUT_GAP) / room) * 100 : 0;
   callout.classList.toggle("route__callout--below", y < needed);
 }

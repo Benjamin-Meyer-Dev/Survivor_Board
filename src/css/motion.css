@@ -687,9 +687,17 @@
 /* --- the drawer's tabs ----------------------------------------------------- */
 
 /* The indicator travels with the tab change, the same move the field's bracket
-   makes between weeks. */
+   makes between weeks.
+
+   And it is out while the drawer is shut, because a shut drawer has no open
+   tab to stand under (components.css). Carried rather than switched: the mark
+   goes out as the drawer comes down and is back by the time the list has
+   arrived, which is the one thing on the bar that says the two are the same
+   motion. */
 .tab-marker {
-  transition: transform 0.2s var(--ease-out);
+  transition:
+    transform 0.2s var(--ease-out),
+    opacity 0.2s var(--ease-out);
 }
 
 /* --- turning the week -----------------------------------------------------

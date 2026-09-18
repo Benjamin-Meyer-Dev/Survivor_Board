@@ -55,7 +55,11 @@
    visual distribution but leads with a plain-language pick-versus-coach
    comparison instead of asking the reader to decode the metaphors.
    v15 stages the adjacent week's card, model graph and drawer page so both
-   sides of a swipe travel through the frame together.
+   sides of a swipe travel through the frame together; v25 moves the coach's
+   ordering of a week's openings out of core/recommend.js into a new export of
+   core/equity.js, which is a shape change in the module graph rather than on
+   screen - a device holding the new recommend.js beside the old equity.js
+   imports a name that is not there yet and opens on nothing at all.
 
    "Must not keep half of" is the whole point, and v4 is what that phrase was
    written for. Every shell file is cached first and refreshed on its own a few
@@ -71,7 +75,7 @@
    and is bumped by the same hand: it keeps the coach's last few season plans
    between launches, and a plan cannot say which search produced it. If a
    deploy changes core/recommend.js, bump that one too. */
-const CACHE = "sudden-death-v24";
+const CACHE = "sudden-death-v25";
 
 /** How long to wait for fresh data before opening with the last copy. */
 const DATA_TIMEOUT_MS = 2500;

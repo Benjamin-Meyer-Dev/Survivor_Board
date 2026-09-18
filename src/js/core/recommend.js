@@ -33,19 +33,21 @@
  *      cannot.
  *
  *   3. The call keeps a floor on this week's chance: the season is the goal,
- *      but not at the price of a week that is nearly a coin flip. A week a buy
- *      back in hand covers spends the weakest team the futures cannot fault,
- *      keeping the stronger ones for the weeks that can end the season. And
- *      when the pool asks for it (data/<league>/pool.json), the field's
- *      leverage weighs in: surviving alongside everyone else wins nothing
- *      (core/equity.js). By default the field is only priced and reported.
+ *      but not at the price of a week that is nearly a coin flip. Openings the
+ *      futures cannot tell apart are ranked by that chance rather than by the
+ *      last decimal of a sampled mean, which is what decides a week a buy back
+ *      covers - there the season maths prices every opening the same and the
+ *      week is all there is (core/equity.js). And when the pool asks for it
+ *      (data/<league>/pool.json), the field's leverage weighs in: surviving
+ *      alongside everyone else wins nothing. By default the field is only
+ *      priced and reported.
  */
 
 import { survival } from "./survival.js";
 import { assignPath, FORBIDDEN } from "./assignment.js";
 import { scenarioSet } from "./scenarios.js";
 import { DEFAULT_MODEL } from "./probability.js";
-import { equityOverlay, bySurvival, byEquity } from "./equity.js";
+import { equityOverlay, rankOpenings } from "./equity.js";
 
 /** Beams carried between weeks. Higher = better paths, slower. */
 const BEAM_WIDTH = 160;
@@ -70,7 +72,7 @@ const SHORTLIST = 1200;
  * Futures each candidate for this week is played through.
  *
  * 128, up from 32. The call is the highest mean survival across these futures
- * (bySurvival in core/equity.js), so the number of them is the precision the
+ * (rankOpenings in core/equity.js), so the number of them is the precision the
  * call is made at, and 32 was not enough of them to separate a close week:
  * measured on week 2 of the NFL board, the top opening led the second by
  * 0.80 parts in a thousand of season survival with a paired standard error of
@@ -570,8 +572,8 @@ function openOptions(week, fixed) {
  * downside, and how often it was within a whisker of the best. The pool's
  * field is then laid over the candidates and the mode makes the call
  * (core/equity.js): the best mean above the floor - or the best equity, when
- * the pool asks - and in a week a buy back in hand covers, the weakest team
- * among the openings within a whisker of it.
+ * the pool asks - with the best chance this week deciding between openings the
+ * futures cannot separate, and the floor dropping in a week a buy back covers.
  *
  * @returns {object|null} Null when this week has nothing open to decide.
  */
@@ -741,8 +743,8 @@ function judgeFrontier({
     covered,
   });
   const byMode = overlaid.pool
-    ? [...overlaid.candidates].sort(overlaid.pool.mode === "safest" ? bySurvival : byEquity)
-    : [...judged].sort(bySurvival);
+    ? rankOpenings(overlaid.candidates, overlaid.pool.mode, overlaid.pool.margin)
+    : rankOpenings(judged);
   const chosen =
     (overlaid.pool && overlaid.candidates.find((candidate) => candidate.preferred)) || byMode[0];
   const ordered = [chosen, ...byMode.filter((candidate) => candidate !== chosen)];

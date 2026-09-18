@@ -7,7 +7,9 @@
  * and those tags are the whole of how the coach steers a pick, here and
  * nowhere else on the board. A locked slot keeps its list
  * to read - the week's other lines are still worth a look - but nothing in it
- * can be tapped until the slot is unlocked.
+ * can be tapped until the slot is unlocked. Under everything sit the teams
+ * already burned, newest week first and week 1 at the floor, each wearing the
+ * padlock and the week that took it.
  *
  * The list is rebuilt on every render, and a pick is a render. So that a tap
  * on the list does not move the list, the option order does not depend on
@@ -20,12 +22,21 @@ import { formatSpread, formatPercent, formatMatchup, escapeHtml } from "../core/
 import { delegate } from "./events.js";
 import { frame, reconcile } from "./patch.js";
 
-const LOCK_ICON = `<span class="sideline__lock" role="img" aria-label="Locked in">
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <rect x="5" y="11" width="14" height="10" rx="2" />
-    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-  </svg>
-</span>`;
+/**
+ * The board's padlock: worn by a locked row, by a row the other slot has
+ * locked, and by every row in the burned band, which says its week with it.
+ * The label is what a screen reader hears in place of the drawing.
+ */
+function lockIcon(label = "Locked in") {
+  return `<span class="sideline__lock" role="img" aria-label="${label}">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
+  </span>`;
+}
+
+const LOCK_ICON = lockIcon();
 
 /**
  * The coach's mark on a row, carrying where the coach ranks the team this week
@@ -169,12 +180,16 @@ function applyFilter(root, input) {
 function rowMarkup(pick, option, canPick) {
   const locked = option.isCurrent && Boolean(pick.status.locked);
   const held = Boolean(option.siblingLocked) && !option.isCurrent;
+  // Burned in another week: the foot of the list (see core/plan.js), where the
+  // row is the season's record rather than one of this week's choices.
+  const spent = Boolean(option.spentWeek) && !option.isCurrent;
   const classes = [
     "sideline__row",
     option.isCurrent ? "sideline__row--current" : "",
     locked ? "sideline__row--locked" : "",
     option.disabled && !option.isCurrent ? "sideline__row--disabled" : "",
     held ? "sideline__row--held" : "",
+    spent ? "sideline__row--spent" : "",
     option.result ? "sideline__row--settled" : "",
   ]
     .filter(Boolean)
@@ -186,7 +201,9 @@ function rowMarkup(pick, option, canPick) {
       ? 'aria-current="true" title="Tap again to clear this pick"'
       : held
         ? 'title="Locked in the other slot this week"'
-        : "";
+        : spent
+          ? `title="Locked in week ${option.spentWeek}. A team is only spent once"`
+          : "";
 
   // What the row is, for the settle that plays when it changes under no tap of
   // yours (playDataUpdates in app.js): which of the six states it is in, and
@@ -199,6 +216,7 @@ function rowMarkup(pick, option, canPick) {
     option.isCurrent ? "current" : "",
     locked ? "locked" : "",
     held ? "held" : "",
+    spent ? `spent-${option.spentWeek}` : "",
     option.disabled ? "disabled" : "",
     option.result ?? "",
   ]
@@ -218,12 +236,26 @@ function rowMarkup(pick, option, canPick) {
         <span class="sideline__name">${locked || held ? LOCK_ICON : ""}<span class="sideline__team-name">${escapeHtml(option.team)}</span>${coachMark(option)}</span>
         <span class="sideline__matchup">${escapeHtml(formatMatchup(option.site, option.opponent))}</span>
       </span>
-      ${line(option)}
+      ${line(option, spent)}
     </button>`;
 }
 
-/** The spread and the chance side by side in the tier's chalk, or why not. */
-function line(option) {
+/**
+ * The spread and the chance side by side in the tier's chalk, or why not.
+ *
+ * A burned team says which week took it, and says it with the padlock rather
+ * than in a sentence: the same lock the call card and the field's flag wear,
+ * so the foot of the list reads as the weeks already played rather than as a
+ * column of small print. It wears that mark even where the week's own game has
+ * since been played - the lock is why the row is down there at all.
+ */
+function line(option, spent) {
+  if (spent) {
+    return `<span class="sideline__line sideline__line--spent">
+        ${lockIcon(`Locked in week ${option.spentWeek}`)}
+        <span class="sideline__spent">Week ${option.spentWeek}</span>
+      </span>`;
+  }
   if (option.result) {
     return `<span class="sideline__line sideline__line--${option.result === "W" ? "won" : "lost"}">
         <span class="sideline__spread">${option.result === "W" ? "Won" : "Lost"}</span>

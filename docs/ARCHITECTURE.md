@@ -442,11 +442,18 @@ its mean, its downside (the 20th percentile), and how often it was within a
 whisker of the best. The call is the candidate with the best mean among
 those at least `floor` likely to hold this week (0.7 unless the pool's file
 says otherwise): the season is the goal, but not at the price of a week that
-is nearly a coin flip. In a week a buy back in hand covers, the loss is paid
-for and the team spent is what is at stake, so among the openings within 5%
-of the best mean the coach spends the weakest team - no worse than a
-two-to-one favourite - and keeps the stronger ones for the weeks that can end
-the season. The pool's file can also ask for the field's leverage to make the
+is nearly a coin flip. The mean is a sample's, though, and it has a
+resolution: neighbouring openings on the live NFL board separate with a
+paired standard error of about four parts in a thousand of it. So openings
+are banded by what they cost against the best in steps of `tieMargin`
+(0.005), and inside a band the best chance this week leads - a sampled mean
+read past its own error is noise, and the week is not. A week a buy back in
+hand covers is the case that makes this matter: the season maths prices a
+loss there at nothing, so every legal opening comes back on the identical
+number - the live board returned 3.50028348194% against all thirty-two, from
+a 78% favourite down to a 26% dog - and the band is the whole call. The floor
+drops there too, to `coveredFloor` (two in three), since the season is not
+what is at risk. The pool's file can also ask for the field's leverage to make the
 call instead (see [Pool equity](#pool-equity)). The path shown is the best
 complete path through that opening. Because every candidate meets the same
 futures, the
@@ -495,12 +502,12 @@ The mode makes the call. `safest`, the default, is survival alone: the best
 mean across the futures among the openings whose chance this week is at
 least `floor` (0.7 unless the file says otherwise), with leverage priced and
 reported beside it but not consulted. `balanced` ranks the same openings by
-equity instead; `equity` drops the floor too. Whatever the mode, a week a buy
-back in hand covers plays the covered rule described under
-[Futures](#futures): among the openings within `coveredMargin` (5%) of the
-best on the mode's measure, the weakest team goes, and the floor drops to
-`coveredFloor` (two in three) to let it. Both knobs are the file's, so a pool
-that wants its buy back spent more or less freely says so there. The path
+equity instead; `equity` drops the floor too. Whatever the mode, openings within
+`tieMargin` of each other on its measure are banded together and ordered by
+the chance they have this week, and a week a buy back in hand covers drops
+the floor to `coveredFloor` (two in three) - see [Futures](#futures). Both
+knobs are the file's, so a pool that reads its model more or less strictly
+than the default says so there. The path
 shown is the best complete path through the opening called. Leverage is the
 standard one-week approximation of a season-long game whose proper treatment
 needs every rival's spent teams.

@@ -2698,9 +2698,11 @@
 
 /* The column heads and the figures under them share one width, so the two
    columns line up without the callout becoming a grid: everything in here is
-   one line of nowrap type and the widest figure is four characters. */
+   one line of nowrap type and the widest figure is six characters - every
+   chance on the chart is written to a tenth, and "To here" is 100.0% in the
+   week the route starts from. */
 .route__callout-label {
-  min-width: 38px;
+  min-width: 44px;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 9px;
@@ -2723,6 +2725,13 @@
   color: var(--chalk-2);
 }
 
+/* The second team of a week sits flush against the first, so a college mark's
+   two games read as the one week they are rather than as two routes. The gap
+   the callout keeps between rows is what separates one mark from the next. */
+.route__callout-row--leg {
+  margin-top: -2px;
+}
+
 .route__callout-row--you .route__swatch {
   border-top-style: solid;
   border-top-color: var(--flag);
@@ -2743,7 +2752,7 @@
 }
 
 .route__callout-prob {
-  min-width: 38px;
+  min-width: 44px;
   margin-left: auto;
   font-family: var(--font-mono);
   font-weight: 650;
@@ -2757,7 +2766,7 @@
    number for every team standing in the column and the week's chance is the
    one that changes with the pick. */
 .route__callout-reach {
-  min-width: 38px;
+  min-width: 44px;
   font-family: var(--font-mono);
   font-weight: 650;
   font-size: 12px;
@@ -3207,6 +3216,20 @@
   opacity: 0.72;
 }
 
+/* Burned in an earlier week: the foot of the list, and the one band down there
+   that is about the season rather than this week. Read at the contrast of the
+   other spoken-for rows - it is a record you go looking for, not small print
+   to squint at - and the band is fenced off from the week's own games by a
+   rule on its first row, so the weeks below read as a group. */
+.sideline__row--spent {
+  opacity: 0.6;
+}
+
+.sideline__row:not(.sideline__row--spent) + .sideline__row--spent {
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
 .sideline__team {
   display: flex;
   flex-direction: column;
@@ -3364,6 +3387,24 @@
   color: var(--danger);
 }
 
+/* A burned row says which week took it, and says it with the padlock: the
+   board's one mark for a lock, so the foot of the list is read at a glance
+   rather than a sentence at a time. Set in the display face, at the size the
+   coach's tag is, so the week is a label on the row rather than a reading. */
+.sideline__line--spent {
+  align-items: center;
+  gap: 6px;
+  color: var(--chalk-2);
+}
+
+.sideline__spent {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 /* An unavailable row says why in place of its numbers - a sentence, not a
    reading, so it is set in the body face and the quiet chalk.
 
@@ -3372,8 +3413,10 @@
    with the rest - the one row in the list whose numbers had been replaced by
    something worth seeing in colour. Every finished game now keeps the
    outcome's chalk (sideline__line--won and --lost above), whichever week it
-   sits in and whoever took it. */
-.sideline__row--disabled:not(.sideline__row--settled) .sideline__line {
+   sits in and whoever took it. Nor a burned one: that row says its week in the
+   padlock and the display face above, which is its own reading of the same
+   "you cannot take this". */
+.sideline__row--disabled:not(.sideline__row--settled, .sideline__row--spent) .sideline__line {
   color: var(--chalk-3);
   font-family: var(--font-body);
   font-weight: 400;
@@ -4871,6 +4914,31 @@
   .notice {
     font-size: 14px;
   }
+
+  /* Shut, no tab is open, so no tab is lit.
+
+     The bar is the shut drawer (layout.css): the panels are away under it and
+     a tap on a tab is asking for that list rather than moving between two that
+     are on the screen. A tab wearing the open colour with its mark under it
+     was answering a question nobody could see the other half of - it said
+     SIDELINE is showing when nothing was showing, and it made the other tab
+     look like the only thing there was to tap. Both come back on the open, the
+     mark already standing where it belongs, so the list arrives named.
+
+     Only the paint. The tablist still has its selected tab underneath - it is
+     which list the drawer opens on, and the roving tabindex and aria-selected
+     are still true of it (ui/tabs.js). */
+  .board:not(.is-raised) .tab[aria-selected="true"] {
+    color: var(--chalk-3);
+  }
+
+  .board:not(.is-raised) .tab[aria-selected="true"]:hover {
+    color: var(--chalk-2);
+  }
+
+  .board:not(.is-raised) .tab-marker {
+    opacity: 0;
+  }
 }
 
 /* Two picks a week, on a phone narrower than about four hundred.
@@ -5103,6 +5171,19 @@
     height: 40px;
     font-size: 13px;
     letter-spacing: 0.08em;
+  }
+
+  /* And a tab is lit here whatever the raise was left holding. Portrait puts
+     the light out while the drawer is shut, because shut there is no panel to
+     be showing; sideways the panel is always on the screen - the board here is
+     never raised (layout.css) - so the same class means nothing of the kind
+     and the open tab has to say so. */
+  .board:not(.is-raised) .tab[aria-selected="true"] {
+    color: var(--chalk);
+  }
+
+  .board:not(.is-raised) .tab-marker {
+    opacity: 1;
   }
 
   /* One card a row, the same answer the narrowest panel on the desktop gives,
