@@ -1,6 +1,6 @@
 {
   "$comment": "Written by scripts/pull-stats.mjs from CollegeFootballData game PPA. Never edit by hand. One record per team per game, keyed \"<week>|<team>\" like odds.json: `margin` is the team's offensive expected points added less its opponent's, capped, and is what the rating fit in form.json reads as an efficiency observation. The other fields say where it came from.",
-  "updatedAt": "2026-09-17T13:01:29Z",
+  "updatedAt": "2026-09-18T13:02:20Z",
   "source": "https://api.collegefootballdata.com/ppa/games",
   "season": 2026,
   "games": {
@@ -1479,10 +1479,10 @@
     "2|Jacksonville State": {
       "opponent": "Ohio",
       "margin": 11.9,
-      "offensePerPlay": 0.2,
-      "defensePerPlay": -0.03,
-      "passingPerPlay": 0.82,
-      "rushingPerPlay": -0.12
+      "offensePerPlay": 0.27,
+      "defensePerPlay": -0.1,
+      "passingPerPlay": 0.81,
+      "rushingPerPlay": -0.04
     },
     "2|James Madison": {
       "opponent": "Wagner",
@@ -1767,8 +1767,8 @@
     "2|Ohio": {
       "opponent": "Jacksonville State",
       "margin": -11.9,
-      "offensePerPlay": 0.03,
-      "defensePerPlay": -0.2,
+      "offensePerPlay": 0.1,
+      "defensePerPlay": -0.27,
       "passingPerPlay": 0.07,
       "rushingPerPlay": 0.12
     },
@@ -2211,6 +2211,22 @@
       "defensePerPlay": 0.19,
       "passingPerPlay": 0.32,
       "rushingPerPlay": -0.03
+    },
+    "3|Pittsburgh": {
+      "opponent": "Syracuse",
+      "margin": 15.4,
+      "offensePerPlay": 0.14,
+      "defensePerPlay": 0.08,
+      "passingPerPlay": -0.31,
+      "rushingPerPlay": 0.45
+    },
+    "3|Syracuse": {
+      "opponent": "Pittsburgh",
+      "margin": -15.4,
+      "offensePerPlay": -0.08,
+      "defensePerPlay": -0.14,
+      "passingPerPlay": -0.21,
+      "rushingPerPlay": 0.11
     }
   }
 }
