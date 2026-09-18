@@ -14,12 +14,13 @@
  *      Every number is one the model used (option.pricing, core/plan.js).
  *
  *   2. The route. One chart: each remaining week's chance of surviving it,
- *      along the route your pick leaves (the rehearsal the coach plans around
- *      it, core/plan.js) and along the coach's own route, with the season
- *      chance each arrives at. The two lines say the whole trade without a
- *      sentence - a pick that is safer this week stands higher at this week's
+ *      along the route the board is on - your picks and the coach's plan around
+ *      them (the rehearsal, core/plan.js) - drawn solid, always. Where the
+ *      coach's untouched plan would spend a week differently, that difference
+ *      is pencilled in over those weeks alone, and the season figures settle
+ *      the trade: a pick that is safer this week stands higher at this week's
  *      column, and where the coach was saving that team for a later week, the
- *      coach's line stands higher there, and the season figures settle it.
+ *      dotted branch stands higher there.
  *
  * There was a third part under these - three cards of supporting facts, the
  * calibration behind the price, how many simulated seasons backed the opening,
@@ -28,12 +29,16 @@
  * in the same weight as the thing it supports is not read as a footnote: the
  * band is the price and the trade, and the room the cards took is the chart's.
  *
- * A week already played shows nothing: its numbers are on the field, the drive
- * line and the card three times over. Read-only.
+ * A week already played keeps the band, with the closing numbers in it: the
+ * line the market went to the game with and what that priced the pick at. The
+ * model's own projection goes, because it is a live number - the ratings behind
+ * it have moved on since - and a projection quoted next to a result reads as
+ * what the model says now about a game that is over. Read-only.
  */
 
 import { formatPercent, formatSpread, formatMatchup, escapeHtml } from "../core/format.js";
 import { TIER_LABEL, DEFAULT_TIERS } from "../core/probability.js";
+import { survival } from "../core/survival.js";
 import { frame, reconcile } from "./patch.js";
 
 /**
@@ -72,7 +77,7 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0) {
     state.kind === "working"
       ? readSignature(state)
       : state.kind === "past"
-        ? `past|${state.week.week}`
+        ? `past|${state.week.week}|${state.subject?.team ?? ""}`
         : "empty";
   panel.setAttribute("aria-live", "polite");
   panel.classList.toggle("coach--picked", state.selection === "picked");
@@ -84,10 +89,15 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0) {
   panel.classList.toggle("coach--empty", state.kind === "none");
   // The head and the chain are the week's page: they turn with the card, so
   // they travel with it under a finger (SLIDING in app.js names this box). The
-  // chart is the season and stays where it is - and on a week already played
-  // it is all there is.
+  // chart is the season and stays where it is.
+  //
+  // A settled week keeps the page, on its closing numbers rather than a live
+  // read: the week the card is on is the week being read about, and a box that
+  // empties itself the moment a week is over reads as the board losing the
+  // thread rather than as the week being finished. It goes only where there is
+  // nothing to quote - a week nobody priced.
   const page =
-    state.kind === "working"
+    state.kind === "working" || (state.kind === "past" && closingPricing(state))
       ? `<div class="coach__page" data-key="page">${head(state)}${chain(state, board)}</div>`
       : "";
   const routeMarkup = state.kind === "none" ? "" : route(state, board);
@@ -204,21 +214,41 @@ function patchRouteLines(current, nextLines) {
  */
 function stateFor(board, week, activeSlot) {
   if (board.eliminated) return { kind: "none" };
-  // A week that has been played has no model read left to make - its pricing
-  // is history and the field, the drive line and the card all carry the
-  // result. The chart is not a read, though: it is the season, and the season
-  // did not stop having a shape because the week you are looking at is behind
-  // you. So a settled week keeps the chart, with the band standing on it, and
-  // loses the head and the chain above it.
+  // A week that has been played has no live read left to make - the ratings
+  // behind one have moved on since. It keeps the band on its closing numbers
+  // instead, and the chart under it whichever week is being looked at: the
+  // season did not stop having a shape because the week in the frame is behind
+  // you.
   const settled = week.picks.every((pick) => pick.status.result) || week.week < board.currentWeek;
   if (settled) {
+    // The pick the week went with, for the closing line over the chart: the
+    // slot the card has active where it held one, and failing that whatever the
+    // week has that was priced - a week with one slot filled says what that
+    // slot closed at rather than nothing at all.
+    //
+    // There is no third fallback, because there is nothing to fall back to. The
+    // coach's board for a week is the teams it could still call, and once every
+    // game in the week has been played none of them is callable, so
+    // `week.coachRanked` is empty (core/plan.js). A week nobody picked was
+    // never priced by anybody, and the band goes rather than invent a read for
+    // it.
+    const held = week.picks[Math.min(activeSlot, week.picks.length - 1)];
+    const subject =
+      (held?.onPath?.pricing ? held.onPath : null) ??
+      week.picks.find((pick) => pick.onPath?.pricing)?.onPath ??
+      null;
     return {
       kind: "past",
       week,
+      subject,
       teams: week.picks.map((pick) => pick.team).filter(Boolean),
       opening: [],
       coachOpening: [],
-      selection: "locked",
+      // What the band is quoting, so the word over it is the truth about the
+      // team under it. Read off the subject rather than off the active slot,
+      // which in a two-pick week can be the empty one beside a slot that was
+      // filled and locked.
+      selection: subject ? "locked" : "coach",
     };
   }
 
@@ -309,14 +339,29 @@ function readSignature(state) {
   ].join("|");
 }
 
+/**
+ * The closing numbers for a settled week: the pricing of the pick that was on
+ * the path, and only where the market posted a line for it. A week the feed
+ * never priced carries a projection and nothing else, and a projection is not a
+ * closing line - so the page goes rather than quote one as though it were.
+ */
+function closingPricing(state) {
+  const pricing = state.subject?.pricing ?? null;
+  return pricing?.market ? pricing : null;
+}
+
 function head(state) {
   const { subject, week, selection } = state;
   const focus =
     selection === "picked" ? "Your pick" : selection === "locked" ? "Locked pick" : "Coach preview";
+  // A settled week is not being read live. Its numbers are the ones the game
+  // was played on, so the eyebrow says so rather than claiming a model read
+  // that would move under the reader every time the ratings are refitted.
+  const what = state.kind === "past" ? "Closing read" : "Live model read";
   return `<div class="coach__head" data-key="head">
     <span class="coach__heading">
       <span class="coach__focus"><span class="coach__pulse" aria-hidden="true"></span>${focus}</span>
-      <span class="u-eyebrow coach__what">Live model read · Wk ${String(week.week).padStart(2, "0")}</span>
+      <span class="u-eyebrow coach__what">${what} · Wk ${String(week.week).padStart(2, "0")}</span>
     </span>
     <span class="coach__game">${escapeHtml(subject.team)} ${escapeHtml(formatMatchup(subject.site, subject.opponent))}</span>
   </div>`;
@@ -326,10 +371,17 @@ function head(state) {
  * The four stops. A projected week has no market line to show, so that stop
  * says how far the projection is expected to miss instead - the widening the
  * simulations are drawn with (core/probability.js horizonVariance).
+ *
+ * A settled week takes three of the four: the line the game was played on, what
+ * it priced the pick at, and the tier that fell in. The model's own projection
+ * is the stop that goes - it is built from ratings that have been refitted
+ * every week since, so on a game that is over it is not what anyone read at the
+ * time, and the market's closing line is.
  */
 function chain(state, board) {
   const { subject } = state;
   const p = subject.pricing;
+  const closed = state.kind === "past";
   const tiers = board.rules?.tiers ?? DEFAULT_TIERS;
   const tier = subject.tier;
 
@@ -379,9 +431,9 @@ function chain(state, board) {
         : "posted"
     : `±${p.horizonSd.toFixed(1)} pts`;
   const marketTitle = market
-    ? `The line the market is posting${market.books ? `, across ${market.books} books` : ""}${
-        market.opened !== null ? `; it opened at ${formatSpread(market.opened)}` : ""
-      }`
+    ? `The line the market ${closed ? "went to the game with" : "is posting"}${
+        market.books ? `, across ${market.books} books` : ""
+      }${market.opened !== null ? `; it opened at ${formatSpread(market.opened)}` : ""}`
     : "No line is posted yet. A projection this many weeks out usually misses the line the market eventually posts by about this much";
 
   const price = subject.winProb;
@@ -397,14 +449,18 @@ function chain(state, board) {
         p.horizonSd ? `, widened by ±${p.horizonSd.toFixed(1)} for the weeks ahead` : ""
       }`;
 
-  return `<ol class="chain" data-key="chain" aria-label="How ${escapeHtml(subject.team)} was priced">
-    <li class="chain__stop" title="The model's own line: what the two teams' power ratings come to on their own, before the market is looked at. ${escapeHtml(subject.team)} is rated ${rating(p.team.rating)} and ${escapeHtml(subject.opponent)} ${rating(p.opponent.rating)}${homeNote} - the fitted ratings where the season has data, the preseason ones where it does not">
+  const modelStop = closed
+    ? ""
+    : `<li class="chain__stop" title="The model's own line: what the two teams' power ratings come to on their own, before the market is looked at. ${escapeHtml(subject.team)} is rated ${rating(p.team.rating)} and ${escapeHtml(subject.opponent)} ${rating(p.opponent.rating)}${homeNote} - the fitted ratings where the season has data, the preseason ones where it does not">
       <span class="chain__key">Model line</span>
       <span class="chain__value">${formatSpread(p.projected)}</span>
       <span class="chain__sub">${ratingsSub}</span>
-    </li>
+    </li>`;
+
+  return `<ol class="chain" data-key="chain" aria-label="How ${escapeHtml(subject.team)} ${closed ? "closed" : "was priced"}">
+    ${modelStop}
     <li class="chain__stop" title="${escapeHtml(marketTitle)}">
-      <span class="chain__key">Market line</span>
+      <span class="chain__key">${closed ? "Closing line" : "Market line"}</span>
       <span class="chain__value">${marketValue}</span>
       <span class="chain__sub">${escapeHtml(marketSub)}</span>
     </li>
@@ -478,20 +534,25 @@ function estimateFor(state, board) {
  * already on the board - and they are the half of the season the two routes
  * are the continuation of.
  *
- * Your route is the one the lock would leave - your pick this week and the
- * coach's plan around it (week.rehearsalPath, core/plan.js) - and the coach's
- * is the untouched plan (week.pathRecommendation). Both end at the numbers
- * the drive line quotes: "if locked" and the season chance. A week where the
- * two routes name the same team draws one mark; where they part, two, and
- * the week the coach was saving your team for is ruled and named, because
- * that is the whole of why a safer pick this week can leave a lower season.
+ * There is always a solid line, and it is the route the board is on: your pick
+ * this week and the coach's plan around it (week.rehearsalPath, core/plan.js),
+ * or the plan alone in a week you have not picked yet. That line is the season
+ * as it stands, so it is the one thing the chart is never without - it was
+ * missing on a week with nothing picked, which left a chart drawn entirely in
+ * the dashes that are supposed to mean "only pencilled in".
+ *
+ * The dashes are for a difference. The coach's untouched plan
+ * (week.pathRecommendation) is drawn over the weeks it would spend on another
+ * team and no others, branching off the solid line at the week before and
+ * rejoining it at the week after, with a mark on each week it differs. Where
+ * the two plans agree there is nothing to pencil in, and the week the coach was
+ * saving your team for is ruled and named besides, because that is the whole of
+ * why a safer pick this week can leave a lower season.
  *
  * A pick pending in any week has the coach planning around it, and that plan
  * is the route the field shows, so it is drawn as yours whichever week is
- * being looked at. With nothing pending, a locked week has one route - the
- * lock is on it - and the coach's call for the week stands beside it as a
- * lone mark; the coach's own preview has one route and nothing to compare it
- * with.
+ * being looked at. With nothing pending, a locked week has the lock on its
+ * line and the coach's call for the week stands beside it as a lone mark.
  *
  * Drawn as an SVG stretched to the box for the lines, with the marks and
  * every word placed over it by percentage, so the marks stay round and the
@@ -526,11 +587,21 @@ function route(state, board) {
   // not cover - is a hole in the line rather than a nought.
   const played = {
     stops: weeks.map((week) => {
-      if (week.week >= board.currentWeek) return { week: week.week, options: [], prob: null };
+      if (week.week >= board.currentWeek) {
+        return { week: week.week, options: [], picks: [], prob: null };
+      }
       const done = week.picks.filter((pick) => pick.status.result && pick.onPath);
       return {
         week: week.week,
         options: done.map((pick) => pick.onPath),
+        // The same weeks as the survival model reads them: a result rather than
+        // a chance, which is what lets the figure over a mark be worked out on
+        // the pool's own terms further down.
+        picks: done.map((pick) => ({
+          week: week.week,
+          winProb: pick.winProb,
+          result: pick.status.result,
+        })),
         prob: done.length ? week.pathWinProb : null,
         result: done.some((pick) => pick.status.result === "L") ? "L" : "W",
       };
@@ -544,30 +615,56 @@ function route(state, board) {
   // whichever week is being looked at.
   const rehearsed = weeks.some((week) => Array.isArray(week.rehearsalPath));
 
-  // The series. `you` is the route on the field, `coach` the untouched plan
-  // it is measured against; `lone` is the coach's call for a locked week,
-  // which has no route of its own to draw.
-  let you = null;
-  let coach = null;
+  // The solid line, always: the route the board is on. A rehearsal is it where
+  // there is one, a pick on the card is laid over the plan at this week where
+  // there is not, and with neither it is the plan itself - which is still the
+  // season as it stands, and still the line the chart is about.
+  //
+  // The overlay copies the stops rather than writing into them: `coachStops` is
+  // the array the untouched plan is drawn from as well, and writing your pick
+  // into it put your team on the coach's line at the one week the two are being
+  // compared at.
+  const you = rehearsed
+    ? {
+        stops: stopsOf((week) => week.rehearsalPath),
+        season: Number.isFinite(board.rehearsalProbability)
+          ? board.rehearsalProbability
+          : estimateFor(state, board),
+      }
+    : selection === "picked"
+      ? {
+          stops: coachStops.map((stop, index) =>
+            index === at
+              ? {
+                  ...stop,
+                  options: opening,
+                  prob: opening.reduce((product, option) => product * option.winProb, 1),
+                }
+              : stop,
+          ),
+          season: estimateFor(state, board),
+        }
+      : { stops: coachStops, season: board.pathProbability };
+
+  // The untouched plan, and the weeks it would spend on another team. It is
+  // drawn only where that list is not empty: a dashed line laid exactly over
+  // the solid one says nothing, and says it in the vocabulary the board keeps
+  // for a suggestion.
+  const coach = { stops: coachStops, season: board.pathProbability };
+  const apart = you.stops.map(
+    (stop, index) =>
+      stop.prob !== null &&
+      coach.stops[index].prob !== null &&
+      !sameTeams(
+        stop.options.map((option) => option.team),
+        coach.stops[index].options.map((option) => option.team),
+      ),
+  );
+  const alternative = apart.some(Boolean) ? coach : null;
+
+  // The coach's call for a locked week, which has no route of its own to draw.
   let lone = null;
-  if (rehearsed) {
-    you = {
-      stops: stopsOf((week) => week.rehearsalPath),
-      season: Number.isFinite(board.rehearsalProbability)
-        ? board.rehearsalProbability
-        : estimateFor(state, board),
-    };
-    coach = { stops: coachStops, season: board.pathProbability };
-  } else if (selection === "picked") {
-    you = { stops: coachStops, season: estimateFor(state, board) };
-    you.stops[at] = {
-      ...you.stops[at],
-      options: opening,
-      prob: opening.reduce((product, option) => product * option.winProb, 1),
-    };
-    coach = { stops: coachStops, season: board.pathProbability };
-  } else if (selection === "locked") {
-    you = { stops: coachStops, season: board.pathProbability };
+  if (!rehearsed && selection === "locked") {
     const call = state.coachOpening ?? [];
     if (
       call.length &&
@@ -581,11 +678,9 @@ function route(state, board) {
         prob: call.reduce((product, option) => product * option.winProb, 1),
       };
     }
-  } else {
-    coach = { stops: coachStops, season: board.pathProbability };
   }
 
-  const series = [you, coach].filter(Boolean);
+  const series = [you, alternative].filter(Boolean);
   const probs = [...series, ...(anyPlayed ? [played] : [])]
     .flatMap((entry) => entry.stops.map((stop) => stop.prob))
     .concat(lone ? [lone.prob] : [])
@@ -650,25 +745,87 @@ function route(state, board) {
       .join("");
   };
 
-  // Each mark carries its own week, team and figure, because a touch on the
+  // The branch: the alternative over the weeks it differs on and nowhere else,
+  // with the week either side of each run in the line so it leaves the route it
+  // is an alternative to and comes back to it. A single week's difference is
+  // still a branch and a rejoin that way, where the run on its own would be one
+  // point and no line at all.
+  const branchOf = (entry, kind, differs) => {
+    const runs = [];
+    differs.forEach((parted, index) => {
+      if (!parted) return;
+      const last = runs.at(-1);
+      if (last && last.at(-1) === index - 1) last.push(index);
+      else runs.push([index]);
+    });
+    return runs
+      .map((run) => [run[0] - 1, ...run, run.at(-1) + 1])
+      .map((span) => span.filter((index) => entry.stops[index] && entry.stops[index].prob !== null))
+      .filter((span) => span.length > 1)
+      .map(
+        (span, index) =>
+          `<polyline class="route__line route__line--${kind}" data-key="line-${kind}-${index}" points="${span
+            .map((stop) => `${xAt(stop).toFixed(2)},${yAt(entry.stops[stop].prob).toFixed(2)}`)
+            .join(" ")}" />`,
+      )
+      .join("");
+  };
+
+  // Getting there: the chance of still being in the pool when a week kicks off,
+  // along the route the mark belongs to. The weeks already played are facts
+  // rather than chances - you are here - so they weigh nothing, and what is
+  // left is the plan between now and that week. The shared survival model does
+  // the arithmetic (core/survival.js), so a pool that grants buy backs reads
+  // the same on the chart as it does in the drive line: a week that can be lost
+  // and played through does not take the figure to the floor.
+  //
+  // Written to whichever precision keeps it true rather than to a fixed one: a
+  // route that reaches the last week of an eighteen-week season two and a half
+  // times in a hundred is not the "3%" a whole number makes of it, and one that
+  // gets there four times in a thousand is certainly not "0%". A tenth of the
+  // season is where a whole percent stops distorting - below it one point is a
+  // tenth of the figure or more - and the test is on the figure as it would be
+  // written, or a route at 9.96% comes out as "10.0%".
+  const reachFigure = (value) => formatPercent(value, value * 100 >= 9.95 ? 0 : 1);
+  const settledPicks = played.stops.flatMap((stop) => stop.picks);
+  const reachOf = (entry) => {
+    const picks = [...settledPicks];
+    return entry.stops.map((stop) => {
+      const reach = survival({
+        picks,
+        buyBackWeeks: board.rules?.buyBackWeeks ?? [],
+        buyBacks: board.rules?.buyBacks ?? 0,
+      }).probability;
+      for (const option of stop.options) {
+        picks.push({ week: stop.week, winProb: option.winProb, result: null });
+      }
+      return stop.prob === null ? null : reach;
+    });
+  };
+
+  // Each mark carries its own week, team and figures, because a touch on the
   // chart is answered out of the marks themselves (watchChart): the week is
   // the column, and what is standing in it is what the callout reads back.
   // They used to carry a `title` instead, which is a tooltip, which is a thing
   // a phone does not have.
-  const dotsOf = (entry, kind) =>
+  const dotsOf = (entry, kind, { only = null, reach = null } = {}) =>
     entry.stops
       .map((stop, index) => {
-        if (stop.prob === null) return "";
+        if (stop.prob === null || (only && !only[index])) return "";
         const lost = stop.result === "L" ? " route__dot--lost" : "";
-        return `<span class="route__dot route__dot--${kind}${lost}${index === at ? " route__dot--here" : ""}" data-key="dot-${kind}-${index}" style="left:${pct(xAt(index))};top:${pct(yAt(stop.prob))};--order:${index}" data-at="${index}" data-week="${stop.week}" data-kind="${kind}"${stop.result ? ` data-result="${stop.result}"` : ""} data-team="${escapeHtml(nameOf(stop.options))}" data-prob="${formatPercent(stop.prob, 0)}"></span>`;
+        const reached =
+          reach && Number.isFinite(reach[index])
+            ? ` data-reach="${reachFigure(reach[index])}"`
+            : "";
+        return `<span class="route__dot route__dot--${kind}${lost}${index === at ? " route__dot--here" : ""}" data-key="dot-${kind}-${index}" style="left:${pct(xAt(index))};top:${pct(yAt(stop.prob))};--order:${index}" data-at="${index}" data-week="${stop.week}" data-kind="${kind}"${stop.result ? ` data-result="${stop.result}"` : ""} data-team="${escapeHtml(nameOf(stop.options))}" data-prob="${formatPercent(stop.prob, 0)}"${reached}></span>`;
       })
       .join("");
 
   // Where the season stands now, for the played line to run into.
-  const firstLive = (you ?? coach)?.stops.findIndex((stop) => stop.prob !== null) ?? -1;
+  const firstLive = you.stops.findIndex((stop) => stop.prob !== null);
   const liveTail =
     anyPlayed && firstLive >= 0
-      ? `${xAt(firstLive).toFixed(2)},${yAt((you ?? coach).stops[firstLive].prob).toFixed(2)}`
+      ? `${xAt(firstLive).toFixed(2)},${yAt(you.stops[firstLive].prob).toFixed(2)}`
       : null;
 
   // This week's figures ride their marks. The higher mark's figure stands
@@ -678,9 +835,9 @@ function route(state, board) {
   // sit on each other. Two routes on the same team this week are one mark
   // and one figure.
   const here = [];
-  if (you && you.stops[at].prob !== null) here.push({ kind: "you", prob: you.stops[at].prob });
-  if (coach && coach.stops[at].prob !== null) {
-    here.push({ kind: "coach", prob: coach.stops[at].prob });
+  if (you.stops[at].prob !== null) here.push({ kind: "you", prob: you.stops[at].prob });
+  if (alternative && apart[at] && alternative.stops[at].prob !== null) {
+    here.push({ kind: "coach", prob: alternative.stops[at].prob });
   }
   if (lone) here.push({ kind: "coach", prob: lone.prob });
   here.sort((a, b) => b.prob - a.prob);
@@ -711,11 +868,9 @@ function route(state, board) {
 
   // Where the coach's route spends the team being looked at: saved for a
   // later week, or already played in an earlier one.
-  const savedAt = coach
-    ? coach.stops.findIndex(
-        (stop, index) => index !== at && stop.options.some((option) => teams.includes(option.team)),
-      )
-    : -1;
+  const savedAt = coach.stops.findIndex(
+    (stop, index) => index !== at && stop.options.some((option) => teams.includes(option.team)),
+  );
   const savedTeams =
     savedAt >= 0
       ? coach.stops[savedAt].options.filter((option) => teams.includes(option.team))
@@ -735,15 +890,25 @@ function route(state, board) {
   const pending = Boolean(rehearsed && board.previewPending);
   const key = (kind, name, figure, word) =>
     `<li class="route__key route__key--${kind}"><i class="route__swatch" aria-hidden="true"></i><span class="route__key-name">${name}</span><b class="route__key-figure">${figure}</b><span class="route__key-word">${word}</span></li>`;
+  // What the solid line is: your pick's route where you have made one, the lock
+  // where the week is closed on it, and the plan itself where you have not - it
+  // is still the route the board is on, and naming it "You" in a week you have
+  // picked nothing in would be the chart claiming a decision you have not made.
+  const yourName = rehearsed
+    ? "You"
+    : selection === "locked"
+      ? "Locked"
+      : selection === "coach"
+        ? "Plan"
+        : "You";
   const legend = [
-    you &&
-      key(
-        "you",
-        selection === "locked" && !rehearsed ? "Locked" : "You",
-        Number.isFinite(you.season) ? formatPercent(you.season, 1) : "—",
-        "season",
-      ),
-    coach && key("coach", "Coach", formatPercent(coach.season, 1), "season"),
+    key(
+      "you",
+      yourName,
+      Number.isFinite(you.season) ? formatPercent(you.season, 1) : "—",
+      "season",
+    ),
+    alternative && key("coach", "Coach", formatPercent(alternative.season, 1), "season"),
     lone &&
       key(
         "coach",
@@ -770,7 +935,7 @@ function route(state, board) {
     .map((entry) => `${entry.stops.map((stop) => nameOf(stop.options)).join(">")}@${entry.season}`)
     .join("|");
 
-  return `<section class="route${you && coach ? " route--compared" : ""}${pending ? " route--pending" : ""}" data-key="route" data-motion-key="coach-route" data-motion-signature="${escapeHtml(signature)}" data-view-week="${viewed.week}" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
+  return `<section class="route${alternative ? " route--compared" : ""}${pending ? " route--pending" : ""}" data-key="route" data-motion-key="coach-route" data-motion-signature="${escapeHtml(signature)}" data-view-week="${viewed.week}" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
     <div class="route__head" data-key="head">
       <span class="route__eyebrow">Survival chance by week</span>
       <ul class="route__legend">${legend}</ul>
@@ -779,10 +944,10 @@ function route(state, board) {
       <span class="route__band" data-key="band" style="left:${pct((at / n) * 100)};width:${pct(100 / n)}"></span>
       ${grid}
       <svg class="route__lines" data-key="lines" viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
-        ${anyPlayed ? lineOf(played, "played", liveTail) : ""}${coach ? lineOf(coach, "coach") : ""}${you ? lineOf(you, "you") : ""}
+        ${anyPlayed ? lineOf(played, "played", liveTail) : ""}${alternative ? branchOf(alternative, "coach", apart) : ""}${lineOf(you, "you")}
       </svg>
       ${saved}
-      ${anyPlayed ? dotsOf(played, "played") : ""}${coach ? dotsOf(coach, "coach") : ""}${you ? dotsOf(you, "you") : ""}${loneMark}
+      ${anyPlayed ? dotsOf(played, "played") : ""}${alternative ? dotsOf(alternative, "coach", { only: apart, reach: reachOf(alternative) }) : ""}${dotsOf(you, "you", { reach: reachOf(you) })}${loneMark}
       ${figures}
       <span class="route__callout" data-key="callout" hidden></span>
     </div>
@@ -794,13 +959,23 @@ function route(state, board) {
 const TAP_SLOP = 8;
 
 /**
+ * The gap the callout keeps from the mark it belongs to, which is the one thing
+ * about its placement this file has to know: `--shift-y` in components.css sets
+ * it, and `reveal` needs it to work out whether the callout fits above the mark
+ * or has to drop under it. Twelve above, fourteen below - the larger of the two
+ * here, so the side being tested for is never the tighter one.
+ */
+const CALLOUT_GAP = 14;
+
+/**
  * Touch a week on the chart and it says who is standing there.
  *
  * The marks carried a `title` and nothing else, which is a tooltip: a thing a
  * mouse has and a phone does not, on a board that is a phone first. So the
  * chart answers a touch instead - anywhere in a week's column, not on the
- * eight pixels of the mark itself - with the week, the team on each route and
- * the chance it carries, in a callout over the mark.
+ * eight pixels of the mark itself - with the week, the team on each route, the
+ * chance it carries and the chance of getting there to play it, in a callout
+ * over the mark.
  *
  * Bound once, to the panel, which survives every render (frame in ui/patch.js);
  * the callout lives in the chart's own markup, so a render that redraws the
@@ -892,25 +1067,51 @@ function reveal(plot, clientX) {
   const rows = [];
   const order = (dot) => (dot.dataset.kind === "you" ? 0 : 1);
   for (const dot of [...column].sort((a, b) => order(a) - order(b))) {
-    const { kind, team, prob, result } = dot.dataset;
+    const { kind, team, prob, reach, result } = dot.dataset;
     if (rows.some((row) => row.team === team && row.prob === prob)) continue;
-    rows.push({ kind, team, prob, result });
+    rows.push({ kind, team, prob, reach, result });
   }
 
+  // Two figures, because one of them cannot be read without the other: what the
+  // week itself is worth, and the chance of being in the pool to play it - the
+  // plan's own weeks up to there, and nothing from the weeks already played,
+  // which happened. A 90% week in the last column of the season is not a 90%
+  // week if the plan only gets there half the time, and the two columns say so
+  // side by side rather than leaving it to be worked out. A played week has no
+  // second figure: you were there.
+  const reached = rows.some((row) => row.reach);
   const x = xOf(nearest);
   const y = Math.min(...column.map((dot) => parseFloat(dot.style.top)));
   callout.innerHTML =
-    `<b class="route__callout-week">Wk ${escapeHtml(nearest.dataset.week)}</b>` +
+    `<span class="route__callout-head"><b class="route__callout-week">Wk ${escapeHtml(nearest.dataset.week)}</b>${
+      reached
+        ? `<span class="route__callout-label">Week</span><span class="route__callout-label">To here</span>`
+        : ""
+    }</span>` +
     rows
       .map(
         (row) =>
-          `<span class="route__callout-row route__callout-row--${row.kind}${row.result === "L" ? " route__callout-row--lost" : ""}"><i class="route__swatch" aria-hidden="true"></i><span class="route__callout-team">${escapeHtml(row.team)}</span><b class="route__callout-prob">${escapeHtml(row.prob)}</b></span>`,
+          `<span class="route__callout-row route__callout-row--${row.kind}${row.result === "L" ? " route__callout-row--lost" : ""}"><i class="route__swatch" aria-hidden="true"></i><span class="route__callout-team">${escapeHtml(row.team)}</span><b class="route__callout-prob">${escapeHtml(row.prob)}</b>${
+            reached
+              ? `<b class="route__callout-reach">${row.reach ? escapeHtml(row.reach) : "—"}</b>`
+              : ""
+          }</span>`,
       )
       .join("");
   callout.style.left = `${x.toFixed(2)}%`;
   callout.style.top = `${y.toFixed(2)}%`;
   callout.classList.toggle("route__callout--right", x < 22);
   callout.classList.toggle("route__callout--left", x > 78);
-  callout.classList.toggle("route__callout--below", y < 34);
+  // Above the mark where there is room for it, under the mark where there is
+  // not. How much room it needs is measured rather than assumed: it was a fixed
+  // third of the plot, which was the right number for a callout of a week and
+  // two teams and the wrong one the moment a second column of figures gave it
+  // a heading row - a high mark then put it over the legend, which is the pair
+  // of season figures the whole chart is a comparison of. The plot is unhidden
+  // and it is the case that clips (components.css), so what this protects is
+  // what can be read, not what fits.
   callout.hidden = false;
+  const room = plot.getBoundingClientRect().height;
+  const needed = room ? ((callout.offsetHeight + CALLOUT_GAP) / room) * 100 : 0;
+  callout.classList.toggle("route__callout--below", y < needed);
 }

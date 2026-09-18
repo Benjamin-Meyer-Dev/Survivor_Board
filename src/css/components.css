@@ -2676,12 +2676,37 @@
   --shift-y: 14px;
 }
 
+/* The head of the callout's little table: the week on the left, and over each
+   column of figures the word for what it is. The two figures are a week's own
+   chance and the chance of getting to the week to play it, and a pair of bare
+   numbers in a box says neither. */
+.route__callout-head {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
 .route__callout-week {
+  margin-right: auto;
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 9px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+  color: var(--chalk-4);
+}
+
+/* The column heads and the figures under them share one width, so the two
+   columns line up without the callout becoming a grid: everything in here is
+   one line of nowrap type and the widest figure is four characters. */
+.route__callout-label {
+  min-width: 38px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: right;
   color: var(--chalk-4);
 }
 
@@ -2718,12 +2743,27 @@
 }
 
 .route__callout-prob {
+  min-width: 38px;
   margin-left: auto;
   font-family: var(--font-mono);
   font-weight: 650;
   font-size: 12px;
   letter-spacing: 0;
+  text-align: right;
   color: var(--chalk);
+}
+
+/* Getting there: quieter than the week's own figure, because it is the same
+   number for every team standing in the column and the week's chance is the
+   one that changes with the pick. */
+.route__callout-reach {
+  min-width: 38px;
+  font-family: var(--font-mono);
+  font-weight: 650;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-align: right;
+  color: var(--chalk-3);
 }
 
 .route__axis {

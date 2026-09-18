@@ -823,6 +823,30 @@ staging, and every class either path sets is cleared again by the next full
 render, so a lock or another device's change arriving mid-turn cannot leave a
 card sitting off its own edge.
 
+The chart is one solid line and, where there is a disagreement to draw, a
+pencilled branch off it. The solid line is the route the board is actually on -
+your pick and the coach's plan around it, or the plan alone in a week you have
+not picked - so it is the one thing the chart is never without; it used to be
+absent on a week with nothing picked, which left the whole season drawn in the
+dashes the board keeps for a suggestion. The dashes are the coach's untouched
+plan over the weeks it would spend on another team and no others, leaving the
+solid line at the week before and rejoining it at the week after, so a reader
+can see what the difference costs without tracing two full-length lines that
+agree almost everywhere. A touch on a column answers with two figures per
+route: the week's own chance, and the chance of getting there to play it - the
+plan's weeks up to that one, with the weeks already played counting as the
+facts they are. One cannot be read without the other, since a 90% week that the
+plan only reaches one season in thirty is not a 90% week.
+
+A week that has been played keeps the band, on the numbers the game was played
+on: the closing line, what it priced the pick at, and the tier that fell in.
+The model's own projection is the one stop that goes, because it is built from
+ratings refitted every week since and a live projection quoted beside a result
+reads as what the model says now about a game that is over. A week nobody
+picked has no band at all - once every game in a week has been played there are
+no callable teams left in it, so the coach's board for that week is empty
+(`week.coachRanked`) and there is nothing anybody priced to quote.
+
 The route graph is shared by every live pool kind: NFL and college, winners and
 losers. Its probabilities mean surviving that pool's week, so the same chart
 also reads correctly when advancing requires a team to lose. When a two-pick
