@@ -1,6 +1,6 @@
 {
   "$comment": "Written by scripts/pull-stats.mjs from CollegeFootballData game PPA. Never edit by hand. One record per team per game, keyed \"<week>|<team>\" like odds.json: `margin` is the team's offensive expected points added less its opponent's, capped, and is what the rating fit in form.json reads as an efficiency observation. The other fields say where it came from.",
-  "updatedAt": "2026-09-18T13:02:20Z",
+  "updatedAt": "2026-09-19T13:01:52Z",
   "source": "https://api.collegefootballdata.com/ppa/games",
   "season": 2026,
   "games": {
@@ -2227,6 +2227,46 @@
       "defensePerPlay": -0.14,
       "passingPerPlay": -0.21,
       "rushingPerPlay": 0.11
+    },
+    "3|Houston": {
+      "opponent": "Texas Tech",
+      "margin": 1.4,
+      "offensePerPlay": 0.28,
+      "defensePerPlay": -0.26,
+      "passingPerPlay": 0.35,
+      "rushingPerPlay": 0.23
+    },
+    "3|Miami": {
+      "opponent": "Wake Forest",
+      "margin": 14,
+      "offensePerPlay": 0.25,
+      "defensePerPlay": -0.05,
+      "passingPerPlay": 0.46,
+      "rushingPerPlay": 0.08
+    },
+    "3|Oregon": {
+      "opponent": "Portland State",
+      "margin": 35,
+      "offensePerPlay": 0.62,
+      "defensePerPlay": 0.57,
+      "passingPerPlay": 0.73,
+      "rushingPerPlay": 0.52
+    },
+    "3|Texas Tech": {
+      "opponent": "Houston",
+      "margin": -1.4,
+      "offensePerPlay": 0.26,
+      "defensePerPlay": -0.28,
+      "passingPerPlay": 0.6,
+      "rushingPerPlay": 0.25
+    },
+    "3|Wake Forest": {
+      "opponent": "Miami",
+      "margin": -14,
+      "offensePerPlay": 0.05,
+      "defensePerPlay": -0.25,
+      "passingPerPlay": 0.09,
+      "rushingPerPlay": -0.02
     }
   }
 }
