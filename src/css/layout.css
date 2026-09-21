@@ -498,40 +498,59 @@
      A size container as well as a contained one, so the table inside can ask
      how much of itself there is room for (components.css). */
   .readout > #coach {
-    /* The case fills before the field does, which is the other half of the
-       ceiling below. Left to share what is going, the two split it evenly and
-       the field reached its ceiling first on every phone; the case then got
-       whatever was left over, which is a different number per pool and is the
-       whole of why the chart was two different sizes. Growing first, the case
-       takes what it asks for and the field grows into the remainder - and
-       past the case's ceiling the order stops mattering, because the field is
-       free to take every pixel it can use. */
-    flex: 99 1 auto;
+    /* An even share with the field, which is what settles the order between
+       them: the field has a ceiling of its own (.pitch__field, 168) so it
+       freezes there, and every pixel after that has nowhere to go but the
+       case. The field gets the field it can use and the case gets the rest.
+
+       It used to grow 99 to the field's 1, so that the case filled first.
+       That was to stop the case being handed "whatever is left over", which
+       was a different number per pool - a college card was thirty pixels
+       taller than an NFL one, so the leftovers were thirty pixels smaller,
+       and the chart came out at two sizes in the same league. The card is
+       paged now and both pools draw the same one, so what is left over is the
+       same number in both and the case can simply take it. Growing 99 against
+       a field that cannot use more than 168 only meant the case reached its
+       own ceiling while the field was still short of its. */
+    flex: 1 1 auto;
     min-height: 0;
-    /* And a ceiling, so the chart is the same chart in every pool.
-       "What the field and the card leave" is a different number per pool: a
-       college card takes two picks a week, and the two slots, the marks on
-       each and a game line broken over three lines make it about thirty
-       pixels taller than an NFL one. The case took the difference and the
-       graph with it - 111 pixels of plot in one pool and 79 in the other, on
-       the same phone, in the same league.
+    /* And a ceiling, so a tall screen draws a tall chart rather than a tall
+       chart and a bar of nothing under it.
 
-       So the case asks for a share of the readout instead, and the field
-       takes what is left rather than the other way round. A share and not a
-       length: a taller phone should draw a taller chart, and a length would
-       hold the same box on every screen and open the difference as turf.
-       34% is what the college board can afford on a 390x844 phone with its
-       field still long enough to letter MISSOURI, NORTHWESTERN and OKLAHOMA
-       STATE down a yard line, which is the field's side of the bargain; the
-       NFL board comes down to meet it.
+       This was 34%, and it was holding two things apart that are no longer
+       apart. The number was chosen when a college card was about thirty
+       pixels taller than an NFL one - two slots side by side, marks on each,
+       a game line broken over three lines - so "what the field and the card
+       leave" was a different number per pool, and the case took the
+       difference and the graph with it: 111 pixels of plot in one pool and 79
+       in the other, on the same phone, in the same league. A share rather
+       than a length was the fix, and 34% was what the college board could
+       afford with its field still long enough to letter MISSOURI,
+       NORTHWESTERN and OKLAHOMA STATE down a yard line.
 
-       The field is the one that gives, which is the bargain it has already
-       struck above: it floats between its floor and its ceiling, and the
-       pool with the taller card simply has less field. Where it hits the
-       ceiling with room to spare - a one-slot pool on a tall phone - what is
-       left opens as turf over the card, which is the margin the call already
-       has for it. */
-    max-height: 34%;
+       The card is paged now (ui/call.js) and both pools draw the same one, so
+       the two cases are the same height without a ceiling being asked to make
+       them so. What the ceiling was still doing was capping the chart at a
+       third of the column while nothing else could use the rest: the field
+       sits on its own 168 (.pitch__field) on every screen there is, so every
+       pixel past the cap fell through to the call's auto margin and opened as
+       turf - 26 of it on a 390x844, 102 on a 430x932, 163 on a 579x1024. The
+       taller the screen, the bigger the hole above the card.
+
+       Half, because a chart is worth more than turf and the free space has
+       nowhere better to go. It is still a ceiling and not a claim: an auto
+       margin is paid after the flexible lengths are, so the case takes what
+       is actually spare and no more - on the short phone where there are only
+       26 pixels going, 26 is what it takes. Where the screen is tall enough
+       that even half is less than what is spare, the remainder opens over the
+       card as it always did, which is the margin the call already has for
+       it.
+
+       Three fifths rather than half. Half is almost exactly what a 579x1024
+       screen asks for - 51.7% - so the board that prompted this would have sat
+       on the ceiling with the hole reopening at any card a few pixels taller.
+       A ceiling wants to be somewhere nothing normal reaches. */
+    max-height: 60%;
     container-type: size;
     transition: opacity 160ms ease;
   }

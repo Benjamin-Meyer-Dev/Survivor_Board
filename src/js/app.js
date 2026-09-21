@@ -2490,32 +2490,50 @@ async function refreshBoard() {
   const kind = app.kind;
   const scope = openScope();
 
+  // And the app itself. A pull at the top of the page used to be how a new
+  // build arrived; the page no longer reloads on a pull, so this is where that
+  // went (checkForUpdate).
+  //
+  // It goes out beside the news rather than with it. It used to be the fourth
+  // hand of the Promise.all below, and the two unguarded members of that - the
+  // pool's files and the store's own read - could take it down with them: one
+  // refresh caught on a bad minute of network threw before the answer was
+  // read, and the reload never happened.
+  //
+  // Which was not a thing you could try again. By then the worker it had found
+  // was installed and had claimed the page, so no later check could report it
+  // as newer, and asking it to revalidate compared the new cache against the
+  // same new files and found nothing changed. The board sat on the old build,
+  // saying it could not check, until somebody cleared the site by hand. What
+  // the network is doing is not a reason to keep running last week's app.
+  const arrived = checkForUpdate().catch(() => false);
+
+  /** Into the build that arrived, if one did. Keeps the week and the slot. */
+  const takeNewBuild = async () => {
+    if (!(await arrived)) return false;
+    // The newer build is in the cache now, and the only way to be running it
+    // is to load it. The week and the slot go too (takeResume), which is the
+    // thing a reload used to lose.
+    stashResume();
+    window.location.reload();
+    return true;
+  };
+
   try {
     forgetPoolFiles(kind);
-    const [fresh, , , updated] = await Promise.all([
+    const [fresh] = await Promise.all([
       poolFiles(kind),
       app.store.refresh?.(),
       // The directory is the quiet one of the three: a league is renamed or
       // joined far less often than a line moves, and neither answer is worth
       // failing the check over.
       adoptFreshLeague(code).catch(() => false),
-      // And the app itself. A pull at the top of the page used to be how a new
-      // build arrived; the page no longer reloads on a pull, so this is where
-      // that went (checkForUpdate).
-      checkForUpdate().catch(() => false),
     ]);
     await turned(started);
     // A pool switch or a trip home while the check was out: that board is not
     // this board, and none of this belongs on it.
     if (openScope() !== scope) return;
-    if (updated) {
-      // The newer build is in the cache now, and the only way to be running
-      // it is to load it. The week and the slot go too (takeResume), which is
-      // the thing a reload used to lose.
-      stashResume();
-      window.location.reload();
-      return;
-    }
+    if (await takeNewBuild()) return;
     // The week being looked at and the slot in hand are the person's, not the
     // file's: this is the same board with newer numbers on it.
     app.plan = fresh.plan;
@@ -2528,6 +2546,10 @@ async function refreshBoard() {
   } catch (error) {
     await turned(started);
     if (openScope() !== scope) return;
+    // A build that arrived is still a build that arrived, whatever the rest of
+    // the check came back with - and the news it failed to fetch is the first
+    // thing the new one will go and get.
+    if (await takeNewBuild()) return;
     app.message = `${REFRESH_FAILED}: ${error.message}`;
     render({ search: false });
   } finally {
@@ -2555,12 +2577,26 @@ async function checkForUpdate() {
   const registration = await navigator.serviceWorker.getRegistration().catch(() => null);
   if (!registration) return false;
 
+  // The worker serving this page before the check went out. A different one
+  // afterwards is a new build, and that is a comparison rather than a race:
+  // the `controllerchange` below says the same thing, but it says it whenever
+  // the browser gets round to dispatching it, which can be after this function
+  // has already answered. It usually is. A bumped cache name is exactly the
+  // deploy that cannot fall back on the file count either - the arriving
+  // worker empties the old cache as it activates, so the revalidation below
+  // has nothing left to compare and honestly reports that nothing changed.
+  // Between the two, a deploy that bumped the cache - which is every deploy
+  // that changed the shape of the shell, and the only kind that MUST be
+  // loaded - was the one most likely to go unnoticed.
+  const before = registration.active;
+
   await registration.update().catch(() => undefined);
   // A worker found by that check is still installing when update() resolves.
   // Given the time to take over, so the question below goes to it, and the
   // controller change it causes is counted.
   const arriving = registration.installing ?? registration.waiting;
   if (arriving) await activated(arriving, SHELL_CHECK_MS).catch(() => undefined);
+  if (before && registration.active && registration.active !== before) return true;
 
   const worker = navigator.serviceWorker.controller;
   if (!worker) return controllerChanged;

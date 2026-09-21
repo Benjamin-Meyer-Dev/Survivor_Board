@@ -78,7 +78,7 @@
    needs a hand here: ENGINE_VERSION in src/js/core/recommend.js is part of
    every plan's key, so a plan can only ever be read back by the engine that
    wrote it. Bump it there when the search or the ranking changes shape. */
-const CACHE = "sudden-death-v27";
+const CACHE = "sudden-death-v30";
 
 /** How long to wait for fresh data before opening with the last copy. */
 const DATA_TIMEOUT_MS = 2500;
@@ -233,6 +233,32 @@ function keepable(response) {
  * @param {string} [key] What the copy is kept under; the request's own URL
  *   unless a caller says otherwise.
  */
+/**
+ * A fetch that asks the server rather than the browser's own copy.
+ *
+ * This worker keeps its own cache, and under that sits the HTTP cache, which
+ * on Pages holds every file for ten minutes (`max-age=600`). Two caches of the
+ * same thing is one too many, and the lower one was the one nobody could see:
+ * after a deploy bumped CACHE, the arriving worker emptied its cache, the page
+ * reloaded, every shell file missed and went to the network - and the HTTP
+ * cache answered every one of them with the build that had just been replaced.
+ * The worker then kept those under the NEW cache name and stopped asking. The
+ * board could sit on the old build for as long as the browser felt like
+ * holding it, through any number of reloads, with a service worker that
+ * believed it had just installed a new one.
+ *
+ * `no-cache` is a revalidation, not a bypass: the browser still sends its
+ * copy's validators and a 304 comes straight back off disk. What it cannot do
+ * is answer without asking.
+ *
+ * A navigation is left alone. Its request carries a mode this worker is not
+ * allowed to rebuild, and the document is the one file whose staleness cannot
+ * hide - it is what imports everything else, and everything else is checked.
+ */
+function fetchFresh(request) {
+  return request.mode === "navigate" ? fetch(request) : fetch(request, { cache: "no-cache" });
+}
+
 async function cachedFirst(event, key = event.request.url) {
   const { request } = event;
   const cache = await caches.open(CACHE);
@@ -250,7 +276,9 @@ async function cachedFirst(event, key = event.request.url) {
     // still taken; it is taken once the launch is over.
     if (!refreshed.has(key)) {
       refreshed.add(key);
-      event.waitUntil(later(SHELL_REFRESH_DELAY_MS).then(() => keep(cache, key, fetch(request))));
+      event.waitUntil(
+        later(SHELL_REFRESH_DELAY_MS).then(() => keep(cache, key, fetchFresh(request))),
+      );
     }
     return cached;
   }
@@ -258,8 +286,10 @@ async function cachedFirst(event, key = event.request.url) {
   // Nothing kept yet: the network is the answer, and the copy is taken from it
   // - attached before the response is handed anywhere, so the body is
   // certainly still unread, and held by the event, so the worker is not free
-  // to stop before it has been written.
-  const network = fetch(request);
+  // to stop before it has been written. This is the path every file takes on
+  // the first load after a CACHE bump, which is why it asks the server rather
+  // than the HTTP cache (fetchFresh).
+  const network = fetchFresh(request);
   event.waitUntil(keep(cache, key, network));
   try {
     return await network;

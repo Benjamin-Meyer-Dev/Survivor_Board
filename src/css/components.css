@@ -1647,7 +1647,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 18px;
+  /* The pager's own height, held whether there is a pager or not: a week with
+     one pick draws this row empty, and a card that stood shorter for it would
+     put the NFL board's chart and the college board's at two different sizes
+     again - which is the whole of what the paged card was for. */
+  min-height: 28px;
 }
 
 .call__slot-head .call__eyebrow {
@@ -1674,8 +1678,8 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 18px;
-  height: 18px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: 0;
   border-radius: var(--radius-sm);
@@ -1685,20 +1689,19 @@
   transition: color 160ms ease;
 }
 
-/* A target a thumb finds without the row growing to hold one. The button is
-   the size of its glyph; the hit area reaches into the turf above the row and
-   the gap below it, which is thirty pixels of nothing either side that no
-   other control is using. It stops at the head's own bottom edge, so the lock
-   keeps every pixel of its disc. */
+/* And the target reaches past the button, into the turf above the row and the
+   gap below it - nothing else on the card is using either. Thirty-eight by
+   thirty-four, for a control that is tapped over and over on a two-pick week
+   and was a chevron in eighteen pixels when it was first drawn. */
 .call__page::after {
   content: "";
   position: absolute;
-  inset: -6px -2px;
+  inset: -3px -5px;
 }
 
 .call__page svg {
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   fill: none;
   stroke: currentcolor;
   stroke-width: 2.4;
