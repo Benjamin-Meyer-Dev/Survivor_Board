@@ -1106,6 +1106,11 @@ function renderSelection(board) {
   // Once the run is over the board is a review, and a review is read-only:
   // nothing more can be picked or locked, whatever the store allows.
   const canWrite = app.store.canWrite && !board.eliminated;
+  // The slot in hand is the board's, not the week's, and a week can hold fewer
+  // picks than the one before it. The card is paged now, so its "1 of 2" is a
+  // claim about the list and the case as well: all three are handed the same
+  // settled index rather than each settling it for itself.
+  app.activeSlot = slotInWeek(board, app.viewWeek, app.activeSlot);
   renderCall(el.call, board, app.viewWeek, app.activeSlot, {
     canWrite,
     onAction: handleAction,
@@ -1128,6 +1133,12 @@ function renderSelection(board) {
   renderCoach(el.coach, board, app.viewWeek, app.activeSlot);
 }
 
+/** The slot in hand, held inside what the week being looked at actually has. */
+function slotInWeek(board, viewWeek, slot) {
+  const week = board.weeks.find((entry) => entry.week === viewWeek) ?? board.weeks[0];
+  return Math.min(Math.max(slot, 0), (week?.picks.length ?? 1) - 1);
+}
+
 /**
  * Handing the sideline to the other slot, as one movement.
  *
@@ -1141,12 +1152,19 @@ function renderSelection(board) {
  * @param {number} direction -1 for the slot on the left, +1 for the right.
  */
 function playSlotSwap(direction) {
-  const list = el.sideline?.querySelector(".sideline");
-  if (!list) return;
-  list.style.setProperty("--slide", String(direction));
-  playOnce(list, ["is-slot-swap"], { subtree: false }).then(() =>
-    list.style.removeProperty("--slide"),
-  );
+  // Both are already the new pick's: renderSelection ran before this. So each
+  // plays an entrance from the side the step was taken rather than an exit,
+  // which is what a card and a list that are replaced whole can play.
+  for (const node of [
+    el.call?.querySelector(".call__slot"),
+    el.sideline?.querySelector(".sideline"),
+  ]) {
+    if (!node) continue;
+    node.style.setProperty("--slide", String(direction));
+    playOnce(node, ["is-slot-swap"], { subtree: false }).then(() =>
+      node.style.removeProperty("--slide"),
+    );
+  }
 }
 
 /**

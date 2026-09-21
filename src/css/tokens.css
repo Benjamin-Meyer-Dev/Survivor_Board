@@ -67,6 +67,14 @@
   --danger: #ff9b9b;
   --danger-bg: rgb(255 155 155 / 16%);
 
+  /* Ink for a word set ON one of these rather than in it. The scale is chalk
+     everywhere but the result stamp (.call__result), which is the one mark on
+     a slot that is painted on, and a pastel that light wants the word cut out
+     of it in the dark. Each is its own colour taken almost to black, so the
+     two still read as the two colours the chalk is using. */
+  --on-safe: #0a3a20;
+  --on-danger: #431010;
+
   /* a lock is chalk: solid, final */
   --lock: #f3f7f1;
   --lock-bg: rgb(243 247 241 / 12%);

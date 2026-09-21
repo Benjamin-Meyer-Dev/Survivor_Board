@@ -1091,11 +1091,17 @@
   animation: pill-exit 0.16s ease-in both;
 }
 
-/* --- the sideline changing slot --------------------------------------------
-   In a two-pick week the list under the call belongs to whichever slot is
-   active, and tapping the other slot replaces every row in it. The marker
-   travels between the slots (components.css) and the list dips with it, so the
-   two read as one change rather than as a jump and a repaint. */
+/* --- the card and its list changing pick ------------------------------------
+   A week that takes more than one pick shows one of them at a time, and the
+   pager steps between them (ui/call.js). Both the slot on the card and the
+   list under it are replaced whole when it does, so both come in from the side
+   the step was taken - the card because that is the side-to-side the pager is
+   promising, the list because it belongs to the pick on the card and a list
+   that only repainted read as a second, unrelated change.
+
+   Ten pixels, not the width of the card: this is a card answering a tap on a
+   control inside it, not a week being dragged off the screen (the swipe's own
+   travel is in ui/swipe.js). The eye needs the direction, not the distance. */
 @keyframes list-swap {
   from {
     opacity: 0.25;
@@ -1107,7 +1113,8 @@
   }
 }
 
-.sideline.is-slot-swap {
+.sideline.is-slot-swap,
+.call__slot.is-slot-swap {
   animation: list-swap 0.22s var(--ease-out) both;
 }
 

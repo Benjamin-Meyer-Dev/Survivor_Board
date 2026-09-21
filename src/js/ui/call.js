@@ -10,22 +10,39 @@
  *
  * A slot is one of three things: empty, with the coach's suggestion pencilled
  * in; picked, a team the users chose but have not committed to; or locked. The
- * coach never fills a slot. In a two-pick week the slot the sideline is filling
- * wears the bracket, and tapping the other hands it the sideline.
+ * coach never fills a slot.
+ *
+ * One slot is on the card at a time, whatever the pool. A week that takes more
+ * than one pick pages between them from a stepper on the slot's own head row -
+ * "1 of 2", an arrow either side - and the slot on the card is the slot the
+ * sideline is filling, so there is one answer to "which pick am I working on"
+ * rather than a bracket saying it about one of two cards.
+ *
+ * They used to stand side by side, and it cost the pool that has them the
+ * thing the card is for. Half a card is 142 pixels on a phone: the name came
+ * down a size and still wrapped, the game line broke over three lines, the
+ * tiles gave up their keys, and the card came out 33 pixels taller than an NFL
+ * one on a phone and 95 on a desktop. The coach's case is handed what the
+ * field and the card leave over (layout.css), so every one of those pixels was
+ * off the chart - the college pool, which is the one with two picks to weigh,
+ * was reading them in the smallest chart on the board. Paged, both pools draw
+ * the same card and the same chart, and a week that ever takes three picks is
+ * a longer count in the same stepper rather than a third column nothing would
+ * fit in.
  *
  * The fallbacks behind the calls are not repeated here. They are marked where
  * they can be tapped - on the team list's own rows, each carrying the rank the
  * coach gives it (ui/sideline.js) - and a readout with no rows to spare must
  * not spend one saying the same thing twice.
  *
- * Every slot has the same rows in the same order - eyebrow, marks, team,
- * matchup, tiles - so a pick or lock changes what the rows say without moving
- * anything under the thumb that just tapped it. The marks (how safe the coach
- * rates the pick, whether it was the coach's call, the result) take their own
- * line under the eyebrow rather than sharing it: in a two-pick week the slot
- * is half a card wide and the row could not hold both. The game and its
- * numbers hold the foot of the slot, so two slots side by side line up there
- * whatever the rows above them come to.
+ * Every slot has the same rows in the same order - head, marks, team, matchup,
+ * tiles - so a pick, a lock or a page changes what the rows say without moving
+ * anything under the thumb that just tapped it. The head carries the eyebrow
+ * and, where there is more than one pick, the pager. The marks (how safe the
+ * coach rates the pick, whether it was the coach's call) take the line under
+ * it. The result, once it is in, is not one of them - it is paint rather than
+ * chalk, and it stands at the far end of that row on its own (resultStamp).
+ * The game and its numbers hold the foot of the slot.
  *
  * Handlers are injected; this module knows nothing about the store.
  */
@@ -53,6 +70,15 @@ const LOCK_SHUT = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11
 const FLIP = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h13m-4-4 4 4-4 4M21 18H8m4 4-4-4 4-4" /></svg>`;
 /** Taking the coach's call: a check. */
 const TAKE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7" /></svg>`;
+/* The result, once the game is in the books. The check is the take's, drawn
+   again at the weight a stamp wants; the cross is its answer. */
+const WON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 13 5.5 5.5L20 5.5" /></svg>`;
+const LOST = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18" /></svg>`;
+/* The pager's two ways. Chevrons rather than arrows: the card's one arrow pair
+   is the flip, which means the other side of this game, and a pager that wore
+   the same mark would be reading as a second flip. */
+const PREV = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>`;
+const NEXT = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>`;
 
 /**
  * @param {HTMLElement} root
@@ -63,8 +89,7 @@ const TAKE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4
  */
 export function renderCall(root, board, viewWeek, activeSlot, handlers) {
   const week = board.weeks.find((entry) => entry.week === viewWeek) ?? board.weeks[0];
-  const active = Math.min(activeSlot, week.picks.length - 1);
-  const two = week.picks.length > 1;
+  const active = slotInRange(activeSlot, week);
 
   // Bound to the card's root, which no render replaces: the week's markup is
   // rewritten on every pick and lock, and a listener per control meant a fresh
@@ -78,14 +103,11 @@ export function renderCall(root, board, viewWeek, activeSlot, handlers) {
     });
   });
 
-  delegate(root, "click", "[data-activate]", (slot) => {
-    handlers.onSlot(Number(slot.dataset.activate));
-  });
-
-  delegate(root, "keydown", "[data-activate]", (slot, event) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    event.preventDefault();
-    handlers.onSlot(Number(slot.dataset.activate));
+  // The pager's two steps. Real buttons, so Enter and Space are the browser's
+  // to handle - the slot used to be a div wearing a button's clothes and
+  // needed its own keydown for them.
+  delegate(root, "click", "[data-activate]", (step) => {
+    handlers.onSlot(Number(step.dataset.activate));
   });
 
   // The card's frame is kept and its parts patched (ui/patch.js): the head
@@ -103,29 +125,27 @@ export function renderCall(root, board, viewWeek, activeSlot, handlers) {
       <span class="call__tags">${weekTags(week, board)}</span>
       ${actionsMarkup(week.picks[active], board, handlers.canWrite)}
     </div>
-    <div class="call__slots${two ? " call__slots--two" : ""}" data-key="slots"></div>`,
+    <div class="call__slots" data-key="slots"></div>`,
   );
   const slots = box.querySelector(".call__slots");
   reconcile(slots, slotsMarkup(week, board, active));
-  if (two) slots.style.setProperty("--active", String(active));
   holdEveryWeek(root, slots, board);
 }
 
 /**
- * The week's slots, and the bracket that travels between them.
+ * Which slot a card is showing, given the one the board thinks is in hand.
  *
- * The bracket is one element that moves rather than a border lit on one slot
- * and put out on the other: a slot's markup changes on every pick and lock, so
- * a border carried in it is rebuilt - and a rebuilt border has nothing to move
- * from. Which slot it stands on is written on the row below, not in the
- * markup, for the same reason.
+ * A week can hold fewer picks than the week before it - the last week of a
+ * pool that ends mid-season, or a rules change - and the slot in hand is
+ * settled for the board rather than per week.
  */
+function slotInRange(slot, week) {
+  return Math.min(Math.max(slot, 0), week.picks.length - 1);
+}
+
+/** The one slot the card is showing. */
 function slotsMarkup(week, board, active) {
-  const two = week.picks.length > 1;
-  return (
-    week.picks.map((pick, index) => slotMarkup(pick, board, two, index === active)).join("") +
-    (two ? `<span class="call__marker" data-key="marker" aria-hidden="true"></span>` : "")
-  );
+  return slotMarkup(week.picks[active], board, week.picks.length, active);
 }
 
 /** The markup a card's floor was measured from. */
@@ -163,6 +183,11 @@ const watching = new WeakSet();
  * card's own width, and the floor is the tallest of them. It is keyed by the
  * markup it measured, so it is taken again when the season's names change and
  * not on every tap.
+ *
+ * Every pick of every week, not every week: the card shows one pick at a time
+ * now, and a floor that had only ever seen each week's first pick would let
+ * the card change height when the pager moved - which is the same jump under
+ * the chart, asked for by the same hand, one control along.
  */
 function holdEveryWeek(root, slots, board) {
   // The live card only. A week staged for a swipe is rendered into a detached
@@ -196,7 +221,11 @@ function measureEveryWeek(root) {
   if (!width) return;
 
   const markup = board.weeks
-    .map((week) => `<div class="${slots.className}">${slotsMarkup(week, board, 0)}</div>`)
+    .flatMap((week) =>
+      week.picks.map(
+        (_, slot) => `<div class="${slots.className}">${slotsMarkup(week, board, slot)}</div>`,
+      ),
+    )
     .join("");
   const key = `${width}|${markup}`;
   if (held.get(root) === key) return;
@@ -255,10 +284,10 @@ function weekTags(week, board) {
 
 /**
  * One slot. The rows are the same whatever it holds: who the team belongs to,
- * the team, its game, its numbers. In a two-pick week the slot is a button
- * that hands the sideline to itself.
+ * the team, its game, its numbers. Where the week takes more than one pick the
+ * head row carries the pager that reaches the others.
  */
-function slotMarkup(pick, board, two, active) {
+function slotMarkup(pick, board, count, active) {
   const { status } = pick;
   const shown = pick.team ? pick : pick.suggestion;
   const state = pick.team ? (status.locked ? "locked" : "picked") : "empty";
@@ -291,21 +320,13 @@ function slotMarkup(pick, board, two, active) {
     pick.team && (pick.isRecommended || (status.locked && pick.coachCall?.team === pick.team));
   const marks = shown
     ? `<span class="chip chip--${shown.tier}">${TIER_LABEL[shown.tier]}</span>` +
-      (coached
-        ? '<span class="chip chip--rec" title="This was the coach’s call">Coach</span>'
-        : "") +
-      resultChip(status)
-    : "";
-
-  const attrs = two
-    ? ` role="button" tabindex="0" data-activate="${pick.slot}" aria-pressed="${active}"
-        aria-label="Slot ${pick.slot + 1}${shown ? `, ${escapeHtml(shown.team)}` : ""}"`
+      (coached ? '<span class="chip chip--rec" title="This was the coach’s call">Coach</span>' : "")
     : "";
 
   // What the slot is showing, for the settle that plays when it changes under
-  // no tap of yours (playDataUpdates in app.js). Which slot the sideline is
-  // filling is deliberately not in it: the bracket moving between two slots is
-  // not either of them changing.
+  // no tap of yours (playDataUpdates in app.js). Which pick is on the card is
+  // deliberately not in it: paging is a tap, and the card answering a tap is
+  // not the board changing its mind.
   const signature = [
     state,
     shown?.team ?? "",
@@ -317,12 +338,15 @@ function slotMarkup(pick, board, two, active) {
   ].join("|");
 
   return `
-    <div class="call__slot call__slot--${state}${two && active ? " call__slot--active" : ""}"
+    <div class="call__slot call__slot--${state}"
          data-week="${pick.week}" data-slot="${pick.slot}" data-key="${pick.week}-${pick.slot}"${shown ? ` data-tier="${shown.tier}"` : ""}
          data-motion-key="slot-${pick.week}-${pick.slot}"
-         data-motion-signature="${escapeHtml(signature)}"${attrs}>
-      <div class="call__eyebrow${pick.suggestion && !pick.team ? " call__eyebrow--coach" : ""}">${eyebrow}</div>
-      <div class="call__marks">${marks}</div>
+         data-motion-signature="${escapeHtml(signature)}">
+      <div class="call__slot-head">
+        <div class="call__eyebrow${pick.suggestion && !pick.team ? " call__eyebrow--coach" : ""}">${eyebrow}</div>
+        ${pagerMarkup(count, active)}
+      </div>
+      <div class="call__marks">${resultStamp(status)}${marks}</div>
       ${
         shown
           ? `<div class="call__team">${escapeHtml(shown.team)}</div>
@@ -334,12 +358,61 @@ function slotMarkup(pick, board, two, active) {
     </div>`;
 }
 
-function resultChip(status) {
-  if (status.result === "W") return '<span class="chip chip--safe" title="Final score">Won</span>';
-  if (status.result === "L") {
-    return '<span class="chip chip--danger" title="Final score">Lost</span>';
-  }
-  return "";
+/**
+ * The pager, at the end of the slot's head row.
+ *
+ * A count and a step either side, which is the stepper this app already uses
+ * for a number you nudge (the pool's own rules, ui/settings.js). It says where
+ * you are as well as offering the way out of it: "1 of 2" is the whole of what
+ * a person needs to know about a week with two picks in it, and it reads the
+ * same for a week with four.
+ *
+ * The ends hold rather than wrap, as the season's own ends do under a drag
+ * (ui/swipe.js). A pool with two picks could have been a toggle either arrow
+ * would work, and it would be a different control from the one a three-pick
+ * pool gets - a stepper that counts to two is still a stepper.
+ *
+ * Nothing at all when the week takes one pick: a card that says "1 of 1" is a
+ * control with nowhere to go, and the NFL card would be carrying the college
+ * pool's furniture. The row it rides is there in both, so both cards are the
+ * same height either way.
+ */
+function pagerMarkup(count, active) {
+  if (count < 2) return "";
+  const step = (to, icon, words) => {
+    const off = to < 0 || to >= count;
+    return `<button type="button" class="call__page"${off ? " disabled" : ` data-activate="${to}"`}
+        aria-label="${escapeHtml(words)}" title="${escapeHtml(words)}">${icon}</button>`;
+  };
+  return `<div class="call__pager">
+      ${step(active - 1, PREV, "The pick before this one")}
+      <span class="call__count" aria-live="polite">${active + 1} of ${count}</span>
+      ${step(active + 1, NEXT, "The next pick this week")}
+    </div>`;
+}
+
+/**
+ * The result, at the far end of the marks row.
+ *
+ * Every other mark on a slot is chalk: an outlined tag for how safe the coach
+ * rates the pick, another for whether the pick was the coach's. Those are
+ * opinions, and the result was drawn as a third one - a won pick wore SAFE and
+ * WON side by side in the same mint outline at the same size, a forecast and a
+ * fact with only the word between them. So the result is the one mark on a
+ * slot that is paint rather than chalk: filled in its own colour with the word
+ * cut out of it, carrying the check or the cross a scoreboard would give it,
+ * and notched down its leading edge so the shape alone says what it is.
+ *
+ * It is written first and drawn last. First in the markup because it is the
+ * one thing about a played week worth hearing first; last on the row because
+ * the stylesheet takes it out of the flow and hangs it on the right-hand rule,
+ * where a fact does not queue behind opinions and costs the card no height.
+ */
+function resultStamp(status) {
+  if (status.result !== "W" && status.result !== "L") return "";
+  const won = status.result === "W";
+  return `<span class="call__result call__result--${won ? "won" : "lost"}" title="Final score"
+      >${won ? WON : LOST}<span class="call__result-word">${won ? "Won" : "Lost"}</span></span>`;
 }
 
 /**

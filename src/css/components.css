@@ -1597,6 +1597,14 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 8px;
+  /* Six of turf between the head's controls and the slot's own head row. The
+     two-slot layout used to carry this and the lone slot did not, so the
+     eyebrow's line box started exactly where the lock's disc stopped - which
+     nobody read, because an eyebrow's words sit a few pixels down inside their
+     line. The pager sits on that line now, at the same end of it as the lock,
+     and the lock wears a ring two pixels outside its disc when it is shut. Six
+     is what puts the chevrons clear of it. */
+  margin-top: 6px;
   min-height: var(--call-floor, 0);
 }
 
@@ -1620,68 +1628,102 @@
   --call-floor: 0;
 }
 
-/* Two slots are drawn as boxes - each takes the bracket, and the bracket is a
-   ruled edge - so they keep the distance from the head that the one-slot
-   layout gives back (see .call__box). Six, not the eight it was: the box's own
-   top padding is part of what stands between the head and the eyebrow inside
-   it, and was never counted. */
-.call__slots--two {
-  position: relative;
-  margin-top: 6px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-/* The bracket round the slot the sideline is filling: one box that slides
-   between the two rather than a border lit on one and put out on the other.
-   The travel is a whole column and the gap between them, as a share of its own
-   width; --active is the slot's index, written by ui/call.js. It sits under
-   the slots, which stand above it on z-index, so the chalk reads as being
-   drawn round the card rather than over it. */
-.call__marker {
-  position: absolute;
-  inset-block: 0;
-  left: 0;
-  width: calc((100% - 8px) / 2);
-  border: 1px solid var(--chalk);
-  border-radius: var(--radius-sm);
-  background: rgb(255 255 255 / 6%);
-  pointer-events: none;
-  transform: translateX(calc(var(--active, 0) * (100% + 8px)));
-  transition: transform 0.22s var(--ease-out);
-}
-
-.call__slots--two .call__slot {
-  z-index: 1;
-}
-
 .call__slot {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
+  border-radius: var(--radius-sm);
+}
+
+/* The slot's own head: what state the slot is in, and - where the week takes
+   more than one pick - the pager that reaches the others. A row rather than
+   the eyebrow alone, and a row that is there in every pool: a week with one
+   pick draws it with nothing on its right, so an NFL card and a college card
+   are the same card at the same height and the chart under them is handed the
+   same box. */
+.call__slot-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 18px;
+}
+
+.call__slot-head .call__eyebrow {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The pager: a count with a step either side - the stepper this app already
+   uses for a number you nudge (.settings__stepper, in the pool's rules). Set
+   in the eyebrow's own chalk and at the eyebrow's own size, because it is part
+   of what the row says rather than a thing done to the week: the two controls
+   that are - the flip and the lock - are discs in the head above, and a third
+   disc here would have read as a third action. */
+.call__pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.call__page {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
   padding: 0;
   border: 0;
   border-radius: var(--radius-sm);
   background: none;
-  color: inherit;
-  text-align: left;
-  font: inherit;
-}
-
-/* Two slots: each is a button that hands the sideline to itself. The air
-   inside the bracket comes down with the air inside the one-slot box
-   (.call__box), so a college card gives the case the same handful of pixels
-   an NFL one does rather than half of them. */
-.call__slots--two .call__slot {
-  padding: 6px 10px 8px;
-  border: 1px solid transparent;
+  color: var(--chalk-2);
   cursor: pointer;
+  transition: color 160ms ease;
 }
 
-/* The active slot's own paint is the marker above; the class stays because it
-   is what the markup says is active, and because with the marker gone - motion
-   reduced draws it still, so it never is - nothing else would say so. */
+/* A target a thumb finds without the row growing to hold one. The button is
+   the size of its glyph; the hit area reaches into the turf above the row and
+   the gap below it, which is thirty pixels of nothing either side that no
+   other control is using. It stops at the head's own bottom edge, so the lock
+   keeps every pixel of its disc. */
+.call__page::after {
+  content: "";
+  position: absolute;
+  inset: -6px -2px;
+}
+
+.call__page svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.call__page:disabled {
+  color: var(--chalk-4);
+  cursor: default;
+}
+
+/* Which pick of the week's is on the card. Tabular figures so the count does
+   not shuffle the chevrons along when it turns over. */
+.call__count {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 18px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--chalk-3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
 
 .call__eyebrow {
   font-family: var(--font-display);
@@ -1696,14 +1738,17 @@
 }
 
 /* The pick's marks on their own line under the eyebrow: how safe the coach
-   rates it, whether it was the coach's call, the result once it is in. The row
-   stands a chip tall with nothing to show, so the team under it never moves.
+   rates it, and whether it was the coach's call. The result once it is in
+   stands at the far end of the same row, out of the flow (.call__result). The
+   row stands a chip tall with nothing to show, so the team under it never
+   moves.
    The margin under it is on top of the slot's own 4px gap: a chip is a boxed
    mark and the name below it is a capital half as tall again, and at the gap
    alone the two rules - the chip's border and the caps - stood close enough
    to read as one block. Four, with the name down to 32: what the margin is
    holding apart is a rule and a cap height, and both came down with it. */
 .call__marks {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1712,19 +1757,77 @@
   margin-bottom: 4px;
 }
 
-/* Two picks a week put the row on half a card, where a locked winner the coach
-   called - a tier, a Coach and a Won, which is the ordinary end state of every
-   week that has been played - came to nine pixels more than the row had and
-   took a second line, and with it twenty-eight pixels off the list below. The
-   marks come in rather than wrap: the same chips, spaced the way a half-width
-   row can afford. The long tiers still wrap, and should - a close call is
-   worth a line. */
-.call__slots--two .call__marks {
+/* The result, once the week is in the books: painted on, at the far end of
+   the marks row.
+
+   It used to be a third chip in that row, and that is where the confusion
+   was - SAFE and WON side by side in the same mint outline at the same size,
+   the coach's forecast and the season's answer with only the word between
+   them. So the result is the one mark on a slot that is paint rather than
+   chalk: filled in its own colour with the word cut out of it, carrying the
+   check or the cross a scoreboard would give it, and notched down the leading
+   edge so its silhouette says "result" before the word is read. Nothing else
+   on the board is this shape.
+
+   Out of the flow at the row's right edge, which is the rule the tiles under
+   it end on in both layouts. Out of the flow because a fact does not queue
+   behind opinions, and because the row is already a chip tall in every state -
+   so the stamp is the one mark here that costs the card no height, and the
+   chips keep the whole of the row they were always short of. It rides this
+   row rather than the eyebrow's: the eyebrow's line runs under the head's own
+   controls, and the lock is a disc with a ring on it that a stamp in that
+   corner takes a bite out of. */
+.call__result {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
   gap: 4px;
+  height: 18px;
+  padding: 0 7px 0 10px;
+  transform: translateY(-50%);
+  clip-path: polygon(6px 0, 100% 0, 100% 100%, 6px 100%, 0 50%);
+  background: var(--result);
+  color: var(--result-ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.call__slots--two .call__marks .chip {
-  padding: 0 6px;
+.call__result--won {
+  --result: var(--safe);
+  --result-ink: var(--on-safe);
+}
+
+.call__result--lost {
+  --result: var(--danger);
+  --result-ink: var(--on-danger);
+}
+
+/* Heavier than the card's other strokes. The lock and the flip are line art
+   inside a disc; this is a mark pressed into paint, and at eleven pixels a
+   2-weight check went thin enough to read as a tick box. */
+.call__result svg {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The chips give the stamp its end of the row. Out of the flow it cannot push
+   them along, so they are told where it starts: LOST is the wide one at 55,
+   and 6 is the gap this row keeps between any two marks. */
+.call__marks:has(.call__result) {
+  padding-right: 61px;
 }
 
 .call__eyebrow--coach,
@@ -1768,10 +1871,6 @@
   overflow-wrap: anywhere;
 }
 
-.call__slots--two .call__team {
-  font-size: 26px;
-}
-
 /* The coach's suggestion, pencilled in (field.css draws the dashed line). */
 .call__slot--empty .call__team {
   color: var(--chalk-2);
@@ -1796,10 +1895,6 @@
   min-height: 18px;
 }
 
-.call__slots--two .call__matchup {
-  font-size: 12px;
-}
-
 /* When the game kicks off, at the end of the matchup and never broken inside
    itself. */
 .call__kickoff {
@@ -1812,20 +1907,6 @@
 .call__source {
   color: var(--chalk-3);
   white-space: nowrap;
-}
-
-/* Two picks a week halve the slot, and the game, its kickoff and where its
-   line came from have never fit one line there: each wrapped whole and left
-   the dot hanging at the end of the line above. So the kickoff and the source
-   take a line each instead and the break does the separating - see
-   kickoffMarkup in ui/call.js. */
-.call__slots--two .call__kickoff,
-.call__slots--two .call__source {
-  display: block;
-}
-
-.call__slots--two .call__sep {
-  display: none;
 }
 
 /* The stat line, under the name where it has the width: the spread and the
@@ -2015,17 +2096,12 @@
   display: none;
 }
 
-.board.is-raised .call__team,
-.board.is-raised .call__slots--two .call__team {
+.board.is-raised .call__team {
   font-size: 22px;
   line-height: 24px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.board.is-raised .call__slots--two .call__slot {
-  padding: 6px 8px 8px;
 }
 
 /* the model's working (ui/coach.js) ----------------------------------------- */
@@ -4999,61 +5075,6 @@
   }
 }
 
-/* Two picks a week, on a phone narrower than about four hundred.
-
-   A slot is half the card less its padding, which is the width of the phone
-   halved less fifty: 130 pixels on a 360, 145 on a 390. MISSOURI is 148 at
-   26px and ARIZONA is 134, so both broke - and broke mid-word, because a name
-   that will not fit a line has nowhere else to go (overflow-wrap on
-   .call__team). MISSOU / RI is not a team.
-
-   Measured across all 82 names in the two pools: no size fits them all on one
-   line - MISSISSIPPI STATE is 217 at 20px - and none should. A two-word name
-   wants to wrap at its space, and 22 is where the one-word names stop being
-   the ones that break: ARIZONA comes to 113 and MISSOURI to 125, inside the
-   narrowest slot there is. The long ones still wrap, and now they wrap where
-   the word ends.
-
-   Four hundred because that is where the arithmetic turns: a slot holds
-   MISSOURI at 26px from 396 up, so every phone above this line already had the
-   room and keeps the size. */
-@media (max-width: 400px) {
-  .call__slots--two .call__team {
-    font-size: 22px;
-  }
-
-  /* And the tiles give up the air around their keys rather than the keys.
-
-     Four tiles across a 360 phone leave each key 44 pixels. SPREAD is 48 at
-     the size and tracking every other key on the board is set in and WIN PROB
-     is 63, so both were painting over their own right-hand rule - SPREAE, WIN
-     PROE - on every phone narrower than about four hundred. The padding and
-     the tracking come to six pixels of the difference and SPREAD fits; the
-     rest of it is the word, and the word is shortened where it will not go
-     (tiles in ui/call.js), which is the answer this card already gave when
-     three tiles would not fit two slots.
-
-     Not by stacking them. A tile on its own line has all the room it could
-     want and costs forty-five pixels of card, which is more than the shortest
-     phone has: it put the 375 over its own screen with no banner on it at
-     all. */
-  .call__slots--two .tile {
-    padding: 3px 5px;
-  }
-
-  .call__slots--two .tile__key {
-    letter-spacing: 0.08em;
-  }
-
-  .call__slots--two .tile__key-long {
-    display: none;
-  }
-
-  .call__slots--two .tile__key-short {
-    display: inline;
-  }
-}
-
 @media (max-width: 380px) {
   /* Two columns still fit on the narrowest phone, but only just: the swatch
      and the gap between the columns give up what they need to. */
@@ -5175,17 +5196,15 @@
     font-size: 30px;
   }
 
-  /* A lone slot puts its numbers beside the name rather than under it, the
-     same move the desktop makes for the same reason: the readout's column is
-     short of height and has width going spare, and the tiles on their own row
-     were the last thing on the card and the first thing off the bottom of it.
-     Only the one-slot pool - two slots already split this width between them
-     and each is a portrait card again. */
-  .call__slots:not(.call__slots--two) .call__slot {
+  /* The slot puts its numbers beside the name rather than under it: the
+     readout's column is short of height and has width going spare, and the
+     tiles on their own row were the last thing on the card and the first thing
+     off the bottom of it. */
+  .call__slots .call__slot {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      "eyebrow eyebrow"
+      "head head"
       "marks marks"
       "team tiles"
       "matchup tiles";
@@ -5193,29 +5212,25 @@
     column-gap: 16px;
   }
 
-  .call__slots:not(.call__slots--two) .call__eyebrow {
-    grid-area: eyebrow;
+  .call__slots .call__slot-head {
+    grid-area: head;
   }
 
-  .call__slots:not(.call__slots--two) .call__marks {
+  .call__slots .call__marks {
     grid-area: marks;
   }
 
-  .call__slots:not(.call__slots--two) .call__team {
+  .call__slots .call__team {
     grid-area: team;
   }
 
-  .call__slots:not(.call__slots--two) .call__matchup {
+  .call__slots .call__matchup {
     grid-area: matchup;
   }
 
-  .call__slots:not(.call__slots--two) .call__tiles {
+  .call__slots .call__tiles {
     grid-area: tiles;
     grid-template-columns: repeat(2, auto);
-  }
-
-  .call__slots--two .call__team {
-    font-size: 22px;
   }
 
   /* The tabs are the drawer's own head and sit at the top of its column, where
@@ -5269,10 +5284,6 @@
     font-size: 30px;
     line-height: 1;
     white-space: normal;
-  }
-
-  .board.is-raised .call__slots--two .call__team {
-    font-size: 22px;
   }
 
   /* The home page loses its hero. Sideways the head is a masthead rather than
@@ -5398,11 +5409,11 @@
   }
 
   /* A lone slot has the width to put its numbers beside the name. */
-  .call__slots:not(.call__slots--two) .call__slot {
+  .call__slots .call__slot {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      "eyebrow eyebrow"
+      "head head"
       "marks marks"
       "team tiles"
       "matchup tiles";
@@ -5410,29 +5421,25 @@
     column-gap: 24px;
   }
 
-  .call__slots:not(.call__slots--two) .call__eyebrow {
-    grid-area: eyebrow;
+  .call__slots .call__slot-head {
+    grid-area: head;
   }
 
-  .call__slots:not(.call__slots--two) .call__marks {
+  .call__slots .call__marks {
     grid-area: marks;
   }
 
-  .call__slots:not(.call__slots--two) .call__team {
+  .call__slots .call__team {
     grid-area: team;
   }
 
-  .call__slots:not(.call__slots--two) .call__matchup {
+  .call__slots .call__matchup {
     grid-area: matchup;
   }
 
-  .call__slots:not(.call__slots--two) .call__tiles {
+  .call__slots .call__tiles {
     grid-area: tiles;
     grid-template-columns: repeat(2, auto);
-  }
-
-  .call__slots--two .call__team {
-    font-size: 32px;
   }
 
   .call__team {
