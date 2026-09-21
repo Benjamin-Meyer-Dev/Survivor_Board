@@ -1079,22 +1079,23 @@ function weekOnBoard(board, week) {
 }
 
 /**
- * The last week the board will look at.
+ * The last week the board will look at: the pool's end week, run alive or not.
  *
- * The pool's end week while the run is alive, and the week the run ended on
- * once it is over: the weeks after that were never played, and a board in
- * review has nothing to say about them - an empty card with no game in it, a
- * sideline of teams that cannot be picked, a coach that stood down. They stay
- * on the field, greyed, because the season's shape is part of what is being
- * read back; they are just not somewhere the board goes any more.
+ * A board in review used to stop at the week the run ended on, because there
+ * was nothing past it to read - an empty card with no game in it and a coach
+ * that had stood down. There is now: the coach plans the rest of a finished
+ * season too (memoisedRecommendation in core/plan.js), so those weeks carry
+ * the teams it would have spent and what each was worth, and a review that
+ * would not let you look at them would be keeping back the half of itself
+ * that answers "what were we going to do". They stay greyed and nothing on
+ * them can be picked - the run is over - but the board goes there.
  *
  * One function for every way a week is turned to - the field's yard lines and
  * arrow keys, a drag across the board, and a week carried over from the pool
  * that was open before.
  */
 function lastWeekInPlay(board) {
-  const last = board.weeks.at(-1)?.week ?? board.weeks[0]?.week ?? 1;
-  return board.eliminated && board.eliminatedWeek ? Math.min(board.eliminatedWeek, last) : last;
+  return board.weeks.at(-1)?.week ?? board.weeks[0]?.week ?? 1;
 }
 
 /**
@@ -1130,7 +1131,10 @@ function renderSelection(board) {
   });
   // Read-only. It prices the team on the card, so it follows the week and the
   // slot the card has active, the same two things the card itself follows.
-  renderCoach(el.coach, board, app.viewWeek, app.activeSlot);
+  // The chart's row of week numbers turns the board too, on the same handler
+  // the field's yard lines use (ui/coach.js): one week, tapped wherever it is
+  // written.
+  renderCoach(el.coach, board, app.viewWeek, app.activeSlot, { onWeekChange: lookAt });
 }
 
 /** The slot in hand, held inside what the week being looked at actually has. */

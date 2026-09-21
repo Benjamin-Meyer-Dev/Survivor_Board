@@ -35,12 +35,18 @@
  *   3. The call keeps a floor on this week's chance: the season is the goal,
  *      but not at the price of a week that is nearly a coin flip. Openings the
  *      futures cannot tell apart are ranked by that chance rather than by the
- *      last decimal of a sampled mean, which is what decides a week a buy back
- *      covers - there the season maths prices every opening the same and the
- *      week is all there is (core/equity.js). And when the pool asks for it
- *      (data/<league>/pool.json), the field's leverage weighs in: surviving
- *      alongside everyone else wins nothing. By default the field is only
- *      priced and reported.
+ *      last decimal of a sampled mean (core/equity.js). And when the pool asks
+ *      for it (data/<league>/pool.json), the field's leverage weighs in:
+ *      surviving alongside everyone else wins nothing. By default the field is
+ *      only priced and reported.
+ *
+ * `buyBacks` here is what the plan may count on, which is not the same as what
+ * the pool grants. A board never counts on one - searchRequestFor plans every
+ * entry at zero, for the reasons written there - so the covered week, where the
+ * season maths prices every opening alike and the call falls to the week alone,
+ * is a property of this function rather than a state the board reaches. It is
+ * kept because it is the honest answer for a caller that does hand a cushion in,
+ * and the checks under scripts/ hand one in.
  */
 
 import { survival } from "./survival.js";
@@ -144,7 +150,10 @@ const ROBUST_MARGIN = 0.03;
  * carries itself cannot be paired with the wrong engine.
  */
 export const ENGINE_VERSION = [
-  "e1",
+  // e2: the search stopped planning on buy backs (searchRequestFor), and an
+  // opening got one spelling instead of whichever source reached it first
+  // (judgeFrontier), which moves the coach's fallback order on a college week.
+  "e2",
   DEFAULT_MODE,
   TIE_MARGIN,
   DEFAULT_FLOOR,
@@ -651,6 +660,25 @@ function judgeFrontier({
   // complete choice. With multiple open slots, keep the strongest complete
   // paths and also build a viable opening around every legal team. The latter
   // is O(teams), rather than the O(teams^slots) cartesian product.
+  // `ranked` is a total order over this week's teams - strongest first, and
+  // stable under a tie - so it is also the one spelling an opening is allowed
+  // to have. The key already ignores order, so a pair is judged once however it
+  // arrives; what it is *called* was whatever the first source to reach it
+  // happened to list, and there are two sources below with no reason to agree.
+  // A finalist carries its own week's order; the anchor sweep carries rank
+  // order. On the college board that returned the same pair as "Texas
+  // Tech+Arkansas" from buildBoard's search and "Arkansas+Texas Tech" from a
+  // bare recommendForBoard over the same board - identical maths, identical
+  // mean to the last digit, different label.
+  //
+  // Not just a check that cannot hold (scripts/validate-recommend.mjs).
+  // rankCalls walks candidate.teams in order when it builds the coach's
+  // fallback list, so the spelling decides which partner the board offers next,
+  // and strongest-first is the order that list wants anyway.
+  const rankOf = new Map(ranked.map((option, index) => [option.team, index]));
+  const byRank = (a, b) =>
+    (rankOf.get(a) ?? Number.MAX_SAFE_INTEGER) - (rankOf.get(b) ?? Number.MAX_SAFE_INTEGER) ||
+    (a < b ? -1 : a > b ? 1 : 0);
   const candidates = [];
   const seenKey = new Set();
   const consider = (teams) => {
@@ -659,7 +687,9 @@ function judgeFrontier({
     const key = [...open].sort().join("|");
     if (seenKey.has(key)) return;
     seenKey.add(key);
-    candidates.push(open);
+    // A team a finalist names that `ranked` does not hold - burned since, or
+    // its game already final - sorts last by name rather than by nothing.
+    candidates.push([...open].sort(byRank));
   };
   if (need === 1) {
     for (const option of ranked) consider([option.team]);
@@ -1027,14 +1057,32 @@ export function searchRequestFor(board, seed = null, { holdPicks = false, quick 
   // A team locked in a future week stays in `burned`, which keeps any
   // earlier week from spending it. Its own slot still gets it, because fixed
   // teams are placed directly rather than drawn from the candidate pool.
-  // A buy back already spent is gone, so the recommendation stops taking risks
-  // it can no longer afford.
+  //
+  // The search plans as though the pool forgave nothing, whatever this entry
+  // still holds. A buy back is insurance bought with real money, not a resource
+  // the plan is entitled to spend, and a plan that counts on one is a plan to
+  // pay for it. So it is deliberately withheld from the only thing it would
+  // otherwise distort - the choice of pick - and left intact everywhere it is
+  // reported: the record, the elimination, what the cushion has left and what
+  // the season's chances actually are (core/survival.js, called from
+  // core/plan.js) all still know it is there. The net raises the odds without
+  // moving the hand, which is what a net is.
+  //
+  // Withholding it is not a preference. A lone forgiving week costs nothing at
+  // all in the season maths - survival() ends up asking for at most one loss
+  // out of one covered week, which is p + (1 - p), or 1 - so every legal
+  // opening comes back on the identical number and the call falls through to
+  // the tie-break. On the live NFL board in week 2 that was 22 of 32 teams
+  // scoring 0.045621 apiece, a 78% favourite level with an 11% dog, and the
+  // week's safest team at 88.5% passed over because spending it cost future
+  // equity that the free week had nothing to weigh against. Planning at zero,
+  // the same board calls that team on both the week and the season.
   return {
     weeks: upcoming,
     burned,
     picksPerWeek,
     buyBackWeeks,
-    buyBacks: board.buyBack?.left ?? buyBacks,
+    buyBacks: 0,
     seed,
     model: board.model ?? DEFAULT_MODEL,
     scenarios: quick ? 0 : (board.scenarioCount ?? SCENARIO_COUNT),
@@ -1043,8 +1091,11 @@ export function searchRequestFor(board, seed = null, { holdPicks = false, quick 
     // the week, so the search needs this for one thing only: the futures it
     // draws re-price their own spreads.
     objective: board.rules?.objective ?? "win",
-    // The pool's field, for the frontier's leverage. The pool's own grant of
-    // buy backs is the field's cushion, whatever this entry has left.
+    // The pool's field, for the frontier's leverage. This one keeps the pool's
+    // real grant and is not zeroed with the line above: declining to plan on a
+    // buy back is a decision about how this entry plays, not a belief about how
+    // everyone else does. The field pays the fee and comes back, and how much
+    // of it survives a week is what leverage is measuring.
     pool: board.pool ?? null,
     poolBuyBacks: buyBacks,
   };

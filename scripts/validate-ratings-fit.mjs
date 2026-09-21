@@ -17,7 +17,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { fitForm, holdoutError, marketError, observationsFrom } from "./lib/rate.mjs";
+import { fitForm, holdoutError, observationsFrom } from "./lib/rate.mjs";
 import { buildBoard, lineKey } from "../src/js/core/plan.js";
 import { projectSpread } from "../src/js/core/probability.js";
 import { CONFIG } from "../src/js/config.js";
@@ -311,23 +311,42 @@ for (const league of SPORT_IDS) {
     `${league}: no team should move 30 points (worst ${Math.max(...drift).toFixed(1)})`,
   );
 
-  const before = marketError({
+  // Out of sample, on the most recent priced week, exactly as the synthetic
+  // check above does it - and deliberately not in sample.
+  //
+  // Scoring the fit on the very lines it was fitted to asks a question the fit
+  // is not trying to answer. It is pulled off those lines on purpose, by
+  // `resultWeight` and `efficiencyWeight`, because a margin and an efficiency
+  // margin carry next week's news that the posted line does not; a fit that
+  // reproduced its own input would be a fit with those weights set to zero.
+  // Whether that trade is worth making is a question about the week it has not
+  // seen.
+  //
+  // In sample the check also depends on how good the prior is rather than on
+  // how good the fit is, and the two leagues' priors are not alike. College
+  // starts from preseason SP+, which misses the market by 3.84 points, and any
+  // fit beats it either way. The NFL starts from published *market* power
+  // ratings, which pair with homeFieldPoints to miss by 1.53 - so the base is
+  // itself a market read, the in-sample bar is one almost nothing clears, and
+  // this assertion failed for the NFL while the same fit won the honest test by
+  // 2.16 to 1.91. A guard that fires on a league for having a better prior is
+  // not guarding anything.
+  const held = holdoutError({
     schedule,
     lines: odds.lines,
+    scores: odds.scores,
     base: ratings.ratings,
     homeFieldPoints: ratings.homeFieldPoints,
   });
-  const after = marketError({
-    schedule,
-    lines: odds.lines,
-    base: ratings.ratings,
-    overlay: form.ratings,
-    homeFieldPoints: ratings.homeFieldPoints,
-  });
-  assert.ok(
-    after.mae <= before.mae,
-    `${league}: the fit must explain the lines it was given at least as well as the base`,
-  );
+  // Under two priced weeks there is nothing to hold out yet, which is a real
+  // state for a league whose season has just opened.
+  if (held) {
+    assert.ok(
+      held.fitted <= held.base,
+      `${league}: out of sample the fit must beat the ratings it started from ` +
+        `on week ${held.week} (${held.fitted} vs ${held.base})`,
+    );
+  }
 
   // The board takes the overlay for the weeks the market has not posted, and
   // leaves the market-priced week exactly alone.

@@ -701,8 +701,9 @@ assert.equal(bought.eliminatedWeek, null);
 assert.equal(bought.elimination, null);
 
 // A loss nothing covers ends the run, and the board goes into review: the week
-// is named, the coach stands down without a search, and later weeks are open
-// to nothing.
+// is named, the entry's number is nought, and the weeks the run never reached
+// carry the coach's account of what it would have called there - suggestions,
+// never picks, and worth nothing to the season, which is over.
 const fatal = plan.weeks.find(
   (week) => week.week > first.week && !forgivingRules.buyBackWeeks.includes(week.week),
 ).week;
@@ -726,22 +727,26 @@ assert.deepEqual(
   [fatalTeam],
   "the fatal loss is named",
 );
-assert.equal(out.pathProbability, 0);
+assert.equal(out.pathProbability, 0, "and the run is worth nothing, plan or no plan");
 assert.equal(out.recommendationPending, false, "review waits on no search");
-assert.deepEqual(out.recommendation.picks, {}, "the coach stands down in review");
-assert.equal(
-  weekOf(out, fatal + 1).picks[0].suggestion,
-  null,
-  "no suggestion for a week never played",
-);
 assert.ok(
-  out.weeks.filter((week) => week.week !== fatal).every((week) => week.coachRanked.length === 0),
-  "and nothing ranked either: in review the coach has stood down",
+  Object.keys(out.recommendation.picks).length > 0,
+  "the coach plans the rest of a season that is over: the review says what it would have done",
+);
+const afterTheEnd = weekOf(out, fatal + 1).picks[0];
+assert.equal(typeof afterTheEnd.suggestion?.team, "string", "a call for a week never played");
+assert.equal(afterTheEnd.team, null, "which is a suggestion and not a pick");
+assert.equal(afterTheEnd.status.locked, false, "and nothing in review is locked");
+assert.ok(
+  out.weeks
+    .filter((week) => week.week > fatal)
+    .every((week) => week.coachRanked.length > 0 && week.pathRecommendation.length > 0),
+  "every week past the ending is ranked and named, which is what the field chalks there",
 );
 assert.deepEqual(
   weekOf(out, fatal).coachRanked.map((option) => option.team),
   weekOf(out, fatal).recommended.map((option) => option.team),
-  "but the week the run ended on keeps the call it was decided against, as history",
+  "and the week the run ended on keeps the call it was decided against, as history",
 );
 assert.equal(weekOf(out, fatal).picks[0].status.result, "L");
 
@@ -993,5 +998,5 @@ console.log(
     "holds one pick, the other slot's lock shows in the list, a pending pick previews the season its lock would give, " +
     "the coach ranks twice what a week needs and the team list agrees to the number, a lock keeps the ranks it was made on, " +
     "a rehearsed lock says its number ahead of time, " +
-    "a fatal loss puts the board in review, and the losers pool mirrors every number and every final.",
+    "a fatal loss puts the board in review with the season it never played chalked in, and the losers pool mirrors every number and every final.",
 );

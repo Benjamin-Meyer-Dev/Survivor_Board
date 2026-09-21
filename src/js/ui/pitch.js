@@ -144,11 +144,11 @@ export function renderPitch(root, board, viewWeek, handlers) {
 
   // Keyboard equivalent of the tap, for anyone not on a touchscreen. This one
   // IS by place in the field: an arrow key means the next yard line along,
-  // whatever week it happens to be. The weeks a run that is over never reached
-  // are not among them - they are drawn, but they are not places to be (see
-  // mootWeek), and End would otherwise walk straight past the ending onto a
-  // week with nothing in it.
-  const weeks = board.weeks.map((entry) => entry.week).filter((week) => !mootWeek(week, board));
+  // whatever week it happens to be - including, on a run that is over, the
+  // weeks it never reached. Those carry the coach's account of what it would
+  // have called (memoisedRecommendation in core/plan.js); they are greyed,
+  // because they were never played, and they are still somewhere to go.
+  const weeks = board.weeks.map((entry) => entry.week);
   delegate(root, "keydown", ".pitch__field", (_field, event) => {
     const step = { ArrowRight: 1, ArrowLeft: -1, Home: -Infinity, End: Infinity }[event.key];
     if (step === undefined) return;
@@ -280,7 +280,10 @@ function viewingWeek(root) {
 function yardMarkup(week, board) {
   const now = week.week === board.currentWeek && !board.eliminated;
   const moot = mootWeek(week.week, board);
-  const lanes = week.picks.map(slotMark);
+  // A loss the pool forgave is not the same mark as a loss: the run came
+  // through the week, and the field is where the run is read.
+  const bought = board.buyBack?.spent?.includes(week.week) ?? false;
+  const lanes = week.picks.map((pick) => slotMark(pick, bought));
   const says = lanes
     .map((lane) => lane.says)
     .filter(Boolean)
@@ -303,12 +306,11 @@ function yardMarkup(week, board) {
   // ruler the field is read against - only the chalk on it moves.
   const signature = lanes.map((lane) => `${lane.mark ?? ""}:${lane.team}`).join("|");
 
-  // A week the run never reached is not a week to look at: the yard line is
-  // drawn, greyed, and takes no tap. Disabled rather than left live and
-  // ignored, so the pointer says so before the tap and a screen reader says so
-  // instead of it.
+  // A week the run never reached is greyed and still live: what stands on it
+  // is the coach's account of the week, which is a thing to go and read. The
+  // name it is read by says it was never played, so the yard line is not a
+  // pick claiming to be one either to the eye or to a screen reader.
   return `<button type="button" class="${classes}" data-yard="${week.week}" data-key="${week.week}" tabindex="-1"
-      ${moot ? "disabled" : ""}
       data-motion-key="yard-${week.week}" data-motion-signature="${escapeHtml(signature)}"
       aria-label="Week ${week.week}, ${escapeHtml(week.labelFull)}${moot ? ", not played" : ""}${says ? `, ${escapeHtml(says)}` : ""}">
       <span class="pitch__lanes">${lanes.map(laneMarkup).join("")}</span>
@@ -320,8 +322,8 @@ function yardMarkup(week, board) {
 /**
  * A week the season never reached: past the one a run that is over ended on.
  *
- * The field draws these greyed and does not go to them, and app.js holds the
- * same line for every other way a week is turned to (lastWeekInPlay).
+ * The field draws these greyed - the coach's plan for them is pencil, and the
+ * run never got to spend it - and goes to them like any other week.
  */
 function mootWeek(week, board) {
   return Boolean(board.eliminated && week > board.eliminatedWeek);
@@ -342,10 +344,18 @@ function laneMarkup({ mark, team }) {
  * What a slot holds, as one mark. A loss outranks everything (it is the
  * story of the season), then a win, then a lock, then a pick, then the
  * coach's plan. The label is the slot's team, whoever chose it.
+ *
+ * @param {boolean} bought Whether a buy back covered this week's loss. The
+ *   pick still lost, and the field still says so - but in the buy back's
+ *   orange rather than the red that means the run stopped here, because
+ *   reading down the field this is a week the run came through.
  */
-function slotMark(pick) {
+function slotMark(pick, bought = false) {
   const team = pick.team ?? pick.suggestion?.team ?? "";
   const { result, locked } = pick.status;
+  if (result === "L" && bought) {
+    return { mark: "bought", team, says: `${team} lost, bought back` };
+  }
   if (result === "L") return { mark: "lost", team, says: `${team} lost` };
   if (result === "W") return { mark: "won", team, says: `${team} won` };
   if (locked) return { mark: "locked", team, says: `${team} locked in` };
@@ -373,13 +383,15 @@ function stats(board) {
   if (board.eliminated) {
     items.push(stat("Eliminated", `Wk ${board.eliminatedWeek}`, { figure: true }));
     items.push(stat("Final record", `${board.record.won}-${board.record.lost}`, { figure: true }));
-  } else if (board.buyBack) {
+  } else if (board.buyBack && board.buyBack.left > 0) {
+    // Only while there is one to spend. Spent, the readout was a row of the
+    // drive line saying that a thing the pool has is a thing you no longer
+    // have - which is every week for the rest of the season, in the space the
+    // week's live numbers are read in. Where they went is not lost: the weeks
+    // that spent them wear the buy back's orange on the field, and the run's
+    // record says so when it ends (ui/notices.js).
     const left = board.buyBack.left;
-    items.push(
-      stat("Buy backs", left === 0 ? "Spent" : `${left} in hand`, {
-        modifier: left === 0 ? "spent" : "",
-      }),
-    );
+    items.push(stat("Buy backs", `${left} in hand`));
   }
 
   // What locking the slot in hand would do to the season. The readout keeps its

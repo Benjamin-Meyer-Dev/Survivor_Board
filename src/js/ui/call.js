@@ -318,9 +318,21 @@ function slotMarkup(pick, board, count, active) {
   // the coach made before the lock (coachCall), which is what the badge means.
   const coached =
     pick.team && (pick.isRecommended || (status.locked && pick.coachCall?.team === pick.team));
+  // The pool forgave this week's loss. It rides the marks row rather than the
+  // result stamp: the stamp is the game's own answer and the game was lost,
+  // which is what it should keep saying. This is what the POOL did about it,
+  // and a week can only carry it once the loss is in - so the two are read
+  // together, the red saying what happened and the orange saying it was
+  // survived. The field says the same thing in the same orange.
+  const bought = pick.status.result === "L" && (board.buyBack?.spent?.includes(pick.week) ?? false);
   const marks = shown
     ? `<span class="chip chip--${shown.tier}">${TIER_LABEL[shown.tier]}</span>` +
-      (coached ? '<span class="chip chip--rec" title="This was the coach’s call">Coach</span>' : "")
+      (coached
+        ? '<span class="chip chip--rec" title="This was the coach’s call">Coach</span>'
+        : "") +
+      (bought
+        ? '<span class="chip chip--bought" title="A buy back covered this week">Bought back</span>'
+        : "")
     : "";
 
   // What the slot is showing, for the settle that plays when it changes under
@@ -350,7 +362,7 @@ function slotMarkup(pick, board, count, active) {
       ${
         shown
           ? `<div class="call__team">${escapeHtml(shown.team)}</div>
-             <div class="call__matchup">${escapeHtml(formatMatchup(shown.site, shown.opponent))} · ${escapeHtml(shown.conference)}${kickoffMarkup(shown)}${sourceMarkup(shown)}</div>`
+             <div class="call__matchup">${escapeHtml(formatMatchup(shown.site, shown.opponent))} · ${escapeHtml(shown.conference)}${kickoffMarkup(shown)}</div>`
           : `<div class="call__team call__team--blank">${escapeHtml(blank.team)}</div>
              <div class="call__matchup">${escapeHtml(blank.text)}</div>`
       }
@@ -421,12 +433,14 @@ function resultStamp(status) {
  * losers pool the second is the chance the team loses (see core/objective.js),
  * and its name says so.
  *
- * Where the line came from used to be a third tile here, and a pool that takes
- * two picks a week - which is every college pool - could not fit it: half a
- * card is a hundred and thirty pixels, and three keys in the display face do
- * not go into it at any size worth reading. So it stands on the game line
- * instead (sourceMarkup), which is the line it qualifies and has the width for
- * it, and the numbers get the row to themselves in both layouts.
+ * Where the line came from is not here, and is not on the game line under the
+ * name either. It was a third tile once and would not fit a half-width slot;
+ * it moved onto the game line, and came off that too - the card is the one
+ * action on the board and "Market line" is a footnote about the number rather
+ * than the number. The case above the card is where the pricing is read, and
+ * it makes the same distinction in the one place it matters: a week the market
+ * has not posted a line for has no market stop in the chain at all, and shows
+ * how far the projection expects to miss instead (chain in ui/coach.js).
  *
  * The same width answers the second key twice over. Two tiles on half a card
  * leave it about forty-five pixels on a narrow phone, and WIN PROB is sixty
@@ -612,36 +626,18 @@ function lineMove(pick) {
       };
 }
 
-/** When the game kicks off, after the matchup, when the feed has timed it. */
 /**
  * When the game kicks off, after the game itself.
  *
- * The separator is an element rather than a character because it is not always
- * wanted. In a two-pick week the slot is half a card wide and the game and its
- * kickoff never fit one line; the kickoff wraps whole, since it must never
- * break inside itself, and the dot was left hanging at the end of the line
- * above. There the CSS drops the dot and gives the kickoff its own line, so the
- * break is the separator. In a one-pick week the pair fits and the dot stays.
+ * The dot is a plain character again. It used to be an element so the
+ * stylesheet could drop it: a two-pick week put the game and its kickoff on
+ * half a card, the kickoff wrapped whole - it must never break inside itself -
+ * and the dot was left hanging at the end of the line above, so there the CSS
+ * took the dot out and let the break do the separating. The card shows one
+ * pick at a time now and the pair has the width, so there is nothing to drop.
  */
 function kickoffMarkup(line) {
   const when = formatKickoff(line.kickoff);
   if (!when) return "";
-  return `<span class="call__sep"> · </span><span class="call__kickoff">${escapeHtml(when)}</span>`;
-}
-
-/**
- * Where the number under the game came from: a line the books are making, or
- * the model's own projection of one. Only the week on the clock is ever priced
- * by the market, and in college not even all of that week is - about half the
- * slate carries no line - so a card that does not say which it is showing is
- * asking to be read as a market number that is not one.
- *
- * It rides the game line rather than the tiles because it is not a number: it
- * is what the numbers are, and it says so in the quieter chalk. It wraps to
- * its own line in a two-pick week exactly as the kickoff does, and for the
- * same reason - see kickoffMarkup above.
- */
-function sourceMarkup(line) {
-  const words = line.source === "market" ? "Market line" : "Projected line";
-  return `<span class="call__sep"> · </span><span class="call__source">${words}</span>`;
+  return ` · <span class="call__kickoff">${escapeHtml(when)}</span>`;
 }

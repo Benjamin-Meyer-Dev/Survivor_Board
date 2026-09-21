@@ -780,7 +780,10 @@ export function buildBoard({
           total: rules.buyBacks,
           used: outcome.buyBacksUsed,
           left: outcome.buyBacksLeft,
+          // The weeks the pool forgives, and - a different list - the weeks it
+          // actually had to. `weeks` is a rule; `spent` is what happened.
           weeks: rules.buyBackWeeks,
+          spent: outcome.boughtBackWeeks,
         }
       : null,
     conflicts,
@@ -1698,15 +1701,18 @@ function memoisedAdvice(board, plan, odds, form, allowSearch, planByWeek, inputs
  *   as one.
  */
 function memoisedRecommendation(board, plan, odds, form, allowSearch, planByWeek, inputs = {}) {
-  // An eliminated entry has no season left to plan. The coach stands down and
-  // the board goes into review: what happened, not what could.
-  if (board.eliminated) {
-    return {
-      value: { picks: {}, pathProbability: 0, shortfalls: [], frontier: null, ranked: {} },
-      fresh: true,
-      constraints: NO_CONSTRAINTS,
-    };
-  }
+  // An eliminated entry is planned like any other. The coach used to stand
+  // down here, and the board that was left said only what had happened - which
+  // is half of what a review is for. The other half is the season the run did
+  // not get to play: the weeks after the loss are the teams it would have
+  // spent and what each of them was worth, and that is a plan, made the same
+  // way, over the teams the run had not burned.
+  //
+  // Nothing about it is a pick. The entry is out either way - the loss is in
+  // the history the number is taken over, so the season figure stays at nought
+  // and the flag still reads Out (survival in core/survival.js) - and every
+  // surface that shows these weeks draws them as the coach's, in the pencil
+  // the board keeps for a suggestion, on weeks it labels "not played".
 
   // The locked slots are the search's constraints. The result rides along in
   // the key because a win or a loss changes the path too.

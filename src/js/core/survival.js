@@ -23,9 +23,12 @@
  * @param {number[]} args.buyBackWeeks Weeks in which a loss can be bought back.
  * @param {number} args.buyBacks How many buy backs the pool grants in total.
  * @returns {{probability:number, eliminated:boolean, eliminatedWeek:number|null,
- *            buyBacksUsed:number, buyBacksLeft:number,
+ *            buyBacksUsed:number, buyBacksLeft:number, boughtBackWeeks:number[],
  *            record:{won:number, lost:number}}} `eliminatedWeek` is the week of
  *   the loss that ended the run - the first one no buy back could cover.
+ *   `boughtBackWeeks` are the weeks a loss was covered in, in order and
+ *   without repeats: a two-pick week that lost both spends two buy backs but
+ *   is one week the run came through, which is what anything showing it means.
  */
 export function survival({ picks, buyBackWeeks = [], buyBacks = 0 }) {
   const forgiving = new Set(buyBackWeeks);
@@ -34,6 +37,7 @@ export function survival({ picks, buyBackWeeks = [], buyBacks = 0 }) {
   let buyBacksUsed = 0;
   let eliminated = false;
   let eliminatedWeek = null;
+  const bought = new Set();
 
   for (const pick of picks) {
     if (pick.result === "W") {
@@ -43,6 +47,7 @@ export function survival({ picks, buyBackWeeks = [], buyBacks = 0 }) {
       // A loss in a forgiving week spends a buy back instead of ending it.
       if (forgiving.has(pick.week) && buyBacksUsed < buyBacks) {
         buyBacksUsed += 1;
+        bought.add(pick.week);
       } else {
         eliminated = true;
         eliminatedWeek ??= pick.week;
@@ -53,7 +58,15 @@ export function survival({ picks, buyBackWeeks = [], buyBacks = 0 }) {
   const buyBacksLeft = Math.max(0, buyBacks - buyBacksUsed);
 
   if (eliminated) {
-    return { probability: 0, eliminated: true, eliminatedWeek, buyBacksUsed, buyBacksLeft, record };
+    return {
+      probability: 0,
+      eliminated: true,
+      eliminatedWeek,
+      buyBacksUsed,
+      buyBacksLeft,
+      boughtBackWeeks: [...bought],
+      record,
+    };
   }
 
   const remaining = picks.filter((pick) => !pick.result);
@@ -79,6 +92,7 @@ export function survival({ picks, buyBackWeeks = [], buyBacks = 0 }) {
     eliminatedWeek: null,
     buyBacksUsed,
     buyBacksLeft,
+    boughtBackWeeks: [...bought],
     record,
   };
 }

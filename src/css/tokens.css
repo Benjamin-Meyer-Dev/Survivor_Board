@@ -75,6 +75,16 @@
   --on-safe: #0a3a20;
   --on-danger: #431010;
 
+  /* A week the pool forgave. Orange because the run came through it and the
+     scale has no colour for that: the loss is still red on the card, and the
+     week is still a loss in the record, but on the field - which is read as a
+     run from kickoff to survive - it is neither the green of a week won nor
+     the red of the week it ends on. The one warm tone on the board that is
+     not the flag, the confidence scale's amber, or a losers pool's paint, and
+     it is never drawn beside any of them. */
+  --buyback: #ffa64d;
+  --buyback-bg: rgb(255 166 77 / 16%);
+
   /* a lock is chalk: solid, final */
   --lock: #f3f7f1;
   --lock-bg: rgb(243 247 241 / 12%);

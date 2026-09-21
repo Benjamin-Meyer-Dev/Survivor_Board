@@ -65,6 +65,13 @@
   border-color: var(--chalk);
 }
 
+/* A week the pool bought back. Chalk like the other marks, because what it
+   says is about the pool's rules rather than about the game - the game's own
+   answer is the stamp at the end of the row, and it still says LOST. */
+.chip--bought {
+  --tag-fg: var(--buyback);
+}
+
 /* The coach's words are in the flag's colour. */
 .chip--rec,
 .chip--coach {
@@ -1254,6 +1261,13 @@
   background: var(--danger);
 }
 
+/* Lost, and the pool forgave it. Read down the field a season is a run, and
+   this is a week the run came through - so it is not the red that means the
+   run stopped here. Orange, and only ever on a week that has been played. */
+.pitch__mark--bought {
+  background: var(--buyback);
+}
+
 /* The chalk bracket on the week being looked at: one element that slides
    between yard lines rather than a border lit on each in turn.
 
@@ -1298,13 +1312,12 @@
   pointer-events: none;
 }
 
-/* Weeks the season never reached, in review. Drawn, because the season's shape
-   is part of what is being read back, but not somewhere the board goes: the
-   yard line is disabled (ui/pitch.js), so it takes no tap and no arrow key,
-   and the pointer says so before the tap does. */
+/* Weeks the season never reached, in review. Held back rather than shut: what
+   stands on them is the coach's account of a week the run never got to play,
+   and the board goes there and reads it. Enough grey that the eye reads the
+   run as ending where it ended, and enough ink left to read the names. */
 .pitch__yard--moot {
-  opacity: 0.45;
-  cursor: default;
+  opacity: 0.6;
 }
 
 /* The drive line under the field: the readouts of the season - how fresh the
@@ -1389,10 +1402,6 @@
   margin-right: 2px;
   font-family: var(--font-display);
   transform: translateY(-0.118em);
-}
-
-.pitch__stat--spent .pitch__stat-value {
-  color: var(--chalk-3);
 }
 
 /* What a pick being weighed would do to the season, in the direction's chalk. */
@@ -1651,7 +1660,7 @@
      one pick draws this row empty, and a card that stood shorter for it would
      put the NFL board's chart and the college board's at two different sizes
      again - which is the whole of what the paged card was for. */
-  min-height: 28px;
+  min-height: 36px;
 }
 
 .call__slot-head .call__eyebrow {
@@ -1678,8 +1687,8 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   border: 0;
   border-radius: var(--radius-sm);
@@ -1689,19 +1698,19 @@
   transition: color 160ms ease;
 }
 
-/* And the target reaches past the button, into the turf above the row and the
-   gap below it - nothing else on the card is using either. Thirty-eight by
-   thirty-four, for a control that is tapped over and over on a two-pick week
-   and was a chevron in eighteen pixels when it was first drawn. */
+/* The same across as the flip and the lock above it, which is the size this
+   board already uses for something a thumb goes to, and the target reaches
+   past it into the turf either side: forty-four square, which is the size a
+   thumb is. It was a chevron in eighteen pixels when it was first drawn. */
 .call__page::after {
   content: "";
   position: absolute;
-  inset: -3px -5px;
+  inset: -4px;
 }
 
 .call__page svg {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   fill: none;
   stroke: currentcolor;
   stroke-width: 2.4;
@@ -1904,18 +1913,10 @@
   white-space: nowrap;
 }
 
-/* Where the game's number came from, after the kickoff and in the quieter
-   chalk: it qualifies the numbers below rather than being one of them (see
-   sourceMarkup in ui/call.js). */
-.call__source {
-  color: var(--chalk-3);
-  white-space: nowrap;
-}
-
 /* The stat line, under the name where it has the width: the spread and the
-   chance the pick carries the week. Chalk tiles, two of them in every layout
-   - where the line came from was a third of them and could not be read at
-   half a card's width, so it moved up onto the game line. */
+   chance the pick carries the week. Two chalk tiles - where the line came from
+   was a third of them once, then a footnote on the game line, and is now the
+   case's to say (ui/call.js, tiles). */
 .call__tiles {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2205,27 +2206,30 @@
 /* Four stops on a route: a dot on a rule with the key, the number and the note
    hung under it, every one of them reading from its own dot.
 
-   Three columns, each an exact third of the block, and the tier standing in
-   the last of them against the right edge. That is the one arrangement that
-   answers all four things this row has to do at once: the rule runs the block's
-   full width, a dot ends it, the four dots are evenly spread over it - nought,
-   a third, two thirds, the end - and every stop's words sit under its own dot.
-   The first three read from their dot leftwards off the head of their column;
-   the tier reads back from the end of the rule, because its dot is the end of
-   the rule.
+   Six columns, each a sixth of the block, and every stop two of them wide - so
+   a stop is a third of the block, as it always was, but there are twice as many
+   edges to hang one from. That is what lets the four dots be evenly spread
+   along the rule - nought, a third, two thirds, the end - and every stop still
+   sit under its own dot, because the two arrangements want different things of
+   the same box. The end stops read away from the rule's ends: the model line
+   starts at the block's left edge and the tier finishes at its right, because
+   those are where their dots are and a word past either end would be a word off
+   the block. The two in the middle have a block on both sides of them and are
+   centred on their dots, which is the only reading of "under the dot" that is
+   true of a whole stop rather than of its first letter.
 
-   Which leaves the tier sharing the last third with the win probability, and
-   the two of them have to fit: the chip is the compact one (below) and the
-   word in it is one word, so the widest pair on a 360 phone is WIN PROB at 54
-   and SHAKY at 46 inside a third of 110. --tier-room holds the far edge open
-   for it, so a narrower phone cuts the key rather than running the two into
-   each other. */
+   Read across, the row is a line of type that starts flush, ends flush and is
+   balanced in between, which is what the rule under it does too.
+
+   The tier no longer shares a third with the win probability: the win
+   probability is centred on the two-thirds mark, so its far edge stops a sixth
+   of the block short of the tier's dot instead of running at it. --tier-room
+   was the padding that used to hold them apart and is gone with the reason for
+   it - on a 360 phone WIN PROB now ends at 246 where SHAKY starts at 288. */
 .chain {
-  --tier-room: 52px;
-
   position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   column-gap: 0;
   margin: 0;
   padding: 0;
@@ -2245,33 +2249,53 @@
   text-align: left;
 }
 
-/* Placed rather than flowed, because the tier shares the third column with the
-   win probability and auto-placement would have put it on a second row. */
+/* Placed rather than flowed: the stops overlap - the middle two straddle the
+   thirds their neighbours end on - and auto-placement would have put every
+   collision on a row of its own. */
 .chain__stop:nth-child(1) {
-  grid-area: 1 / 1;
+  grid-area: 1 / 1 / 2 / 3;
+}
+
+/* The two in the middle: two columns wide and centred on the middle of them,
+   which is the third and the two-thirds mark. The padding is even so the
+   centring stays true, and it is still what cuts a key too long for a third
+   rather than letting it run at the stop beside it. */
+.chain__stop:nth-child(2),
+.chain__stop:nth-child(3) {
+  align-items: center;
+  padding-right: 8px;
+  padding-left: 8px;
+  text-align: center;
 }
 
 .chain__stop:nth-child(2) {
-  grid-area: 1 / 2;
+  grid-area: 1 / 2 / 2 / 4;
 }
 
 .chain__stop:nth-child(3) {
-  grid-area: 1 / 3;
-  padding-right: var(--tier-room);
+  grid-area: 1 / 4 / 2 / 6;
+}
+
+.chain__stop:nth-child(2)::before,
+.chain__stop:nth-child(3)::before {
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 /* Even along the rule, not even along the columns. The first dot starts at the
    block's edge and the last one ends at it, so the run between their centres
    is the width less one dot - and the two in the middle belong a third and two
-   thirds along THAT, which is two and five pixels to the left of the columns
-   they head. Whole pixels off a constant, because the amount is one dot's
+   thirds along THAT, which is a pixel in from the marks the columns give them.
+   The whole stop moves, dot and words together, because the words are hung off
+   the dot and a nudge that moved one without the other would be undoing the
+   line above. A whole pixel off a constant, because the amount is one dot's
    width split three ways and has nothing to do with how wide the block is. */
-.chain__stop:nth-child(2)::before {
-  left: -2px;
+.chain__stop:nth-child(2) {
+  left: 1px;
 }
 
-.chain__stop:nth-child(3)::before {
-  left: -5px;
+.chain__stop:nth-child(3) {
+  left: -1px;
 }
 
 /* The dot, over the left edge of the stop. */
@@ -2308,7 +2332,7 @@
    the lit dot that finishes the line stands over them rather than a column's
    width to their left. */
 .chain__stop:last-child {
-  grid-area: 1 / 3;
+  grid-area: 1 / 5 / 2 / 7;
   justify-self: end;
   align-items: flex-end;
   padding-right: 0;
@@ -2630,7 +2654,9 @@
   position: absolute;
   z-index: 4;
   padding: 0 3px;
-  transform: translate(-50%, calc(-100% - 7px));
+  --figure-x: -50%;
+  --figure-y: calc(-100% - 7px);
+  transform: translate(var(--figure-x), var(--figure-y));
   border-radius: 2px;
   background: color-mix(in srgb, var(--turf-2) 85%, transparent);
   font-family: var(--font-mono);
@@ -2647,11 +2673,24 @@
 }
 
 .route__figure--below {
-  transform: translate(-50%, 7px);
+  --figure-y: 7px;
 }
 
 .route__figure--second {
-  transform: translate(-50%, 21px);
+  --figure-y: 21px;
+}
+
+/* A figure is centred on its mark, which puts half of it outside the plot when
+   the mark is standing on the first or last week of the season - over the
+   scale's own labels in the gutter at one end, and over the chart's edge at
+   the other. Those two are hung off the side of their mark instead, the way
+   the callout is pushed back inside rather than left hanging out. */
+.route__figure--start {
+  --figure-x: -5px;
+}
+
+.route__figure--end {
+  --figure-x: calc(-100% + 5px);
 }
 
 /* The week the coach was saving your team for: the reason a safer pick this
@@ -2897,10 +2936,26 @@
   color: var(--chalk-3);
 }
 
+/* The row of weeks, which is also a control: a tap on it turns the board to
+   the week it landed under (watchAxis in ui/coach.js). */
 .route__axis {
   position: relative;
   height: 13px;
   margin-left: 28px;
+  cursor: pointer;
+}
+
+/* What a thumb may land on, which is not the same as what there is to read: a
+   week number is eleven pixels of ink at five pixels wide. The band reaches up
+   through the gap the chart leaves over this row and down through the case's
+   own bottom padding, so the target is twenty six pixels tall where the row is
+   thirteen - and it takes no room, so nothing on the chart moves for it. Under
+   the numbers rather than over them, though either would answer the tap: the
+   event is the row's whichever of the two it lands on. */
+.route__axis::before {
+  content: "";
+  position: absolute;
+  inset: -6px 0 -7px;
 }
 
 /* A week number, in the face and the weight the field paints its own week
