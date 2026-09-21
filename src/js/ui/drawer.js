@@ -19,10 +19,11 @@
  * and shut on the same tap would close under the thumb of somebody reaching
  * for the list they had just opened.
  *
- * The third is the drag, for the thumb that does not look: up anywhere in the
- * drawer to open it, down from the top of the list to put it back
- * (watchRaise). The grab stays, because a gesture nobody can see is not a
+ * The third is the drag, for the thumb that does not look: up on the grab to
+ * open it, down from the top of the list to put it back (watchRaise). The
+ * grab stays a button as well, because a gesture nobody can see is not a
  * control; it is the sign over the door rather than the only way through it.
+ * The bar is left out of it - a drag that lands on a tab means the tab.
  *
  * A control rather than something that happens on scroll. A header that
  * collapses under the thumb has to pay for the height it gives up out of the
@@ -100,10 +101,13 @@ const DOMINANCE = 1.4;
  * scroll as they always did and only one drag is taken from them: down, from
  * the very top of the list, where there was nothing to scroll to anyway.
  *
- * The bar and the grab are surfaces like the lists, and shut they are the only
- * ones with anything under the thumb - a drawer down to its head has no list
- * to drag. Neither of them scrolls, so their scrollTop is always nought and
- * every drag down on them is read from the top, which is what they are for.
+ * The grab is a surface like the lists, and shut it is the only one with
+ * anything under the thumb - a drawer down to its head has no list to drag.
+ * It does not scroll, so its scrollTop is always nought and every drag down
+ * on it is read from the top, which is what it is for. The tab bar sits on
+ * the same head and is deliberately not watched: a tab is a name to tap, and
+ * a bar that answered a drag as well shut the drawer under the finger of
+ * somebody reaching for the list they had just opened.
  *
  * One answer per touch. A drag that has been read is done being read, so a
  * long one cannot open the drawer and then shut it again on the way back.

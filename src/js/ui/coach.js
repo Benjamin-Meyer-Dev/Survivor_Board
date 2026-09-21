@@ -38,7 +38,7 @@
  * finished week is good for. Read-only.
  */
 
-import { formatPercent, formatSpread, formatMatchup, escapeHtml } from "../core/format.js";
+import { formatPercent, formatSpread, escapeHtml } from "../core/format.js";
 import { TIER_LABEL, DEFAULT_TIERS } from "../core/probability.js";
 import { frame, reconcile } from "./patch.js";
 
@@ -316,6 +316,12 @@ function sameTeams(a, b) {
  * The sub-lines are covered by the terms they are made of rather than named
  * separately - the ratings gap by the two ratings, the books and the opening
  * line by the market, the moneyline sub-line by its price and weight.
+ *
+ * The team is the exception, and stays: it is not printed here any more - the
+ * head named the game and no longer does - but every figure below it is that
+ * team's price, so a slot handed to another team is a different read even in
+ * the rare week the two are priced alike. The game it is in adds nothing on
+ * top of that, since a team plays once a week and the week is in here.
  */
 function readSignature(state) {
   const { subject, week, selection } = state;
@@ -325,8 +331,6 @@ function readSignature(state) {
     selection,
     week.week,
     subject.team,
-    subject.site,
-    subject.opponent,
     p.projected,
     p.team.rating,
     p.opponent.rating,
@@ -352,19 +356,22 @@ function closingPricing(state) {
 }
 
 function head(state) {
-  const { subject, week, selection } = state;
+  const { week, selection } = state;
   const focus =
     selection === "picked" ? "Your pick" : selection === "locked" ? "Locked pick" : "Coach preview";
   // A settled week is not being read live. Its numbers are the ones the game
   // was played on, so the eyebrow says so rather than claiming a model read
   // that would move under the reader every time the ratings are refitted.
   const what = state.kind === "past" ? "Closing read" : "Live model read";
+  // The game itself is not named here. It used to stand at the end of this
+  // line - "49ers vs Dolphins" - and it is the card's own headline two boxes
+  // below, set large, with the conference and the kickoff beside it. Said
+  // twice in one readout, the small copy is the one that reads as a caption
+  // on the chain rather than as the subject of it, and the line it took is
+  // the head's to give.
   return `<div class="coach__head" data-key="head">
-    <span class="coach__heading">
-      <span class="coach__focus"><span class="coach__pulse" aria-hidden="true"></span>${focus}</span>
-      <span class="u-eyebrow coach__what">${what} · Wk ${String(week.week).padStart(2, "0")}</span>
-    </span>
-    <span class="coach__game">${escapeHtml(subject.team)} ${escapeHtml(formatMatchup(subject.site, subject.opponent))}</span>
+    <span class="coach__focus"><span class="coach__pulse" aria-hidden="true"></span>${focus}</span>
+    <span class="u-eyebrow coach__what">${what} · Wk ${String(week.week).padStart(2, "0")}</span>
   </div>`;
 }
 

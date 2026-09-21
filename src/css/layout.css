@@ -315,8 +315,11 @@
      to lose by it: a shut drawer has no rows to scroll, and the open one
      reaches nine.
 
-     The bar takes the drag too, and has to: shut, it is the only part of the
-     drawer left on the screen, so it is the only thing a thumb has to pull.
+     The grab takes the drag too, and has to: shut, it is the only part of the
+     drawer a thumb has to pull. The tab bar beside it does not - a tab is
+     something you tap, and a bar that also answered a drag was shutting the
+     drawer under the finger of somebody reaching for a list - so it pans with
+     the board like anything else.
 
      The panels are named by id because that is how the surfaces the week's
      drag reads are named at the top of this file, and the two rules have to be
@@ -327,7 +330,6 @@
      nothing to scroll to. */
   .board:not(.is-raised) #view-week,
   .board:not(.is-raised) #view-burn,
-  .board:not(.is-raised) .drawer__tabs,
   .board:not(.is-raised) .drawer__grab {
     touch-action: none;
   }
@@ -443,12 +445,12 @@
   .board:not(.is-raised) .readout > #pitch {
     min-height: calc(124px + 8px + 37px);
     /* And a ceiling written the same way, for the same reason turned round.
-       The field stops at 176 (.pitch__field) but the box it stands in would
+       The field stops at 168 (.pitch__field) but the box it stands in would
        not: a box told to grow takes every pixel going and leaves the ones the
        field cannot use as turf inside itself, which is the same dead band in a
        different place. Capped, the box stops when the field does and what is
        left over goes to the case below it. */
-    max-height: calc(176px + 8px + 37px);
+    max-height: calc(168px + 8px + 37px);
   }
 
   /* The case has what the field and the card leave, and never asks for a pixel
@@ -707,7 +709,6 @@
     touch-action: pan-y;
   }
 
-  .board:not(.is-raised) .drawer__tabs,
   .board:not(.is-raised) .drawer__grab {
     touch-action: auto;
   }

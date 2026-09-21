@@ -1034,16 +1034,21 @@
    it - NORTHWESTERN came out as NORTHWESTEF at 152 - and because a field is
    the one thing on this board that is better for being bigger.
 
-   The ceiling is 176, down from 200 and from 232 before that. The field was
-   the only thing on the board spending the phone's spare height, and it pinned
-   itself to the ceiling on every phone there is while the case under it was
-   left folding its graph away at 45 pixels of plot. A name still reads at 176
-   - the lane leaves 100 for it where the 152 that cut NORTHWESTERN left 76,
-   and NORTHWESTERN is 88 - so what comes off is the field being bigger, not
-   the field being readable, and the graph under it is what the pixels buy
-   instead. The three longest names either schedule has - SOUTH CAROLINA,
-   MICHIGAN STATE and OKLAHOMA STATE, fourteen letters and about 103 - take the
-   ellipsis the lane has always been ready to give them.
+   The ceiling is 168, down from 176, from 200 and from 232 before that. The
+   field was the only thing on the board spending the phone's spare height,
+   and it pinned itself to the ceiling on every phone there is while the case
+   under it was left folding its graph away at 45 pixels of plot. So what
+   comes off is the field being bigger, not the field being readable, and the
+   graph under it is what the pixels buy instead.
+
+   168 is the longest name the board can draw, plus room to see it is not cut.
+   The lane leaves the field's height less 76 for a name (8 above, the 16 mark
+   and its 6 gap, the 42 the number stands in, and the 4 of border), so 168
+   leaves 92. MISSISSIPPI STATE is the longest of the fifty teams either pool
+   can hold and runs to 87 at the 12px this face is set at on a phone -
+   measured with a Range over the text, since a vertical label's length is not
+   its scrollHeight. Every name in both pools stands whole, with five pixels
+   to spare against a phone that renders the face a shade wider.
 
    Down, because a banner over the board is height the readout no longer has,
    and a field that will not give any up is a board that scrolls. 124 is the
@@ -1057,7 +1062,7 @@
   flex: 1 1 auto;
   height: 152px;
   min-height: 124px;
-  max-height: 176px;
+  max-height: 168px;
   border: 2px solid var(--chalk);
   background: var(--turf-3);
   overflow-x: auto;
@@ -1522,7 +1527,7 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding: 8px 12px 10px;
+  padding: 6px 12px 8px;
   border-radius: var(--radius);
 }
 
@@ -1664,9 +1669,12 @@
   font: inherit;
 }
 
-/* Two slots: each is a button that hands the sideline to itself. */
+/* Two slots: each is a button that hands the sideline to itself. The air
+   inside the bracket comes down with the air inside the one-slot box
+   (.call__box), so a college card gives the case the same handful of pixels
+   an NFL one does rather than half of them. */
 .call__slots--two .call__slot {
-  padding: 8px 10px 10px;
+  padding: 6px 10px 8px;
   border: 1px solid transparent;
   cursor: pointer;
 }
@@ -1691,16 +1699,17 @@
    rates it, whether it was the coach's call, the result once it is in. The row
    stands a chip tall with nothing to show, so the team under it never moves.
    The margin under it is on top of the slot's own 4px gap: a chip is a boxed
-   mark and the name below it is 36px of capital, and at the gap alone the two
-   rules - the chip's border and the caps - stood close enough to read as one
-   block. */
+   mark and the name below it is a capital half as tall again, and at the gap
+   alone the two rules - the chip's border and the caps - stood close enough
+   to read as one block. Four, with the name down to 32: what the margin is
+   holding apart is a rule and a cap height, and both came down with it. */
 .call__marks {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  min-height: 22px;
-  margin-bottom: 6px;
+  min-height: 20px;
+  margin-bottom: 4px;
 }
 
 /* Two picks a week put the row on half a card, where a locked winner the coach
@@ -1727,11 +1736,17 @@
   color: var(--chalk);
 }
 
-/* The team, chalked large. */
+/* The team, chalked large. 32, down from 36: the card is the board's one
+   action and the name is the whole of what it says, but the case above it
+   was drawing its graph in ninety pixels, and four off a name already set in
+   the heaviest weight of a condensed display face is a line nobody reads
+   differently. It is also the size every phone under 380 was already giving
+   it, so the card is now one name at one size from the narrowest phone up to
+   the wide layout. */
 .call__team {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: 36px;
+  font-size: 32px;
   line-height: 0.92;
   letter-spacing: 0.01em;
   text-transform: uppercase;
@@ -1812,7 +1827,7 @@
   display: flex;
   flex-direction: column;
   gap: 1px;
-  padding: 3px 8px;
+  padding: 2px 8px;
   border: var(--dash);
   border-radius: var(--radius-sm);
   min-width: 0;
@@ -2034,19 +2049,16 @@
   display: none;
 }
 
+/* The badge and what is being read, on one line. Nothing stands at the far
+   end of it any more - the game the chain prices was there and is the card's
+   own headline below (head in ui/coach.js) - so the two are a pair at the
+   start of the line rather than two ends of a row. */
 .coach__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex: none;
-}
-
-.coach__heading {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
+  flex: none;
 }
 
 .coach__focus {
@@ -2091,15 +2103,6 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* The game the chain prices, at the end of the head's line in the quiet
-   chalk the card sets its own game line in. */
-.coach__game {
-  flex: none;
-  font-size: 12px;
-  color: var(--chalk-3);
   white-space: nowrap;
 }
 
@@ -3301,6 +3304,13 @@
 .sideline__row:not(.sideline__row--spent) + .sideline__row--spent {
   margin-top: 8px;
   border-top: 1px solid var(--line);
+}
+
+/* And the row above it gives up its own rule, or the fence is two lines with
+   a gap between them - the band's rule and the last of the week's rows -
+   which reads as a mistake rather than as a break. */
+.sideline__row:not(.sideline__row--spent):has(+ .sideline__row--spent) {
+  border-bottom: 0;
 }
 
 .sideline__team {
@@ -5079,10 +5089,6 @@
 }
 
 @media (max-width: 380px) {
-  .call__team {
-    font-size: 32px;
-  }
-
   /* Two columns still fit on the narrowest phone, but only just: the swatch
      and the gap between the columns give up what they need to. */
   .legend {
@@ -5345,10 +5351,16 @@
 /* wide ------------------------------------------------------------------------- */
 
 @media (min-width: 900px) and (min-height: 561px) {
-  /* Every week fits, so the field stops scrolling and the weeks share it. */
+  /* Every week fits, so the field stops scrolling and the weeks share it.
+
+     A length, not a band, the way the sideways layout writes it: the portrait
+     ceiling is the phone's bargain with the case under it, and a desktop that
+     inherited it would be capped two pixels under the height stated here. */
   .pitch__field {
     --zone-w: 60px;
     height: 170px;
+    min-height: 0;
+    max-height: none;
     overflow: hidden;
   }
 

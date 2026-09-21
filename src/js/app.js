@@ -3128,12 +3128,19 @@ async function main() {
   // three and has no week to turn - and the call is not: it is the thing the
   // open folds, not a list to drag.
   //
-  // The bar and the grab are watched with them, and shut they are the whole of
-  // it: a drawer down to its head has no list under the thumb to drag, so the
-  // gesture that opens it has to be taken from the head itself.
+  // The grab is watched with them, and shut it is the whole of it: a drawer
+  // down to its head has no list under the thumb to drag, so the gesture that
+  // opens it has to be taken from the head itself.
+  //
+  // Not the tab bar, though it sits on the same head. A tab is a name you
+  // tap, and every tap on a name begins as a touch that moves a little; read
+  // as a drag, it opened or shut the drawer instead of switching the list,
+  // which is a control answering a question nobody asked. The grab beside it
+  // is a handle and nothing else, so a drag on it can only mean the one
+  // thing.
   watchRaise(
     { raisable: canRaise, raised: () => app.raised, toggle: toggleRaised },
-    { surfaces: [el.weekPanel, el.burnPanel, el.tabs, el.grab] },
+    { surfaces: [el.weekPanel, el.burnPanel, el.grab] },
   );
 
   // Back and forward, and a link tapped while the app is already open.
