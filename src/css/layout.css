@@ -443,6 +443,15 @@
      what the readout has spare; below it there is nothing left to give, and a
      board that still cannot fit scrolls, which is what the scroll is for. */
   .board:not(.is-raised) .readout > #pitch {
+    /* And it asks for that floor rather than for the field it happens to be
+       standing at. A flex item asks for its content by default, and the case
+       beside it can only grow into space that is going spare - so a field
+       asking for its natural 152 could never be talked down to let the case
+       reach the share it is owed, however much the case had been promised.
+       Asking for the floor puts the whole band in the case's gift, and the
+       field grows back into whatever the case does not take, which is the
+       ceiling below. */
+    flex-basis: calc(124px + 8px + 37px);
     min-height: calc(124px + 8px + 37px);
     /* And a ceiling written the same way, for the same reason turned round.
        The field stops at 168 (.pitch__field) but the box it stands in would
@@ -489,8 +498,40 @@
      A size container as well as a contained one, so the table inside can ask
      how much of itself there is room for (components.css). */
   .readout > #coach {
-    flex: 1 1 auto;
+    /* The case fills before the field does, which is the other half of the
+       ceiling below. Left to share what is going, the two split it evenly and
+       the field reached its ceiling first on every phone; the case then got
+       whatever was left over, which is a different number per pool and is the
+       whole of why the chart was two different sizes. Growing first, the case
+       takes what it asks for and the field grows into the remainder - and
+       past the case's ceiling the order stops mattering, because the field is
+       free to take every pixel it can use. */
+    flex: 99 1 auto;
     min-height: 0;
+    /* And a ceiling, so the chart is the same chart in every pool.
+       "What the field and the card leave" is a different number per pool: a
+       college card takes two picks a week, and the two slots, the marks on
+       each and a game line broken over three lines make it about thirty
+       pixels taller than an NFL one. The case took the difference and the
+       graph with it - 111 pixels of plot in one pool and 79 in the other, on
+       the same phone, in the same league.
+
+       So the case asks for a share of the readout instead, and the field
+       takes what is left rather than the other way round. A share and not a
+       length: a taller phone should draw a taller chart, and a length would
+       hold the same box on every screen and open the difference as turf.
+       34% is what the college board can afford on a 390x844 phone with its
+       field still long enough to letter MISSOURI, NORTHWESTERN and OKLAHOMA
+       STATE down a yard line, which is the field's side of the bargain; the
+       NFL board comes down to meet it.
+
+       The field is the one that gives, which is the bargain it has already
+       struck above: it floats between its floor and its ceiling, and the
+       pool with the taller card simply has less field. Where it hits the
+       ceiling with room to spare - a one-slot pool on a tall phone - what is
+       left opens as turf over the card, which is the margin the call already
+       has for it. */
+    max-height: 34%;
     container-type: size;
     transition: opacity 160ms ease;
   }

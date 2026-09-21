@@ -17,10 +17,10 @@
  *      along the route the board is on - your picks and the coach's plan around
  *      them (the rehearsal, core/plan.js) - drawn solid, always. Where the
  *      coach's untouched plan would spend a week differently, that difference
- *      is pencilled in over those weeks alone, and the season figures settle
- *      the trade: a pick that is safer this week stands higher at this week's
- *      column, and where the coach was saving that team for a later week, the
- *      dotted branch stands higher there.
+ *      is pencilled in over those weeks alone, and the two lines settle the
+ *      trade between them: a pick that is safer this week stands higher at
+ *      this week's column, and where the coach was saving that team for a
+ *      later week, the dotted branch stands higher there.
  *
  * There was a third part under these - three cards of supporting facts, the
  * calibration behind the price, how many simulated seasons backed the opening,
@@ -132,7 +132,6 @@ function renderRoute(current, markup) {
   const previousWeek = current.dataset.viewWeek;
 
   current.classList.toggle("route--compared", next.classList.contains("route--compared"));
-  current.classList.toggle("route--pending", next.classList.contains("route--pending"));
   for (const attribute of [
     "data-motion-key",
     "data-motion-signature",
@@ -792,9 +791,9 @@ function route(state, board) {
   // figure true and useless - a pool that forgives weeks 1 and 2 reported a
   // hundred percent chance of reaching week 3 while week 2 was still a 78% game
   // on the same chart, because losing it could not end the run. This is the run
-  // made on the picks alone. The season figures in the legend and on the drive
-  // line still count the buy back, because that is what the coach is planning
-  // for, and they are the entry's chances rather than this route's.
+  // made on the picks alone. The season figure on the field's flag still counts
+  // the buy back, because that is what the coach is planning for, and it is the
+  // entry's chances rather than this route's.
   //
   // Every chance the chart quotes is written to a tenth, here and on the marks
   // and in the figures over them, so a column of them reads down as one kind of
@@ -908,34 +907,13 @@ function route(state, board) {
     )
     .join("");
 
-  const pending = Boolean(rehearsed && board.previewPending);
-  const key = (kind, name, figure, word) =>
-    `<li class="route__key route__key--${kind}"><i class="route__swatch" aria-hidden="true"></i><span class="route__key-name">${name}</span><b class="route__key-figure">${figure}</b><span class="route__key-word">${word}</span></li>`;
-  // What the solid line is: your pick's route where you have made one, the lock
-  // where the week is closed on it, and the plan itself where you have not - it
-  // is still the route the board is on, and naming it "You" in a week you have
-  // picked nothing in would be the chart claiming a decision you have not made.
-  const yourName = rehearsed
-    ? "You"
-    : selection === "locked"
-      ? "Locked"
-      : selection === "coach"
-        ? "Plan"
-        : "You";
-  const legend = [
-    key(
-      "you",
-      yourName,
-      Number.isFinite(you.season) ? formatPercent(you.season, 1) : "—",
-      "season",
-    ),
-    alternative && key("coach", "Coach", formatPercent(alternative.season, 1), "season"),
-    lone &&
-      key("coach", `Coach: ${escapeHtml(nameOf(lone.options))}`, figureOf(lone.prob), "this week"),
-  ]
-    .filter(Boolean)
-    .join("");
-
+  // The season figures each route arrives at were set in a key across the top
+  // right of the chart, and they are not here any more: the one the board is
+  // on is the number the field's flag carries (seasonSurvival in ui/pitch.js),
+  // and quoting it twice in the same screen made the chart's head the busiest
+  // line in the case. The chart is the shape - where the routes part and which
+  // of them stands higher at each week - and the summary below still says both
+  // figures for a reader that cannot see the shape.
   const summary = series
     .map(
       (entry) =>
@@ -951,10 +929,9 @@ function route(state, board) {
     .map((entry) => `${entry.stops.map((stop) => nameOf(stop.options)).join(">")}@${entry.season}`)
     .join("|");
 
-  return `<section class="route${alternative ? " route--compared" : ""}${pending ? " route--pending" : ""}" data-key="route" data-motion-key="coach-route" data-motion-signature="${escapeHtml(signature)}" data-view-week="${viewed.week}" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
+  return `<section class="route${alternative ? " route--compared" : ""}" data-key="route" data-motion-key="coach-route" data-motion-signature="${escapeHtml(signature)}" data-view-week="${viewed.week}" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
     <div class="route__head" data-key="head">
       <span class="route__eyebrow">Survival chance by week</span>
-      <ul class="route__legend">${legend}</ul>
     </div>
     <div class="route__plot" data-key="plot" aria-hidden="true">
       <span class="route__band" data-key="band" style="left:${pct((at / n) * 100)};width:${pct(100 / n)}"></span>
@@ -1034,7 +1011,15 @@ function watchChart(panel) {
     if (plot) reveal(plot, event.clientX);
   });
 
-  panel.addEventListener("pointerleave", () => hideCallout(panel));
+  // A mouse only. A touch is removed from the screen the moment it lifts, and
+  // the platform says so with pointerout and pointerleave straight after the
+  // pointerup - so the tap that opened the callout closed it again in the same
+  // beat, and the chart answered a phone by flashing. What puts it away on a
+  // phone is the next touch (below), not the end of this one.
+  panel.addEventListener("pointerleave", (event) => {
+    if (event.pointerType !== "mouse") return;
+    hideCallout(panel);
+  });
 
   // A touch anywhere else puts it away - including elsewhere on the board,
   // which is the only way a finger has of saying it has read it. Once for the
@@ -1156,8 +1141,7 @@ function reveal(plot, clientX) {
   // not. How much room it needs is measured rather than assumed: it was a fixed
   // third of the plot, which was the right number for a callout of a week and
   // two teams and the wrong one the moment a second column of figures gave it
-  // a heading row - a high mark then put it over the legend, which is the pair
-  // of season figures the whole chart is a comparison of.
+  // a heading row - a high mark then put it over the chart's own head.
   //
   // Both the room and the overflow are the chart's, not the plot's: the plot is
   // unhidden and the box that clips is the chart around it (components.css),

@@ -836,15 +836,42 @@ export function buildBoard({
   // coach's job is to do that - but the week the lock was made in keeps the
   // board it had.
   //
-  // One search per upcoming week that holds a lock, which is normally the week
-  // on the clock and nothing else. For that week the search is the one made
-  // before the lock, still under its own key in the cache, so the ordinary
-  // case costs nothing at all (memoisedAdvice). A week with no lock is already
-  // ranked without reference to one, and the board's own plan answers for it.
+  // A week that has nothing left to decide is not one of them. Where every
+  // slot is locked and every lock wrote down what the coach was saying at the
+  // time (status.coachRanked, saved by app.js), that record IS the week's
+  // board and rankTeams reads it straight back. A plan made fresh for such a
+  // week can only disagree with it, and once the week has been played it
+  // always does: a search cannot name a team whose game is over, so the board
+  // refills with whoever the week has left to play. Week 2 of the live NFL
+  // pool was locked on the Buccaneers over the Eagles and read "1. Rams, 2.
+  // Giants" by the Monday, beside a call card still correctly badging the
+  // Buccaneers - the one disagreement the record exists to prevent.
+  //
+  // It is also a search nothing else reads: a fully locked week takes its
+  // path from its locks, which fill picksPerWeek on their own, so the plan's
+  // names for that week are dropped either way.
+  //
+  // Only where the record is complete, though. A lock saved before rankings
+  // were kept has no board of its own to read back, and for those weeks the
+  // plan made as if the slots were open is still the best account there is of
+  // what the coach had said - which is what it was introduced for.
+  //
+  // So: one search per upcoming week that holds a lock and has something left
+  // to say. For that week the search is the one made before the lock, still
+  // under its own key in the cache, so the ordinary case costs nothing at all
+  // (memoisedAdvice). A week with no lock is already ranked without reference
+  // to one, and the board's own plan answers for it.
   const adviceByWeek = new Map();
   for (const week of board.weeks) {
     if (week.week < currentWeek) continue;
-    if (!week.picks.some((pick) => pick.status.locked)) continue;
+    const locks = week.picks.filter((pick) => pick.status.locked);
+    if (locks.length === 0) continue;
+    if (
+      locks.length === week.picks.length &&
+      locks.every((pick) => Array.isArray(pick.status.coachRanked))
+    ) {
+      continue;
+    }
     const advice = memoisedAdvice(
       board,
       plan,

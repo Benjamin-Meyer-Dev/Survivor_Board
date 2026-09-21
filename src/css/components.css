@@ -1736,7 +1736,21 @@
   color: var(--chalk);
 }
 
-/* The team, chalked large. 32, down from 36: the card is the board's one
+/* The team, chalked large, and the top of the block that holds the foot of
+   the slot: the name, the game it is in and the numbers off it, in that
+   order and with nothing opening between them.
+
+   The auto margin is here rather than on the game line under it, which is
+   where it used to be. A slot is stretched to the tallest week of the season
+   (--call-floor), so most weeks have slack to put somewhere, and putting it
+   under the name pushed the game away from the team it belongs to: a college
+   week whose game line runs to two lines sets the floor, and the other twelve
+   then stood their name twenty-two pixels clear of their own "vs". Above the
+   name the same slack is air under the chip - which is a mark about the pick,
+   not part of its name - and the three lines that describe the game stay
+   together at the foot, where two slots side by side still line up.
+
+   32, down from 36: the card is the board's one
    action and the name is the whole of what it says, but the case above it
    was drawing its graph in ninety pixels, and four off a name already set in
    the heaviest weight of a condensed display face is a line nobody reads
@@ -1744,6 +1758,7 @@
    it, so the card is now one name at one size from the narrowest phone up to
    the wide layout. */
 .call__team {
+  margin-top: auto;
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 32px;
@@ -1770,11 +1785,11 @@
   text-decoration: none;
 }
 
-/* The game and its numbers hold the foot of the slot. Two slots side by side
-   stand the same height, and whatever their marks and names wrap to above,
-   their games and tiles line up at the bottom. */
+/* The game and its numbers hold the foot of the slot, under the name and
+   against it (the auto margin is on .call__team). Two slots side by side
+   stand the same height, and whatever their marks wrap to above, their names,
+   games and tiles line up at the bottom. */
 .call__matchup {
-  margin-top: auto;
   font-size: 13px;
   color: var(--chalk-2);
   line-height: 18px;
@@ -2382,61 +2397,13 @@
   white-space: nowrap;
 }
 
-/* The key: a swatch of each line, its name, and the season figure it arrives
-   at - the number the drive line quotes, set as a figure over the word. */
-.route__legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px 14px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.route__key {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  min-width: 0;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 10px;
-  line-height: 1.2;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--chalk-3);
-  white-space: nowrap;
-}
-
+/* A piece of a line, drawn the way the chart draws it: the callout's rows wear
+   one each, so a row is read back against the line it came off. */
 .route__swatch {
   align-self: center;
   width: 14px;
   height: 0;
   border-top: 2px dashed var(--neutral);
-}
-
-.route__key--you .route__swatch {
-  border-top-style: solid;
-  border-top-color: var(--flag);
-}
-
-.route__key-figure {
-  font-family: var(--font-mono);
-  font-weight: 650;
-  font-size: 13px;
-  line-height: 1;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--chalk);
-}
-
-.route__key-word {
-  color: var(--chalk-4);
-}
-
-/* A rehearsal still out: the figure it will replace is a stand-in. */
-.route--pending .route__key--you .route__key-figure {
-  opacity: 0.5;
 }
 
 /* The plot proper, with a gutter to its left for the rules' labels.
@@ -2914,8 +2881,7 @@
     padding: 6px 10px 5px;
   }
 
-  .route__eyebrow,
-  .route__key-word,
+  .route__head,
   .route__figure,
   .route__saved-label {
     display: none;
