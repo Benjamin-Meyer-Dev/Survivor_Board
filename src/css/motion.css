@@ -652,6 +652,71 @@
   animation: ink-strike 0.46s cubic-bezier(0.33, 0, 0.2, 1) 0.1s both;
 }
 
+/* The coach's badge changing tense with it: YOUR PICK becomes LOCKED PICK, the
+   dot becomes the padlock, and the dashed ring round the two closes up.
+
+   Those are three changes to a box eighty pixels wide, and swapped between
+   frames they were none of them a change anybody saw - the eye is on the card
+   and the field when a lock is made, and the badge is at the top of the box
+   between them. So the badge it is leaving is laid over the badge it is
+   arriving at (head in ui/coach.js) and the two cross: the old one lifts and
+   goes, the new one comes up under it a beat behind, and the ring is struck
+   round the pair the way the card's own rectangle is struck below.
+
+   Five pixels each way, half a cap height at this size. The badge is the
+   smallest thing on the board that is allowed to move and it moves the least.
+
+   Which render this plays on is decided in ui/coach.js, not here: the panel
+   wears .coach--locked whenever the card is on a locked week, and a class the
+   board is simply in is not a thing that happened. */
+@keyframes badge-gone {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes badge-here {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.coach__focus--sealing .coach__focus-say--gone {
+  animation: badge-gone 0.3s var(--ease-out) both;
+}
+
+.coach__focus--sealing > .coach__focus-say:first-child {
+  animation: badge-here 0.3s var(--ease-out) 0.13s both;
+}
+
+/* The ring, struck on the border it has just closed: the same overlay the card
+   below gets, on the same keyframe, a beat after it so the two read as one
+   thing settling rather than two things flashing. Declared here rather than on
+   the badge itself so nothing is drawn until a lock draws it. */
+.coach__focus--sealing::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--flag);
+  border-radius: 999px;
+  box-shadow: 0 0 6px color-mix(in srgb, var(--flag) 36%, transparent);
+  pointer-events: none;
+  opacity: 0;
+  animation: ink-strike 0.5s cubic-bezier(0.33, 0, 0.2, 1) 0.12s both;
+}
+
 /* A new team arriving in the slot rises into place, the tiles just behind. */
 @keyframes rise {
   from {
@@ -1339,4 +1404,55 @@
 
 .pitch__stat-rule::after {
   animation: chalk-draw 1.1s ease-in-out infinite;
+}
+
+/* --- a lock being taken ----------------------------------------------------
+   "If locked" has been answered. The number the readout was quoting is the
+   season's now, so it leaves the readout the way the flag lies - up and along
+   the row - and the dash is chalked in behind it once it is clear.
+
+   What it is leaving towards takes it in the same beat: the flag carries the
+   lock's own price from this render rather than the season's old number until
+   the re-plan lands (seasonSurvival in ui/pitch.js), and says which way it
+   went in colour, as it always has. Nothing is added to the flag itself - the
+   season number moves and wears its direction and does nothing else.
+
+   Opacity and transform only, and short. A lock sets off a re-plan a second
+   later (REPLAN_DELAY_MS in app.js) that blocks the main thread in bursts, and
+   this is over long before then; declared this way it would run on the
+   compositor regardless.
+
+   Seven pixels, which is about half the figure's own cap height: far enough to
+   read as leaving, not so far that it is a figure flying across the board. */
+@keyframes stat-spend {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+
+  to {
+    opacity: 0;
+    transform: translate(7px, -7px);
+  }
+}
+
+@keyframes stat-taken {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.pitch__stat-spend {
+  animation: stat-spend 0.34s var(--ease-out) both;
+}
+
+/* The dash waits for the figure to be most of the way gone: the two are the
+   same handful of pixels of the row, and crossing them at full made a smudge
+   rather than a change. */
+.pitch__stat-dash {
+  animation: stat-taken 0.2s var(--ease-out) 0.22s both;
 }

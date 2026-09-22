@@ -1166,12 +1166,24 @@
    name and a week half locked reads as exactly that. A lane is the padlock's
    width whatever its mark, so a lock does not nudge the name beside it, and an
    empty slot keeps its lane so the other one stays where it was. */
+/* The lanes stand across the yard line's full width, chalk line included.
+
+   The minus one is the chalk line. A yard line is 44 wide and wears its
+   separator as a 1px left border, so the box this would otherwise be laid out
+   in is the 43 inside it - and centring a 16px lane in 43 puts its left edge
+   on a half pixel. Which way that half rounds depends on where the column
+   happens to sit, so the same mark landed a whole pixel further right on some
+   weeks than on others, and a name half a pixel off the mark above it. Across
+   a row of yard lines that reads as the marks not being in line at all.
+
+   Laid out in the 44 instead, the lane's edge is whole on every week of the
+   season and every mark sits in the same place in its column. */
 .pitch__lanes {
   position: absolute;
   top: 8px;
   right: 0;
   bottom: 42px;
-  left: 0;
+  left: -1px;
   display: flex;
   justify-content: center;
   gap: 4px;
@@ -1190,27 +1202,29 @@
 /* The pick's name, chalked down the yard line the way the end zones are
    lettered. It runs from the mark towards the ball; a name too long for the
    column is cut with an ellipsis rather than running into the number. */
-/* The name down the lane, centred in the turf under its mark.
+/* The name takes the lane's full width rather than shrinking to its own.
 
-   Both of those take a rule, and it is not the rule you would write for
-   horizontal text. This box is set sideways, so its flex row runs DOWN the
-   lane, not across it: align-items works on the cross axis, which here is the
-   horizontal one, and that is what stands the name under the middle of the
-   mark. Centring it along the lane is justify-content, which was missing - so
-   every name hung from the top of its box and ran out wherever its length
-   ended. A week's two names started level and finished apart, and a short one
-   like TEXAS left fifty pixels of empty turf below it while the name itself
-   sat up under the mark. */
+   Set sideways, a line of this text is as wide as the font is tall, and the
+   two numbers were fighting: line-height 1 made the line box 11 while the face
+   itself wants 12 (10 of ascent and 2 of descent), so the letters hung half a
+   pixel off the end of their own line and the name sat half a pixel right of
+   the mark over it. The line box gets the face's own height now, and the lane's
+   whole 16 to be centred in, so the letters land on the lane's middle - which
+   is where the mark is.
+
+   Caps only here, so the descent is empty; the two pixels it takes on one side
+   are exactly the two between cap height and ascent on the other, and the ink
+   comes out centred on the line it is given. */
 .pitch__label {
   flex: 1 1 0;
+  align-self: stretch;
   min-height: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 11px;
-  line-height: 1;
+  line-height: normal;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--chalk-2);
@@ -1374,6 +1388,8 @@
 }
 
 .pitch__stat-value {
+  /* For the figure a lock spends out of it (.pitch__stat-spend). */
+  position: relative;
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 16px;
@@ -1434,6 +1450,41 @@
 .pitch__stat--preview-pending .pitch__stat-value,
 .pitch__stat--preview-idle .pitch__stat-value {
   color: var(--chalk-3);
+}
+
+/* The figure a lock has just taken, on its way out of the readout while the
+   dash comes in under it (stat-spend in motion.css, written by stats() in
+   ui/pitch.js on the one render that is a lock being made).
+
+   Out of the flow and over the dash, so the row is the width it will be from
+   the first frame: the readout is a column in a row that spreads itself, and a
+   figure shrinking to a dash in place would have walked the readouts either
+   side of it along as it went.
+
+   It rests at nothing rather than at full. With motion switched off the
+   reduced-motion block in base.css kills the keyframe, and what is left is the
+   dash on its own - which is what the readout now says. */
+.pitch__stat-spend {
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Leaving in the colour it was read in: the direction it was promising is a
+   thing it said, not a state the readout is in, and a figure that greyed as it
+   went would read as being taken back rather than taken. */
+.pitch__stat-spend--better {
+  color: var(--safe);
+}
+
+.pitch__stat-spend--worse {
+  color: var(--danger);
+}
+
+.pitch__stat-spend--even {
+  color: var(--chalk);
 }
 
 /* The rule that stands in for the number while the lock is being rehearsed
@@ -2228,13 +2279,22 @@
   flex: none;
 }
 
+/* Which of the three things the card is reading: the coach's own preview, a
+   pick you have made, or a pick that has been locked in.
+
+   Dashed, because everything provisional on this board is dashed - the coach's
+   plan under a suggested name, the card's rectangle before it is locked, the
+   hash marks on the turf - and two of the three states this badge has are
+   provisional. The third closes it (below), which is the same move the card's
+   own rectangle makes for the same reason. */
 .coach__focus {
+  /* For the badge a lock replaces, laid over it while the two cross. */
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
   flex: none;
   padding: 2px 6px;
-  border: 1px solid var(--line);
+  border: 1px dashed var(--line);
   border-radius: 999px;
   background: rgb(0 0 0 / 8%);
   font-family: var(--font-display);
@@ -2246,11 +2306,54 @@
   color: var(--chalk-2);
 }
 
+/* What the badge says, as one row: its mark and its words. The row rather than
+   the badge carries the gap between them, because a lock lays a second one of
+   these over the first and the two have to be the same shape. */
+.coach__focus-say {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* The badge the lock is replacing, over the one replacing it. Placed against
+   the badge's padding box, so it lands exactly on the row it is crossing with
+   and needs no measurements of its own.
+
+   It rests at nothing: with motion switched off (base.css) the keyframe that
+   takes it away never runs, and what is left is the badge the board is now in
+   - which is the state a person who has switched motion off should be shown. */
+.coach__focus-say--gone {
+  position: absolute;
+  inset: 0;
+  /* An absolutely positioned child is laid out against the padding box, which
+     includes the badge's own padding - so without this the copy would start
+     six pixels left of the row it is crossing with. Inherited rather than
+     written out, or the day the badge's padding changes only one of the two
+     will move. */
+  padding: inherit;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .coach__pulse {
   width: 5px;
   height: 5px;
   border-radius: 50%;
   background: var(--chalk-3);
+}
+
+/* The padlock in place of the dot. Sized to the dot's own line rather than to
+   the glyph the field paints at sixteen: it stands in a ten-pixel row of caps,
+   and the stroke goes up with the shrink so the shackle does not vanish. */
+.coach__lock {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .coach--picked .coach__focus,
@@ -2260,10 +2363,22 @@
   color: var(--flag-2);
 }
 
+/* Locked, the ring closes. The colour does not move - the board's own rule for
+   a lock is the mark and the line, never the paint (the field's yard lines
+   keep the flag through pencil, chalk and padlock alike) - so what changes
+   here is the dash and the dot, and nothing else. */
+.coach--locked .coach__focus {
+  border-style: solid;
+}
+
 .coach--picked .coach__pulse,
 .coach--locked .coach__pulse {
   background: var(--flag);
   box-shadow: 0 0 6px var(--flag);
+}
+
+.coach--locked .coach__lock {
+  color: var(--flag);
 }
 
 .coach__what {
@@ -2590,6 +2705,35 @@
   flex: 1 1 auto;
   min-height: 56px;
   margin-left: 28px;
+}
+
+/* The two axes: one chalk L down the left of the plot and along its foot.
+
+   The rules inside say what the levels are; these say where the reading stops.
+   Without them the chart had a grid and no frame - the lowest mark hung over
+   nothing, and the row of week numbers under it floated a gap below a line
+   that was not there, so the bottom of the chart was wherever the faintest
+   rule happened to fall.
+
+   Drawn on a box a pixel outside the plot rather than as a border on it. Every
+   mark, figure and week number is placed by percentage, and a border would
+   take its pixel out of the box those percentages are measured in - standing
+   every mark a pixel off the week number it is read against, and only in the
+   chart, because the axis row below has no border to lose. This way the frame
+   costs the layout nothing at all.
+
+   A step up from the rules in weight - the case's own 16% against their 9% -
+   so the frame reads as the frame and the levels inside it stay levels. Under
+   the lines and the marks rather than over them, which is what a ::before
+   gives: the data is the thing being read, and the frame is what it is read
+   against. */
+.route__plot::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 -1px -1px;
+  border-left: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+  pointer-events: none;
 }
 
 /* This week's column, so the eye lands where the two routes are being

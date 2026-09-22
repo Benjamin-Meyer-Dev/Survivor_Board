@@ -50,6 +50,7 @@
 import { formatPercent, formatSpread, escapeHtml } from "../core/format.js";
 import { TIER_LABEL, DEFAULT_TIERS } from "../core/probability.js";
 import { frame, reconcile } from "./patch.js";
+import { afterMotion, twoFrames } from "./motion.js";
 import { delegate } from "./events.js";
 
 /**
@@ -70,6 +71,28 @@ const TIER_WORD = Object.freeze({
 });
 
 /**
+ * The shut padlock the field, the call card and the team list all wear
+ * (ui/pitch.js, ui/call.js, ui/sideline.js). The badge takes it once the pick
+ * is locked, in place of the dot it wears while the pick is only picked: a
+ * lock has a mark on this board and the badge is where the card says which of
+ * the two it is looking at.
+ */
+const LOCK = `<svg class="coach__lock" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>`;
+
+/**
+ * What the badge each panel is showing last said, so a lock being made can be
+ * told from a week being turned to.
+ *
+ * Both arrive here as "the badge now reads Locked pick", and only one of them
+ * is something that just happened: turning onto a week locked a fortnight ago
+ * must not play the lock. So the badge plays only where the panel showed the
+ * SAME week and slot a render ago and the pick in it has gone from picked to
+ * locked, which is a lock and nothing else. Keyed by root, so the detached
+ * copy a swipe stages (stageWeek in app.js) keeps its own and never plays.
+ */
+const badged = new WeakMap();
+
+/**
  * @param {HTMLElement} root
  * @param {object} board Result of buildBoard().
  * @param {number} viewWeek The week being looked at (1-based).
@@ -82,6 +105,15 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0, handlers = {}
   const week = board.weeks.find((entry) => entry.week === viewWeek) ?? board.weeks[0];
   const panel = frame(root, `<div class="coach"></div>`);
   const state = stateFor(board, week, activeSlot);
+
+  // Whether this render is the lock itself (see `badged`).
+  const was = badged.get(root);
+  badged.set(root, { week: week.week, slot: activeSlot, selection: state.selection });
+  const sealing =
+    was?.week === week.week &&
+    was?.slot === activeSlot &&
+    was.selection === "picked" &&
+    state.selection === "locked";
 
   // The frame survives every render. Keep its identity stable for the shared
   // data-settle motion, while the signature says when the read it is showing
@@ -112,7 +144,7 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0, handlers = {}
   // nothing to quote - a week nobody priced.
   const page =
     state.kind === "working" || (state.kind === "past" && closingPricing(state))
-      ? `<div class="coach__page" data-key="page">${head(state)}${chain(state, board)}</div>`
+      ? `<div class="coach__page" data-key="page">${head(state, sealing)}${chain(state, board)}</div>`
       : "";
   const routeMarkup = state.kind === "none" ? "" : route(state, board);
   // Keep the chart's outer frame independent of the markup inside it. The
@@ -121,6 +153,7 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0, handlers = {}
   // made the line disappear and reappear for a frame at the end of a swipe.
   const routeShell = routeMarkup ? `<section class="route" data-key="route"></section>` : "";
   reconcile(panel, state.kind === "none" ? "" : page + routeShell);
+  if (sealing) sealed(panel);
   if (routeMarkup) renderRoute(panel.querySelector(':scope > [data-key="route"]'), routeMarkup);
   // The live board only. A week being staged for a swipe is rendered into a
   // detached box (stageWeek in app.js), and a copy that is about to be thrown
@@ -449,7 +482,12 @@ function closingPricing(state) {
   return pricing?.market ? pricing : null;
 }
 
-function head(state) {
+/**
+ * @param {boolean} sealing Whether this render is the lock being made, in
+ *   which case the badge carries the state it is leaving as well as the one it
+ *   is arriving at, and the two cross (coach__focus--sealing in motion.css).
+ */
+function head(state, sealing = false) {
   const { week, selection } = state;
   const focus =
     selection === "picked" ? "Your pick" : selection === "locked" ? "Locked pick" : "Coach preview";
@@ -463,10 +501,70 @@ function head(state) {
   // twice in one readout, the small copy is the one that reads as a caption
   // on the chain rather than as the subject of it, and the line it took is
   // the head's to give.
+  //
+  // The badge, and on the render that locks the pick the badge it is replacing
+  // laid over it. A lock used to change one word inside a box that stayed the
+  // same shape in the same colour - the quietest mark on the board for the one
+  // decision on it that cannot be taken back by looking away. Now the ring
+  // closes up the way the card's own rectangle does (field.css), the dot the
+  // board draws a pending pick with becomes the padlock it draws a locked one
+  // with, and the two states cross rather than one being swapped for the other.
   return `<div class="coach__head" data-key="head">
-    <span class="coach__focus"><span class="coach__pulse" aria-hidden="true"></span>${focus}</span>
+    <span class="coach__focus${sealing ? " coach__focus--sealing" : ""}">
+      <span class="coach__focus-say">${focusMark(selection)}${focus}</span>
+      ${sealing ? `<span class="coach__focus-say coach__focus-say--gone" aria-hidden="true">${focusMark("picked")}Your pick</span>` : ""}
+    </span>
     <span class="u-eyebrow coach__what">${what} · Wk ${String(week.week).padStart(2, "0")}</span>
   </div>`;
+}
+
+/** The badge's own mark: the padlock once it is locked, the dot until then. */
+function focusMark(selection) {
+  return selection === "locked" ? LOCK : `<span class="coach__pulse" aria-hidden="true"></span>`;
+}
+
+/**
+ * Take the lock's motion off the badge once it has played, leaving the badge
+ * the board is now in.
+ *
+ * A one-shot has to be cleared by the thing that started it - the card's own
+ * ink strike is cleared the same way (playEffect in app.js) - and not left in
+ * the markup to be found again later. The badge it replaced is a copy of a
+ * state that has gone, so it goes; the class is what draws the ring, so it
+ * goes with it.
+ *
+ * Which matters more here than on the card, because this box is a size
+ * container whose head the shortest phones fold away (.coach__head in
+ * components.css): a keyframe left declared on a node that is hidden and shown
+ * again is a keyframe that plays again, on nothing that just happened.
+ *
+ * Asked of the animations themselves rather than timed beside them, so a
+ * duration changed in motion.css needs nothing changed here.
+ *
+ * After a frame, though, and that part is not optional: this badge was written
+ * into the page a moment ago, and the keyframes on a node that new do not
+ * exist yet to be waited for. Asked straight away, the browser answered "no
+ * motion here" and the class came off before a pixel of it had played.
+ *
+ * A keyframe cancelled counts as one finished (afterMotion), and here that is
+ * the behaviour we want rather than a detail to work around. This box is a
+ * size container, and Chrome cancels and restarts the keyframes inside one
+ * while the board re-lays itself around a lock - measured: with the
+ * containment lifted the crossing plays once, straight through, and with it on
+ * the same crossing starts over two or three times in a second. Clearing on
+ * the first cancel is what makes that a crossing cut short instead of a badge
+ * flicking between two states: whatever the browser does, the badge is left
+ * reading the one thing that is true.
+ */
+function sealed(panel) {
+  const focus = panel.querySelector(".coach__focus--sealing");
+  if (!focus) return;
+  twoFrames()
+    .then(() => afterMotion(focus))
+    .then(() => {
+      focus.classList.remove("coach__focus--sealing");
+      focus.querySelector(".coach__focus-say--gone")?.remove();
+    });
 }
 
 /**

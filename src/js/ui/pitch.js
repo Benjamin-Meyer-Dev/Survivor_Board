@@ -36,6 +36,7 @@ import { formatPercent, escapeHtml } from "../core/format.js";
 import { formatDuration } from "../core/refresh.js";
 import { delegate } from "./events.js";
 import { frame, paint, reconcile } from "./patch.js";
+import { afterMotion, twoFrames } from "./motion.js";
 
 /** How long the season number wears the colour of its change (see motion.css). */
 const PULSE_MS = 1400;
@@ -46,6 +47,21 @@ const PULSE_MS = 1400;
  * never shows one pool's number on the other's board.
  */
 const shown = new Map();
+
+/**
+ * The settled "if locked" figure each league's readout is quoting, and which
+ * way it moves the season. Kept for the render that takes it: a lock is the
+ * readout being answered, and the number it was quoting a tap ago is what
+ * leaves the readout and what the flag then carries. Null while there is no
+ * lock to price, or while the rehearsal behind one is still out.
+ */
+const quoted = new Map();
+
+/**
+ * The figure a lock was priced at, held on the flag until the plan behind the
+ * lock lands. Keyed by league, and dropped the moment that plan is in.
+ */
+const promised = new Map();
 
 /** The change the season number is currently wearing, resumed across renders. */
 let pulse = null;
@@ -104,9 +120,30 @@ const LOCK = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" wid
  * @param {HTMLElement} root
  * @param {object} board Result of buildBoard().
  * @param {number} viewWeek The week being looked at (1-based).
- * @param {{onWeekChange:(week:number)=>void}} handlers
+ * @param {{onWeekChange:(week:number)=>void, locking?:boolean}} handlers
+ *   `locking` says this render is a lock or an unlock being made, which is the
+ *   one render where the readout has just been answered (see `quoted`).
  */
 export function renderPitch(root, board, viewWeek, handlers) {
+  // The figure the readout was quoting, where this render is the lock that
+  // took it. An unlock comes through here too and finds nothing: a slot with
+  // no pick pending in it has no lock to price, so its readout was a dash.
+  const taken = handlers.locking ? (quoted.get(board.league) ?? null) : null;
+  quoted.set(
+    board.league,
+    board.previewPending || board.previewPathProbability === null
+      ? null
+      : { probability: board.previewPathProbability, change: previewChange(board) },
+  );
+  // buildBoard prices the lock to the digit before it is made (core/plan.js:
+  // the preview IS the search the lock will be answered with), so the flag can
+  // take that number the moment the lock lands rather than carrying the
+  // season's old one for the second the re-plan takes. Where the lock's search
+  // was already in the memo the board arrives complete and the promise is
+  // nothing to keep.
+  if (taken !== null && board.recommendationPending) promised.set(board.league, taken.probability);
+  if (!board.recommendationPending) promised.delete(board.league);
+
   const before = shown.get(board.league)?.probability;
   const season = seasonSurvival(board);
 
@@ -171,7 +208,8 @@ export function renderPitch(root, board, viewWeek, handlers) {
   // The readouts, and the countdown set into them after: it changes every
   // second, so carrying it in the markup made the readouts a change on every
   // render, and the row was rebuilt for a number app.js ticks in place anyway.
-  paint(pitch.querySelector(".pitch__stats"), stats(board));
+  paint(pitch.querySelector(".pitch__stats"), stats(board, taken));
+  if (taken !== null) spent(pitch);
   const countdown = pitch.querySelector("#countdown");
   if (countdown) countdown.textContent = formatDuration(board.nextRefreshAt - Date.now());
 
@@ -380,8 +418,11 @@ function slotMark(pick, bought = false) {
 /**
  * The drive line's readouts: where the lines stand, what the pool forgives,
  * and what a pick being weighed would do to the season.
+ *
+ * @param {{probability:number, change:string}|null} taken The figure the "if
+ *   locked" readout was quoting where this render is the lock that took it.
  */
-function stats(board) {
+function stats(board, taken = null) {
   const items = [];
 
   // How long until the lines are pulled again. It holds the slot the week used
@@ -413,7 +454,24 @@ function stats(board) {
   // locked a moment ago - and the number otherwise.
   if (!board.eliminated) {
     if (board.previewPathProbability === null) {
-      items.push(stat("If locked", "—", { modifier: "preview-idle", figure: true }));
+      // The dash, and - on the one render that is a lock being made - the
+      // figure the lock has just taken, leaving on its way to the flag
+      // (pitch__stat-spend in components.css, stat-spend in motion.css). Cut
+      // straight, a lock replaced a coloured number with a grey dash between
+      // two frames while the flag a hand's width along the same row said
+      // nothing at all, and the two halves of the one event were neither of
+      // them a move. The figure keeps the colour it was quoted in the whole
+      // way out: it is the same reading it always was, and it is leaving, not
+      // changing its mind.
+      items.push(
+        taken === null
+          ? stat("If locked", "—", { modifier: "preview-idle", figure: true })
+          : stat(
+              "If locked",
+              `<span class="pitch__stat-spend pitch__stat-spend--${taken.change}" aria-hidden="true">${PREVIEW_ARROW}${escapeHtml(formatPercent(taken.probability))}</span><span class="pitch__stat-dash">—</span>`,
+              { modifier: "preview-idle", raw: true, figure: true },
+            ),
+      );
     } else if (board.previewPending) {
       // The lock is still being rehearsed (memoisedPreview in core/plan.js)
       // and the number in hand is the quick assignment standing in for it. It
@@ -428,20 +486,12 @@ function stats(board) {
         }),
       );
     } else {
-      // Judged as shown: a preview that rounds to the same tenth of a percent
-      // as the season number reads as even, however the unrounded pair fall.
-      const change =
-        formatPercent(board.previewPathProbability) === formatPercent(board.pathProbability)
-          ? "even"
-          : board.previewPathProbability > board.pathProbability
-            ? "better"
-            : "worse";
       items.push(
         stat(
           "If locked",
           `${PREVIEW_ARROW}${escapeHtml(formatPercent(board.previewPathProbability))}`,
           {
-            modifier: `preview-${change}`,
+            modifier: `preview-${previewChange(board)}`,
             raw: true,
             figure: true,
           },
@@ -450,6 +500,45 @@ function stats(board) {
     }
   }
   return items.join("");
+}
+
+/**
+ * Put the readout back to its plain dash once the figure has left it.
+ *
+ * The figure and the dash coming in behind it are a one-shot, and a one-shot
+ * is cleared by whatever started it (playEffect in app.js does the same for
+ * the card's ink strike): left in the markup, a spent figure sits invisibly in
+ * the row until something else happens to repaint it, and its keyframe is
+ * there to be played again by anything that hides the row and shows it.
+ *
+ * A frame first: the row was written a moment ago and its keyframes do not
+ * exist yet to be waited for, so asked at once the browser says there is no
+ * motion here and the figure is cleared before it has left.
+ */
+function spent(pitch) {
+  const value = pitch.querySelector(".pitch__stat-spend")?.closest(".pitch__stat-value");
+  if (!value) return;
+  twoFrames()
+    .then(() => afterMotion(value))
+    .then(() => {
+      value.textContent = "—";
+    });
+}
+
+/**
+ * Which way a previewed lock moves the season, judged as shown: a preview that
+ * rounds to the same tenth of a percent as the season number reads as even,
+ * however the unrounded pair fall.
+ *
+ * Its own function because the figure outlives the readout by a third of a
+ * second - it is still leaving the row when the lock that took it has already
+ * made the readout a dash - and it has to leave in the colour it was read in.
+ */
+function previewChange(board) {
+  if (formatPercent(board.previewPathProbability) === formatPercent(board.pathProbability)) {
+    return "even";
+  }
+  return board.previewPathProbability > board.pathProbability ? "better" : "worse";
 }
 
 /**
@@ -472,6 +561,18 @@ function stat(key, value, { modifier = "", raw = false, figure = false } = {}) {
 
 function seasonSurvival(board) {
   if (board.eliminated) return { value: "Out", out: true };
+  // A lock made a moment ago, with the plan behind it still running. What the
+  // lock was priced at is that plan's own answer to the digit (the rehearsal
+  // in core/plan.js is the search the lock is answered with, run ahead of it),
+  // so the flag carries it from the lock rather than from the landing a second
+  // later. The number moves once, when the person did the thing that moved it,
+  // and the direction it wears is the one the readout had been promising.
+  const priced = promised.get(board.league);
+  if (priced !== undefined) {
+    const cell = { probability: priced, value: formatPercent(priced) };
+    shown.set(board.league, cell);
+    return cell;
+  }
   if (board.recommendationPending && !board.recommendationStale) {
     // A search is owed and no plan stands in. The last number holds, so the
     // number moves once, from here, rather than via a flash of dots.

@@ -1021,7 +1021,13 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = 
   });
   renderNotices(el.notices, { store: app.store, board, message: app.message });
   renderReview(el.review, board);
-  renderPitch(el.pitch, board, app.viewWeek, { onWeekChange: lookAt });
+  renderPitch(el.pitch, board, app.viewWeek, {
+    onWeekChange: lookAt,
+    // A lock is the one render where "if locked" has just been answered: the
+    // readout hands the figure it was quoting to the flag instead of blinking
+    // to a dash (ui/pitch.js). Read before playEffect below takes the effect.
+    locking: app.effect?.className === EFFECT_FOR.lock,
+  });
   renderSelection(board);
   // A run that is over empties the drawer: the lists go, the bar above them
   // goes, and how it ended is the whole of what the drawer holds (renderReview
