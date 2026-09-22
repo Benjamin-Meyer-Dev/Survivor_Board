@@ -1452,19 +1452,19 @@
   color: var(--chalk-3);
 }
 
-/* The figure a lock has just taken, on its way out of the readout while the
-   dash comes in under it (stat-spend in motion.css, written by stats() in
-   ui/pitch.js on the one render that is a lock being made).
+/* What the readout has just stopped saying, on its way out while what it says
+   now comes up under it (crossing-out in motion.css, written by stats() in
+   ui/pitch.js on the render that locks or unlocks the slot in hand).
 
-   Out of the flow and over the dash, so the row is the width it will be from
-   the first frame: the readout is a column in a row that spreads itself, and a
-   figure shrinking to a dash in place would have walked the readouts either
-   side of it along as it went.
+   Out of the flow and over the new value, so the row is the width it will be
+   from the first frame: the readout is a column in a row that spreads itself,
+   and a figure shrinking to a dash in place would have walked the readouts
+   either side of it along as it went.
 
    It rests at nothing rather than at full. With motion switched off the
    reduced-motion block in base.css kills the keyframe, and what is left is the
-   dash on its own - which is what the readout now says. */
-.pitch__stat-spend {
+   new value on its own - which is what the readout now says. */
+.pitch__stat-gone {
   position: absolute;
   top: 0;
   left: 0;
@@ -1474,17 +1474,23 @@
 
 /* Leaving in the colour it was read in: the direction it was promising is a
    thing it said, not a state the readout is in, and a figure that greyed as it
-   went would read as being taken back rather than taken. */
-.pitch__stat-spend--better {
+   went would read as being taken back rather than taken. The dash an unlock
+   leaves behind keeps its own quiet chalk for the same reason. */
+.pitch__stat-gone--preview-better {
   color: var(--safe);
 }
 
-.pitch__stat-spend--worse {
+.pitch__stat-gone--preview-worse {
   color: var(--danger);
 }
 
-.pitch__stat-spend--even {
+.pitch__stat-gone--preview-even {
   color: var(--chalk);
+}
+
+.pitch__stat-gone--preview-idle,
+.pitch__stat-gone--preview-pending {
+  color: var(--chalk-3);
 }
 
 /* The rule that stands in for the number while the lock is being rehearsed
@@ -2322,6 +2328,22 @@
    It rests at nothing: with motion switched off (base.css) the keyframe that
    takes it away never runs, and what is left is the badge the board is now in
    - which is the state a person who has switched motion off should be shown. */
+/* The ring struck round the badge as it crosses (motion.css). A real element
+   rather than a ::after on the badge, because what plays it is script rather
+   than the cascade (ownMotion in ui/motion.js) and a pseudo element is not
+   everybody's to animate that way. It is written into the badge only for the
+   crossing and taken out after it, so a badge at rest carries no ring at all.
+   Rests at nothing, so with motion switched off (base.css) it never shows. */
+.coach__focus-ring {
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--flag);
+  border-radius: 999px;
+  box-shadow: 0 0 6px color-mix(in srgb, var(--flag) 36%, transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+
 .coach__focus-say--gone {
   position: absolute;
   inset: 0;

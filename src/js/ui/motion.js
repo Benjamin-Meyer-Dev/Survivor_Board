@@ -82,6 +82,82 @@ export async function playOnce(node, classes, { subtree = true, keep = [] } = {}
   node.classList.remove(...classes.filter((name) => !keep.includes(name)));
 }
 
+/**
+ * Play a class's keyframes, but run them from script rather than leaving them
+ * to the stylesheet - and take the class off again at the end.
+ *
+ * `playOnce` for the one box on the board where playOnce does not work. The
+ * coach's case is a size container (layout.css), and while the board re-lays
+ * itself around a lock Chrome cancels and restarts every CSS animation inside
+ * one: a half-second crossing there starts over two or three times, and a CSS
+ * transition is dropped to its end value outright. Measured three ways in the
+ * same second, in the same box, on the same pixel - the keyframe restarted
+ * six times, the transition never ran, and the scripted animation ran straight
+ * through - because an animation made by script is not part of the cascade and
+ * a restyle has no opinion about it.
+ *
+ * The keyframes are still the stylesheet's. The class is put on, the node is
+ * laid out so the browser makes the animations the class asks for, and each of
+ * them is read back and made again by hand with its own timing; then the class
+ * goes, which takes the browser's copies with it. Cancelling them instead
+ * would only have the browser make them again at its next look at the node.
+ * So every duration, easing and delay still lives in motion.css beside the
+ * keyframes it belongs to, and nothing here knows how long anything takes.
+ *
+ * All of it in one task, before a frame is painted, so the node is never seen
+ * in the state the class leaves it in.
+ *
+ * Only the animations the class itself started are taken over: what was
+ * already running in there is somebody else's, and something like the coach's
+ * pulse - which never ends - would hold this open for ever.
+ *
+ * @param {Element|null} node
+ * @param {string[]} classes
+ * @param {{subtree?:boolean}} [options]
+ * @returns {Promise<void>} Resolves when the last of them has finished.
+ */
+export async function ownMotion(node, classes, { subtree = true } = {}) {
+  if (!node) return;
+  if (prefersReducedMotion()) return;
+
+  const before = new Set(node.getAnimations({ subtree }));
+  node.classList.add(...classes);
+  // Style and lay the node out, or there is nothing yet to take over.
+  void node.offsetWidth;
+  const declared = node
+    .getAnimations({ subtree })
+    .filter((animation) => !before.has(animation) && animation.effect?.target)
+    .map((animation) => {
+      const effect = animation.effect;
+      const timing = effect.getComputedTiming();
+      return {
+        target: effect.target,
+        pseudoElement: effect.pseudoElement ?? undefined,
+        // `computedOffset` is what the browser worked the keyframe's place out
+        // to be; `offset` is what the stylesheet asked for, and is the one a
+        // new animation is made from.
+        frames: effect.getKeyframes().map(({ computedOffset: _, ...frame }) => frame),
+        timing: {
+          delay: timing.delay,
+          endDelay: timing.endDelay,
+          duration: timing.duration,
+          easing: timing.easing,
+          fill: timing.fill,
+          direction: timing.direction,
+          iterations: timing.iterations,
+        },
+      };
+    });
+  node.classList.remove(...classes);
+  if (declared.length === 0) return;
+
+  const owned = declared.map((one) =>
+    one.target.animate(one.frames, { ...one.timing, pseudoElement: one.pseudoElement }),
+  );
+  const finished = Promise.allSettled(owned.map((animation) => animation.finished));
+  await Promise.race([finished, wait(GUARD_MS)]);
+}
+
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

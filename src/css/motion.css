@@ -652,24 +652,22 @@
   animation: ink-strike 0.46s cubic-bezier(0.33, 0, 0.2, 1) 0.1s both;
 }
 
-/* The coach's badge changing tense with it: YOUR PICK becomes LOCKED PICK, the
-   dot becomes the padlock, and the dashed ring round the two closes up.
+/* --- one state crossing over another ---------------------------------------
+   Two readouts on this board answer the same question in two places - the
+   coach's badge says which of the three things the card is reading, and the
+   drive line says what locking the slot in hand would be worth - and a lock
+   changes both of them at once. Swapped between frames neither was a change
+   anybody saw: the eye is on the card and the field when a lock is made, and
+   these sit above and below it.
 
-   Those are three changes to a box eighty pixels wide, and swapped between
-   frames they were none of them a change anybody saw - the eye is on the card
-   and the field when a lock is made, and the badge is at the top of the box
-   between them. So the badge it is leaving is laid over the badge it is
-   arriving at (head in ui/coach.js) and the two cross: the old one lifts and
-   goes, the new one comes up under it a beat behind, and the ring is struck
-   round the pair the way the card's own rectangle is struck below.
+   So on a lock, and on an unlock, the thing being left is laid over the thing
+   being arrived at (head in ui/coach.js, stats in ui/pitch.js) and the two
+   cross: the old lifts and goes, the new comes up under it a beat behind. One
+   pair of keyframes for both, because it is one event said twice.
 
-   Five pixels each way, half a cap height at this size. The badge is the
-   smallest thing on the board that is allowed to move and it moves the least.
-
-   Which render this plays on is decided in ui/coach.js, not here: the panel
-   wears .coach--locked whenever the card is on a locked week, and a class the
-   board is simply in is not a thing that happened. */
-@keyframes badge-gone {
+   Five pixels, about half a cap height at these sizes. These are the smallest
+   things on the board that are allowed to move and they move the least. */
+@keyframes crossing-out {
   from {
     opacity: 1;
     transform: translateY(0);
@@ -681,7 +679,7 @@
   }
 }
 
-@keyframes badge-here {
+@keyframes crossing-in {
   from {
     opacity: 0;
     transform: translateY(5px);
@@ -693,27 +691,25 @@
   }
 }
 
+/* The badge. Which render this plays on is decided in ui/coach.js, not here:
+   the panel wears .coach--locked whenever the card is on a locked week, and a
+   class the board is simply in is not a thing that happened. So is the running
+   of it - the case is a size container and Chrome will not keep a CSS
+   animation alive inside one while the board re-lays itself, so ownMotion
+   takes these keyframes over and plays them from script. The timing stays
+   here, where every other duration in the app is. */
 .coach__focus--sealing .coach__focus-say--gone {
-  animation: badge-gone 0.3s var(--ease-out) both;
+  animation: crossing-out 0.3s var(--ease-out) both;
 }
 
 .coach__focus--sealing > .coach__focus-say:first-child {
-  animation: badge-here 0.3s var(--ease-out) 0.13s both;
+  animation: crossing-in 0.3s var(--ease-out) 0.13s both;
 }
 
-/* The ring, struck on the border it has just closed: the same overlay the card
-   below gets, on the same keyframe, a beat after it so the two read as one
-   thing settling rather than two things flashing. Declared here rather than on
-   the badge itself so nothing is drawn until a lock draws it. */
-.coach__focus--sealing::after {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border: 1px solid var(--flag);
-  border-radius: 999px;
-  box-shadow: 0 0 6px color-mix(in srgb, var(--flag) 36%, transparent);
-  pointer-events: none;
-  opacity: 0;
+/* The ring, struck on the border that has just closed - or opened: the same
+   overlay the card below gets, on the same keyframe, a beat after it, so the
+   two read as one thing settling rather than two things flashing. */
+.coach__focus--sealing .coach__focus-ring {
   animation: ink-strike 0.5s cubic-bezier(0.33, 0, 0.2, 1) 0.12s both;
 }
 
@@ -1406,53 +1402,32 @@
   animation: chalk-draw 1.1s ease-in-out infinite;
 }
 
-/* --- a lock being taken ----------------------------------------------------
-   "If locked" has been answered. The number the readout was quoting is the
-   season's now, so it leaves the readout the way the flag lies - up and along
-   the row - and the dash is chalked in behind it once it is clear.
+/* --- the lock's own readout changing its answer -----------------------------
+   "If locked" has been answered, or asked again. On a lock the number the
+   readout was quoting is the season's now, and the readout drops to its dash;
+   on an unlock the dash goes and the readout opens again on the lock it could
+   make next. Cut straight, both were a value replaced between two frames while
+   the flag a hand's width along the same row said nothing at all.
 
-   What it is leaving towards takes it in the same beat: the flag carries the
-   lock's own price from this render rather than the season's old number until
-   the re-plan lands (seasonSurvival in ui/pitch.js), and says which way it
-   went in colour, as it always has. Nothing is added to the flag itself - the
-   season number moves and wears its direction and does nothing else.
+   The same crossing the badge plays, on the same keyframes, because it is the
+   same event: the two are what the board says about a lock, above the card and
+   below the field. What the number is leaving towards takes it in the same
+   beat - the flag carries the lock's own price from this render rather than
+   the season's old number until the re-plan lands (seasonSurvival in
+   ui/pitch.js) - and says which way it went in colour, as it always has.
+   Nothing is added to the flag itself.
 
    Opacity and transform only, and short. A lock sets off a re-plan a second
    later (REPLAN_DELAY_MS in app.js) that blocks the main thread in bursts, and
-   this is over long before then; declared this way it would run on the
-   compositor regardless.
-
-   Seven pixels, which is about half the figure's own cap height: far enough to
-   read as leaving, not so far that it is a figure flying across the board. */
-@keyframes stat-spend {
-  from {
-    opacity: 1;
-    transform: none;
-  }
-
-  to {
-    opacity: 0;
-    transform: translate(7px, -7px);
-  }
+   this is over long before then. The drive line is outside the coach's case,
+   so unlike the badge these keep to the cascade. */
+.pitch__stat-gone {
+  animation: crossing-out 0.28s var(--ease-out) both;
 }
 
-@keyframes stat-taken {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-.pitch__stat-spend {
-  animation: stat-spend 0.34s var(--ease-out) both;
-}
-
-/* The dash waits for the figure to be most of the way gone: the two are the
-   same handful of pixels of the row, and crossing them at full made a smudge
-   rather than a change. */
-.pitch__stat-dash {
-  animation: stat-taken 0.2s var(--ease-out) 0.22s both;
+/* The new value waits for the old to be most of the way gone: the two stand in
+   the same handful of pixels of the row, and crossed at full they made a
+   smudge rather than a change. */
+.pitch__stat-here {
+  animation: crossing-in 0.26s var(--ease-out) 0.16s both;
 }

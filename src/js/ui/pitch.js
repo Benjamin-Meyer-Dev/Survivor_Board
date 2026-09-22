@@ -49,11 +49,10 @@ const PULSE_MS = 1400;
 const shown = new Map();
 
 /**
- * The settled "if locked" figure each league's readout is quoting, and which
- * way it moves the season. Kept for the render that takes it: a lock is the
- * readout being answered, and the number it was quoting a tap ago is what
- * leaves the readout and what the flag then carries. Null while there is no
- * lock to price, or while the rehearsal behind one is still out.
+ * What each league's "if locked" readout is saying, as ifLocked() wrote it.
+ * Kept for the render that changes it: a lock and an unlock are the readout
+ * being answered and asked again, and what it said a tap ago is what crosses
+ * off it. The figure in it is also what the flag takes on a lock.
  */
 const quoted = new Map();
 
@@ -125,23 +124,26 @@ const LOCK = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" wid
  *   one render where the readout has just been answered (see `quoted`).
  */
 export function renderPitch(root, board, viewWeek, handlers) {
-  // The figure the readout was quoting, where this render is the lock that
-  // took it. An unlock comes through here too and finds nothing: a slot with
-  // no pick pending in it has no lock to price, so its readout was a dash.
-  const taken = handlers.locking ? (quoted.get(board.league) ?? null) : null;
-  quoted.set(
-    board.league,
-    board.previewPending || board.previewPathProbability === null
-      ? null
-      : { probability: board.previewPathProbability, change: previewChange(board) },
-  );
+  // What the readout was saying, where this render is the lock or the unlock
+  // that changes it. A readout that says the same thing either side of one has
+  // nothing to cross with: a lock made in the OTHER slot of a two-pick week
+  // leaves this one's dash exactly where it was.
+  const now = ifLocked(board);
+  const was = handlers.locking ? (quoted.get(board.league) ?? null) : null;
+  quoted.set(board.league, now);
+  const crossing = was && was.html !== now.html ? was : null;
   // buildBoard prices the lock to the digit before it is made (core/plan.js:
   // the preview IS the search the lock will be answered with), so the flag can
   // take that number the moment the lock lands rather than carrying the
   // season's old one for the second the re-plan takes. Where the lock's search
   // was already in the memo the board arrives complete and the promise is
-  // nothing to keep.
-  if (taken !== null && board.recommendationPending) promised.set(board.league, taken.probability);
+  // nothing to keep. An unlock has no promise to hand over - the readout it
+  // was showing was a dash - and the flag moves when the re-plan lands, as it
+  // always did.
+  const priced = crossing?.probability ?? null;
+  if (priced !== null && now.probability === null && board.recommendationPending) {
+    promised.set(board.league, priced);
+  }
   if (!board.recommendationPending) promised.delete(board.league);
 
   const before = shown.get(board.league)?.probability;
@@ -208,8 +210,8 @@ export function renderPitch(root, board, viewWeek, handlers) {
   // The readouts, and the countdown set into them after: it changes every
   // second, so carrying it in the markup made the readouts a change on every
   // render, and the row was rebuilt for a number app.js ticks in place anyway.
-  paint(pitch.querySelector(".pitch__stats"), stats(board, taken));
-  if (taken !== null) spent(pitch);
+  paint(pitch.querySelector(".pitch__stats"), stats(board, now, crossing));
+  if (crossing) crossed(pitch);
   const countdown = pitch.querySelector("#countdown");
   if (countdown) countdown.textContent = formatDuration(board.nextRefreshAt - Date.now());
 
@@ -419,10 +421,11 @@ function slotMark(pick, bought = false) {
  * The drive line's readouts: where the lines stand, what the pool forgives,
  * and what a pick being weighed would do to the season.
  *
- * @param {{probability:number, change:string}|null} taken The figure the "if
- *   locked" readout was quoting where this render is the lock that took it.
+ * @param {object} now What the "if locked" readout says on this board.
+ * @param {object|null} crossing What it said a tap ago, where this render is
+ *   the lock or unlock that changed it.
  */
-function stats(board, taken = null) {
+function stats(board, now, crossing = null) {
   const items = [];
 
   // How long until the lines are pulled again. It holds the slot the week used
@@ -453,75 +456,82 @@ function stats(board, taken = null) {
   // go: a dash when there is nothing in hand to lock - the slot is empty, or was
   // locked a moment ago - and the number otherwise.
   if (!board.eliminated) {
-    if (board.previewPathProbability === null) {
-      // The dash, and - on the one render that is a lock being made - the
-      // figure the lock has just taken, leaving on its way to the flag
-      // (pitch__stat-spend in components.css, stat-spend in motion.css). Cut
-      // straight, a lock replaced a coloured number with a grey dash between
-      // two frames while the flag a hand's width along the same row said
-      // nothing at all, and the two halves of the one event were neither of
-      // them a move. The figure keeps the colour it was quoted in the whole
-      // way out: it is the same reading it always was, and it is leaving, not
-      // changing its mind.
-      items.push(
-        taken === null
-          ? stat("If locked", "—", { modifier: "preview-idle", figure: true })
-          : stat(
-              "If locked",
-              `<span class="pitch__stat-spend pitch__stat-spend--${taken.change}" aria-hidden="true">${PREVIEW_ARROW}${escapeHtml(formatPercent(taken.probability))}</span><span class="pitch__stat-dash">—</span>`,
-              { modifier: "preview-idle", raw: true, figure: true },
-            ),
-      );
-    } else if (board.previewPending) {
-      // The lock is still being rehearsed (memoisedPreview in core/plan.js)
-      // and the number in hand is the quick assignment standing in for it. It
-      // is near, not right - a Bills pick read 0.9% for the beat and 0.8% once
-      // the rehearsal landed - so the readout waits rather than saying a number
-      // it will take back. app.js builds again when the rehearsal lands.
-      items.push(
-        stat("If locked", `${PREVIEW_ARROW}${PREVIEW_RULE}`, {
-          modifier: "preview-pending",
-          raw: true,
-          figure: true,
-        }),
-      );
-    } else {
-      items.push(
-        stat(
-          "If locked",
-          `${PREVIEW_ARROW}${escapeHtml(formatPercent(board.previewPathProbability))}`,
-          {
-            modifier: `preview-${previewChange(board)}`,
-            raw: true,
-            figure: true,
-          },
-        ),
-      );
-    }
+    // On the render that locks or unlocks, what the readout was saying stands
+    // over what it says now and the two cross (crossing-out and crossing-in in
+    // motion.css). The outgoing copy keeps the colour it was read in - it is
+    // the same reading it always was, and it is leaving, not changing its mind
+    // - and is hidden from a screen reader, which is told the new one.
+    const value = crossing
+      ? `<span class="pitch__stat-gone pitch__stat-gone--${crossing.modifier}" aria-hidden="true">${crossing.html}</span><span class="pitch__stat-here">${now.html}</span>`
+      : now.html;
+    items.push(stat("If locked", value, { modifier: now.modifier, raw: true, figure: true }));
   }
   return items.join("");
 }
 
 /**
- * Put the readout back to its plain dash once the figure has left it.
+ * What the "if locked" readout says, as the three things it can be: a dash
+ * where there is no lock to price - the slot is empty, or was locked a moment
+ * ago - a chalk rule while the lock is being rehearsed, and the number once
+ * the rehearsal is in.
  *
- * The figure and the dash coming in behind it are a one-shot, and a one-shot
- * is cleared by whatever started it (playEffect in app.js does the same for
- * the card's ink strike): left in the markup, a spent figure sits invisibly in
- * the row until something else happens to repaint it, and its keyframe is
- * there to be played again by anything that hides the row and shows it.
+ * One function rather than three branches where it is written, because what it
+ * said last is compared against what it says now, across a lock, to know
+ * whether the readout has anything to cross (renderPitch). The rule is the
+ * middle of those three: the lock is still being rehearsed (memoisedPreview in
+ * core/plan.js), and the number in hand is the quick assignment standing in
+ * for it - near, not right, a Bills pick reading 0.9% for the beat and 0.8%
+ * once the rehearsal landed - so the readout waits rather than saying a number
+ * it will take back. app.js builds again when the rehearsal lands.
+ *
+ * @returns {{html:string, modifier:string, probability:number|null}}
+ */
+function ifLocked(board) {
+  if (board.eliminated || board.previewPathProbability === null) {
+    return { html: "—", modifier: "preview-idle", probability: null };
+  }
+  if (board.previewPending) {
+    return {
+      html: `${PREVIEW_ARROW}${PREVIEW_RULE}`,
+      modifier: "preview-pending",
+      probability: null,
+    };
+  }
+  return {
+    html: `${PREVIEW_ARROW}${escapeHtml(formatPercent(board.previewPathProbability))}`,
+    modifier: `preview-${previewChange(board)}`,
+    probability: board.previewPathProbability,
+  };
+}
+
+/**
+ * Take the value the readout has left out of it, once it has gone.
+ *
+ * A one-shot is cleared by whatever started it - the card's ink strike is
+ * cleared the same way (playEffect in app.js) - and not left in the markup to
+ * be found again: a value that has left sits invisibly in the row until
+ * something else happens to repaint it, with its keyframe there to be played
+ * again by anything that hides the row and shows it.
+ *
+ * Waited on by the copy that is leaving alone, and not by what it is crossing
+ * with: on an unlock the readout arrives on the chalk rule the rehearsal is
+ * drawn with, and that rule is drawn over and over until the number lands
+ * (chalk-draw in motion.css). Asked to wait for everything in the box, this
+ * would wait for a thing that never ends.
  *
  * A frame first: the row was written a moment ago and its keyframes do not
  * exist yet to be waited for, so asked at once the browser says there is no
- * motion here and the figure is cleared before it has left.
+ * motion here and the copy is cleared before it has left.
  */
-function spent(pitch) {
-  const value = pitch.querySelector(".pitch__stat-spend")?.closest(".pitch__stat-value");
-  if (!value) return;
+function crossed(pitch) {
+  const gone = pitch.querySelector(".pitch__stat-gone");
+  const here = pitch.querySelector(".pitch__stat-here");
+  if (!gone) return;
   twoFrames()
-    .then(() => afterMotion(value))
+    .then(() => afterMotion(gone, { subtree: false }))
     .then(() => {
-      value.textContent = "—";
+      gone.remove();
+      here?.classList.remove("pitch__stat-here");
     });
 }
 
