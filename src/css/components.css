@@ -1533,6 +1533,8 @@
    box against the head above it reads as a mistake. That is the two-pick
    layout's own margin, below. */
 .call__box {
+  /* For the ink strike a lock plays round this box (motion.css). */
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -1582,7 +1584,13 @@
 /* The week on the clock is lit: a lamp set in the line, ahead of the text.
    Inline-block with the gap as a margin, since the row it used to be laid out
    by is a block now, and lifted to sit on the ink's own middle rather than on
-   the baseline the caps stand on. */
+   the baseline the caps stand on.
+
+   A flat dot, no bloom. It used to carry eight pixels of its own colour glowing
+   out of it, which at this size is not a lit lamp but a smear: the flag is a
+   warm yellow and the turf behind it is green, so the halo landed as a dirty
+   ring of neither colour round a 7px dot. The dot is the flag's own colour and
+   nothing else, which is how every other mark on this board is drawn. */
 .call__when--now::before {
   content: "";
   display: inline-block;
@@ -1591,7 +1599,6 @@
   margin-right: 7px;
   border-radius: 50%;
   background: var(--flag);
-  box-shadow: 0 0 8px var(--flag);
   vertical-align: 0.1em;
 }
 
@@ -1975,6 +1982,8 @@
 }
 
 .tile {
+  /* For the ink strike a lock plays round this box (motion.css). */
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -2490,8 +2499,12 @@
   min-height: 118px;
   padding: 9px 12px 7px;
   overflow: hidden;
+  /* One weight the whole way round. The left edge used to be a 3px bar in the
+     strong chalk - a tab, as though the chart were a sheet clipped into the
+     board - and it only ever said "this is a box", which the other three sides
+     were already saying. What is in the box is a season drawn in two colours
+     and a dozen marks; it does not need a spine as well. */
   border: 1px solid var(--line-soft);
-  border-left: 3px solid var(--line-strong);
   border-radius: var(--radius);
   background:
     radial-gradient(circle at 84% 18%, rgb(243 247 241 / 5%), transparent 27%),
@@ -2503,28 +2516,15 @@
   isolation: isolate;
 }
 
-/* The clipped corner reads like a tagged coach's sheet, without adding a
-   decorative asset to the shell. */
-.route::after {
-  content: "";
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 15px;
-  height: 15px;
-  border-top: 1px solid color-mix(in srgb, var(--flag) 45%, transparent);
-  border-right: 1px solid color-mix(in srgb, var(--flag) 45%, transparent);
-  pointer-events: none;
-}
-
 .route > * {
   position: relative;
   z-index: 1;
 }
 
-/* Two routes on the chart: the edge takes the flag, as the pick has. */
+/* Two routes on the chart: the turf warms towards the flag, as the pick has.
+   It was the left edge that took the flag, and that edge is one weight all the
+   way round the box now. */
 .route--compared {
-  border-left-color: var(--flag);
   background:
     radial-gradient(circle at 88% 12%, var(--flag-soft), transparent 27%),
     linear-gradient(115deg, rgb(0 0 0 / 15%), transparent 48%),

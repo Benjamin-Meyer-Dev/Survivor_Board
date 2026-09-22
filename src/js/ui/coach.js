@@ -407,13 +407,22 @@ function sameTeams(a, b) {
  * team's price, so a slot handed to another team is a different read even in
  * the rare week the two are priced alike. The game it is in adds nothing on
  * top of that, since a team plays once a week and the week is in here.
+ *
+ * Which is why `state.selection` is not in here, though it was: it is not a
+ * figure at all. Locking a pick turns it from "picked" to "locked" and moves
+ * nothing else on this page - the line, the market, the chance and the tier
+ * are the same four numbers they were a moment before, because a lock is a
+ * decision about a price and not a change to it - and the whole read dimmed
+ * and rose anyway, on every lock. The badge over it says which it is, and a
+ * badge changing a word is not this block being read again. Where locking
+ * really does change the read - a slot that was empty and now names a team -
+ * `subject.team` is in here and catches it.
  */
 function readSignature(state) {
-  const { subject, week, selection } = state;
+  const { subject, week } = state;
   const p = subject.pricing;
   const market = p.market;
   return [
-    selection,
     week.week,
     subject.team,
     p.projected,

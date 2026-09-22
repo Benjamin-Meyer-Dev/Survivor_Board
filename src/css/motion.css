@@ -583,19 +583,74 @@
   animation: coach-pulse 1.1s ease-in-out infinite;
 }
 
-/* --- a lock changing ------------------------------------------------------- */
+/* --- a lock inking the card in --------------------------------------------- */
 
-/* Nothing plays. A lock used to raise a wash of chalk dust over the slot and
-   paint a chalk rectangle round it, both on opacity so the pair ran on the
-   compositor - and then it settled and the card looked exactly as it had
-   before the tap. The feedback is in the card now instead of over it: every
-   dashed line on a locked slot closes up to a solid one and stays that way
-   (the chalk block in field.css). A state the card holds, rather than a beat
-   it plays.
+/* A locked slot closes every dashed line on the card to a solid one and keeps
+   it closed (the chalk block in field.css). What plays here is that change
+   being made, rather than the state it leaves behind: a bright line struck
+   round each box that changed - the card's own rectangle and the two tiles its
+   numbers sit in - landing on the border it is replacing and fading off it.
 
-   The card still waits out REPLAN_DELAY_MS before the re-plan (app.js), so the
-   change is painted before the search that answers it blocks the thread. That
-   was never this keyframe's doing. */
+   It replaced a wash of chalk dust over the whole slot, which said "something
+   happened" without saying what, and left the card looking as it had. This one
+   has nothing to say on its own: it is the eye being sent to the three lines
+   that just changed, and it is over before it is looked at directly.
+
+   Opacity and transform alone, so the strike runs on the compositor and keeps
+   running through the re-plan a lock sets off (REPLAN_DELAY_MS in app.js), a
+   few hundred milliseconds with the main thread blocked. The glow is baked
+   into the overlay rather than animated, for the same reason. */
+.call__box::after,
+.call__slot .tile::after {
+  content: "";
+  position: absolute;
+  /* Over the border itself, not inside it: the box positions this against its
+     padding box, so a pixel out each way is exactly the line being struck. */
+  inset: -1px;
+  border: 1px solid var(--chalk);
+  pointer-events: none;
+  opacity: 0;
+}
+
+.call__box::after {
+  border-radius: var(--radius);
+  box-shadow: 0 0 7px color-mix(in srgb, var(--chalk) 40%, transparent);
+}
+
+.call__slot .tile::after {
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 5px color-mix(in srgb, var(--chalk) 34%, transparent);
+}
+
+/* On and off in one move: the line arrives a shade wide of the border and
+   settles onto it, which is the whole of the accent - a ring that grew outward
+   instead read as something leaving the box rather than being drawn on it. */
+@keyframes ink-strike {
+  0% {
+    opacity: 0;
+    transform: scale(1.02);
+  }
+  24% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+.call__box:has(.call__slot.fx-lock)::after {
+  animation: ink-strike 0.5s cubic-bezier(0.33, 0, 0.2, 1) both;
+}
+
+/* The tiles follow the rectangle in, and finish after it. afterMotion watches
+   the slot and its subtree (ui/motion.js), which is these and not the card's
+   own rectangle above them - so the last thing to stop has to be one of these,
+   or the class comes off mid-strike. */
+.call__slot.fx-lock .tile::after {
+  animation: ink-strike 0.46s cubic-bezier(0.33, 0, 0.2, 1) 0.1s both;
+}
 
 /* A new team arriving in the slot rises into place, the tiles just behind. */
 @keyframes rise {
