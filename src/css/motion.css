@@ -1157,8 +1157,12 @@
   }
 }
 
+/* The mark settles on the yard line's key, which is everything the line is
+   holding. The name settles on its own (ui/pitch.js), which is the team and
+   nothing else - so locking a pick settles the padlock that replaced the
+   pencil, and leaves the name above it alone. */
 .pitch__yard.is-data-updated .pitch__mark,
-.pitch__yard.is-data-updated .pitch__label {
+.pitch__label.is-data-updated {
   animation: mark-settle 0.32s var(--ease-snap) both;
 }
 

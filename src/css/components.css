@@ -1190,11 +1190,23 @@
 /* The pick's name, chalked down the yard line the way the end zones are
    lettered. It runs from the mark towards the ball; a name too long for the
    column is cut with an ellipsis rather than running into the number. */
+/* The name down the lane, centred in the turf under its mark.
+
+   Both of those take a rule, and it is not the rule you would write for
+   horizontal text. This box is set sideways, so its flex row runs DOWN the
+   lane, not across it: align-items works on the cross axis, which here is the
+   horizontal one, and that is what stands the name under the middle of the
+   mark. Centring it along the lane is justify-content, which was missing - so
+   every name hung from the top of its box and ran out wherever its length
+   ended. A week's two names started level and finished apart, and a short one
+   like TEXAS left fifty pixels of empty turf below it while the name itself
+   sat up under the mark. */
 .pitch__label {
   flex: 1 1 0;
   min-height: 0;
   display: flex;
   align-items: center;
+  justify-content: center;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 11px;

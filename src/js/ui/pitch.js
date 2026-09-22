@@ -313,7 +313,7 @@ function yardMarkup(week, board) {
   return `<button type="button" class="${classes}" data-yard="${week.week}" data-key="${week.week}" tabindex="-1"
       data-motion-key="yard-${week.week}" data-motion-signature="${escapeHtml(signature)}"
       aria-label="Week ${week.week}, ${escapeHtml(week.labelFull)}${moot ? ", not played" : ""}${says ? `, ${escapeHtml(says)}` : ""}">
-      <span class="pitch__lanes">${lanes.map(laneMarkup).join("")}</span>
+      <span class="pitch__lanes">${lanes.map((lane, slot) => laneMarkup(lane, slot, week.week)).join("")}</span>
       <span class="pitch__num">${week.week}</span>
       ${now ? BALL : ""}
     </button>`;
@@ -332,11 +332,24 @@ function mootWeek(week, board) {
 /**
  * One slot's lane. An empty slot still gets its lane, so the other slot's
  * name stands where it always does whether or not this one is filled.
+ *
+ * The name carries a motion key of its own, holding the team and nothing else.
+ * The yard line's key (yardMarkup) covers the marks AND the names, and the two
+ * do not change together: locking a pick turns its mark from a pencilled line
+ * into a padlock while the name above stays the name it was, and the whole
+ * lane settled for it - the name dimming to a quarter and shrinking to 0.82
+ * every time a week was locked in, with nothing about it changed. The mark
+ * settles on the yard's key, the name on its own, and a slot handed to another
+ * team still settles both because both of them changed.
+ *
+ * @param {number} slot Which pick of the week's this lane is, for the key.
+ * @param {number} week
  */
-function laneMarkup({ mark, team }) {
+function laneMarkup({ mark, team }, slot, week) {
+  const key = `yard-${week}-name-${slot}`;
   return `<span class="pitch__lane">
       ${mark ? `<span class="pitch__mark pitch__mark--${mark}">${mark === "locked" ? LOCK : ""}</span>` : ""}
-      ${team ? `<span class="pitch__label">${escapeHtml(team)}</span>` : ""}
+      ${team ? `<span class="pitch__label" data-motion-key="${key}" data-motion-signature="${escapeHtml(team)}">${escapeHtml(team)}</span>` : ""}
     </span>`;
 }
 
