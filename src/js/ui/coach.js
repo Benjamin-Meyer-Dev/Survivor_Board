@@ -871,16 +871,16 @@ function route(state, board) {
       .join("");
   };
 
-  // The stretch of the played line a buy back paid for: the run into a week
-  // the pool forgave and the run back out of it, laid over the green in the
-  // orange the field and the call card both mark a forgiven loss in. An
-  // overlay rather than a break in the green, so the two are drawn from the
-  // same points and cannot part company by a pixel at the joins.
+  // The stretch of the played line a buy back paid for: the leg out of a week
+  // the pool forgave and on to the next one, laid over the green in the orange
+  // the field and the call card both mark a forgiven loss in. An overlay
+  // rather than a break in the green, so the two are drawn from the same
+  // points and cannot part company by a pixel at the joins.
   //
-  // Either side of the week, not just the leg into it. A mark on this chart is
-  // a week's own price and nothing cumulative, so the line between two weeks
-  // belongs to neither of them on its own; it takes both to say which week the
-  // colour is about.
+  // The leg out, not the leg in. The run was alive on its own account all the
+  // way into that week; it is only the carrying on afterwards that was bought,
+  // so the orange starts where the season would otherwise have stopped. Which
+  // week paid for it is the mark's to say, and the mark is orange.
   const boughtOf = (entry, tail = null) => {
     const pointAt = (index) =>
       entry.stops[index] && entry.stops[index].prob !== null
@@ -894,7 +894,7 @@ function route(state, board) {
         // into a week of its own, so a buy back there finishes on the same
         // tail the green line does.
         const out = pointAt(index + 1) ?? (index === lastPlayed ? tail : null);
-        const points = [pointAt(index - 1), pointAt(index), out].filter(Boolean);
+        const points = [pointAt(index), out].filter(Boolean);
         return points.length > 1
           ? `<polyline class="route__line route__line--bought" data-key="line-bought-${stop.week}" points="${points.join(" ")}" />`
           : "";

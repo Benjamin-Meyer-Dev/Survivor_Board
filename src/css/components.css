@@ -1536,7 +1536,13 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding: 6px 12px 8px;
+  /* Tight top and bottom. Every pixel the card does not spend is handed
+     straight to the coach's case above it, and the chart in it is the part of
+     this board that is short of room (layout.css hands the case what the field
+     and the card leave over). The head's discs and the tiles' dashed boxes
+     both carry their own inset, so the ink stands a good deal further off the
+     card's edge than these four pixels say. */
+  padding: 4px 12px 6px;
   border-radius: var(--radius);
 }
 
@@ -1659,8 +1665,14 @@
   /* The pager's own height, held whether there is a pager or not: a week with
      one pick draws this row empty, and a card that stood shorter for it would
      put the NFL board's chart and the college board's at two different sizes
-     again - which is the whole of what the paged card was for. */
-  min-height: 36px;
+     again - which is the whole of what the paged card was for.
+
+     Thirty, not the thirty-six the head's discs above stand at. A chevron is
+     not a disc: it carries no fill to be sized, only a 22px stroke, and the
+     six pixels the box was holding around it were air on the one row of the
+     card that has nothing in it but an eyebrow. The thumb still gets its
+     forty-four - the target is the ::after on .call__page, widened to match. */
+  min-height: 30px;
 }
 
 .call__slot-head .call__eyebrow {
@@ -1687,8 +1699,8 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   border: 0;
   border-radius: var(--radius-sm);
@@ -1698,14 +1710,21 @@
   transition: color 160ms ease;
 }
 
-/* The same across as the flip and the lock above it, which is the size this
-   board already uses for something a thumb goes to, and the target reaches
-   past it into the turf either side: forty-four square, which is the size a
-   thumb is. It was a chevron in eighteen pixels when it was first drawn. */
+/* The target reaches past the box into the turf either side: forty-four
+   square, which is the size a thumb is. It was a chevron in eighteen pixels
+   when it was first drawn.
+
+   The box under it used to be thirty-six, matching the flip and the lock in
+   the head above, and the row was as tall as the card's controls for the sake
+   of a stroke with no fill to size. The box came down to thirty and this grew
+   by the three it lost either side, so the thumb has the same square to hit
+   and the card is six pixels shorter in every week of the season. The two
+   chevrons' targets overlap nothing but the count between them, which is not
+   a control. */
 .call__page::after {
   content: "";
   position: absolute;
-  inset: -4px;
+  inset: -7px;
 }
 
 .call__page svg {
@@ -1766,7 +1785,6 @@
   align-items: center;
   gap: 6px;
   min-height: 20px;
-  margin-bottom: 4px;
 }
 
 /* The result, once the week is in the books: painted on, at the far end of
