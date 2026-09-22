@@ -1536,13 +1536,17 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  /* Tight top and bottom. Every pixel the card does not spend is handed
-     straight to the coach's case above it, and the chart in it is the part of
-     this board that is short of room (layout.css hands the case what the field
-     and the card leave over). The head's discs and the tiles' dashed boxes
-     both carry their own inset, so the ink stands a good deal further off the
-     card's edge than these four pixels say. */
-  padding: 4px 12px 6px;
+  /* Every pixel the card does not spend is handed straight to the coach's case
+     above it, and the chart in it is the part of this board that is short of
+     room (layout.css hands the case what the field and the card leave over).
+     So the foot is tight: the tiles' dashed boxes carry their own inset and
+     the card's own dashes are right under them.
+
+     The top is not, and for the opposite reason. The card's first row is two
+     discs, and a disc against the edge of the box it is in reads as having
+     been pushed there - the head's line of chalk is 12 in a 36 row, so trimming
+     here takes turf from the discs and none from the writing. Eight. */
+  padding: 8px 12px 6px;
   border-radius: var(--radius);
 }
 
@@ -1612,14 +1616,19 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 8px;
-  /* Six of turf between the head's controls and the slot's own head row. The
-     two-slot layout used to carry this and the lone slot did not, so the
-     eyebrow's line box started exactly where the lock's disc stopped - which
-     nobody read, because an eyebrow's words sit a few pixels down inside their
-     line. The pager sits on that line now, at the same end of it as the lock,
-     and the lock wears a ring two pixels outside its disc when it is shut. Six
-     is what puts the chevrons clear of it. */
-  margin-top: 6px;
+  /* Turf between the head's controls and the slot's own head row. The two-slot
+     layout used to carry this and the lone slot did not, so the eyebrow's line
+     box started exactly where the lock's disc stopped - which nobody read,
+     because an eyebrow's words sit a few pixels down inside their line. The
+     pager sits on that line now, at the same end of it as the lock, and the
+     lock wears a ring two pixels outside its disc when it is shut.
+
+     Four, where it was six. The chevron's box came down from 36 to 30 and its
+     stroke sits four pixels inside it, so three of the six were being spent
+     twice - once here and once inside the box. Four still clears the ring, and
+     the week's line and the eyebrow under it come back to about the one cap
+     height apart that the head above was tuned for (.call__box). */
+  margin-top: 4px;
   min-height: var(--call-floor, 0);
 }
 
@@ -1643,11 +1652,22 @@
   --call-floor: 0;
 }
 
+/* The slot's seams are named one at a time rather than set by a single gap,
+   because they are not one rhythm. The eyebrow and the chips under it are two
+   readings of the same slot and belong together; the name is the card's
+   headline and wants air over it. A uniform gap gave the two seams the same
+   four pixels and neither was right - the eyebrow's row already carries nine
+   of its own above and below (its line is 12 in a 30 row), so four more read
+   as a break, while the name arrived with nothing to announce it.
+
+   The margins live on the parts rather than here so the sideways layouts
+   below, which lay the same parts out on a grid, take the same seams without
+   restating them. */
 .call__slot {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0;
   min-width: 0;
   border-radius: var(--radius-sm);
 }
@@ -1785,6 +1805,12 @@
   align-items: center;
   gap: 6px;
   min-height: 20px;
+  /* Ten over the name. This is the card's one real break: everything above it
+     is the slot talking about itself - which state it is in, which pick of the
+     week's this is, what the coach makes of it - and everything below is the
+     pick. The chips sit straight under the eyebrow with nothing between them,
+     so the break is in one place instead of two. */
+  margin-bottom: 10px;
 }
 
 /* The result, once the week is in the books: painted on, at the far end of
@@ -1919,6 +1945,9 @@
    stand the same height, and whatever their marks wrap to above, their names,
    games and tiles line up at the bottom. */
 .call__matchup {
+  /* Four under the name: the game line is the name's own small print, so it is
+     nearer to it than anything else on the slot is to anything. */
+  margin-top: 4px;
   font-size: 13px;
   color: var(--chalk-2);
   line-height: 18px;
@@ -1939,6 +1968,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
+  margin-top: 4px;
 }
 
 .tile {
