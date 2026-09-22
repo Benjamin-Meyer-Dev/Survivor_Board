@@ -899,8 +899,8 @@ function route(state, board) {
 
   // A route with no week on it is not a route: a season whose every week is
   // history leaves `you` a line of holes, and it is kept out of the series
-  // here rather than special-cased below, so the scale, the chart's key and
-  // its signature are all about lines that are actually drawn.
+  // here rather than special-cased below, so the scale and the chart's key
+  // are both about lines that are actually drawn.
   const drawn = (entry) => entry.stops.some((stop) => stop.prob !== null);
   const series = [you, alternative].filter((entry) => entry && drawn(entry));
 
@@ -1097,7 +1097,7 @@ function route(state, board) {
             : "";
         const reached =
           reach && Number.isFinite(reach[index]) ? ` data-reach="${figureOf(reach[index])}"` : "";
-        return `<span class="route__dot route__dot--${kind}${lost}${index === at ? " route__dot--here" : ""}" data-key="dot-${kind}-${index}" style="left:${pct(xAt(index))};top:${pct(yAt(stop.prob))};--order:${index}" data-at="${index}" data-week="${stop.week}" data-kind="${kind}"${stop.result ? ` data-result="${stop.result}"` : ""}${stop.bought ? ' data-bought="1"' : ""} data-team="${escapeHtml(nameOf(stop.options))}" data-prob="${figureOf(stop.prob)}" data-legs="${escapeHtml(legsOf(stop.options))}"${reached}></span>`;
+        return `<span class="route__dot route__dot--${kind}${lost}${index === at ? " route__dot--here" : ""}" data-key="dot-${kind}-${index}" style="left:${pct(xAt(index))};top:${pct(yAt(stop.prob))}" data-at="${index}" data-week="${stop.week}" data-kind="${kind}"${stop.result ? ` data-result="${stop.result}"` : ""}${stop.bought ? ' data-bought="1"' : ""} data-team="${escapeHtml(nameOf(stop.options))}" data-prob="${figureOf(stop.prob)}" data-legs="${escapeHtml(legsOf(stop.options))}"${reached}></span>`;
       })
       .join("");
 
@@ -1179,19 +1179,19 @@ function route(state, board) {
     ? `<span class="route__dot route__dot--coach route__dot--here route__dot--lone" data-key="dot-lone" style="left:${pct(xAt(at))};top:${pct(yAt(lone.prob))}" data-at="${at}" data-week="${weeks[at].week}" data-kind="coach" data-team="${escapeHtml(nameOf(lone.options))}" data-prob="${figureOf(lone.prob)}" data-legs="${escapeHtml(legsOf(lone.options))}"></span>`
     : "";
 
-  // Where the coach's route spends the team being looked at: saved for a
-  // later week, or already played in an earlier one.
-  const savedAt = coach.stops.findIndex(
-    (stop, index) => index !== at && stop.options.some((option) => teams.includes(option.team)),
-  );
-  const savedTeams =
-    savedAt >= 0
-      ? coach.stops[savedAt].options.filter((option) => teams.includes(option.team))
-      : [];
-  const saved =
-    savedAt >= 0
-      ? `<span class="route__saved${savedAt / n > 0.62 ? " route__saved--left" : ""}" data-key="saved" style="left:${pct(xAt(savedAt))}"><span class="route__saved-label">Coach ${savedAt > at ? "saves" : "plays"} ${escapeHtml(nameOf(savedTeams))}</span></span>`
-      : "";
+  // Where the coach's route spends the team being looked at - the week it was
+  // saving it for, or the earlier week it had already played it - used to be
+  // called out here, as a flag hung over that week's column reading "Coach
+  // saves Lions", with the week's own number tinted under it.
+  //
+  // The chart says it without being told to. The coach's line is dashed and in
+  // the coach's own chalk, and where it parts from yours is exactly where the
+  // two plans disagree: at the week the coach was saving your team for, the
+  // dashed branch stands above the solid one, which is the whole trade. A
+  // label naming the team on top of that is the chart explaining its own
+  // picture - and it was the one thing in the box that moved horizontally when
+  // a lock changed the plan, jumping between columns while everything else
+  // stayed in its lane.
 
   // The row of weeks under the chart, which is also the row a tap turns the
   // board on (watchAxis). Every week of the season the board has, the weeks a
@@ -1202,7 +1202,7 @@ function route(state, board) {
   const axis = weeks
     .map(
       (week, index) =>
-        `<span class="route__week${index === at ? " route__week--here" : ""}${index === savedAt ? " route__week--saved" : ""}" style="left:${pct(xAt(index))}" data-week="${week.week}">${week.week}</span>`,
+        `<span class="route__week${index === at ? " route__week--here" : ""}" style="left:${pct(xAt(index))}" data-week="${week.week}">${week.week}</span>`,
     )
     .join("");
 
@@ -1238,18 +1238,12 @@ function route(state, board) {
         )
         .join("; ");
 
-  // The chart's own key for the shared data-settle motion (app.js), which the
-  // week it is being looked at from is deliberately not part of: the marks
-  // land again when the plan they are drawing changes, and stay put when all
-  // that moved is the band.
-  const signature = (series.length ? series : [played])
-    .map(
-      (entry) =>
-        `${entry.stops.map((stop) => nameOf(stop.options)).join(">")}@${entry.season ?? "played"}`,
-    )
-    .join("|");
+  // The chart used to carry a key for the shared data-settle motion (app.js),
+  // so that its marks landed again whenever the plan they draw changed. They
+  // do not land any more (the route block in motion.css), so it does not, and
+  // the settle no longer reaches in here at all.
 
-  return `<section class="route${alternative ? " route--compared" : ""}" data-key="route" data-motion-key="coach-route" data-motion-signature="${escapeHtml(signature)}" data-view-week="${viewed.week}" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
+  return `<section class="route${alternative ? " route--compared" : ""}" data-key="route" data-view-week="${viewed.week}" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
     <div class="route__head" data-key="head">
       <span class="route__eyebrow">Survival chance by week</span>
     </div>
@@ -1259,7 +1253,6 @@ function route(state, board) {
       <svg class="route__lines" data-key="lines" viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
         ${anyPlayed ? lineOf(played, "played", liveTail) + boughtOf(played, liveTail) : ""}${alternative ? branchOf(alternative, "coach", apart) : ""}${lineOf(you, ahead)}
       </svg>
-      ${saved}
       ${anyPlayed ? dotsOf(played, "played") : ""}${alternative ? dotsOf(alternative, "coach", { only: apart, reach: reachOf(alternative) }) : ""}${dotsOf(you, ahead, { reach: reachOf(you) })}${loneMark}
       ${figures}
       <span class="route__callout" data-key="callout" hidden></span>

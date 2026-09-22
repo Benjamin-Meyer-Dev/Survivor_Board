@@ -552,20 +552,31 @@
   animation-delay: 70ms;
 }
 
-/* The route's marks land week by week, left to right. Their final positions
-   still carry all the information; the motion only makes a changed model read
-   feel newly plotted. */
-.route.is-data-updated .route__dot {
-  animation: future-land 0.32s var(--ease-out) both;
-  animation-delay: calc(80ms + var(--order, 0) * 12ms);
-}
+/* The route's marks used to land week by week, left to right, whenever the
+   chart's read changed: each one scaled up out of nothing on a delay of its
+   own place in the season. On a chart the week turns under, that read as a
+   season being plotted. On a lock it did not, and a lock is when the chart
+   changes most.
 
-@keyframes future-land {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.3);
-  }
-}
+   Measured on a lock of a team the coach had not called: the re-plan the lock
+   sets off blocks the main thread, so the marks' delays all landed late and
+   bunched - between 440ms and 670ms where they were meant to run from 80 -
+   and the settle's own 650ms timer (playDataUpdates in app.js) took the class
+   off in the middle of them. Of eighteen marks, eleven played, five never
+   started at all, and the coach's lone mark played twice. What the eye got was
+   marks popping on in a random order and one of them blinking - jitter, in the
+   one box on the board that is read rather than tapped.
+
+   Its delays cannot be made to fit, either: they are a keyframe's, and this
+   box is a size container where the browser will not keep a keyframe alive
+   through the re-plan anyway (ownMotion above). So the chart does not land any
+   more. It draws the season it is now drawing, in one frame, and the marks'
+   positions - which were always the whole of the information - are simply in
+   their new places. The tap that changed them has its own answer on the card
+   (the ink strike below).
+
+   The route carries no motion key either (ui/coach.js), so the settle does not
+   reach into the chart to write a class nothing reads. */
 
 @keyframes coach-pulse {
   0%,
