@@ -585,50 +585,17 @@
 
 /* --- a lock changing ------------------------------------------------------- */
 
-/* Both halves of the lock feedback are overlays, drawn on top of the slot and
-   animated on opacity alone, so the motion runs on the compositor and keeps
-   running if the re-plan that follows a lock lands early (see REPLAN_DELAY_MS
-   in app.js). */
-.call__slot::before,
-.call__slot::after {
-  content: "";
-  position: absolute;
-  inset: -6px -8px;
-  border-radius: var(--radius-sm);
-  pointer-events: none;
-  opacity: 0;
-}
+/* Nothing plays. A lock used to raise a wash of chalk dust over the slot and
+   paint a chalk rectangle round it, both on opacity so the pair ran on the
+   compositor - and then it settled and the card looked exactly as it had
+   before the tap. The feedback is in the card now instead of over it: every
+   dashed line on a locked slot closes up to a solid one and stays that way
+   (the chalk block in field.css). A state the card holds, rather than a beat
+   it plays.
 
-/* The wash: chalk dust rising over the slot and settling. */
-.call__slot::before {
-  background: rgb(243 247 241 / 22%);
-}
-
-/* The ring: the chalk rectangle being painted round the pick. */
-.call__slot::after {
-  z-index: 1;
-  box-shadow: inset 0 0 0 2px var(--chalk);
-}
-
-@keyframes lock-pulse {
-  0% {
-    opacity: 0;
-  }
-  18% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
-.call__slot.fx-lock::before {
-  animation: lock-pulse 0.85s cubic-bezier(0.33, 0, 0.2, 1) both;
-}
-
-.call__slot.fx-lock::after {
-  animation: lock-pulse 0.85s cubic-bezier(0.33, 0, 0.2, 1) 80ms both;
-}
+   The card still waits out REPLAN_DELAY_MS before the re-plan (app.js), so the
+   change is painted before the search that answers it blocks the thread. That
+   was never this keyframe's doing. */
 
 /* A new team arriving in the slot rises into place, the tiles just behind. */
 @keyframes rise {

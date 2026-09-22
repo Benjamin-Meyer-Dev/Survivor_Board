@@ -87,6 +87,25 @@ body::after {
   background: rgb(10 58 32 / 35%);
 }
 
+/* Locked, it is gone over in ink. Every broken line on the card closes up -
+   the rectangle round it and the dashed boxes its two numbers sit in - because
+   a dash on this board means provisional and there is nothing provisional left
+   about a week that has been locked in. The colour and the weight do not move;
+   only the line does, so the card does not change its voice when it changes
+   its tense.
+
+   It replaces a chalk-dust pulse that played over the slot on the tap. That
+   said "something happened" for eight hundred milliseconds and then left the
+   card looking exactly as it had; this says "this one is settled" and keeps
+   saying it. */
+.call__box:has(.call__slot--locked) {
+  border-style: solid;
+}
+
+.call__slot--locked .tile {
+  border-style: solid;
+}
+
 /* The coach's plan is pencilled in: a dashed chalk underline in the flag's
    colour, wherever a suggestion is named. */
 .call__slot--empty .call__team,

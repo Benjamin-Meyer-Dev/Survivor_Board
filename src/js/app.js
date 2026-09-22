@@ -173,8 +173,18 @@ const app = {
   arriving: false,
 };
 
-/** Which keyframe an action should play on the slot it changed. */
-const EFFECT_FOR = { lock: "fx-lock", pick: "fx-swap" };
+/**
+ * Which keyframe an action should play on the slot it changed.
+ *
+ * A lock plays none. It used to pulse the slot - a wash of chalk dust and a
+ * rectangle painted round it - and now it says what it has to say by closing
+ * every dashed line on the card to a solid one and leaving it closed
+ * (field.css). That is a state, not a beat, so there is nothing to play. It is
+ * still listed, because an action here claims its slots whether or not it
+ * decorates them (playEffect): the settle the render plays over changed nodes
+ * has to leave them alone either way.
+ */
+const EFFECT_FOR = { lock: null, pick: "fx-swap" };
 
 /**
  * What turns when the week does: a box that clips the slide, and the thing
@@ -202,8 +212,9 @@ const SLIDING = [
  * class hanging on for a beat, and a keyframe lengthened had its class
  * stripped mid-flight, with nothing in the repo able to catch either.
  *
- * @returns {{className:string, nodes:HTMLElement[]}|null} What was decorated,
- *   so the render can keep other motion off the same nodes.
+ * @returns {{className:string|null, nodes:HTMLElement[]}|null} What the action
+ *   claimed, so the render can keep other motion off the same nodes. A null
+ *   className means it claimed them without decorating them.
  */
 function playEffect() {
   const effect = app.effect;
@@ -220,6 +231,12 @@ function playEffect() {
           ),
         ].filter(Boolean);
   if (slots.length === 0) return null;
+
+  // An action with no keyframe of its own still claims its slots. A lock inks
+  // the card in and holds it there (field.css); a slot playing the render's
+  // settle underneath that would be the board animating a change the card is
+  // already showing, which is the beat the lock was just relieved of.
+  if (!effect.className) return { className: null, nodes: slots };
 
   const plays = slots.map((slot) => {
     slot.classList.add(effect.className);
@@ -1723,11 +1740,15 @@ const RECOMMEND_DELAY_MS = 260;
 /**
  * A lock or an unlock changes what the coach has to plan around, so the search
  * runs again. Where it runs on this thread, this is how long to leave the
- * board alone first - about the length of the lock's own feedback (the ring is
- * 850 ms starting 80 ms in, see lock-pulse in motion.css). It is a floor, not
- * the rule: the search then waits on the motion itself (stillness), so a
- * keyframe still running when the timer fires is finished, not cut. Where a
- * worker runs the search this is not used at all.
+ * board alone first: long enough for the card to be seen taking the lock -
+ * every dashed line on it closing up to a solid one (field.css) - before a few
+ * hundred milliseconds of blocked thread land on top of it. It was cut to the
+ * length of the chalk pulse that used to play here and outlived it, because
+ * what it is really buying is a painted frame the eye has had time to read.
+ *
+ * It is a floor, not the rule: the search then waits on the motion itself
+ * (stillness), so a keyframe still running when the timer fires is finished,
+ * not cut. Where a worker runs the search this is not used at all.
  */
 const REPLAN_DELAY_MS = 1000;
 
