@@ -55,7 +55,7 @@ export const POINTS_BY_POSITION = Object.freeze({
 });
 
 /** Chance a player misses the game, by report status, when the entry does not say. */
-export const PROBABILITY_BY_STATUS = Object.freeze({
+const PROBABILITY_BY_STATUS = Object.freeze({
   out: 1,
   suspended: 1,
   ir: 1,

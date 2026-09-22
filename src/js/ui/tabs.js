@@ -32,7 +32,7 @@
 
 import { afterMotion, prefersReducedMotion } from "./motion.js";
 
-export const TABS = Object.freeze([
+const TABS = Object.freeze([
   { id: "week", label: "Sideline", panel: "view-week" },
   { id: "burn", label: "Bench", panel: "view-burn" },
 ]);

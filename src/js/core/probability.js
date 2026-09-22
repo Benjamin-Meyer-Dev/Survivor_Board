@@ -163,7 +163,7 @@ export function winProbFromSpread(spread, model = DEFAULT_MODEL, context = {}) {
  * @param {number} moneyline e.g. -450 or +320
  * @returns {number}
  */
-export function impliedFromMoneyline(moneyline) {
+function impliedFromMoneyline(moneyline) {
   if (moneyline < 0) {
     return -moneyline / (-moneyline + 100);
   }

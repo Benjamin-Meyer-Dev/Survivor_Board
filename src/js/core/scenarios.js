@@ -25,7 +25,7 @@ import { advanceProb } from "./objective.js";
  * How many weeks ahead a future realises the lines for. One: the week after
  * this one is priced when its pick is made, and nothing after it is.
  */
-export const FORESIGHT_WEEKS = 1;
+const FORESIGHT_WEEKS = 1;
 
 /**
  * A small, fast, seedable generator (mulberry32). Not for anything

@@ -696,6 +696,12 @@ function route(state, board) {
   // on the day (week.pathWinProb, core/plan.js), and how each week went. A
   // week with nothing locked in it - a pool joined late, a week the run does
   // not cover - is a hole in the line rather than a nought.
+  //
+  // The weeks the pool actually forgave (board.buyBack.spent, a different list
+  // from the weeks it is willing to forgive) ride the stops they belong to, so
+  // the line and the mark over them can be drawn as a week the run came
+  // through rather than as the week it stopped.
+  const boughtWeeks = new Set(board.buyBack?.spent ?? []);
   const played = {
     stops: weeks.map((week) => {
       if (week.week > historyTo) {
@@ -710,6 +716,7 @@ function route(state, board) {
         options: done.map((pick) => ({ ...pick.onPath, result: pick.status.result })),
         prob: done.length ? week.pathWinProb : null,
         result: done.some((pick) => pick.status.result === "L") ? "L" : "W",
+        bought: done.length > 0 && boughtWeeks.has(week.week),
       };
     }),
   };
@@ -864,6 +871,37 @@ function route(state, board) {
       .join("");
   };
 
+  // The stretch of the played line a buy back paid for: the run into a week
+  // the pool forgave and the run back out of it, laid over the green in the
+  // orange the field and the call card both mark a forgiven loss in. An
+  // overlay rather than a break in the green, so the two are drawn from the
+  // same points and cannot part company by a pixel at the joins.
+  //
+  // Either side of the week, not just the leg into it. A mark on this chart is
+  // a week's own price and nothing cumulative, so the line between two weeks
+  // belongs to neither of them on its own; it takes both to say which week the
+  // colour is about.
+  const boughtOf = (entry, tail = null) => {
+    const pointAt = (index) =>
+      entry.stops[index] && entry.stops[index].prob !== null
+        ? `${xAt(index).toFixed(2)},${yAt(entry.stops[index].prob).toFixed(2)}`
+        : null;
+    const lastPlayed = entry.stops.findLastIndex((stop) => stop.prob !== null);
+    return entry.stops
+      .map((stop, index) => {
+        if (!stop.bought || stop.prob === null) return "";
+        // The last week played runs into the week on the clock rather than
+        // into a week of its own, so a buy back there finishes on the same
+        // tail the green line does.
+        const out = pointAt(index + 1) ?? (index === lastPlayed ? tail : null);
+        const points = [pointAt(index - 1), pointAt(index), out].filter(Boolean);
+        return points.length > 1
+          ? `<polyline class="route__line route__line--bought" data-key="line-bought-${stop.week}" points="${points.join(" ")}" />`
+          : "";
+      })
+      .join("");
+  };
+
   // The branch: the alternative over the weeks it differs on and nowhere else,
   // with the week either side of each run in the line so it leaves the route it
   // is an alternative to and comes back to it. A single week's difference is
@@ -945,10 +983,17 @@ function route(state, board) {
     entry.stops
       .map((stop, index) => {
         if (stop.prob === null || (only && !only[index])) return "";
-        const lost = stop.result === "L" ? " route__dot--lost" : "";
+        // A week the pool bought back is orange rather than red: the mark is
+        // the week, and the week was survived. What happened in the game is
+        // still the callout's to say, a line per team.
+        const lost = stop.bought
+          ? " route__dot--bought"
+          : stop.result === "L"
+            ? " route__dot--lost"
+            : "";
         const reached =
           reach && Number.isFinite(reach[index]) ? ` data-reach="${figureOf(reach[index])}"` : "";
-        return `<span class="route__dot route__dot--${kind}${lost}${index === at ? " route__dot--here" : ""}" data-key="dot-${kind}-${index}" style="left:${pct(xAt(index))};top:${pct(yAt(stop.prob))};--order:${index}" data-at="${index}" data-week="${stop.week}" data-kind="${kind}"${stop.result ? ` data-result="${stop.result}"` : ""} data-team="${escapeHtml(nameOf(stop.options))}" data-prob="${figureOf(stop.prob)}" data-legs="${escapeHtml(legsOf(stop.options))}"${reached}></span>`;
+        return `<span class="route__dot route__dot--${kind}${lost}${index === at ? " route__dot--here" : ""}" data-key="dot-${kind}-${index}" style="left:${pct(xAt(index))};top:${pct(yAt(stop.prob))};--order:${index}" data-at="${index}" data-week="${stop.week}" data-kind="${kind}"${stop.result ? ` data-result="${stop.result}"` : ""}${stop.bought ? ' data-bought="1"' : ""} data-team="${escapeHtml(nameOf(stop.options))}" data-prob="${figureOf(stop.prob)}" data-legs="${escapeHtml(legsOf(stop.options))}"${reached}></span>`;
       })
       .join("");
 
@@ -1108,7 +1153,7 @@ function route(state, board) {
       <span class="route__band" data-key="band" style="left:${pct((at / n) * 100)};width:${pct(100 / n)}"></span>
       ${grid}
       <svg class="route__lines" data-key="lines" viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
-        ${anyPlayed ? lineOf(played, "played", liveTail) : ""}${alternative ? branchOf(alternative, "coach", apart) : ""}${lineOf(you, ahead)}
+        ${anyPlayed ? lineOf(played, "played", liveTail) + boughtOf(played, liveTail) : ""}${alternative ? branchOf(alternative, "coach", apart) : ""}${lineOf(you, ahead)}
       </svg>
       ${saved}
       ${anyPlayed ? dotsOf(played, "played") : ""}${alternative ? dotsOf(alternative, "coach", { only: apart, reach: reachOf(alternative) }) : ""}${dotsOf(you, ahead, { reach: reachOf(you) })}${loneMark}
@@ -1239,9 +1284,17 @@ function reveal(plot, clientX) {
   const marks = [];
   const order = (dot) => (dot.dataset.kind === "you" ? 0 : 1);
   for (const dot of [...column].sort((a, b) => order(a) - order(b))) {
-    const { kind, team, prob, reach, result, legs } = dot.dataset;
+    const { kind, team, prob, reach, result, legs, bought } = dot.dataset;
     if (marks.some((mark) => mark.team === team && mark.prob === prob)) continue;
-    marks.push({ kind, team, prob, reach, result, legs: JSON.parse(legs || "[]") });
+    marks.push({
+      kind,
+      team,
+      prob,
+      reach,
+      result,
+      bought: bought === "1",
+      legs: JSON.parse(legs || "[]"),
+    });
   }
 
   // A line per team rather than per mark: a college pool picks two a week, and
@@ -1258,6 +1311,7 @@ function reveal(plot, clientX) {
           team,
           prob,
           result: result || null,
+          bought: mark.bought,
           reach: mark.reach,
           lead: index === 0,
         }))
@@ -1284,7 +1338,7 @@ function reveal(plot, clientX) {
     rows
       .map(
         (row) =>
-          `<span class="route__callout-row route__callout-row--${row.kind}${row.result === "L" ? " route__callout-row--lost" : ""}${row.lead ? "" : " route__callout-row--leg"}"><i class="route__swatch" aria-hidden="true"></i><span class="route__callout-team">${escapeHtml(row.team)}</span><b class="route__callout-prob">${escapeHtml(row.prob)}</b>${
+          `<span class="route__callout-row route__callout-row--${row.kind}${row.result === "L" ? (row.bought ? " route__callout-row--bought" : " route__callout-row--lost") : ""}${row.lead ? "" : " route__callout-row--leg"}"><i class="route__swatch" aria-hidden="true"></i><span class="route__callout-team">${escapeHtml(row.team)}</span><b class="route__callout-prob">${escapeHtml(row.prob)}</b>${
             reached
               ? `<b class="route__callout-reach">${row.lead ? (row.reach ? escapeHtml(row.reach) : "—") : ""}</b>`
               : ""

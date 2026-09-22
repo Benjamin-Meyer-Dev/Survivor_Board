@@ -36,7 +36,7 @@ export const NFLVERSE_STATS = (season) =>
   `https://github.com/nflverse/nflverse-data/releases/download/stats_team/stats_team_week_${season}.csv`;
 
 /** CollegeFootballData's per-game predicted points, by season and week. */
-export const CFBD_PPA = (season, week) =>
+const CFBD_PPA = (season, week) =>
   `https://api.collegefootballdata.com/ppa/games?year=${season}&week=${week}&seasonType=regular`;
 
 /**
@@ -112,7 +112,7 @@ export function nflEfficiencyFromCsv(csv, season) {
  * else matches once accents and apostrophes are dropped (see
  * boardNameResolver), so this list is only the names that do not.
  */
-export const CFBD_NAMES = Object.freeze({
+const CFBD_NAMES = Object.freeze({
   Massachusetts: "UMass",
   "Florida International": "FIU",
 });

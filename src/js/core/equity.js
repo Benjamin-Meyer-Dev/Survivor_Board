@@ -96,7 +96,7 @@ export const TIE_MARGIN = 0.005;
  * distributions show. College weeks, with a dozen teams above 90%, come out
  * spread thin, which is also what those pools look like.
  */
-export const IMPLIED_TEMPERATURE = 0.07;
+const IMPLIED_TEMPERATURE = 0.07;
 
 /** A field's hold rate when nothing is known about it: the shape of a favourite. */
 const FALLBACK_HOLD = 0.75;
@@ -325,12 +325,12 @@ export function chooseCall(
 }
 
 /** Best across the futures; on the numbers as they stand when they cannot separate two. */
-export function bySurvival(a, b) {
+function bySurvival(a, b) {
   return b.scenarioMean - a.scenarioMean || b.season - a.season || b.weekWinProb - a.weekWinProb;
 }
 
 /** Best equity; survival across the futures when equity cannot separate two. */
-export function byEquity(a, b) {
+function byEquity(a, b) {
   return b.equity - a.equity || bySurvival(a, b);
 }
 

@@ -161,7 +161,7 @@ Everything is switched off by the `prefers-reduced-motion` block in
 
 - Data is namespaced by league: `data/cfb/` and `data/nfl/` hold the same
   files. Never reach across, and never hardcode a league outside
-  `src/js/leagues.js`.
+  `src/js/sports.js`.
 - `plan.json`, `teams.json`, `schedule.json` and `ratings.json` are
   hand-edited (or seeded once by `npm run seed -- <league>`). `odds.json`,
   `form.json`, `stats.json` and `snapshots/` are bot-owned, edits to them will
@@ -189,7 +189,7 @@ Everything is switched off by the `prefers-reduced-motion` block in
 
 ## League differences
 
-A rule that differs between the pools belongs in `src/js/leagues.js` and, for
+A rule that differs between the pools belongs in `src/js/sports.js` and, for
 anything the browser needs at runtime, in that league's `plan.json`. It does
 not belong in a conditional. Concretely:
 

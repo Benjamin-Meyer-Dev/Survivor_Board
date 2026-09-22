@@ -30,7 +30,6 @@ import {
 } from "../src/js/core/rules.js";
 import { CONFIG } from "../src/js/config.js";
 import { atKickoff } from "./lib/feed.mjs";
-import {} from "../src/js/sports.js";
 
 // ---------------------------------------------------------------------------
 // core/rules.js

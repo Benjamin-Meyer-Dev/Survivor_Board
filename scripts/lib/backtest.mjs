@@ -108,7 +108,7 @@ export function scoreSeasonLines(snapshots, results, model) {
  * snapshot's week; the closing line is the last snapshot's line for that game,
  * where there is one.
  */
-export function scoreSeasonProjections({ snapshots, schedule, ratings, model }) {
+function scoreSeasonProjections({ snapshots, schedule, ratings, model }) {
   const closing = new Map();
   for (const snapshot of snapshots) {
     for (const [key, line] of Object.entries(snapshot.lines ?? {})) {

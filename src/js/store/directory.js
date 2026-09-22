@@ -139,7 +139,7 @@ function remember(league) {
 }
 
 /** Take a league off this device's list. The league itself stays where it is. */
-export function forget(code) {
+function forget(code) {
   writeMyLeagues(myLeagues().filter((league) => league.code !== normaliseCode(code)));
 }
 

@@ -90,13 +90,8 @@ export function resolveSport(id) {
   return id && id in SPORTS ? id : SPORT_IDS[0];
 }
 
-/** A sport's display name, for a league card or a script's log. */
-export function sportLabel(id) {
-  return SPORTS[resolveSport(id)].label;
-}
-
 /** What a pick has to do, as the two ways a season can be played. */
-export const OBJECTIVES = Object.freeze({
+const OBJECTIVES = Object.freeze({
   win: { id: "win", label: "winners", hint: "Your pick has to win its game." },
   lose: { id: "lose", label: "losers", hint: "Your pick has to lose its game." },
 });

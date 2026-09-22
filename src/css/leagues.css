@@ -18,18 +18,14 @@
 
 :root[data-league="nfl"] {
   --paint: #0b1f4d;
-  --paint-2: #0d2559;
   --paint-ink: #f3f7f1;
-  --paint-glow: rgb(127 166 255 / 14%);
 }
 
 /* --- picking losers: burnt orange end zones ------------------------------- */
 
 :root[data-objective="lose"] {
   --paint: #7a3d00;
-  --paint-2: #8a4600;
   --paint-ink: #fff3e0;
-  --paint-glow: rgb(255 176 92 / 16%);
 }
 
 /* --- travelling colour ----------------------------------------------------- */

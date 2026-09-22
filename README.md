@@ -176,7 +176,7 @@ next biggest favourite of the week. See
 Nothing under `src/js/ui/` knows which league is loaded. How many picks a week
 holds, whether a loss can be bought back, and where "Lock" starts all come off
 the board, which reads them from the plan. Adding a third pool is a folder
-under `data/` and an entry in `src/js/leagues.js`.
+under `data/` and an entry in `src/js/sports.js`.
 
 Only the current week is priced by the market - books do not post week 9 in
 September - so every week after it is projected from team ratings. Those

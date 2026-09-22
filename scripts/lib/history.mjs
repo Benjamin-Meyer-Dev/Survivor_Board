@@ -242,7 +242,7 @@ export function cfbScheduleFromCsv(csv) {
  * the FCS names that make up most of the rest never join because their games
  * are not kept (see cfbScheduleFromCsv).
  */
-export const CFB_ALIASES = Object.freeze({
+const CFB_ALIASES = Object.freeze({
   "Louisiana-Lafayette": "Louisiana",
   "Miami (FL)": "Miami",
   Hawaii: "Hawai'i",
@@ -312,7 +312,7 @@ const initials = (words) => words.map((word) => letters(word)[0] ?? "").join("")
  * team name: 3 for a clear match, down to 0 for none. `abbreviationSides` uses
  * it on both of a game's teams, so the score only has to separate two names.
  */
-export function abbreviationScore(abbr, name) {
+function abbreviationScore(abbr, name) {
   const a = abbr.toLowerCase();
   const n = letters(name);
   const words = name.split(/[\s-]+/).filter(Boolean);
@@ -360,7 +360,7 @@ function isSubsequence(needle, haystack) {
  * @param {string} away
  * @returns {Map<string,"home"|"away">|null}
  */
-export function abbreviationSides(abbrs, home, away) {
+function abbreviationSides(abbrs, home, away) {
   if (abbrs.length !== 2) return null;
   const [first, second] = abbrs;
   const straight = abbreviationScore(first, home) + abbreviationScore(second, away);
@@ -522,7 +522,7 @@ function medianOf(values) {
   return finite.length ? median(finite) : null;
 }
 
-export function median(values) {
+function median(values) {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;

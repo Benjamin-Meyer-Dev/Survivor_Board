@@ -39,7 +39,7 @@ import { DEFAULT_RATING_PARAMS, resolveRatingParams, fitForm } from "./rate.mjs"
  * Bands the calibration is reported in. A survivor pool lives in the top ones,
  * so they are narrower there.
  */
-export const BANDS = Object.freeze([
+const BANDS = Object.freeze([
   0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.93, 0.95, 0.97, 0.98, 0.99, 1.0001,
 ]);
 
@@ -146,7 +146,7 @@ export function fitMarginModel(games, { totals = true, referenceTotal = null } =
  * golden-section line search. Three parameters and a smooth likelihood do not
  * need more than this, and it keeps the file free of a dependency.
  */
-export function coordinateSearch(objective, start, bounds, { rounds = 8, tolerance = 1e-4 } = {}) {
+function coordinateSearch(objective, start, bounds, { rounds = 8, tolerance = 1e-4 } = {}) {
   const point = [...start];
   let best = objective(point);
   for (let round = 0; round < rounds; round += 1) {
@@ -317,7 +317,7 @@ export function legacyWinProb(spread) {
 }
 
 /** Score the legacy curve the same way, for the report. */
-export function scoreLegacy(games) {
+function scoreLegacy(games) {
   const forecasts = [];
   for (const game of games) {
     if (!Number.isFinite(game.spread) || !Number.isFinite(game.margin) || game.margin === 0)
@@ -410,7 +410,7 @@ function before(map, week) {
  * board starts from published preseason ratings, which are better than this;
  * `calibrate` measures both and scales the anchor between them.
  */
-export const PRIOR_REGRESSION = 0.6;
+const PRIOR_REGRESSION = 0.6;
 
 /** A mean absolute error is this much of a standard deviation, for a normal. */
 const MAE_TO_SD = Math.sqrt(Math.PI / 2);
@@ -803,7 +803,7 @@ function leastSquares(rows) {
   return { intercept, slope };
 }
 
-export function mean(values) {
+function mean(values) {
   return values.length ? values.reduce((total, value) => total + value, 0) / values.length : 0;
 }
 

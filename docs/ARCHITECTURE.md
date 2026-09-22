@@ -180,7 +180,7 @@ with the league is a status colour you cannot trust.
 
 No module under `src/js/ui/` knows which league is open, and `core/` takes the
 rules as arguments rather than reading a global. Adding a pool is a folder and
-an entry in `src/js/leagues.js` - or, when it plays a schedule already here,
+an entry in `src/js/sports.js` - or, when it plays a schedule already here,
 an entry and a `plan.json` alone.
 
 Switching is a full reload of the board, not a filter over one: the old store

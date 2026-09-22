@@ -244,12 +244,7 @@ function sided(fromHome, fromAway) {
  *   pull has actually seen; everyone else keeps the rating they came with, so
  *   the caller can treat the result as an overlay.
  */
-export function solveRatings({
-  observations,
-  base,
-  params = DEFAULT_RATING_PARAMS,
-  throughWeek = 1,
-}) {
+function solveRatings({ observations, base, params = DEFAULT_RATING_PARAMS, throughWeek = 1 }) {
   // The prior is a week old for every week the season has played past the
   // first, and its pull fades with that age (see anchorHalfLife).
   const anchor = anchorAt(params, Math.max(0, throughWeek - 1));

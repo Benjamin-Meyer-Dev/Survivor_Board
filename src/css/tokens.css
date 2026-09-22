@@ -19,7 +19,6 @@
   --turf-3: #115a33;
   --turf-lit: #156a3c;
   --board: #0a2f1c;
-  --board-2: #0c3822;
   --ground: #08301b;
 
   /* chalk -----------------------------------------------------------------
@@ -48,22 +47,17 @@
      dark green; leagues.css repaints the NFL navy and a losers pool burnt
      orange. --paint-ink is chalk on that paint. */
   --paint: #0a3a20;
-  --paint-2: #0c4325;
   --paint-ink: #f3f7f1;
-  --paint-glow: rgb(243 247 241 / 10%);
 
   /* coloured chalk: the confidence scale --------------------------------
      Fixed across leagues on purpose: a status colour that moved with the
      league would be a status colour nobody could trust. Pastel, because it is
      chalk on green, not ink on black. */
   --safe: #a8ffc9;
-  --safe-bg: rgb(168 255 201 / 14%);
   --solid: #9de9e0;
-  --solid-bg: rgb(157 233 224 / 14%);
   --thin: #ffd27f;
   --thin-bg: rgb(255 210 127 / 14%);
   --close: #ffb39b;
-  --close-bg: rgb(255 179 155 / 14%);
   --danger: #ff9b9b;
   --danger-bg: rgb(255 155 155 / 16%);
 
@@ -83,11 +77,9 @@
      not the flag, the confidence scale's amber, or a losers pool's paint, and
      it is never drawn beside any of them. */
   --buyback: #ffa64d;
-  --buyback-bg: rgb(255 166 77 / 16%);
 
   /* a lock is chalk: solid, final */
   --lock: #f3f7f1;
-  --lock-bg: rgb(243 247 241 / 12%);
 
   /* neutral ---------------------------------------------------------------
      The second thing you can press.
@@ -150,7 +142,6 @@
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
 
   /* spacing scale */
-  --sp-1: 4px;
   --sp-2: 7px;
   --sp-3: 11px;
   --sp-4: 14px;

@@ -102,7 +102,7 @@ const SHORTLIST = 1200;
  * holds buildBoard to, and a tap is never waiting on this - it is answered by
  * the exact assignment, which plays no futures at all (`quick`).
  */
-export const SCENARIO_COUNT = 128;
+const SCENARIO_COUNT = 128;
 
 /** Strongest complete-path openings retained beside the team-complete set. */
 const PATH_OPENINGS = 6;

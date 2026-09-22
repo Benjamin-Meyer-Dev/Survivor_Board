@@ -25,7 +25,7 @@
 const ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 
 /** Twelve characters, in three groups of four. */
-export const CODE_LENGTH = 12;
+const CODE_LENGTH = 12;
 const GROUP = 4;
 
 /**
@@ -109,7 +109,7 @@ export function formatCode(code) {
  * and member row from then still carries one. They stay valid as they are:
  * normalising keeps that shape, and it is shown as it is stored.
  */
-export const PERSON_ID_LENGTH = 8;
+const PERSON_ID_LENGTH = 8;
 const LEGACY_ID = /^d-[a-z0-9]{4,16}$/;
 
 export function newPersonId() {

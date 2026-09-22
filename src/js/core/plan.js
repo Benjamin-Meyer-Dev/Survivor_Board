@@ -82,9 +82,6 @@ export function rulesOf(plan, overrides = null) {
   };
 }
 
-/** The shape every store returns when there is nothing saved yet. */
-export const EMPTY_ENTRY = Object.freeze({ picks: {}, swaps: {} });
-
 /** A fresh, mutable copy of the empty entry. */
 export function emptyEntry() {
   return { picks: {}, swaps: {} };
@@ -471,7 +468,7 @@ function ratingFor({ team, ratings, form, eligible }) {
 }
 
 /** Flat map of every eligible team to its power rating. */
-export function allTeams(teams) {
+function allTeams(teams) {
   const out = {};
   for (const [conference, roster] of Object.entries(teams.conferences)) {
     for (const [team, rating] of Object.entries(roster)) {

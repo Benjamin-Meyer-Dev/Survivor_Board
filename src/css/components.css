@@ -2604,6 +2604,14 @@
   opacity: 0.85;
 }
 
+/* The stretch a buy back paid for, in the orange the field marks a forgiven
+   loss in. It is laid over the green on the same points, so it is drawn at
+   full strength: the played line's 0.85 would let the green under it through
+   and leave the orange muddy rather than a colour of its own. */
+.route__line--bought {
+  stroke: var(--buyback);
+}
+
 /* A mark a week, ringed in the turf so it stays whole where the lines cross.
    Your route's marks stand on the coach's, so a week the two routes agree on
    shows one mark. */
@@ -2631,6 +2639,13 @@
 
 .route__dot--lost {
   background: var(--danger);
+}
+
+/* Lost, and the pool bought it back - the same orange the field's mark and the
+   call card's chip use, because the run came through the week and the red is
+   kept for the week it stopped on. */
+.route__dot--bought {
+  background: var(--buyback);
 }
 
 .route__dot--here {
@@ -2905,6 +2920,13 @@
 .route__callout-row--lost .route__swatch {
   border-top-style: solid;
   border-top-color: var(--danger);
+}
+
+/* The swatch is the chart's key for the mark the callout is standing on, so a
+   bought-back week reads the same here as it does out there. */
+.route__callout-row--bought .route__swatch {
+  border-top-style: solid;
+  border-top-color: var(--buyback);
 }
 
 .route__callout-team {
@@ -4820,7 +4842,6 @@
   --line: rgb(243 247 241 / 35%);
   --line-strong: rgb(243 247 241 / 55%);
   --ink: #f3f7f1;
-  --ink-2: rgb(243 247 241 / 78%);
   --ink-3: rgb(243 247 241 / 58%);
   --flag: #ffe066;
   --on-flag: #0a3a20;
