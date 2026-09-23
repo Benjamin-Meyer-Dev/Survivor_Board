@@ -1610,8 +1610,7 @@
   /* Every pixel the card does not spend is handed straight to the coach's case
      above it, and the chart in it is the part of this board that is short of
      room (layout.css hands the case what the field and the card leave over).
-     So the foot is tight: the tiles' dashed boxes carry their own inset and
-     the card's own dashes are right under them.
+     So the foot is tight: the card's own dashes are right under the game line.
 
      The top is not, and for the opposite reason. The card's first row is two
      discs, and a disc against the edge of the box it is in reads as having
@@ -1686,8 +1685,7 @@
    every week, which is what leaves the coach's case - and the chart in it - the
    same box to draw in whatever week the board is turned to. The row stretches
    to it, so the reserved pixels are air under the name rather than under the
-   card, and the game line and its tiles hold the foot of the slot as they
-   already do. */
+   card, and the game line holds the foot of the slot as it already does. */
 .call__slots {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1904,8 +1902,7 @@
    edge so its silhouette says "result" before the word is read. Nothing else
    on the board is this shape.
 
-   Out of the flow at the row's right edge, which is the rule the tiles under
-   it end on in both layouts. Out of the flow because a fact does not queue
+   Out of the flow at the row's right edge. Out of the flow because a fact does not queue
    behind opinions, and because the row is already a chip tall in every state -
    so the stamp is the one mark here that costs the card no height, and the
    chips keep the whole of the row they were always short of. It rides this
@@ -2019,10 +2016,9 @@
   text-decoration: none;
 }
 
-/* The game and its numbers hold the foot of the slot, under the name and
-   against it (the auto margin is on .call__team). Two slots side by side
-   stand the same height, and whatever their marks wrap to above, their names,
-   games and tiles line up at the bottom. */
+/* The game holds the foot of the slot, under the name and against it (the
+   auto margin is on .call__team). Whatever the marks wrap to above, the name
+   and the game line up at the bottom. */
 .call__matchup {
   /* Four under the name: the game line is the name's own small print, so it is
      nearer to it than anything else on the slot is to anything. */
@@ -2036,57 +2032,6 @@
 /* When the game kicks off, at the end of the matchup and never broken inside
    itself. */
 .call__kickoff {
-  white-space: nowrap;
-}
-
-/* The stat line, under the name where it has the width: the spread and the
-   chance the pick carries the week. Two chalk tiles - where the line came from
-   was a third of them once, then a footnote on the game line, and is now the
-   case's to say (ui/call.js, tiles). */
-.call__tiles {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.tile {
-  /* For the ink strike a lock plays round this box (motion.css). */
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 2px 8px;
-  border: var(--dash);
-  border-radius: var(--radius-sm);
-  min-width: 0;
-}
-
-/* The short word a tile carries for the screens that cannot hold the long one,
-   out of the layout - and so out of the reading order too - wherever the long
-   one fits. The narrow two-slot block near the foot of this file is the only
-   place the two swap over. */
-.tile__key-short {
-  display: none;
-}
-
-.tile__key {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 10px;
-  line-height: 1.2;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--chalk-3);
-  white-space: nowrap;
-}
-
-.tile__value {
-  font-family: var(--font-mono);
-  font-weight: 600;
-  font-size: 16px;
-  line-height: 18px;
-  color: var(--chalk);
   white-space: nowrap;
 }
 
@@ -2114,10 +2059,6 @@
 .confidence--danger {
   --confidence-color: var(--danger);
   color: var(--confidence-color);
-}
-
-.call__slot--empty .tile__value:not([class*="confidence--"]) {
-  color: var(--chalk-2);
 }
 
 /* The actions, at the end of the head row: the other side of the game in
@@ -2224,8 +2165,7 @@
 }
 
 .board.is-raised .call__marks,
-.board.is-raised .call__matchup,
-.board.is-raised .call__tiles {
+.board.is-raised .call__matchup {
   display: none;
 }
 
@@ -2902,54 +2842,6 @@
   border: 2px solid var(--neutral);
 }
 
-/* This week's figure rides its mark. The same percentage the key under the
-   chart and the callout over it both carry, so it is set in their face: mono,
-   a step down from the key's 13px because it is read off the chart rather than
-   read out of a row. It was the display face, which put the same reading in
-   two faces a chart's height apart. */
-.route__figure {
-  position: absolute;
-  z-index: 4;
-  padding: 0 3px;
-  --figure-x: -50%;
-  --figure-y: calc(-100% - 7px);
-  transform: translate(var(--figure-x), var(--figure-y));
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--turf-2) 85%, transparent);
-  font-family: var(--font-mono);
-  font-weight: 600;
-  font-size: 11px;
-  line-height: 1.25;
-  letter-spacing: 0;
-  color: var(--chalk);
-  white-space: nowrap;
-}
-
-.route__figure--coach {
-  color: var(--chalk-2);
-}
-
-.route__figure--below {
-  --figure-y: 7px;
-}
-
-.route__figure--second {
-  --figure-y: 21px;
-}
-
-/* A figure is centred on its mark, which puts half of it outside the plot when
-   the mark is standing on the first or last week of the season - over the
-   scale's own labels in the gutter at one end, and over the chart's edge at
-   the other. Those two are hung off the side of their mark instead, the way
-   the callout is pushed back inside rather than left hanging out. */
-.route__figure--start {
-  --figure-x: -5px;
-}
-
-.route__figure--end {
-  --figure-x: calc(-100% + 5px);
-}
-
 /* Touch a week and the chart says who is standing there (watchChart in
    ui/coach.js): the week, and a line per route with its team and the chance
    it carries. It hangs over the highest mark in the column, and it is not a
@@ -3198,8 +3090,7 @@
     padding: 6px 10px 5px;
   }
 
-  .route__head,
-  .route__figure {
+  .route__head {
     display: none;
   }
 
@@ -5476,43 +5367,6 @@
     font-size: 30px;
   }
 
-  /* The slot puts its numbers beside the name rather than under it: the
-     readout's column is short of height and has width going spare, and the
-     tiles on their own row were the last thing on the card and the first thing
-     off the bottom of it. */
-  .call__slots .call__slot {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "head head"
-      "marks marks"
-      "team tiles"
-      "matchup tiles";
-    align-items: end;
-    column-gap: 16px;
-  }
-
-  .call__slots .call__slot-head {
-    grid-area: head;
-  }
-
-  .call__slots .call__marks {
-    grid-area: marks;
-  }
-
-  .call__slots .call__team {
-    grid-area: team;
-  }
-
-  .call__slots .call__matchup {
-    grid-area: matchup;
-  }
-
-  .call__slots .call__tiles {
-    grid-area: tiles;
-    grid-template-columns: repeat(2, auto);
-  }
-
   /* The tabs are the drawer's own head and sit at the top of its column, where
      in portrait they sit at the top of its band. Shorter, because the column
      under them is all the drawer has. */
@@ -5554,10 +5408,6 @@
 
   .board.is-raised .call__matchup {
     display: block;
-  }
-
-  .board.is-raised .call__tiles {
-    display: grid;
   }
 
   .board.is-raised .call__team {
@@ -5688,51 +5538,8 @@
     padding: 14px 18px 16px;
   }
 
-  /* A lone slot has the width to put its numbers beside the name. */
-  .call__slots .call__slot {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "head head"
-      "marks marks"
-      "team tiles"
-      "matchup tiles";
-    align-items: end;
-    column-gap: 24px;
-  }
-
-  .call__slots .call__slot-head {
-    grid-area: head;
-  }
-
-  .call__slots .call__marks {
-    grid-area: marks;
-  }
-
-  .call__slots .call__team {
-    grid-area: team;
-  }
-
-  .call__slots .call__matchup {
-    grid-area: matchup;
-  }
-
-  .call__slots .call__tiles {
-    grid-area: tiles;
-    grid-template-columns: repeat(2, auto);
-  }
-
   .call__team {
     font-size: 44px;
-  }
-
-  .tile {
-    padding: 6px 14px;
-  }
-
-  .tile__value {
-    font-size: 20px;
-    line-height: 23px;
   }
 
   /* Every panel is open, so the tabs have nothing to switch. */

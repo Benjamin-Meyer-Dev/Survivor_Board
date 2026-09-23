@@ -35,21 +35,20 @@
  * coach gives it (ui/sideline.js) - and a readout with no rows to spare must
  * not spend one saying the same thing twice.
  *
- * Every slot has the same rows in the same order - head, marks, team, matchup,
- * tiles - so a pick, a lock or a page changes what the rows say without moving
+ * Every slot has the same rows in the same order - head, marks, team, matchup
+ * - so a pick, a lock or a page changes what the rows say without moving
  * anything under the thumb that just tapped it. The head carries the eyebrow
  * and, where there is more than one pick, the pager. The marks (how safe the
  * coach rates the pick, whether it was the coach's call) take the line under
  * it. The result, once it is in, is not one of them - it is paint rather than
  * chalk, and it stands at the far end of that row on its own (resultStamp).
- * The game and its numbers hold the foot of the slot.
+ * The game holds the foot of the slot. The spread and the win chance are not
+ * on the card: the chart above it and the team list carry the numbers.
  *
  * Handlers are injected; this module knows nothing about the store.
  */
 
 import {
-  formatSpread,
-  formatPercent,
   formatMatchup,
   formatKickoff,
   escapeHtml,
@@ -173,7 +172,7 @@ const watching = new WeakSet();
  *
  * The card is the part whose contents are about the week, so the card is the
  * part that reserves the room. The slots grow to the floor and the game line
- * and tiles stay at their foot, which is where they already stand.
+ * stays at their foot, which is where they already stand.
  *
  * Measured rather than assumed. Two lines for the name and one for the kickoff
  * would hold every week of every pool, and would spend the room on pools that
@@ -284,7 +283,7 @@ function weekTags(week, board) {
 
 /**
  * One slot. The rows are the same whatever it holds: who the team belongs to,
- * the team, its game, its numbers. Where the week takes more than one pick the
+ * the team, its game. Where the week takes more than one pick the
  * head row carries the pager that reaches the others.
  */
 function slotMarkup(pick, board, count, active) {
@@ -366,7 +365,6 @@ function slotMarkup(pick, board, count, active) {
           : `<div class="call__team call__team--blank">${escapeHtml(blank.team)}</div>
              <div class="call__matchup">${escapeHtml(blank.text)}</div>`
       }
-      ${tiles(shown, board)}
     </div>`;
 }
 
@@ -425,63 +423,6 @@ function resultStamp(status) {
   const won = status.result === "W";
   return `<span class="call__result call__result--${won ? "won" : "lost"}" title="Final score"
       >${won ? WON : LOST}<span class="call__result-word">${won ? "Won" : "Lost"}</span></span>`;
-}
-
-/**
- * The two numbers: the spread, and the chance the pick carries the week. With
- * nothing to price they still stand, blank, so the card keeps its height. In a
- * losers pool the second is the chance the team loses (see core/objective.js),
- * and its name says so.
- *
- * Where the line came from is not here, and is not on the game line under the
- * name either. It was a third tile once and would not fit a half-width slot;
- * it moved onto the game line, and came off that too - the card is the one
- * action on the board and "Market line" is a footnote about the number rather
- * than the number. The case above the card is where the pricing is read, and
- * it makes the same distinction in the one place it matters: a week the market
- * has not posted a line for has no market stop in the chain at all, and shows
- * how far the projection expects to miss instead (chain in ui/coach.js).
- *
- * The same width answers the second key twice over. Two tiles on half a card
- * leave it about forty-five pixels on a narrow phone, and WIN PROB is sixty
- * three of them at the size the rest of the board's keys are set in - it was
- * painting over its own rule. The stylesheet buys back what the padding and
- * the tracking are worth (.call__slots--two .tile); the word gives up the rest
- * of it. WIN over 98.9% says what WIN PROB says, because the figure under it
- * is already a probability and there is nothing else it could be.
- *
- * Both words are written and the stylesheet picks one, rather than the short
- * one being chosen here: which of them fits is a question about how wide the
- * screen is, and this module counts slots. A desktop and a phone held sideways
- * have room for the whole word in two slots, and keep it.
- */
-function tiles(line, board) {
-  const losers = board?.rules?.objective === "lose";
-  return `
-    <div class="call__tiles">
-      ${tile("Spread", line ? formatSpread(line.spread) : "—", line?.tier)}
-      ${tile(
-        losers ? "Loss prob" : "Win prob",
-        line ? formatPercent(line.winProb) : "—",
-        line?.tier,
-        losers ? "Loss" : "Win",
-      )}
-    </div>`;
-}
-
-/**
- * @param {string} [short] A shorter key for a tile with no room for the long
- *   one. Only one of the two is ever in the layout, so only one is ever read
- *   out (.tile__key-short in components.css).
- */
-function tile(key, value, tier, short) {
-  const label = short
-    ? `<span class="tile__key-long">${escapeHtml(key)}</span><span class="tile__key-short">${escapeHtml(short)}</span>`
-    : escapeHtml(key);
-  return `<div class="tile">
-    <span class="tile__key">${label}</span>
-    <span class="tile__value${tier ? ` confidence--${tier}` : ""}">${escapeHtml(value)}</span>
-  </div>`;
 }
 
 /**

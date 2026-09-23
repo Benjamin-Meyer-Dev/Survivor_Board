@@ -890,18 +890,33 @@
     column-gap: 18px;
   }
 
+  /* Floored, though: the card alone left the chart a plot 64 pixels tall, a
+     strip of dots rather than a shape. The row takes this much whatever the
+     card needs, and the card stands the height of it. */
   .readout > #coach {
     grid-area: coach;
     container-type: size;
-    min-height: 0;
+    min-height: 320px;
   }
 
   .readout > #pitch {
     grid-area: pitch;
   }
 
+  /* The card stands the row's height beside the chart, the spare as air above
+     the name, which keeps the game line on the card's foot (the auto margin on
+     .call__team). */
   .readout > #call {
     grid-area: call;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .readout > #call > .call,
+  .readout > #call .call__box,
+  .readout > #call .call__slots,
+  .readout > #call .call__slot {
+    flex: 1 1 auto;
   }
 
   .drawer {

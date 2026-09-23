@@ -102,10 +102,6 @@ body::after {
   border-style: solid;
 }
 
-.call__slot--locked .tile {
-  border-style: solid;
-}
-
 /* The coach's plan is pencilled in: a dashed chalk underline in the flag's
    colour, wherever a suggestion is named. */
 .call__slot--empty .call__team,

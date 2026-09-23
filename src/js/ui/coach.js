@@ -339,7 +339,7 @@ function patchRouteLines(current, nextLines) {
    goes goes back the same way, and only then off the page. */
 
 /** Chart marks that ride the scale. The band and the callout have their own. */
-const ROUTE_MARKS = ".route__rule, .route__dot, .route__figure";
+const ROUTE_MARKS = ".route__rule, .route__dot";
 
 /** The morph running in each chart, so the next render can take it over. */
 const morphs = new WeakMap();
@@ -1433,64 +1433,9 @@ function route(state, board) {
       ? `${xAt(firstLive).toFixed(2)},${yAt(you.stops[firstLive].prob).toFixed(2)}`
       : null;
 
-  // This week's figures ride their marks. The higher mark's figure stands
-  // over it, or under it when the mark is up against the top; the lower
-  // mark's stands under its own, and drops a further line when the higher
-  // one is already under a mark within reach of it, so the two figures never
-  // sit on each other. Two routes on the same team this week are one mark
-  // and one figure.
-  const here = [];
-  if (you.stops[at].prob !== null) here.push({ kind: ahead, prob: you.stops[at].prob });
-  if (alternative && apart[at] && alternative.stops[at].prob !== null) {
-    here.push({ kind: "coach", prob: alternative.stops[at].prob });
-  }
-  if (lone) here.push({ kind: "coach", prob: lone.prob });
-  // On a week a run that is over actually played there is no route standing,
-  // so the figure over the band is what the week itself was worth. Without it
-  // the whole left of the chart is marks and no numbers, with the band
-  // pointing at one of them - and the week in the band is the one week the
-  // case below is about. A live board leaves a played week unlabelled on
-  // purpose: the figures there belong to the route through the weeks left.
-  if (board.eliminated && played.stops[at].prob !== null) {
-    here.push({ kind: "played", prob: played.stops[at].prob });
-  }
-  here.sort((a, b) => b.prob - a.prob);
-  const distinct = here.filter(
-    (mark, index) => index === 0 || Math.abs(here[index - 1].prob - mark.prob) > 0.0005,
-  );
-  // A figure centred on a mark standing on the first or last week of the
-  // season hangs half out of the plot. Both ends are hung off the side of the
-  // mark instead (.route__figure--start in components.css); everywhere else it
-  // stays centred, which is where it belongs.
-  const side = xAt(at) < 9 ? " route__figure--start" : xAt(at) > 91 ? " route__figure--end" : "";
-  // The upper mark's figure stands over it, unless the mark is up against the
-  // top of the plot and there is no room - then it hangs under the mark
-  // instead, and the lower figure drops a line to stay off it.
-  //
-  // Where the lower MARK is what it would land on, both figures come down and
-  // stack under that one. A figure has a box behind it, so one dropped onto a
-  // mark does not crowd it, it hides it - and on the week a run ended, that
-  // mark is the loss: the chart drew the ending and then covered it with the
-  // other route's percentage. Together under the lower mark the two are still
-  // in the order the marks are, and neither is standing on anything.
-  const upper = distinct[0] ? yAt(distinct[0].prob) : null;
-  const lower = distinct[1] ? yAt(distinct[1].prob) : null;
-  const stacked = upper !== null && upper < 18 && lower !== null && lower - upper < 30;
-  const figures = distinct
-    .map((mark, index) => {
-      const own = yAt(mark.prob);
-      const crowded = upper < 18 && (stacked || own - upper < 22);
-      const place =
-        index === 0
-          ? upper < 18
-            ? " route__figure--below"
-            : ""
-          : crowded
-            ? " route__figure--below route__figure--second"
-            : " route__figure--below";
-      return `<span class="route__figure route__figure--${mark.kind}${place}${side}" data-key="figure-${index}" style="left:${pct(xAt(at))};top:${pct(stacked ? lower : own)}">${figureOf(mark.prob)}</span>`;
-    })
-    .join("");
+  // This week's figures used to ride their marks as boxed percentages over
+  // the band. The chart is the shape; a tap on any mark reads its figures out
+  // (the callout), and the label below says them for a screen reader.
 
   const loneMark = lone
     ? `<span class="route__dot route__dot--coach route__dot--here route__dot--lone" data-key="dot-lone" style="left:${pct(xAt(at))};top:${pct(yAt(lone.prob))}" data-at="${at}" data-week="${weeks[at].week}" data-kind="coach" data-team="${escapeHtml(nameOf(lone.options))}" data-prob="${figureOf(lone.prob)}" data-legs="${escapeHtml(legsOf(lone.options))}"></span>`
@@ -1571,7 +1516,6 @@ function route(state, board) {
         ${anyPlayed ? lineOf(played, "played", liveTail) + boughtOf(played, liveTail) : ""}${alternative ? branchOf(alternative, "coach", apart) : ""}${lineOf(you, ahead)}
       </svg>
       ${anyPlayed ? dotsOf(played, "played") : ""}${alternative ? dotsOf(alternative, "coach", { only: apart, reach: reachOf(alternative) }) : ""}${dotsOf(you, ahead, { reach: reachOf(you) })}${loneMark}
-      ${figures}
       <span class="route__callout" data-key="callout" hidden></span>
     </div>
     <div class="route__axis" data-key="axis" aria-hidden="true">${axis}</div>
