@@ -43,6 +43,8 @@
  * a question about the shape of the screen that layout.css is already asking.
  */
 
+import { prefersReducedMotion } from "./motion.js";
+
 /** Latest handler, so the listener bound on the first render stays current. */
 let onGrab = () => {};
 let bound = false;
@@ -87,7 +89,6 @@ const SLOP_PX = 12;
  * one leaves alone.
  */
 const DOMINANCE = 1.4;
-
 
 /**
  * Watch the shut drawer for the drag that opens it.
@@ -161,4 +162,134 @@ export function watchRaise({ raisable, raised, toggle }, { surfaces = [] } = {})
     surface.addEventListener("touchend", drop, { passive: true });
     surface.addEventListener("touchcancel", drop, { passive: true });
   }
+}
+
+/* --- the lift ---------------------------------------------------------------
+   The open used to be a squeeze: the field's row ran down to nothing, the
+   coach's case faded, and the drawer's track grew into what they gave up, all
+   of it the browser laying the board out again on every frame. It read as the
+   board rearranging itself, not as anything being opened.
+
+   So the open is a sheet now. The call and the drawer are one surface, and
+   they slide up over the field and the case - which stand still where they
+   were, to be covered - and down again to show them. The layout still switches
+   between the two states it always had, but in one frame: every transition on
+   the board is held for the switch, the new places are read, and the call and
+   the drawer are put back where they were and let go on an animation made by
+   script, which the coach's size container cannot cancel (ownMotion in
+   ui/motion.js) and which runs on the compositor.
+
+   What stands still is held in place by the stylesheet (.is-lifting in
+   layout.css): on the way up the field and the case are lifted out of the flow
+   at the pixels they stood on, since the open layout has no room for them; on
+   the way down the drawer keeps its open height, so the chalkboard reaches the
+   bottom edge all the way down and its list is still on it. */
+
+/** The lift in flight, so a tap in the middle of it can take it over. */
+let lifting = null;
+
+/**
+ * Open or shut the drawer as a sheet over the readout.
+ *
+ * @param {HTMLElement|null} board
+ * @param {boolean} raised Where it is going.
+ * @param {() => void} apply Puts the board in that state (the class, the grab).
+ */
+export function liftDrawer(board, raised, apply) {
+  const readout = board?.querySelector(":scope > .readout");
+  const call = readout?.querySelector(":scope > #call");
+  const drawer = board?.querySelector(":scope > .drawer");
+  const held = [
+    readout?.querySelector(":scope > #pitch"),
+    readout?.querySelector(":scope > #coach"),
+  ].filter(Boolean);
+
+  // Read before anything is settled: a lift turned round half way starts from
+  // where it has got to, not from where it was going.
+  const before = call && drawer ? { call: box(call), drawer: box(drawer) } : null;
+  const stood = held.map((node) => ({ node, at: box(node) }));
+  lifting?.();
+
+  const duration = board
+    ? durationOf(getComputedStyle(board).getPropertyValue("--drawer-lift"))
+    : 0;
+  if (!before || !readout || prefersReducedMotion() || !(duration > 0)) {
+    apply();
+    return;
+  }
+
+  board.classList.add("is-lift-snap", "is-lifting");
+  apply();
+
+  const origin = box(readout);
+  if (raised) {
+    // The field and the case where they stood, for the sheet to come up over.
+    for (const { node, at } of stood) {
+      if (!(at.height > 0)) continue;
+      node.classList.add("is-held");
+      Object.assign(node.style, {
+        top: `${at.top - origin.top}px`,
+        left: `${at.left - origin.left}px`,
+        width: `${at.width}px`,
+        height: `${at.height}px`,
+      });
+    }
+  } else {
+    // The chalkboard at its open height, reaching the bottom edge on the way
+    // down; the track under it is the shut one already.
+    drawer.style.height = `${before.drawer.height}px`;
+  }
+
+  const after = { call: box(call), drawer: box(drawer) };
+  board.classList.remove("is-lift-snap");
+  // The open folds the card as it starts, so it sets off shorter than the
+  // space it stood in and the drawer has further to come: the turf the card
+  // is drawn on reaches down to the chalkboard until the two have met.
+  const reach = before.drawer.top - before.call.top - (after.drawer.top - after.call.top);
+  if (reach > 0) call.style.setProperty("--lift-reach", `${reach}px`);
+
+  const timing = {
+    duration,
+    easing: getComputedStyle(board).getPropertyValue("--ease-out").trim() || "ease-out",
+    fill: "backwards",
+  };
+  const moves = [
+    [call, before.call.top - after.call.top],
+    [drawer, before.drawer.top - after.drawer.top],
+  ].map(([node, dy]) =>
+    node.animate([{ translate: `0px ${dy}px` }, { translate: "0px 0px" }], timing),
+  );
+
+  const finish = () => {
+    if (lifting !== finish) return;
+    lifting = null;
+    for (const move of moves) move.cancel();
+    // Put down in one frame as well: the field going back into the flow is a
+    // change the fold's own transitions would otherwise play out now, under a
+    // sheet that has already arrived.
+    board.classList.add("is-lift-snap");
+    board.classList.remove("is-lifting");
+    drawer.style.removeProperty("height");
+    call.style.removeProperty("--lift-reach");
+    for (const { node } of stood) {
+      node.classList.remove("is-held");
+      for (const side of ["top", "left", "width", "height"]) node.style.removeProperty(side);
+    }
+    void board.offsetWidth;
+    board.classList.remove("is-lift-snap");
+  };
+  lifting = finish;
+  Promise.allSettled(moves.map((move) => move.finished)).then(finish);
+}
+
+function box(node) {
+  return node.getBoundingClientRect();
+}
+
+/** A CSS time as milliseconds. */
+function durationOf(value) {
+  const text = value.trim();
+  const amount = parseFloat(text);
+  if (!Number.isFinite(amount)) return 0;
+  return text.endsWith("ms") ? amount : amount * 1000;
 }

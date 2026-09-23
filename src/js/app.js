@@ -63,7 +63,7 @@ import { renderSideline } from "./ui/sideline.js";
 import { renderBench } from "./ui/bench.js";
 import { renderNotices, renderReview } from "./ui/notices.js";
 import { renderTabs, initialTab, knownTab } from "./ui/tabs.js";
-import { renderGrab, watchRaise } from "./ui/drawer.js";
+import { liftDrawer, renderGrab, watchRaise } from "./ui/drawer.js";
 import { requireName } from "./ui/name.js";
 import { requirePasscode } from "./ui/passcode.js";
 import { holdBack, releaseBack } from "./ui/back.js";
@@ -1043,7 +1043,7 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = 
   // The raise buys the lists height over the field. With no lists it would
   // fold the field away for nothing, so a board that dies while it is up is
   // put back down before the handle goes.
-  if (review) setRaised(false);
+  if (review) setRaised(false, { lift: false });
   if (el.panels) el.panels.hidden = review;
   renderTabs(el.tabs, app.activeTab, selectTab, { hidden: review });
   renderGrab(el.grab, el.pitch, app.raised, toggleRaised, { hidden: review });
@@ -1854,11 +1854,17 @@ function toggleRaised() {
  * run ends has folded the field away to make room for lists that are about to
  * go (see render), and the way back down goes with them.
  */
-function setRaised(raised) {
+function setRaised(raised, { lift = true } = {}) {
   if (app.raised === raised) return;
   app.raised = raised;
-  el.board?.classList.toggle("is-raised", app.raised);
-  renderGrab(el.grab, el.pitch, app.raised, toggleRaised);
+  // Slid rather than laid out, where the screen has a drawer to shut: the
+  // call and the drawer come up over the field as a sheet (ui/drawer.js).
+  const apply = () => {
+    el.board?.classList.toggle("is-raised", app.raised);
+    renderGrab(el.grab, el.pitch, app.raised, toggleRaised);
+  };
+  if (lift && canRaise()) liftDrawer(el.board, raised, apply);
+  else apply();
 }
 
 /**

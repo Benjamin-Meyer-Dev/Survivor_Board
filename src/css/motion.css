@@ -802,6 +802,12 @@
    goes out as the drawer comes down and is back by the time the list has
    arrived, which is the one thing on the bar that says the two are the same
    motion. */
+/* The drawer opening and shutting as a sheet over the readout (liftDrawer in
+   ui/drawer.js, and the .is-lifting rules in layout.css). */
+.board {
+  --drawer-lift: 0.34s;
+}
+
 .tab-marker {
   transition:
     transform 0.2s var(--ease-out),

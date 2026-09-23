@@ -604,6 +604,68 @@
     opacity: 0;
     transition-delay: 0ms, 0ms;
   }
+
+  /* The lift (liftDrawer in ui/drawer.js): the open and the shut as a sheet
+     sliding over the readout, rather than the readout folding under it.
+
+     The switch between the two layouts is made with every transition on the
+     board held, so it is one frame and the places it lands on can be read -
+     all but the tab marker's, which is carried out and back in as before. */
+  .board.is-lift-snap,
+  .board.is-lift-snap *:not(.tab-marker) {
+    transition: none !important;
+  }
+
+  /* Nothing the sheet is travelling past scrolls the board while it does. */
+  .board.is-lifting {
+    overflow: hidden;
+  }
+
+  /* The call and the drawer are the sheet, over everything they pass. The
+     call is drawn on the turf it stands on, out into the gutters and down over
+     the turf between it and the chalkboard, so what it covers is covered. */
+  .board.is-lifting .readout {
+    position: relative;
+  }
+
+  .board.is-lifting .readout > #call,
+  .board.is-lifting .drawer {
+    position: relative;
+    z-index: 2;
+  }
+
+  .board.is-lifting .readout > #call::before {
+    content: "";
+    position: absolute;
+    inset: -10px calc(-1 * var(--gutter)) calc(-8px - var(--lift-reach, 0px));
+    z-index: -1;
+    background: var(--turf);
+  }
+
+  /* On the way up, the field and the case stand where they were to be
+     covered: out of the flow, which is all the open layout had left them, at
+     the pixels the lift read off them, and unfolded. */
+  .board.is-lifting .readout > :is(#pitch, #coach).is-held {
+    position: absolute;
+    z-index: 1;
+    margin: 0;
+    max-height: none;
+  }
+
+  .board.is-lifting .readout > #pitch.is-held {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+
+  .board.is-lifting .readout > #coach.is-held {
+    opacity: 1;
+  }
+
+  /* And on the way down the list is still on the chalkboard it came down on,
+     rather than put away the moment the sheet began to move. */
+  .board.is-lifting .drawer__panels {
+    visibility: visible;
+  }
 }
 
 /* sideways ------------------------------------------------------------------- */
