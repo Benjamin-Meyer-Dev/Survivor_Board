@@ -406,6 +406,19 @@ function sheetsMarkup() {
                placeholder="K7QM-3WXP" autocomplete="off" autocapitalize="characters" spellcheck="false" />
         <p class="home__form-error" role="alert" hidden></p>
         <button type="submit" class="home__btn home__btn--go" disabled>Use this ID</button>
+        <div class="home__claim-warn" hidden>
+          <p class="home__confirm-ask">
+            These leagues are only on this phone's ID. Switching leaves them:
+          </p>
+          <ul class="home__claim-list"></ul>
+          <p class="home__confirm-ask" data-claim-alone hidden>
+            Nobody else is in the ones marked, so leaving deletes them, every pick with them.
+          </p>
+          <div class="home__confirm-row">
+            <button type="button" class="home__btn home__btn--danger" data-act="claim-yes">Switch anyway</button>
+            <button type="button" class="home__btn home__btn--quiet" data-act="claim-no">Keep this ID</button>
+          </div>
+        </div>
       </form>
     </dialog>
 
@@ -522,6 +535,7 @@ function wire(root) {
       claim.reset();
       claim.hidden = true;
       showProblem(claim, "", { now: true });
+      hideClaimWarning(claim);
       syncClaim(claim);
       sheetsRoot.querySelector('[data-act="show-claim"]').hidden = false;
     }
@@ -620,7 +634,9 @@ function wireSheets(sheets) {
   // The id: copied off this phone, or the other phone's typed in. The second
   // makes this device that person (claimId in store/directory.js), and the
   // sheet closes on their leagues arriving; an id nobody has is refused under
-  // the field.
+  // the field. When this phone is in leagues the id typed is not, the switch
+  // would leave them, so the form names them and asks before anything is
+  // written (previewClaim).
   const idCopy = sheets.querySelector(".home__id-copy");
   idCopy.addEventListener("click", () =>
     copyText(idCopy, formatPersonId(meId), "ID copied", "Copy your ID"),
@@ -631,15 +647,45 @@ function wireSheets(sheets) {
     claim.hidden = false;
     claim.elements.id.focus();
   });
-  claim.elements.id.addEventListener("input", () => syncClaim(claim));
-  claim.addEventListener("submit", (event) => {
+  claim.elements.id.addEventListener("input", () => {
+    hideClaimWarning(claim);
+    syncClaim(claim);
+  });
+  claim.addEventListener("submit", async (event) => {
     event.preventDefault();
     const typed = claim.elements.id.value;
     if (!isPersonId(typed)) {
       showProblem(claim, "An ID is eight characters, like K7QM-3WXP.");
       return;
     }
-    attempt(claim, () => homeHandlers.onClaimId(normalisePersonId(typed)));
+    const id = normalisePersonId(typed);
+    const submit = claim.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    showProblem(claim, "");
+    let leaving;
+    try {
+      ({ leaving } = await homeHandlers.onPreviewClaim(id));
+    } catch (error) {
+      showProblem(claim, error?.message || "That did not go through. Try again.");
+      syncClaim(claim);
+      return;
+    }
+    if (leaving.length === 0) {
+      await attempt(claim, () => homeHandlers.onClaimId(id));
+      syncClaim(claim);
+      return;
+    }
+    showClaimWarning(claim, leaving);
+  });
+  claim.querySelector('[data-act="claim-yes"]').addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    await attempt(claim, () => homeHandlers.onClaimId(normalisePersonId(claim.elements.id.value)));
+    button.disabled = false;
+  });
+  claim.querySelector('[data-act="claim-no"]').addEventListener("click", () => {
+    hideClaimWarning(claim);
+    syncClaim(claim);
   });
 
   // The leave question: the answer acts on whichever league asked it.
@@ -765,6 +811,32 @@ function syncJoin(form) {
 /** And the other phone's id until what is typed is the shape of one. */
 function syncClaim(form) {
   form.querySelector('button[type="submit"]').disabled = !isPersonId(form.elements.id.value);
+}
+
+/**
+ * The leagues a switch of id would leave, named in the claim form, with the
+ * ones it would delete marked. The form's own button makes way for the
+ * answer, so the only way on is to say yes or no to that list.
+ */
+function showClaimWarning(form, leaving) {
+  const warn = form.querySelector(".home__claim-warn");
+  form.querySelector(".home__claim-list").innerHTML = leaving
+    .map(
+      (league) =>
+        `<li class="home__claim-item${league.alone ? " is-alone" : ""}">${escapeHtml(league.name)}${
+          league.alone ? " <span>· deleted</span>" : ""
+        }</li>`,
+    )
+    .join("");
+  form.querySelector("[data-claim-alone]").hidden = !leaving.some((league) => league.alone);
+  form.querySelector('button[type="submit"]').hidden = true;
+  warn.hidden = false;
+  grow(warn);
+}
+
+function hideClaimWarning(form) {
+  form.querySelector(".home__claim-warn").hidden = true;
+  form.querySelector('button[type="submit"]').hidden = false;
 }
 
 /**

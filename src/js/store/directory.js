@@ -300,17 +300,91 @@ export function myId() {
  * either way - a phone with no leagues had nothing to bring - and the one
  * thing this exists to stop is a mistyped id quietly making a second person.
  *
+ * A device that was already somebody - two phones that each minted their
+ * own id before either was typed into the other - is folded into the id
+ * typed: the person this phone used to be leaves every league on its list.
+ * Where the id typed is in that league too, that only takes the duplicate
+ * out of its members, since the picks are the league's and not the member's.
+ * Where it is not, the league goes off this phone, and when this phone's
+ * person was the last one in it, the league goes altogether (leaveLeague).
+ * previewClaim says which leagues those are, so the page can ask first.
+ *
  * @param {string} typed Anything a person might type or paste.
- * @returns {Promise<{id:string, name:string, leagues:Array<object>}>}
- *   `name` is "" when the member rows carry none; `leagues` as myLeagues
- *   lists them.
+ * @returns {Promise<{id:string, name:string, leagues:Array<object>,
+ *   left:Array<{code:string, name:string, deleted:boolean,
+ *   problem:string|null}>}>} `name` is "" when the member rows carry none;
+ *   `leagues` as myLeagues lists them; `left` the leagues this phone's old
+ *   person is no longer in.
  * @throws When the id is not an id, when sharing is off, when the lookup
- *   fails, or when no league has a member with it.
+ *   fails, when no league has a member with it, or when it is this phone's.
  */
 export async function claimId(typed) {
+  const { client, id, name, leagues, mine } = await lookUpPerson(typed);
+
+  // Out as the old person first, while myId still says who that is - from
+  // every league the table has them in, not only the ones this phone lists,
+  // so the old id is gone from the database rather than from this phone.
+  const old = myId();
+  const theirs = new Set(leagues.map((league) => league.code));
+  const left = [];
+  for (const league of mine) {
+    if (theirs.has(league.code)) {
+      await dropMember(client, league.code, league.kinds, old, id);
+    } else {
+      const { deleted, problem } = await leaveLeague(league.code);
+      left.push({ code: league.code, name: league.name, deleted, problem });
+    }
+  }
+
+  try {
+    localStorage.setItem(CONFIG.storage.who, id);
+  } catch {
+    /* private mode or a full quota: the id holds for this session only */
+  }
+  if (name) setMyName(name);
+  const known = leagues.map((league) => remember(summary(league)));
+  return { id, name: myName(), leagues: known, left };
+}
+
+/**
+ * What claimId would leave behind, asked before it acts: the leagues this
+ * phone's person is in that the id typed is not, each with whether this
+ * phone's person is the only one in it - the last one out, whose leave
+ * deletes it. The rows decide when it happens.
+ *
+ * @param {string} typed
+ * @returns {Promise<{id:string, leaving:Array<{code:string, name:string,
+ *   alone:boolean}>}>}
+ * @throws As claimId does, and nothing is written.
+ */
+export async function previewClaim(typed) {
+  const { id, leagues, mine } = await lookUpPerson(typed);
+  const theirs = new Set(leagues.map((league) => league.code));
+  const old = myId();
+  const leaving = mine
+    .filter((league) => !theirs.has(league.code))
+    .map((league) => ({
+      code: league.code,
+      name: league.name,
+      alone: league.people.length > 0 && league.people.every((member) => member.id === old),
+    }));
+  return { id, leaving };
+}
+
+/**
+ * The person an id names, as the shared rows know them: every league they are
+ * in and the name their newest member row carries. And `mine`, the leagues
+ * this phone's own person is in: every row whose members carry this phone's
+ * id, fresh, and after them whatever else this phone lists - a league whose
+ * rows no longer answer is still left, off this phone. Writes nothing.
+ */
+async function lookUpPerson(typed) {
   const id = normalisePersonId(typed);
   if (!isPersonId(id)) {
     throw new Error("That is not an ID. It is eight characters, like K7QM-3WXP.");
+  }
+  if (id === myId()) {
+    throw new Error("That is already this phone's ID.");
   }
 
   const client = await supabase();
@@ -338,14 +412,50 @@ export async function claimId(typed) {
       .filter((member) => member.name)
       .sort((a, b) => b.joinedAt.localeCompare(a.joinedAt))[0]?.name ?? "";
 
-  try {
-    localStorage.setItem(CONFIG.storage.who, id);
-  } catch {
-    /* private mode or a full quota: the id holds for this session only */
-  }
-  if (name) setMyName(name);
-  const known = leagues.map((league) => remember(summary(league)));
-  return { id, name: myName(), leagues: known };
+  const old = myId();
+  const { data: ours, error: oursError } = await client
+    .from(CONFIG.supabase.table)
+    .select(COLUMNS)
+    .contains("entry", { members: [{ id: old }] });
+  if (oursError) throw new Error(`Could not look up this phone's ID: ${explain(oursError)}`);
+  const found = groupPools(ours).map(summary);
+  const listed = new Set(found.map((league) => league.code));
+  const mine = [...found, ...myLeagues().filter((league) => !listed.has(league.code))];
+
+  return { client, id, name, leagues, mine };
+}
+
+/**
+ * One member out of a league's pools, and nothing else: no delete, and the
+ * league stays on this phone. For a person folded into another who is in the
+ * same league (claimId), whose locks become that other person's too, so the
+ * old id is left nowhere in the row. Best effort, like every members write.
+ */
+async function dropMember(client, code, kinds, id, into) {
+  await Promise.all(
+    kinds.map(async (kind) => {
+      try {
+        await patchPoolEntry(client, code, kind, (entry) => {
+          const members = Array.isArray(entry.members) ? entry.members : [];
+          const picks = entry.picks && typeof entry.picks === "object" ? entry.picks : {};
+          const signed = Object.values(picks).some((pick) => pick?.by === id);
+          if (!signed && !members.some((member) => member.id === id)) return null;
+          return {
+            ...entry,
+            members: members.filter((member) => member.id !== id),
+            picks: Object.fromEntries(
+              Object.entries(picks).map(([key, pick]) => [
+                key,
+                pick?.by === id ? { ...pick, by: into } : pick,
+              ]),
+            ),
+          };
+        });
+      } catch {
+        /* a stale member row is a name too many in the roster, nothing worse */
+      }
+    }),
+  );
 }
 
 /* --- the shared half ------------------------------------------------------ */

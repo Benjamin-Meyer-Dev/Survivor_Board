@@ -980,7 +980,10 @@ away cannot be trusted to have missed nothing.
   lock and member row and shown under _Who's picking?_; typed into another
   phone it is looked up by jsonb containment over every pool's members
   (`claimId`) and that phone becomes the same member, so a second phone is
-  not a second person. It is as secret as a name: anyone holding it can pick
+  not a second person. A phone that was already somebody is folded in: its old
+  id drops out of the leagues both share and leaves the ones only it was in
+  (deleting any it was alone in), after `previewClaim` has let the sheet name
+  them and ask. It is as secret as a name: anyone holding it can pick
   as you, which is the trust a league's code already extends. The publishable key ships in the
   page, so the policies cannot check a code and the obstacle is that codes are
   unguessable, which keeps out passers-by rather than anyone determined; the

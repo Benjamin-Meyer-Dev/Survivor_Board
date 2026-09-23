@@ -4716,6 +4716,47 @@
   padding-top: 0;
 }
 
+/* What switching id would leave, asked in place of the form's own button. */
+.home__claim-warn {
+  display: grid;
+  gap: var(--form-gap);
+}
+
+.home__claim-warn[hidden],
+.home__form--claim .home__btn[hidden] {
+  display: none;
+}
+
+.home__claim-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home__claim-item {
+  color: var(--chalk);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.home__claim-item span {
+  color: var(--chalk-3);
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.home__claim-warn .home__confirm-row {
+  margin-top: 4px;
+}
+
 .home__choices-group {
   border: 0;
   padding: 0;

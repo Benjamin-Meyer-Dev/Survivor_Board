@@ -42,6 +42,7 @@ import {
   myLeagues,
   myName,
   myId,
+  previewClaim,
   refreshMyLeagues,
   removePool,
   renameMe,
@@ -1531,15 +1532,33 @@ function renderHomeView() {
         }
         renderHomeView();
       },
+      // Asked first, so the sheet can name the leagues a switch would leave.
+      onPreviewClaim: (typed) => previewClaim(typed),
       onClaimId: async (typed) => {
         // This phone becomes the person the id names: the directory has
         // written the id, their name and their leagues before this returns,
         // and the list is refreshed so their boards are warm and their head
-        // counts right. A rejection stays in the sheet (ui/home.js).
-        await claimId(typed);
+        // counts right. A rejection stays in the sheet (ui/home.js). The
+        // person this phone used to be has left whatever the id typed was not
+        // in, and a league that went with them is said, as a leave says it.
+        const { left } = await claimId(typed);
         ME = myId();
         app.name = myName();
-        app.homeMessage = "";
+        if (app.league && left.some((league) => league.code === app.league.code)) {
+          app.league = null;
+        }
+        const deleted = left.filter((league) => league.deleted).map((league) => league.name);
+        const kept = left.filter((league) => league.problem).map((league) => league.name);
+        app.homeMessage = [
+          deleted.length
+            ? `Nobody else was in ${deleted.join(", ")}, so ${deleted.length > 1 ? "they have" : "it has"} been deleted.`
+            : "",
+          kept.length
+            ? `You have left ${kept.join(", ")}. Nobody else was in ${kept.length > 1 ? "them" : "it"}, but ${kept.length > 1 ? "they" : "it"} could not be deleted.`
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
         await reloadLeagues();
         renderHomeView();
       },

@@ -428,6 +428,102 @@ assert.equal(
   2,
   "and joining from it adds nobody",
 );
+await assert.rejects(
+  () => directory.claimId(samId),
+  /already this phone's ID/,
+  "a phone's own id is not claimed from itself",
+);
+
+// Two phones that each became somebody before either was typed into the other.
+// Claiming folds the second into the first: out of the league they share as a
+// duplicate, out of the leagues only it was in, and a league only it was in
+// with nobody else goes altogether. The preview names those before anything
+// is written.
+reset(table);
+directory.setMyName("Sam");
+const otherId = directory.myId();
+await directory.joinLeague(hostCode);
+const lonely = await directory.createLeague({ name: "Phone Only", kinds: ["nfl-win", "cfb-win"] });
+const crowd = await directory.createLeague({ name: "Crowd", kinds: ["nfl-win"] });
+table.touch(crowd.code, "nfl-win", (row) => ({
+  entry: { ...row.entry, members: [...row.entry.members, { id: "d-pat", name: "Pat" }] },
+}));
+await directory.refreshMyLeagues();
+assert.equal(table.row(hostCode, "nfl-win").entry.members.length, 3, "the second phone is a third member");
+// A lock the second phone signed, and a league it is in but no longer lists:
+// the old person is deleted from the table, not only from this phone.
+table.touch(hostCode, "nfl-win", (row) => ({
+  entry: { ...row.entry, picks: { "1-0": { team: "KC", locked: true, by: otherId } } },
+}));
+const hidden = await directory.createLeague({ name: "Forgotten", kinds: ["nfl-lose"] });
+storage.setItem(
+  CONFIG.storage.leagues,
+  JSON.stringify(JSON.parse(storage.getItem(CONFIG.storage.leagues)).filter((l) => l.code !== hidden.code)),
+);
+
+const asked = await directory.previewClaim(formatPersonId(samId));
+assert.deepEqual(
+  asked.leaving,
+  [
+    { code: lonely.code, name: "Phone Only", alone: true },
+    { code: crowd.code, name: "Crowd", alone: false },
+    { code: hidden.code, name: "Forgotten", alone: true },
+  ],
+  "the preview names the leagues the switch leaves, and which of them it deletes",
+);
+assert.equal(directory.myId(), otherId, "and changes nothing");
+assert.equal(table.row(hostCode, "nfl-win").entry.members.length, 3, "not even the members");
+
+const folded = await directory.claimId(samId);
+assert.equal(directory.myId(), samId, "the phone is the claimed person");
+assert.deepEqual(
+  folded.left.map(({ name, deleted }) => ({ name, deleted })),
+  [
+    { name: "Phone Only", deleted: true },
+    { name: "Crowd", deleted: false },
+    { name: "Forgotten", deleted: true },
+  ],
+  "it says what it left, and what went with it",
+);
+assert.equal(
+  [...table.rows.values()].some((row) => row.code === hidden.code),
+  false,
+  "a league this phone had stopped listing is left too",
+);
+assert.equal(
+  table.row(hostCode, "nfl-win").entry.picks["1-0"].by,
+  samId,
+  "a lock the old id signed is the claimed person's",
+);
+assert.equal(
+  JSON.stringify([...table.rows.values()]).includes(otherId),
+  false,
+  "and the old id is nowhere in the table",
+);
+for (const kind of joined.kinds) {
+  assert.ok(
+    !table.row(hostCode, kind).entry.members.some((member) => member.id === otherId),
+    `${kind}: the duplicate is out of the shared league`,
+  );
+  assert.equal(table.row(hostCode, kind).entry.members.length, 2, `${kind}: two people again`);
+}
+assert.equal(
+  [...table.rows.values()].some((row) => row.code === lonely.code),
+  false,
+  "the league nobody else was in is gone",
+);
+assert.deepEqual(
+  table.row(crowd.code, "nfl-win").entry.members.map((member) => member.id),
+  ["d-pat"],
+  "the one with somebody else in it stays, for them",
+);
+assert.deepEqual(
+  directory.myLeagues().map((league) => league.code),
+  [hostCode],
+  "and this phone lists the claimed person's leagues only",
+);
+table.rows.delete(`${crowd.code}/nfl/win`);
+table.touch(hostCode, "nfl-win", (row) => ({ entry: { ...row.entry, picks: {} } }));
 
 // A name changed after joining reaches the members list, on every board.
 directory.setMyName("Samantha");
