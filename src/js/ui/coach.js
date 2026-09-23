@@ -1306,12 +1306,21 @@ function watchChart(panel) {
     down = plot && event.isPrimary ? { x: event.clientX, y: event.clientY, plot } : null;
   });
 
+  // A tap on the column already being quoted takes the callout back down, so
+  // the finger that opened it can close it where it opened it. Until now the
+  // only way to put it away was to touch something else, which on a chart
+  // that fills the band meant touching a part of the board you did not want -
+  // and every one of those touches does something of its own.
+  //
+  // A mouse is left out of it. There the callout follows the pointer rather
+  // than being opened (below), so a click that closed it would be undone by
+  // the next pixel of movement, and all a person would see is a flicker.
   panel.addEventListener("pointerup", (event) => {
     const start = down;
     down = null;
     if (!start) return;
     if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > TAP_SLOP) return;
-    reveal(start.plot, event.clientX);
+    reveal(start.plot, event.clientX, { toggle: event.pointerType !== "mouse" });
   });
 
   panel.addEventListener("pointercancel", () => {
@@ -1361,8 +1370,11 @@ function hideCallout(root) {
  * stands over the highest mark in it. Against the ends of the chart it hangs
  * from the side it has room on, and against the top it drops under the mark,
  * because the case clips what leaves it.
+ *
+ * @param {{toggle?:boolean}} [options] `toggle` puts the callout away instead
+ *   where the column asked for is the one it is already quoting.
  */
-function reveal(plot, clientX) {
+function reveal(plot, clientX, { toggle = false } = {}) {
   const callout = plot.querySelector(".route__callout");
   if (!callout) return;
   const dots = [...plot.querySelectorAll(".route__dot[data-at]")];
@@ -1374,6 +1386,14 @@ function reveal(plot, clientX) {
   const nearest = dots.reduce((best, dot) =>
     Math.abs(xOf(dot) - wanted) < Math.abs(xOf(best) - wanted) ? dot : best,
   );
+  // Asked again for the week it is already answering: the question has been
+  // asked and answered, so the answer goes. The column rather than the mark,
+  // because the column is what a touch lands in - a week with two routes on it
+  // draws two marks and they are one question.
+  if (toggle && !callout.hidden && callout.dataset.at === nearest.dataset.at) {
+    callout.hidden = true;
+    return;
+  }
   const column = dots.filter((dot) => dot.dataset.at === nearest.dataset.at);
 
   // Your route first, and one line where both routes are on the same team:
@@ -1444,6 +1464,8 @@ function reveal(plot, clientX) {
       .join("");
   callout.style.left = `${x.toFixed(2)}%`;
   callout.style.top = `${y.toFixed(2)}%`;
+  // Which column it is quoting, so the next tap on that one knows to close it.
+  callout.dataset.at = nearest.dataset.at;
   callout.hidden = false;
 
   // Which end it hangs from is measured rather than guessed at. It was a fifth

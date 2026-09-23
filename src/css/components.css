@@ -2711,6 +2711,19 @@
 
 /* The plot proper, with a gutter to its left for the rules' labels.
 
+   Twenty-two, which is what the labels actually take: a rule's label is three
+   characters - "70%" through "90%" - and measures sixteen in this face at this
+   size, with five between it and the plot. There is never a fourth character
+   to make room for. The rules are drawn every ten points strictly between the
+   scale's ends (route in ui/coach.js), so a scale that reaches the top has its
+   highest rule at ninety and one that starts at the bottom has its lowest at
+   ten; "100%" is a figure this gutter never holds. It was twenty-eight, which
+   was the width of the "100%" that never comes, and the six it was holding for
+   it were six the chart could have.
+
+   What is left puts the labels' left edge about where the eyebrow above them
+   starts, so the case's writing has one left edge rather than two.
+
    Over the rest of the chart rather than level with it, because the one thing
    in it that leaves its box is the callout, and what it leaves into is the row
    of week numbers under the axis. Every child of .route is given a layer above
@@ -2726,7 +2739,7 @@
   z-index: 2;
   flex: 1 1 auto;
   min-height: 56px;
-  margin-left: 28px;
+  margin-left: 22px;
 }
 
 /* The two axes: one chalk L down the left of the plot and along its foot.
@@ -3108,11 +3121,14 @@
 }
 
 /* The row of weeks, which is also a control: a tap on it turns the board to
-   the week it landed under (watchAxis in ui/coach.js). */
+   the week it landed under (watchAxis in ui/coach.js). The gutter is the
+   plot's, to the pixel: both place what they hold by percentage of their own
+   width, and a week number a pixel off the mark it stands under is a chart
+   that does not line up. */
 .route__axis {
   position: relative;
   height: 13px;
-  margin-left: 28px;
+  margin-left: 22px;
   cursor: pointer;
 }
 
