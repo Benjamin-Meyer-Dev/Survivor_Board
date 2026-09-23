@@ -325,9 +325,8 @@
      drag reads are named at the top of this file, and the two rules have to be
      able to override each other in the order they are written.
 
-     Open, this is gone and the panels scroll as they always did; the drag that
-     shuts the drawer is taken from the top of the list, where there was
-     nothing to scroll to. */
+     Open, this is gone and the panels scroll as they always did; no drag shuts
+     the drawer, the grab does. */
   .board:not(.is-raised) #view-week,
   .board:not(.is-raised) #view-burn,
   .board:not(.is-raised) .drawer__grab {

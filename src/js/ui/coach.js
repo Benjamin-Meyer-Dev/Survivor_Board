@@ -50,7 +50,7 @@
 import { formatPercent, formatSpread, escapeHtml } from "../core/format.js";
 import { TIER_LABEL, DEFAULT_TIERS } from "../core/probability.js";
 import { frame, reconcile } from "./patch.js";
-import { ownMotion } from "./motion.js";
+import { ownMotion, prefersReducedMotion } from "./motion.js";
 import { delegate } from "./events.js";
 
 /**
@@ -236,12 +236,21 @@ function renderRoute(current, markup) {
   const next = template.content.firstElementChild;
   if (!next) return;
   const previousWeek = current.dataset.viewWeek;
+  // A chart redrawn on the same week is the season changing under it - a lock,
+  // an unlock, a pick - and that moves from where it was (morphRoute). A week
+  // turning is the band's move, and the marks just stand in their places.
+  const was =
+    current.isConnected && previousWeek && previousWeek === next.dataset.viewWeek
+      ? captureRoute(current)
+      : null;
+  settleRoute(current);
 
   current.classList.toggle("route--compared", next.classList.contains("route--compared"));
   for (const attribute of [
     "data-motion-key",
     "data-motion-signature",
     "data-view-week",
+    "data-scale",
     "aria-label",
   ]) {
     const value = next.getAttribute(attribute);
@@ -267,6 +276,7 @@ function renderRoute(current, markup) {
   const currentPlot = current.querySelector(':scope > [data-key="plot"]');
   reconcile(currentPlot, plot.innerHTML);
   patchRouteLines(currentPlot?.querySelector(':scope > [data-key="lines"]'), nextLines);
+  if (was) morphRoute(current, was);
 
   // A callout quotes one column. If the band moved to another one, close the
   // old quote even though its stable node was deliberately retained.
@@ -307,6 +317,313 @@ function patchRouteLines(current, nextLines) {
   for (const line of [...current.children]) {
     if (!keep.has(line)) line.remove();
   }
+}
+
+/* --- the season changing under the chart -----------------------------------
+   A lock or a pick re-plans the season, and the chart used to draw the new one
+   in a single frame: the scale jumped to fit it, every mark and rule jumped with
+   the scale, and the coach's dashed line blinked on or off. Now the chart moves
+   from what it was drawing to what it is drawing.
+
+   The marks, rules and figures are placed by percentage, so each is put back
+   at the pixel it stood on and released with an animation made by script - the
+   one kind the coach's size container does not cancel (ownMotion in
+   ui/motion.js) - on `translate`, which leaves their own centring transform
+   alone and runs on the compositor through the re-plan. The lines are SVG
+   points, which nothing animates, so their points are tweened a frame at a
+   time off the same timing.
+
+   What arrives comes from somewhere: a rule from where its level stood on the
+   old scale, and a coach's mark or branch out of the route it parts from, so
+   the dashed line peels off your line rather than appearing beside it. What
+   goes goes back the same way, and only then off the page. */
+
+/** Chart marks that ride the scale. The band and the callout have their own. */
+const ROUTE_MARKS = ".route__rule, .route__dot, .route__figure";
+
+/** The morph running in each chart, so the next render can take it over. */
+const morphs = new WeakMap();
+
+/** Where everything on the chart stands, before a render moves it. */
+function captureRoute(route) {
+  if (prefersReducedMotion()) return null;
+  const plot = route.querySelector(':scope > [data-key="plot"]');
+  const lines = plot?.querySelector(':scope > [data-key="lines"]');
+  if (!plot || !lines) return null;
+  const box = plot.getBoundingClientRect();
+  if (!(box.width > 0 && box.height > 0)) return null;
+
+  const marks = new Map();
+  for (const node of plot.querySelectorAll(`:scope > :is(${ROUTE_MARKS})[data-key]`)) {
+    marks.set(node.dataset.key, { node, at: centreIn(node, box) });
+  }
+  // Read mid-flight, when a morph is running: the next one starts from what is
+  // on the screen, not from where the last one was going.
+  const paths = [...lines.querySelectorAll(":scope > polyline[data-key]")].map((node) => ({
+    node,
+    kind: lineKind(node),
+    points: pointsOf(node),
+  }));
+  const [lo, hi] = (route.dataset.scale ?? "").split(",").map(Number);
+  return { box, marks, paths, scale: Number.isFinite(lo) && hi > lo ? { lo, hi } : null };
+}
+
+/** Finish the morph in flight, if there is one: its lines to their ends, its ghosts gone. */
+function settleRoute(route) {
+  morphs.get(route)?.();
+  morphs.delete(route);
+}
+
+function morphRoute(route, was) {
+  const plot = route.querySelector(':scope > [data-key="plot"]');
+  const lines = plot?.querySelector(':scope > [data-key="lines"]');
+  if (!plot || !lines) return;
+  const box = plot.getBoundingClientRect();
+  if (!(box.width > 0 && box.height > 0)) return;
+
+  const style = getComputedStyle(route);
+  const timing = {
+    duration: durationOf(style.getPropertyValue("--route-morph")),
+    easing: style.getPropertyValue("--ease-out").trim() || "ease-out",
+    fill: "backwards",
+  };
+  if (!(timing.duration > 0)) return;
+  const [lo, hi] = (route.dataset.scale ?? "").split(",").map(Number);
+  const pxOf = (share) => (share / 100) * box.height;
+  const oldTop = (level) => ((was.scale.hi - level) / (was.scale.hi - was.scale.lo)) * 100;
+  const newTop = (level) => ((hi - level) / (hi - lo)) * 100;
+  const levelOf = (key) => Number(key.slice("rule-".length)) / 1000;
+  const slide = (node, dx, dy, frames = {}) =>
+    node.animate(
+      [
+        { translate: `${dx}px ${dy}px`, ...(frames.from ?? {}) },
+        { translate: "0px 0px", ...(frames.to ?? {}) },
+      ],
+      timing,
+    );
+
+  // Where everything now stands, read before any of it is put back: an
+  // animation filling backwards would have the marks report where they were.
+  const standing = [...plot.querySelectorAll(`:scope > :is(${ROUTE_MARKS})[data-key]`)].map(
+    (node) => ({ node, now: centreIn(node, box) }),
+  );
+  const marksNow = new Map(standing.map(({ node, now }) => [node.dataset.key, { node, at: now }]));
+
+  // Marks that stayed, and marks that arrived.
+  const kept = new Set();
+  for (const { node, now } of standing) {
+    const old = was.marks.get(node.dataset.key);
+    kept.add(node.dataset.key);
+    // Kept as it was by reconcile: nothing about it changed, and whatever it
+    // was doing it is still doing.
+    if (old?.node === node) continue;
+    if (old) {
+      const dx = old.at.x - now.x;
+      const dy = old.at.y - now.y;
+      if (Math.abs(dx) >= 0.5 || Math.abs(dy) >= 0.5) slide(node, dx, dy);
+      continue;
+    }
+    if (node.classList.contains("route__rule") && was.scale) {
+      slide(node, 0, pxOf(oldTop(levelOf(node.dataset.key)) - newTop(levelOf(node.dataset.key))), {
+        from: { opacity: 0 },
+        to: { opacity: 1 },
+      });
+      continue;
+    }
+    const peer =
+      node.dataset.at === undefined
+        ? null
+        : columnMark(was.marks, node.dataset.at, node.dataset.kind);
+    if (peer) slide(node, peer.at.x - now.x, peer.at.y - now.y);
+    else node.animate([{ opacity: 0 }, { opacity: 1 }], timing);
+  }
+
+  // Marks that went: back on the page for long enough to go somewhere.
+  const ghosts = [];
+  for (const [key, old] of was.marks) {
+    if (kept.has(key) || old.node.isConnected) continue;
+    const ghost = old.node;
+    const at = ghost.dataset.at;
+    const kind = ghost.dataset.kind;
+    delete ghost.dataset.key;
+    delete ghost.dataset.at;
+    ghost.classList.add("route__ghost");
+    plot.append(ghost);
+    ghosts.push(ghost);
+
+    let to = { x: 0, y: 0 };
+    if (ghost.classList.contains("route__rule") && was.scale) {
+      to.y = pxOf(newTop(levelOf(key)) - oldTop(levelOf(key)));
+    } else if (at !== undefined) {
+      const peer = columnMark(marksNow, at, kind);
+      if (peer) to = { x: peer.at.x - old.at.x, y: peer.at.y - old.at.y };
+    }
+    ghost
+      .animate(
+        [
+          { translate: "0px 0px", opacity: 1 },
+          { translate: `${to.x}px ${to.y}px`, opacity: 0 },
+        ],
+        { ...timing, fill: "forwards" },
+      )
+      .finished.then(
+        () => ghost.remove(),
+        () => {},
+      );
+  }
+
+  // The lines, and the ones that went.
+  const drawn = [...lines.querySelectorAll(":scope > polyline[data-key]")].map((node) => ({
+    node,
+    kind: lineKind(node),
+    points: pointsOf(node),
+  }));
+  const tweens = [];
+  for (const line of drawn) {
+    const before = line.points.map(([x]) => sampleLines(was.paths, line.kind, x));
+    // Nothing of its kind stood anywhere along it: it has nowhere to come
+    // from, so it comes in where it is.
+    if (before.every((y) => y === null)) {
+      line.node.animate([{ opacity: 0 }, { opacity: getComputedStyle(line.node).opacity }], timing);
+      continue;
+    }
+    const from = line.points.map(([x, y], index) => [x, before[index] ?? y]);
+    if (from.every(([, y], index) => Math.abs(y - line.points[index][1]) < 0.01)) continue;
+    tweens.push({ node: line.node, from, to: line.points });
+  }
+  for (const old of was.paths) {
+    if (old.node.isConnected) continue;
+    const ghost = old.node;
+    delete ghost.dataset.key;
+    ghost.classList.add("route__ghost");
+    lines.append(ghost);
+    ghosts.push(ghost);
+    const to = old.points.map(([x, y]) => [x, sampleLines(drawn, old.kind, x) ?? y]);
+    ghost.animate([{ opacity: getComputedStyle(ghost).opacity }, { opacity: 0 }], {
+      ...timing,
+      fill: "forwards",
+    });
+    tweens.push({ node: ghost, from: old.points, to });
+  }
+
+  // One clock for every line, running the marks' own easing, so a line and the
+  // marks standing on it arrive together.
+  const clock = new globalThis.Animation(new globalThis.KeyframeEffect(null, [], timing));
+  let frame = 0;
+  const draw = (progress) => {
+    for (const tween of tweens) {
+      tween.node.setAttribute(
+        "points",
+        tween.to
+          .map(
+            ([x, y], index) =>
+              `${x.toFixed(2)},${(tween.from[index][1] + (y - tween.from[index][1]) * progress).toFixed(2)}`,
+          )
+          .join(" "),
+      );
+    }
+  };
+  const tick = () => {
+    const progress = clock.effect.getComputedTiming().progress;
+    if (progress === null) return;
+    draw(progress);
+    frame = requestAnimationFrame(tick);
+  };
+  const finish = () => {
+    cancelAnimationFrame(frame);
+    clock.cancel();
+    draw(1);
+    for (const ghost of ghosts) ghost.remove();
+    if (morphs.get(route) === finish) morphs.delete(route);
+  };
+  if (tweens.length) {
+    draw(0);
+    clock.play();
+    frame = requestAnimationFrame(tick);
+    clock.finished.then(finish, () => {});
+  } else {
+    clock.finished.then(finish, () => {});
+    clock.play();
+  }
+  morphs.set(route, finish);
+}
+
+/** A node's centre, in pixels from the plot's corner. */
+function centreIn(node, box) {
+  const rect = node.getBoundingClientRect();
+  return { x: rect.left + rect.width / 2 - box.left, y: rect.top + rect.height / 2 - box.top };
+}
+
+/**
+ * The mark in the same column on the other side of the render, for a mark to
+ * come out of or go into: one of its own kind first - the coach's call on a
+ * locked week is the coach's mark on the week before it was locked - and
+ * otherwise yours, which is the route every other line parts from.
+ */
+function columnMark(marks, at, kind) {
+  const standing = [...marks.values()].filter(
+    (mark) => mark.node.classList.contains("route__dot") && mark.node.dataset.at === at,
+  );
+  return (
+    standing.find((mark) => mark.node.dataset.kind === kind) ??
+    standing.find((mark) => mark.node.classList.contains("route__dot--you")) ??
+    standing[0] ??
+    null
+  );
+}
+
+function lineKind(node) {
+  return (
+    [...node.classList]
+      .find((name) => name.startsWith("route__line--"))
+      ?.slice("route__line--".length) ?? ""
+  );
+}
+
+function pointsOf(node) {
+  return (node.getAttribute("points") ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((pair) => pair.split(",").map(Number));
+}
+
+/**
+ * Where a line of this kind stood at `x`, out of `paths`. A coach's branch
+ * that was not there before comes out of your route, and yours out of the
+ * coach's, which is where each of them parts from; the played line and a buy
+ * back only ever come from their own.
+ */
+function sampleLines(paths, kind, x) {
+  const kinds = kind === "coach" ? ["coach", "you"] : kind === "you" ? ["you", "coach"] : [kind];
+  for (const wanted of kinds) {
+    for (const path of paths) {
+      if (path.kind !== wanted) continue;
+      const y = along(path.points, x);
+      if (y !== null) return y;
+    }
+  }
+  return null;
+}
+
+/** A polyline's height at `x`, or null where it does not reach. */
+function along(points, x) {
+  for (let index = 1; index < points.length; index += 1) {
+    const [x0, y0] = points[index - 1];
+    const [x1, y1] = points[index];
+    if (x >= Math.min(x0, x1) - 0.01 && x <= Math.max(x0, x1) + 0.01) {
+      return x1 === x0 ? y1 : y0 + ((y1 - y0) * (x - x0)) / (x1 - x0);
+    }
+  }
+  return points.length === 1 && Math.abs(points[0][0] - x) < 0.01 ? points[0][1] : null;
+}
+
+/** A CSS time as milliseconds. */
+function durationOf(value) {
+  const text = value.trim();
+  const amount = parseFloat(text);
+  if (!Number.isFinite(amount)) return 0;
+  return text.endsWith("ms") ? amount : amount * 1000;
 }
 
 /**
@@ -1243,7 +1560,7 @@ function route(state, board) {
   // do not land any more (the route block in motion.css), so it does not, and
   // the settle no longer reaches in here at all.
 
-  return `<section class="route${alternative ? " route--compared" : ""}" data-key="route" data-view-week="${viewed.week}" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
+  return `<section class="route${alternative ? " route--compared" : ""}" data-key="route" data-view-week="${viewed.week}" data-scale="${lo},${hi}" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
     <div class="route__head" data-key="head">
       <span class="route__eyebrow">Survival chance by week</span>
     </div>

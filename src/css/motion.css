@@ -576,7 +576,21 @@
    (the ink strike below).
 
    The route carries no motion key either (ui/coach.js), so the settle does not
-   reach into the chart to write a class nothing reads. */
+   reach into the chart to write a class nothing reads.
+
+   What it does instead is move (morphRoute in ui/coach.js). When the season
+   under the chart changes on the week it is showing - a lock, an unlock, a
+   pick - the scale, the rules, the marks and both lines travel from where they
+   stood to where they now stand, and a coach's branch peels out of your route
+   or folds back into it. All of it made by script, which the size container
+   leaves alone, on this one duration and the board's ease. */
+.route {
+  --route-morph: 0.42s;
+}
+
+.route__ghost {
+  pointer-events: none;
+}
 
 @keyframes coach-pulse {
   0%,

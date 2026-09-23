@@ -20,8 +20,8 @@
  * for the list they had just opened.
  *
  * The third is the drag, for the thumb that does not look: up on the grab to
- * open it, down from the top of the list to put it back (watchRaise). The
- * grab stays a button as well, because a gesture nobody can see is not a
+ * open it (watchRaise). Only to open it - a drag down on the open drawer is
+ * the list being scrolled, never a shut. The grab stays a button as well, because a gesture nobody can see is not a
  * control; it is the sign over the door rather than the only way through it.
  * The bar is left out of it - a drag that lands on a tab means the tab.
  *
@@ -88,8 +88,9 @@ const SLOP_PX = 12;
  */
 const DOMINANCE = 1.4;
 
+
 /**
- * Watch the drawer for the drag that opens it, and the one that puts it back.
+ * Watch the shut drawer for the drag that opens it.
  *
  * Touch only, and deliberately: this is the gesture a thumb makes at a list
  * that has no room, and every other pointer has the grab, the keyboard and a
@@ -97,20 +98,13 @@ const DOMINANCE = 1.4;
  *
  * Shut, the drawer is told to pan nothing (layout.css), so the drag is ours
  * from the first pixel and there is no race with a scroll that has already
- * started - which is the whole reason the rule is there. Open, the panels
- * scroll as they always did and only one drag is taken from them: down, from
- * the very top of the list, where there was nothing to scroll to anyway.
+ * started - which is the whole reason the rule is there. Open, the drawer is
+ * left alone entirely: a drag down on an open list is somebody scrolling it,
+ * and shutting the drawer under them for it took the list away mid-read. The
+ * grab is the way back.
  *
- * The grab is a surface like the lists, and shut it is the only one with
- * anything under the thumb - a drawer down to its head has no list to drag.
- * It does not scroll, so its scrollTop is always nought and every drag down
- * on it is read from the top, which is what it is for. The tab bar sits on
- * the same head and is deliberately not watched: a tab is a name to tap, and
- * a bar that answered a drag as well shut the drawer under the finger of
- * somebody reaching for the list they had just opened.
- *
- * One answer per touch. A drag that has been read is done being read, so a
- * long one cannot open the drawer and then shut it again on the way back.
+ * The tab bar sits on the same head and is deliberately not watched: a tab is
+ * a name to tap, and a drag that lands on one means the tab.
  *
  * @param {object} handlers
  * @param {() => boolean} handlers.raisable Whether this screen shuts its
@@ -123,19 +117,16 @@ const DOMINANCE = 1.4;
  */
 export function watchRaise({ raisable, raised, toggle }, { surfaces = [] } = {}) {
   for (const surface of surfaces.filter(Boolean)) {
-    /** The touch in hand: where it began, and whether the list was at its top. */
+    /** Where the touch in hand began, while it could still be an open. */
     let start = null;
 
     surface.addEventListener(
       "touchstart",
       (event) => {
         start = null;
-        if (event.touches.length !== 1 || !raisable()) return;
+        if (event.touches.length !== 1 || !raisable() || raised()) return;
         const touch = event.touches[0];
-        // Where the list stood when the finger landed, not where it stands by
-        // the time the drag is read: a drag down that began part way through
-        // the list is that list being scrolled back, however far it has got.
-        start = { x: touch.clientX, y: touch.clientY, atTop: surface.scrollTop <= 0 };
+        start = { x: touch.clientX, y: touch.clientY };
       },
       { passive: true },
     );
@@ -152,24 +143,12 @@ export function watchRaise({ raisable, raised, toggle }, { surfaces = [] } = {})
         const down = touch.clientY - start.y;
         const across = touch.clientX - start.x;
         if (Math.abs(down) < SLOP_PX) return;
-        // Sideways is the week's drag. Decided once, so a gesture that wandered
-        // is not read as this one at the end of it.
-        if (Math.abs(down) < Math.abs(across) * DOMINANCE) {
-          start = null;
-          return;
-        }
-
-        const { atTop } = start;
-        const up = down < 0;
+        // Sideways is the week's drag, and down on a shut drawer is nothing.
+        // Decided once, so a gesture that wandered is not read at the end of it.
+        const up = down < 0 && Math.abs(down) >= Math.abs(across) * DOMINANCE;
         start = null;
-
-        if (up === raised()) return;
-        // Down, only from the top. Anywhere else it is the list being scrolled
-        // back, and taking that for a gesture would shut the drawer every time
-        // somebody returned to the first row.
-        if (!up && !atTop) return;
-        // Nothing else happens to this touch: no scroll, no bounce, no tap on
-        // whatever row it began on.
+        if (!up || raised()) return;
+        // Nothing else happens to this touch: no bounce, no tap on the grab.
         event.preventDefault();
         toggle();
       },
