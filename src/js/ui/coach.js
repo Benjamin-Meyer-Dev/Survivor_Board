@@ -897,6 +897,11 @@ function chain(state, board) {
   const closed = state.kind === "past";
   const tiers = board.rules?.tiers ?? DEFAULT_TIERS;
   const tier = subject.tier;
+  // The lines and the chance in the tier's chalk, as the list sets a team's
+  // spread and chance beside it (sideline.js), so the same pick reads in the
+  // same colour in the tab and over the graph. A dash is no figure to colour.
+  const inTier = (figure) =>
+    tier && figure !== "—" ? ` chain__value--tier confidence--${tier}` : "";
 
   const rating = (value) => (Number.isFinite(value) ? value.toFixed(1) : "—");
   // The two terms the line is the sum of, rather than the two ratings it is
@@ -976,17 +981,17 @@ function chain(state, board) {
   return `<ol class="chain" data-key="chain" aria-label="How ${escapeHtml(subject.team)} ${closed ? "closed" : "was priced"}">
     <li class="chain__stop" title="${escapeHtml(modelTitle)}">
       <span class="chain__key">Model line</span>
-      <span class="chain__value">${formatSpread(p.projected)}</span>
+      <span class="chain__value${inTier(formatSpread(p.projected))}">${formatSpread(p.projected)}</span>
       <span class="chain__sub">${ratingsSub}</span>
     </li>
     <li class="chain__stop" title="${escapeHtml(marketTitle)}">
       <span class="chain__key">${closed ? "Closing line" : "Market line"}</span>
-      <span class="chain__value">${marketValue}</span>
+      <span class="chain__value${inTier(marketValue)}">${marketValue}</span>
       <span class="chain__sub">${escapeHtml(marketSub)}</span>
     </li>
     <li class="chain__stop" title="${escapeHtml(priceTitle)}">
       <span class="chain__key">Win prob</span>
-      <span class="chain__value${tier ? ` confidence--${tier}` : ""}">${formatPercent(price, 1)}</span>
+      <span class="chain__value${inTier(formatPercent(price, 1))}">${formatPercent(price, 1)}</span>
       <span class="chain__sub">${priceSub}</span>
     </li>
     <li class="chain__stop" title="Where that probability falls on this league's confidence scale">

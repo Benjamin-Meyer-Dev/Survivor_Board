@@ -1708,8 +1708,8 @@
   min-height: var(--call-floor, 0);
 }
 
-/* Raised, the card is its name and nothing else, and a floor measured for the
-   whole card would hold the drawer off half the screen. */
+/* Raised, the card is its own height: the floor is there to hold the card
+   still as the weeks page past, and the drawer wants every pixel it spares. */
 .board.is-raised .call__slots {
   min-height: 0;
 }
@@ -2135,47 +2135,10 @@
   outline-color: var(--danger);
 }
 
-/* The call with the drawer raised over the field (ui/drawer.js).
-
-   The head stays whole - the week, and the action, which is the reason the
-   card is on screen at all while you are picking out of the list. Under it
-   each slot keeps the two things that say what it is holding, on one line:
-   what the slot is, and the team in it. The marks, the game and its numbers
-   are the week being read rather than the week being filled, and they come
-   back with the field.
-
-   The two rows that stay keep the order they had, so the fold reads as the
-   card closing rather than as a different card: the eyebrow over the team, at
-   the size a slot half a card wide has always used. The name goes to one line
-   and ellipsises - a slot that is two lines tall folded is not folded. */
-/* The name travels between the two sizes, over the beat the drawer rises in,
-   so the card closes up rather than cutting to its folded self.
-
-   The three rows go at once, and on purpose. Fading them first was tried -
-   a discrete `display` transition behind an opacity one, which holds the
-   switch until the fade has finished - and it is worse: the rows keep their
-   space while they dim, so for the first seventh of a second the card is a
-   tall empty box with the team's name adrift at the top of it and a hole
-   underneath. The rows are the week being read rather than the week being
-   filled; they leave, and what stays travels. */
-.call__team {
-  transition:
-    font-size 240ms var(--ease-out),
-    line-height 240ms var(--ease-out);
-}
-
-.board.is-raised .call__marks,
-.board.is-raised .call__matchup {
-  display: none;
-}
-
-.board.is-raised .call__team {
-  font-size: 22px;
-  line-height: 24px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+/* The call with the drawer raised over the field (ui/drawer.js) is the call
+   whole: the tier, the coach's mark, the team and its game are what you are
+   checking a pick in the list against, so the raise gives up the field and
+   the case for the drawer's room and leaves the card as it was. */
 
 /* the model's working (ui/coach.js) ----------------------------------------- */
 
@@ -2535,6 +2498,12 @@
   line-height: 1.1;
   color: var(--chalk);
   white-space: nowrap;
+}
+
+/* A line or the chance, in the tier's chalk (confidence--*), the way the
+   list colours the same two figures. */
+.chain__value--tier {
+  color: var(--confidence-color);
 }
 
 .chain__sub {
@@ -5396,24 +5365,6 @@
      that were holding SEAHAWKS and BRONCOS on one line each. */
   .bench {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  /* The call card the raise trims down, back in full (layout.css says why the
-     board sideways is never raised). Restated rather than reverted: these are
-     the values the rules above set, and there is nothing in `revert` that
-     knows about an author's earlier rule. */
-  .board.is-raised .call__marks {
-    display: flex;
-  }
-
-  .board.is-raised .call__matchup {
-    display: block;
-  }
-
-  .board.is-raised .call__team {
-    font-size: 30px;
-    line-height: 1;
-    white-space: normal;
   }
 
   /* The home page loses its hero. Sideways the head is a masthead rather than
