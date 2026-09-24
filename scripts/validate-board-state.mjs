@@ -183,6 +183,15 @@ assert.equal(picked.spentCount, 0, "an unlocked pick spends nothing");
 assert.equal(picked.pickedTeams[pending], first.week, "an unlocked pick is marked as picked");
 assert.equal(pickedSlot.status.result, null, "an unlocked pick receives no feed result");
 assert.equal(pickedSlot.isRecommended, false, "a pick the coach did not make is not badged");
+const secondChoice = empty.weeks[live].coachRanked[1]?.team;
+if (secondChoice) {
+  const tookSecond = build({ picks: {}, swaps: { [key]: secondChoice } }, withFeedResult);
+  assert.equal(
+    tookSecond.weeks[live].picks[0].coachRank,
+    2,
+    "a pick of the coach's number two carries its rank, for the card's badge",
+  );
+}
 assert.deepEqual(
   picked.recommendation.picks,
   advised.recommendation.picks,
@@ -194,11 +203,20 @@ assert.equal(
   "an unlocked pick must not change committed season survival",
 );
 assert.equal(typeof picked.previewPathProbability, "number");
-assert.equal(
-  picked.weeks.at(-1).seasonWinProb,
-  picked.previewPathProbability,
-  "cumulative survival previews an unlocked pick",
-);
+// An open slot shows the coach's number one for its week whatever is pending
+// elsewhere, unless you are holding that team yourself.
+for (const week of picked.weeks.filter((entry) => entry.week > picked.currentWeek)) {
+  const top = week.coachRanked.find(
+    (option) =>
+      !picked.weeks.some((other) => other.picks.some((pick) => pick.team === option.team)),
+  );
+  if (!top || week.picks[0].team) continue;
+  assert.equal(
+    week.picks[0].suggestion?.team,
+    top.team,
+    `week ${week.week}'s open slot shows the coach's best name it can hold`,
+  );
+}
 assert.ok(
   pickedSlot.options.some((option) => option.isCoach && option.team === coachTeam),
   "the coach's call stays badged while a different team is picked",

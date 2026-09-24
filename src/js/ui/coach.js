@@ -1054,25 +1054,21 @@ function estimateFor(state, board) {
  * already on the board - and they are the half of the season the two routes
  * are the continuation of.
  *
- * There is always a solid line, and it is the route the board is on: your pick
- * this week and the coach's plan around it (week.rehearsalPath, core/plan.js),
- * or the plan alone in a week you have not picked yet. That line is the season
- * as it stands, so it is the one thing the chart is never without - it was
- * missing on a week with nothing picked, which left a chart drawn entirely in
- * the dashes that are supposed to mean "only pencilled in".
+ * There is always a solid line, in gold, and it is the route the board is on:
+ * the committed plan (week.pathRecommendation, core/plan.js) - the locks and
+ * the coach's calls around them. That line is the season as it stands, so it
+ * is the one thing the chart is never without.
  *
- * The dashes are for a difference. The coach's untouched plan
- * (week.pathRecommendation) is drawn over the weeks it would spend on another
- * team and no others, branching off the solid line at the week before and
- * rejoining it at the week after, with a mark on each week it differs. Where
- * the two plans agree there is nothing to pencil in, and the week the coach was
- * saving your team for is ruled and named besides, because that is the whole of
- * why a safer pick this week can leave a lower season.
+ * The dashes are for a pick that is only pending. The coach re-plans the
+ * season around it (week.rehearsalPath), and that plan is drawn over the weeks
+ * it would spend on another team and no others, leaving the solid line at the
+ * week before and rejoining it at the week after - or leaving the played line,
+ * where the week before is history - with a mark on each week it differs. Lock
+ * the pick and the new plan is the committed one: the gold line takes it and
+ * the dashes go.
  *
- * A pick pending in any week has the coach planning around it, and that plan
- * is the route the field shows, so it is drawn as yours whichever week is
- * being looked at. With nothing pending, a locked week has the lock on its
- * line and the coach's call for the week stands beside it as a lone mark.
+ * With nothing pending, a locked week has the lock on its line and the coach's
+ * call for the week stands beside it as a lone mark.
  *
  * Drawn as an SVG stretched to the box for the lines, with the marks and
  * every word placed over it by percentage, so the marks stay round and the
@@ -1144,21 +1140,22 @@ function route(state, board) {
   const anyPlayed = played.stops.some((stop) => stop.prob !== null);
 
   const coachStops = stopsOf((week) => week.pathRecommendation);
-  // A pick pending anywhere on the board has the coach planning around it,
-  // and that plan is the route the field shows (week.rehearsalPath): yours,
-  // whichever week is being looked at.
+  // A pick pending anywhere on the board has the coach re-planning the season
+  // around it (week.rehearsalPath): the route a lock would put the board on.
   const rehearsed = weeks.some((week) => Array.isArray(week.rehearsalPath));
 
-  // The solid line, always: the route the board is on. A rehearsal is it where
-  // there is one, a pick on the card is laid over the plan at this week where
-  // there is not, and with neither it is the plan itself - which is still the
-  // season as it stands, and still the line the chart is about.
-  //
-  // The overlay copies the stops rather than writing into them: `coachStops` is
-  // the array the untouched plan is drawn from as well, and writing your pick
-  // into it put your team on the coach's line at the one week the two are being
-  // compared at.
-  const you = rehearsed
+  // The solid line, always: the route the board is on, which is the committed
+  // plan - the locks and the coach's calls around them. A pick that is only
+  // pending does not move it; locking the pick does, and then the new plan is
+  // this line and there is nothing left to pencil in.
+  const you = { stops: coachStops, season: board.pathProbability };
+
+  // The pencilled route: the plan a pending pick would lock the board into.
+  // The rehearsal where there is one, and where it has not landed yet, the
+  // pick on the card laid over the committed plan at this week. The overlay
+  // copies the stops rather than writing into them: `coachStops` is the solid
+  // line's own array.
+  const pencil = rehearsed
     ? {
         stops: stopsOf((week) => week.rehearsalPath),
         season: Number.isFinite(board.rehearsalProbability)
@@ -1178,23 +1175,22 @@ function route(state, board) {
           ),
           season: estimateFor(state, board),
         }
-      : { stops: coachStops, season: board.pathProbability };
+      : null;
 
-  // The untouched plan, and the weeks it would spend on another team. It is
-  // drawn only where that list is not empty: a dashed line laid exactly over
-  // the solid one says nothing, and says it in the vocabulary the board keeps
-  // for a suggestion.
-  const coach = { stops: coachStops, season: board.pathProbability };
-  const apart = you.stops.map(
-    (stop, index) =>
-      stop.prob !== null &&
-      coach.stops[index].prob !== null &&
-      !sameTeams(
-        stop.options.map((option) => option.team),
-        coach.stops[index].options.map((option) => option.team),
-      ),
-  );
-  const alternative = apart.some(Boolean) ? coach : null;
+  // The weeks the pencilled route would spend on another team. It is drawn
+  // only over those: a dashed line laid exactly over the solid one says
+  // nothing, and says it in the vocabulary the board keeps for a suggestion.
+  const apart = pencil
+    ? pencil.stops.map(
+        (stop, index) =>
+          stop.prob !== null &&
+          !sameTeams(
+            stop.options.map((option) => option.team),
+            you.stops[index].options.map((option) => option.team),
+          ),
+      )
+    : [];
+  const alternative = apart.some(Boolean) ? pencil : null;
 
   // The coach's call for a locked week, which has no route of its own to draw.
   let lone = null;
@@ -1328,7 +1324,19 @@ function route(state, board) {
   // is an alternative to and comes back to it. A single week's difference is
   // still a branch and a rejoin that way, where the run on its own would be one
   // point and no line at all.
-  const branchOf = (entry, kind, differs) => {
+  //
+  // The head and the tail are read off the line the branch leaves and rejoins,
+  // not off the branch: the week before the first difference can be a week
+  // already played, which has no plan of its own to stand on, and the branch
+  // then leaves the played line where it hands over to the plan. Only the
+  // season's own ends go without one.
+  const branchOf = (entry, kind, differs, bases) => {
+    const pointAt = (stops, index) =>
+      stops?.[index] && stops[index].prob !== null
+        ? `${xAt(index).toFixed(2)},${yAt(stops[index].prob).toFixed(2)}`
+        : null;
+    const joinAt = (index) =>
+      bases.map((stops) => pointAt(stops, index)).find(Boolean) ?? pointAt(entry.stops, index);
     const runs = [];
     differs.forEach((parted, index) => {
       if (!parted) return;
@@ -1337,14 +1345,17 @@ function route(state, board) {
       else runs.push([index]);
     });
     return runs
-      .map((run) => [run[0] - 1, ...run, run.at(-1) + 1])
-      .map((span) => span.filter((index) => entry.stops[index] && entry.stops[index].prob !== null))
-      .filter((span) => span.length > 1)
+      .map((run) =>
+        [
+          joinAt(run[0] - 1),
+          ...run.map((index) => pointAt(entry.stops, index)),
+          joinAt(run.at(-1) + 1),
+        ].filter(Boolean),
+      )
+      .filter((points) => points.length > 1)
       .map(
-        (span, index) =>
-          `<polyline class="route__line route__line--${kind}" data-key="line-${kind}-${index}" points="${span
-            .map((stop) => `${xAt(stop).toFixed(2)},${yAt(entry.stops[stop].prob).toFixed(2)}`)
-            .join(" ")}" />`,
+        (points, index) =>
+          `<polyline class="route__line route__line--${kind}" data-key="line-${kind}-${index}" points="${points.join(" ")}" />`,
       )
       .join("");
   };
@@ -1496,7 +1507,7 @@ function route(state, board) {
     : series
         .map(
           (entry) =>
-            `${entry === you ? "your route" : "the coach's route"}: ${figureOf(entry.stops[at].prob ?? 0)} this week, ${formatPercent(entry.season, 1)} for the season`,
+            `${entry === you ? "the plan" : "the plan with your pick"}:${figureOf(entry.stops[at].prob ?? 0)} this week, ${formatPercent(entry.season, 1)} for the season`,
         )
         .join("; ");
 
@@ -1513,7 +1524,7 @@ function route(state, board) {
       <span class="route__band" data-key="band" style="left:${pct((at / n) * 100)};width:${pct(100 / n)}"></span>
       ${grid}
       <svg class="route__lines" data-key="lines" viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
-        ${anyPlayed ? lineOf(played, "played", liveTail) + boughtOf(played, liveTail) : ""}${alternative ? branchOf(alternative, "coach", apart) : ""}${lineOf(you, ahead)}
+        ${anyPlayed ? lineOf(played, "played", liveTail) + boughtOf(played, liveTail) : ""}${alternative ? branchOf(alternative, "coach", apart, [you.stops, anyPlayed ? played.stops : null]) : ""}${lineOf(you, ahead)}
       </svg>
       ${anyPlayed ? dotsOf(played, "played") : ""}${alternative ? dotsOf(alternative, "coach", { only: apart, reach: reachOf(alternative) }) : ""}${dotsOf(you, ahead, { reach: reachOf(you) })}${loneMark}
       <span class="route__callout" data-key="callout" hidden></span>

@@ -48,11 +48,7 @@
  * Handlers are injected; this module knows nothing about the store.
  */
 
-import {
-  formatMatchup,
-  formatKickoff,
-  escapeHtml,
-} from "../core/format.js";
+import { formatMatchup, formatKickoff, escapeHtml } from "../core/format.js";
 import { TIER_LABEL } from "../core/probability.js";
 import { delegate } from "./events.js";
 import { frame, reconcile } from "./patch.js";
@@ -315,8 +311,13 @@ function slotMarkup(pick, board, count, active) {
   // The coach's badge stays on a locked pick: the board clears isRecommended
   // once a lock is a constraint the coach plans around, but it keeps the call
   // the coach made before the lock (coachCall), which is what the badge means.
+  // A team anywhere on the coach's board wears it too: taking its number two
+  // is still taking the coach's advice.
   const coached =
-    pick.team && (pick.isRecommended || (status.locked && pick.coachCall?.team === pick.team));
+    pick.team &&
+    (pick.isRecommended ||
+      pick.coachRank !== null ||
+      (status.locked && pick.coachCall?.team === pick.team));
   // The pool forgave this week's loss. It rides the marks row rather than the
   // result stamp: the stamp is the game's own answer and the game was lost,
   // which is what it should keep saying. This is what the POOL did about it,

@@ -948,6 +948,8 @@ export function buildBoard({
   // path on screen: a second pick pending in another week is shown in its slot,
   // but the lock leaves it unlocked, and the coach plans past it.
   const rehearsalPicks = [];
+  // Each week's candidates for its open slots, in board order (see below).
+  const suggestionPools = new Map();
 
   for (const week of board.weeks) {
     const lockedTeams = new Set(
@@ -1065,7 +1067,6 @@ export function buildBoard({
     }
     const weekPlan = planByWeek.get(week.week);
     let next = 0;
-    let ghost = 0;
 
     for (const pick of week.picks) {
       if (pick.status.locked) {
@@ -1131,16 +1132,65 @@ export function buildBoard({
         return { ...option, tier: confidenceTier(option.winProb, rules.tiers), rank };
       });
 
+    // What an open slot may show, best first: the coach's own calls for the
+    // week, then the rest of its board, then the plan's ghosts. Never a team
+    // you hold in this week, its opponent, or a game already played. The
+    // season-wide pass below hands them out (suggestionPools).
+    const heldOpponents = new Set(
+      [...heldTeams].map((team) => week.optionByTeam.get(team)?.opponent).filter(Boolean),
+    );
+    const candidates = [...week.coachRanked, ...ghosts].filter(
+      (option, index, all) =>
+        all.findIndex((candidate) => candidate.team === option.team) === index &&
+        !heldTeams.has(option.team) &&
+        !heldOpponents.has(option.team) &&
+        !option.result,
+    );
+    suggestionPools.set(week, {
+      calls: candidates.filter((option) => coachTeams.has(option.team)),
+      rest: candidates.filter((option) => !coachTeams.has(option.team)),
+    });
+
     for (const pick of week.picks) {
       pick.isRecommended =
         Boolean(pick.team) && !pick.status.locked && liveCoachTeams.has(pick.team);
-      pick.suggestion = pick.team ? null : (ghosts[ghost++] ?? null);
+      // Where the coach ranks the team in the slot, for the card's badge: any
+      // name on the coach's board is one the coach put forward.
+      pick.coachRank = pick.team ? (rankByTeam.get(pick.team) ?? null) : null;
+      pick.suggestion = null;
       for (const option of pick.options) {
         option.isCoach = coachTeams.has(option.team);
         option.coachRank = rankByTeam.get(option.team) ?? null;
       }
     }
+  }
 
+  // The suggestions, handed out across the season. An open slot shows the
+  // coach's number one for its week whatever is pending elsewhere, so the calls
+  // go out first, week by week; only a slot whose call you are holding yourself
+  // falls back, and it falls back onto a name no other week is showing. Every
+  // team you hold, in any week, is spoken for before any of it.
+  const shownTeams = new Set(
+    board.weeks.flatMap((week) => week.picks.map((pick) => pick.team).filter(Boolean)),
+  );
+  const handOut = (week, pool) => {
+    for (const pick of week.picks) {
+      if (pick.team || pick.suggestion) continue;
+      const taken = week.picks.map((slot) => slot.suggestion ?? slot).filter((slot) => slot.team);
+      const option = pool.find(
+        (candidate) =>
+          !shownTeams.has(candidate.team) &&
+          !taken.some((slot) => slot.opponent === candidate.team),
+      );
+      if (!option) return;
+      pick.suggestion = option;
+      shownTeams.add(option.team);
+    }
+  };
+  for (const [week, pools] of suggestionPools) handOut(week, pools.calls);
+  for (const [week, pools] of suggestionPools) handOut(week, pools.rest);
+
+  for (const week of board.weeks) {
     // What the slot holds on the season path: the users' team if there is one,
     // else the coach's suggestion. `kind` tells the UI how solid to draw it.
     for (const pick of week.picks) {
