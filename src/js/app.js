@@ -272,14 +272,16 @@ async function stillness() {
  */
 function repaintAfterMotion() {
   if (app.view !== "board") return;
-  if (!lastBoard?.recommendationPending && !lastBoard?.previewPending) return;
+  if (!lastBoard?.recommendationPending && !lastBoard?.previewPending && !lastBoard?.routePending)
+    return;
   if (app.repaintOwed) return;
   app.repaintOwed = true;
   stillness().then(() => {
     if (!app.repaintOwed) return;
     app.repaintOwed = false;
     if (app.view !== "board") return;
-    if (!lastBoard?.recommendationPending && !lastBoard?.previewPending) return;
+    if (!lastBoard?.recommendationPending && !lastBoard?.previewPending && !lastBoard?.routePending)
+      return;
     render({ search: false });
   });
 }
@@ -597,7 +599,10 @@ const warmed = new Map();
 function canWarm() {
   if (!searchRunner() || app.switching) return false;
   if (document.body.classList.contains("is-starting")) return false;
-  if (app.view === "board" && (lastBoard?.recommendationPending || lastBoard?.previewPending)) {
+  if (
+    app.view === "board" &&
+    (lastBoard?.recommendationPending || lastBoard?.previewPending || lastBoard?.routePending)
+  ) {
     return false;
   }
   return true;
@@ -2306,7 +2311,7 @@ async function prepareLeague(league, wanted = null) {
  */
 async function readyBoard(ready) {
   let board = buildBoard({ ...boardInputs(ready), allowSearch: Boolean(searchRunner()) });
-  if (board.recommendationPending || board.previewPending) {
+  if (board.recommendationPending || board.previewPending || board.routePending) {
     await searchesSettled({ rehearsals: true });
     // Again with the answer in the cache - and again off whatever runner is
     // left, since a worker that died during the wait took itself back out

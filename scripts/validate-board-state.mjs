@@ -370,6 +370,24 @@ assert.deepEqual(
   noneInHand.weeks.flatMap((week) => week.rehearsalPath ?? []).length,
   "with no lock in hand the path on screen spends no team twice",
 );
+// The coach's chart compounds every pick pending, whichever one is in hand:
+// the route it pencils in holds both, and its season figure is that route's.
+// "If locked" still prices the lock in hand alone.
+for (const compounded of [inHand, secondHeld]) {
+  assert.ok(
+    compounded.weeks[live].rehearsalPath.some((option) => option.team === rehearsedTeam),
+    "the chart's route holds the first pick pending",
+  );
+  assert.ok(
+    compounded.weeks[live + 1].rehearsalPath.some((option) => option.team === secondTeam),
+    "and the second, whichever is in hand",
+  );
+  assert.equal(
+    compounded.rehearsalProbability,
+    noneInHand.rehearsalProbability,
+    "the chart's season figure is the route with every pick held",
+  );
+}
 // The same with the slot in hand locked a moment ago: the lock is made, and
 // the readout has nothing left to say about it.
 const justLocked = build(

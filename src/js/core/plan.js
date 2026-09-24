@@ -924,6 +924,24 @@ export function buildBoard({
   // The rehearsal is still out and the assignment stands in for it. app.js
   // builds again when it lands, as it does for a plan (onSearchSettled).
   board.previewPending = Boolean(rehearsal?.pending);
+  // The coach's chart draws something else: every pick pending, held at once,
+  // so two or three picks pencilled into different weeks compound into one
+  // route rather than the chart showing only the one the lock button would
+  // take. With one pick pending, or none in hand, the two are the same search.
+  const compounding = weighing && target !== null && weighed.length > 1;
+  const routeRehearsal = compounding
+    ? memoisedPreview(
+        board,
+        plan,
+        odds,
+        form,
+        planByWeek,
+        { calibration, availability, pool },
+        null,
+      )
+    : rehearsal;
+  const routePreview = routeRehearsal?.value ?? recommendation;
+  board.routePending = compounding && Boolean(routeRehearsal?.pending);
   // The committed frontier answers "what should I take?"; a settled rehearsal
   // answers the more specific "how does the opening I am weighing behave?" In
   // a two-pick week the held slot is fixed and every legal partner is simulated,
@@ -948,6 +966,8 @@ export function buildBoard({
   // path on screen: a second pick pending in another week is shown in its slot,
   // but the lock leaves it unlocked, and the coach plans past it.
   const rehearsalPicks = [];
+  // The route the chart draws (routeRehearsal): every pick pending held.
+  const routePicks = [];
   // Each week's candidates for its open slots, in board order (see below).
   const suggestionPools = new Map();
 
@@ -1044,25 +1064,45 @@ export function buildBoard({
     // which draws it against the committed route; null when nothing is being
     // weighed and there is no rehearsal.
     week.rehearsalPath = null;
+    const plannedFrom = (source) =>
+      (source.picks[week.week] ?? []).filter(
+        (team) =>
+          (spentTeams[team] === undefined || spentTeams[team] === week.week) &&
+          !settledTeams.has(team),
+      );
+    const pathOf = (held, source) =>
+      week.week < currentWeek
+        ? [...lockedTeams]
+        : [...held, ...plannedFrom(source).filter((team) => !held.has(team))].slice(
+            0,
+            rules.picksPerWeek,
+          );
+    const priced = (team) => {
+      const option = week.optionByTeam.get(team);
+      if (!option) return null;
+      const lock = week.picks.find((pick) => pick.status.locked && pick.team === team);
+      return {
+        option,
+        entry: { week: week.week, winProb: option.winProb, result: lock?.status.result ?? null },
+      };
+    };
     if (rehearsal) {
-      const onRehearsal =
-        week.week < currentWeek
-          ? [...lockedTeams]
-          : [...lockedTeams, ...ghostNames.filter((team) => !lockedTeams.has(team))].slice(
-              0,
-              rules.picksPerWeek,
-            );
+      for (const team of pathOf(lockedTeams, preview)) {
+        const hit = priced(team);
+        if (hit) rehearsalPicks.push(hit.entry);
+      }
+    }
+    if (routeRehearsal) {
+      // The chart's route holds this week's pending picks too, as locks would.
       week.rehearsalPath = [];
-      for (const team of onRehearsal) {
-        const option = week.optionByTeam.get(team);
-        if (!option) continue;
-        week.rehearsalPath.push({ ...option, tier: confidenceTier(option.winProb, rules.tiers) });
-        const lock = week.picks.find((pick) => pick.status.locked && pick.team === team);
-        rehearsalPicks.push({
-          week: week.week,
-          winProb: option.winProb,
-          result: lock?.status.result ?? null,
+      for (const team of pathOf(heldTeams, routePreview)) {
+        const hit = priced(team);
+        if (!hit) continue;
+        week.rehearsalPath.push({
+          ...hit.option,
+          tier: confidenceTier(hit.option.winProb, rules.tiers),
         });
+        routePicks.push(hit.entry);
       }
     }
     const weekPlan = planByWeek.get(week.week);
@@ -1313,10 +1353,16 @@ export function buildBoard({
   // scripts) every pick is held and that is the number, as it always was.
   board.previewPathProbability =
     previewOutcome && (target || !inHand) ? previewOutcome.probability : null;
-  // And the rehearsal's own number whatever is in hand, for the coach's chart,
-  // which draws the rehearsal route (rehearsalPath) whichever week is looked
-  // at and ends it on this.
-  board.rehearsalProbability = previewOutcome ? previewOutcome.probability : null;
+  // And the route's own number whatever is in hand, for the coach's chart,
+  // which draws the route with every pending pick held (rehearsalPath)
+  // whichever week is looked at and ends it on this.
+  board.rehearsalProbability = routeRehearsal
+    ? survival({
+        picks: routePicks,
+        buyBackWeeks: rules.buyBackWeeks,
+        buyBacks: rules.buyBacks,
+      }).probability
+    : null;
 
   // The depth chart carries all three truths: crossed-out teams are locked,
   // outlined teams are picked but not yet locked, and ghosted teams are only
