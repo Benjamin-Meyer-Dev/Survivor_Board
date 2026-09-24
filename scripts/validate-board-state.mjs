@@ -203,19 +203,18 @@ assert.equal(
   "an unlocked pick must not change committed season survival",
 );
 assert.equal(typeof picked.previewPathProbability, "number");
-// An open slot shows the coach's number one for its week whatever is pending
-// elsewhere, unless you are holding that team yourself.
+// An open slot follows the committed plan (the gold line) whatever is pending
+// elsewhere: a pick only pencils in a new plan, and only a lock moves the calls.
 for (const week of picked.weeks.filter((entry) => entry.week > picked.currentWeek)) {
-  const top = week.coachRanked.find(
-    (option) =>
-      !picked.weeks.some((other) => other.picks.some((pick) => pick.team === option.team)),
-  );
-  if (!top || week.picks[0].team) continue;
-  assert.equal(
-    week.picks[0].suggestion?.team,
-    top.team,
-    `week ${week.week}'s open slot shows the coach's best name it can hold`,
-  );
+  week.picks.forEach((pick, slot) => {
+    if (pick.team) return;
+    assert.ok(pick.suggestion, `week ${week.week}'s open slot always has a suggestion`);
+    assert.equal(
+      pick.suggestion.team,
+      week.pathRecommendation[slot]?.team,
+      `week ${week.week}'s open slot shows the gold line's team`,
+    );
+  });
 }
 assert.ok(
   pickedSlot.options.some((option) => option.isCoach && option.team === coachTeam),
@@ -240,7 +239,7 @@ assert.equal(
 // the number matches what a lock then produces (the full search can only
 // improve on the preview's exact assignment, and rarely does).
 const previewedTeams = picked.weeks.flatMap((week) =>
-  week.picks.map((pick) => pick.onPath?.team ?? pick.team ?? pick.suggestion?.team).filter(Boolean),
+  (week.rehearsalPath ?? []).map((option) => option.team),
 );
 assert.equal(
   new Set(previewedTeams).size,
@@ -366,9 +365,9 @@ const noneInHand = build(twoPending, withFeedResult, true, {
 assert.equal(noneInHand.previewPathProbability, null, "nothing in hand to lock, so no number");
 assert.deepEqual(
   new Set(
-    noneInHand.weeks.flatMap((week) => week.picks.map((pick) => pick.onPath?.team).filter(Boolean)),
+    noneInHand.weeks.flatMap((week) => (week.rehearsalPath ?? []).map((option) => option.team)),
   ).size,
-  noneInHand.weeks.flatMap((week) => week.picks.filter((pick) => pick.onPath)).length,
+  noneInHand.weeks.flatMap((week) => week.rehearsalPath ?? []).length,
   "with no lock in hand the path on screen spends no team twice",
 );
 // The same with the slot in hand locked a moment ago: the lock is made, and

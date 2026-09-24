@@ -1132,23 +1132,27 @@ export function buildBoard({
         return { ...option, tier: confidenceTier(option.winProb, rules.tiers), rank };
       });
 
-    // What an open slot may show, best first: the coach's own calls for the
-    // week, then the rest of its board, then the plan's ghosts. Never a team
-    // you hold in this week, its opponent, or a game already played. The
-    // season-wide pass below hands them out (suggestionPools).
+    // What an open slot may show, best first: the gold line's calls for the
+    // week (the committed plan, liveCalls), then the rest of the coach's board,
+    // then the plan's ghosts. Never a team you hold in this week, its
+    // opponent, or a game already played. A pick pending in another week does
+    // not move them: the calls follow the committed plan until a lock changes
+    // it. The season-wide pass below hands them out (suggestionPools).
     const heldOpponents = new Set(
       [...heldTeams].map((team) => week.optionByTeam.get(team)?.opponent).filter(Boolean),
     );
-    const candidates = [...week.coachRanked, ...ghosts].filter(
-      (option, index, all) =>
-        all.findIndex((candidate) => candidate.team === option.team) === index &&
-        !heldTeams.has(option.team) &&
-        !heldOpponents.has(option.team) &&
-        !option.result,
-    );
+    const usable = (option, index, all) =>
+      all.findIndex((candidate) => candidate.team === option.team) === index &&
+      !heldTeams.has(option.team) &&
+      !heldOpponents.has(option.team) &&
+      !option.result;
+    const calls = liveCalls.filter(usable);
+    const callTeams = new Set(calls.map((option) => option.team));
     suggestionPools.set(week, {
-      calls: candidates.filter((option) => coachTeams.has(option.team)),
-      rest: candidates.filter((option) => !coachTeams.has(option.team)),
+      calls,
+      rest: [...week.coachRanked, ...ghosts]
+        .filter(usable)
+        .filter((option) => !callTeams.has(option.team)),
     });
 
     for (const pick of week.picks) {
@@ -1165,30 +1169,40 @@ export function buildBoard({
     }
   }
 
-  // The suggestions, handed out across the season. An open slot shows the
-  // coach's number one for its week whatever is pending elsewhere, so the calls
-  // go out first, week by week; only a slot whose call you are holding yourself
-  // falls back, and it falls back onto a name no other week is showing. Every
-  // team you hold, in any week, is spoken for before any of it.
-  const shownTeams = new Set(
-    board.weeks.flatMap((week) => week.picks.map((pick) => pick.team).filter(Boolean)),
-  );
-  const handOut = (week, pool) => {
+  // The suggestions, handed out across the season. Every week's own calls go
+  // out first, so an open slot always shows the gold line's team for it; a
+  // slot whose call you have taken in its own week falls back onto a name no
+  // other week is showing, and failing that onto the best team the slot can
+  // still take, so a week still to play never reads "No pick yet".
+  const shownTeams = new Set();
+  const handOut = (week, pool, fresh = true) => {
     for (const pick of week.picks) {
       if (pick.team || pick.suggestion) continue;
       const taken = week.picks.map((slot) => slot.suggestion ?? slot).filter((slot) => slot.team);
-      const option = pool.find(
+      const option = pool(pick).find(
         (candidate) =>
-          !shownTeams.has(candidate.team) &&
-          !taken.some((slot) => slot.opponent === candidate.team),
+          (!fresh || !shownTeams.has(candidate.team)) &&
+          !taken.some((slot) => slot.team === candidate.team || slot.opponent === candidate.team),
       );
       if (!option) return;
       pick.suggestion = option;
       shownTeams.add(option.team);
     }
   };
-  for (const [week, pools] of suggestionPools) handOut(week, pools.calls);
-  for (const [week, pools] of suggestionPools) handOut(week, pools.rest);
+  for (const [week, pools] of suggestionPools) handOut(week, () => pools.calls);
+  for (const [week, pools] of suggestionPools) handOut(week, () => pools.rest);
+  for (const week of board.weeks) {
+    if (week.week < currentWeek) continue;
+    handOut(
+      week,
+      (pick) =>
+        pick.options
+          .filter((option) => !option.disabled && !option.result)
+          .sort((a, b) => b.winProb - a.winProb)
+          .map((option) => ({ ...option, tier: confidenceTier(option.winProb, rules.tiers) })),
+      false,
+    );
+  }
 
   for (const week of board.weeks) {
     // What the slot holds on the season path: the users' team if there is one,
