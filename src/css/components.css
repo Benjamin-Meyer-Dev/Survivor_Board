@@ -2318,31 +2318,22 @@
 /* Four stops on a route: a dot on a rule with the key, the number and the note
    hung under it, every one of them reading from its own dot.
 
-   Six columns, each a sixth of the block, and every stop two of them wide - so
-   a stop is a third of the block, as it always was, but there are twice as many
-   edges to hang one from. That is what lets the four dots be evenly spread
-   along the rule - nought, a third, two thirds, the end - and every stop still
-   sit under its own dot, because the two arrangements want different things of
-   the same box. The end stops read away from the rule's ends: the model line
-   starts at the block's left edge and the tier finishes at its right, because
-   those are where their dots are and a word past either end would be a word off
-   the block. The two in the middle have a block on both sides of them and are
-   centred on their dots, which is the only reading of "under the dot" that is
-   true of a whole stop rather than of its first letter.
+   The words are what is spaced evenly, not the dots. Each stop is as wide as
+   its widest line, the first starts at the block's left edge, the last ends at
+   its right, and the gaps between the four are equal - so the row reads as
+   four evenly set columns of type. Each dot stands over the middle of its own
+   stop, which leaves the dots only as even as the words under them allow: a
+   long note like "RATINGS +12.1" pulls its dot in from the edge, and that is
+   the trade for a dot that is always over the middle of what it labels.
 
-   Read across, the row is a line of type that starts flush, ends flush and is
-   balanced in between, which is what the rule under it does too.
-
-   The tier no longer shares a third with the win probability: the win
-   probability is centred on the two-thirds mark, so its far edge stops a sixth
-   of the block short of the tier's dot instead of running at it. --tier-room
-   was the padding that used to hold them apart and is gone with the reason for
-   it - on a 360 phone WIN PROB now ends at 246 where SHAKY starts at 288. */
+   The stops shrink rather than overflow, and a key or note that still does
+   not fit is cut (below), so a narrow phone loses letters rather than the row
+   running off the block. */
 .chain {
   position: relative;
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  column-gap: 0;
+  display: flex;
+  justify-content: space-between;
+  column-gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -2353,83 +2344,31 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  flex: 0 1 auto;
   gap: 2px;
   min-width: 0;
   padding-top: 10px;
-  padding-right: 8px;
-  text-align: left;
-}
-
-/* Placed rather than flowed: the stops overlap - the middle two straddle the
-   thirds their neighbours end on - and auto-placement would have put every
-   collision on a row of its own. */
-.chain__stop:nth-child(1) {
-  grid-area: 1 / 1 / 2 / 3;
-}
-
-/* The two in the middle: two columns wide and centred on the middle of them,
-   which is the third and the two-thirds mark. The padding is even so the
-   centring stays true, and it is still what cuts a key too long for a third
-   rather than letting it run at the stop beside it. */
-.chain__stop:nth-child(2),
-.chain__stop:nth-child(3) {
-  align-items: center;
-  padding-right: 8px;
-  padding-left: 8px;
   text-align: center;
 }
 
-.chain__stop:nth-child(2) {
-  grid-area: 1 / 2 / 2 / 4;
-}
-
-.chain__stop:nth-child(3) {
-  grid-area: 1 / 4 / 2 / 6;
-}
-
-.chain__stop:nth-child(2)::before,
-.chain__stop:nth-child(3)::before {
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-/* Even along the rule, not even along the columns. The first dot starts at the
-   block's edge and the last one ends at it, so the run between their centres
-   is the width less one dot - and the two in the middle belong a third and two
-   thirds along THAT, which is a pixel in from the marks the columns give them.
-   The whole stop moves, dot and words together, because the words are hung off
-   the dot and a nudge that moved one without the other would be undoing the
-   line above. A whole pixel off a constant, because the amount is one dot's
-   width split three ways and has nothing to do with how wide the block is. */
-.chain__stop:nth-child(2) {
-  left: 1px;
-}
-
-.chain__stop:nth-child(3) {
-  left: -1px;
-}
-
-/* The dot, over the left edge of the stop. */
+/* The dot, over the middle of the stop. */
 .chain__stop::before {
   content: "";
   position: absolute;
   top: 0;
-  left: 0;
+  left: 50%;
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: var(--chalk-3);
+  transform: translateX(-50%);
 }
 
 /* The rule, edge to edge under the whole block: the four dots stand on a line
    the width of the readout above it, rather than one that gives up where the
-   last of them happens to fall. It was drawn in three lengths between the dots
-   for a while, which ended the line on the tier's dot and left the block's
-   last inches bare - and a line that stops short of the edge every other row
-   on this board reaches is a line that looks cut, not finished. Faint where
-   the model's own number is, firm across the market's, lit from the tier
-   on. */
+   last of them happens to fall. Faint where the model's own number is, firm
+   across the market's, lit from the tier on. */
 .chain::before {
   content: "";
   position: absolute;
@@ -2440,20 +2379,8 @@
   background: linear-gradient(90deg, var(--line-soft), var(--line-strong) 52%, var(--flag) 75%);
 }
 
-/* The tier, at the end of the rule: the words read back from the right edge so
-   the lit dot that finishes the line stands over them rather than a column's
-   width to their left. */
-.chain__stop:last-child {
-  grid-area: 1 / 5 / 2 / 7;
-  justify-self: end;
-  align-items: flex-end;
-  padding-right: 0;
-  text-align: right;
-}
-
+/* The tier's dot is the lit one that the line finishes on. */
 .chain__stop:last-child::before {
-  left: auto;
-  right: 0;
   background: var(--flag);
   box-shadow: 0 0 6px var(--flag);
 }
@@ -2622,13 +2549,13 @@
 
    Twenty-two, which is what the labels actually take: a rule's label is three
    characters - "70%" through "90%" - and measures sixteen in this face at this
-   size, with five between it and the plot. There is never a fourth character
-   to make room for. The rules are drawn every ten points strictly between the
-   scale's ends (route in ui/coach.js), so a scale that reaches the top has its
-   highest rule at ninety and one that starts at the bottom has its lowest at
-   ten; "100%" is a figure this gutter never holds. It was twenty-eight, which
-   was the width of the "100%" that never comes, and the six it was holding for
-   it were six the chart could have.
+   size, with five between it and the plot. The rules are drawn every ten
+   points strictly between the scale's ends (route in ui/coach.js), with one
+   exception: a scale that reaches the top has a rule on it at a hundred, and
+   only then is there a fourth character. It was twenty-eight for good, which
+   held a "100%" most charts never draw, and the six it was holding for it were
+   six the chart could have. The two it actually takes are added when it is
+   drawn (.route--ceiling, below).
 
    What is left puts the labels' left edge about where the eyebrow above them
    starts, so the case's writing has one left edge rather than two.
@@ -2649,6 +2576,15 @@
   flex: 1 1 auto;
   min-height: 56px;
   margin-left: 22px;
+}
+
+/* A scale that reaches a hundred, and a label a character longer. "100%" sets
+   at nineteen, so the gutter is two wider while it is drawn and that label's
+   left edge stays on the eyebrow's. The axis row moves with it, or every week
+   number would stand two pixels off its column. */
+.route--ceiling .route__plot,
+.route--ceiling .route__axis {
+  margin-left: 24px;
 }
 
 /* The two axes: one chalk L down the left of the plot and along its foot.
@@ -2694,7 +2630,8 @@
   transform: translateX(calc(var(--week-turn, 0) * 100%));
 }
 
-/* Rules every ten points, solid hairlines a shade off the turf. */
+/* Rules every ten points, solid hairlines a shade off the turf. The hundred,
+   when there is one, is the plot's top edge. */
 .route__rule {
   position: absolute;
   left: 0;

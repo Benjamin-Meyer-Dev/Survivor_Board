@@ -246,6 +246,7 @@ function renderRoute(current, markup) {
   settleRoute(current);
 
   current.classList.toggle("route--compared", next.classList.contains("route--compared"));
+  current.classList.toggle("route--ceiling", next.classList.contains("route--ceiling"));
   for (const attribute of [
     "data-motion-key",
     "data-motion-signature",
@@ -389,6 +390,12 @@ function morphRoute(route, was) {
   };
   if (!(timing.duration > 0)) return;
   const [lo, hi] = (route.dataset.scale ?? "").split(",").map(Number);
+  // Where a mark stood, as the same share of a plot that may have changed
+  // width: the gutter widens for the hundred percent rule (.route--ceiling),
+  // and the lines, which never move sideways, are stretched to the new width
+  // in the same frame. Their marks go with them rather than sliding over.
+  const sx = box.width / was.box.width;
+  const oldAt = ({ x, y }) => ({ x: x * sx, y });
   const pxOf = (share) => (share / 100) * box.height;
   const oldTop = (level) => ((was.scale.hi - level) / (was.scale.hi - was.scale.lo)) * 100;
   const newTop = (level) => ((hi - level) / (hi - lo)) * 100;
@@ -418,7 +425,7 @@ function morphRoute(route, was) {
     // was doing it is still doing.
     if (old?.node === node) continue;
     if (old) {
-      const dx = old.at.x - now.x;
+      const dx = oldAt(old.at).x - now.x;
       const dy = old.at.y - now.y;
       if (Math.abs(dx) >= 0.5 || Math.abs(dy) >= 0.5) slide(node, dx, dy);
       continue;
@@ -434,7 +441,7 @@ function morphRoute(route, was) {
       node.dataset.at === undefined
         ? null
         : columnMark(was.marks, node.dataset.at, node.dataset.kind);
-    if (peer) slide(node, peer.at.x - now.x, peer.at.y - now.y);
+    if (peer) slide(node, oldAt(peer.at).x - now.x, peer.at.y - now.y);
     else node.animate([{ opacity: 0 }, { opacity: 1 }], timing);
   }
 
@@ -456,7 +463,7 @@ function morphRoute(route, was) {
       to.y = pxOf(newTop(levelOf(key)) - oldTop(levelOf(key)));
     } else if (at !== undefined) {
       const peer = columnMark(marksNow, at, kind);
-      if (peer) to = { x: peer.at.x - old.at.x, y: peer.at.y - old.at.y };
+      if (peer) to = { x: peer.at.x - oldAt(old.at).x, y: peer.at.y - old.at.y };
     }
     ghost
       .animate(
@@ -1256,10 +1263,17 @@ function route(state, board) {
   const yAt = (prob) => ((hi - prob) / span) * 100;
   const pct = (value) => `${value.toFixed(2)}%`;
 
+  // The rules sit strictly between the scale's ends, because an end is the
+  // frame's to draw - except a scale that reaches the top, where the end is
+  // a hundred percent and the line there is the ceiling every week is read
+  // against. The frame has no top edge, so without it the highest week hangs
+  // under nothing.
+  const ceiling = hi >= 1 - 1e-9;
   const rules = [];
   for (let level = Math.ceil(lo * 10) / 10; level < hi - 1e-9; level += 0.1) {
     if (level > lo + 1e-9) rules.push(Math.round(level * 10) / 10);
   }
+  if (ceiling) rules.push(1);
   const grid = rules
     .map(
       (level) =>
@@ -1521,7 +1535,7 @@ function route(state, board) {
   // do not land any more (the route block in motion.css), so it does not, and
   // the settle no longer reaches in here at all.
 
-  return `<section class="route${alternative ? " route--compared" : ""}" data-key="route" data-view-week="${viewed.week}" data-scale="${lo},${hi}" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
+  return `<section class="route${alternative ? " route--compared" : ""}${ceiling ? " route--ceiling" : ""}" data-key="route" data-view-week="${viewed.week}" data-scale="${lo},${hi}" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
     <div class="route__head" data-key="head">
       <span class="route__eyebrow">Survival chance by week</span>
     </div>
