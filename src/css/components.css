@@ -2289,8 +2289,8 @@
 
 /* --- the chain ------------------------------------------------------------- */
 
-/* Four stops on a route: a dot on a rule with the key, the number and the note
-   hung under it, every one of them reading from its own dot.
+/* Four stops on a route: a dot on a rule with the key and the number hung
+   under it, every one of them reading from its own dot.
 
    The words are what is spaced evenly, not the dots. Each stop is as wide as
    its widest line, the first starts at the block's left edge, the last ends at
@@ -2300,9 +2300,9 @@
    are the first stop's left edge and the last stop's right, so the route
    starts and finishes on a dot whatever width the words at either end are.
 
-   The stops shrink rather than overflow, and a key or note that still does
-   not fit is cut (below), so a narrow phone loses letters rather than the row
-   running off the block. */
+   The stops shrink rather than overflow, and a key that still does not fit
+   is cut (below), so a narrow phone loses letters rather than the row running
+   off the block. */
 .chain {
   position: relative;
   display: flex;
@@ -2368,8 +2368,8 @@
   box-shadow: 0 0 6px var(--flag);
 }
 
-/* The chip in the chain is the small one: the row is 10px keys and 11px notes,
-   and the card two boxes down is where the tier is called by its full name at
+/* The chip in the chain is the small one: the row is 10px keys over 16px
+   figures, and the card two boxes down is where the tier is called by its full name at
    full size. */
 .chain__value .chip {
   height: 20px;
@@ -2414,36 +2414,6 @@
    list colours the same two figures. */
 .chain__value--tier {
   color: var(--confidence-color);
-}
-
-.chain__sub {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 11px;
-  line-height: 1.2;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--chalk-4);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
-
-/* The home-field term on the model's line. It went under six hundred when the
-   stops were four equal quarters, and a quarter of a phone could not hold it;
-   the stops are as wide as their words now, and the model's can take the room
-   the other three leave - which on a 360 phone is the whole of "12.1 better ·
-   away -2.0", the two terms that add up to the -10.1 over them. Without the
-   second the first read as a number that disagreed with the line.
-
-   It still goes first in a box too narrow for both: the other three stops take
-   about 160 and this one about 105, and the gap is the part that says what the
-   line is (it would otherwise be cut mid-word to keep the term). */
-@container (max-width: 279px) {
-  .chain__term {
-    display: none;
-  }
 }
 
 /* --- the route ------------------------------------------------------------- */

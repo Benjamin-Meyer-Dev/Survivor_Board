@@ -48,7 +48,7 @@
  */
 
 import { formatPercent, formatSpread, escapeHtml } from "../core/format.js";
-import { TIER_LABEL, DEFAULT_TIERS } from "../core/probability.js";
+import { TIER_LABEL } from "../core/probability.js";
 import { frame, reconcile } from "./patch.js";
 import { ownMotion, prefersReducedMotion } from "./motion.js";
 import { delegate } from "./events.js";
@@ -152,7 +152,7 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0, handlers = {}
   // nothing to quote - a week nobody priced.
   const page =
     state.kind === "working" || (state.kind === "past" && closingPricing(state))
-      ? `<div class="coach__page" data-key="page">${head(state, leaving)}${chain(state, board)}</div>`
+      ? `<div class="coach__page" data-key="page">${head(state, leaving)}${chain(state)}</div>`
       : "";
   const routeMarkup = state.kind === "none" ? "" : route(state, board);
   // Keep the chart's outer frame independent of the markup inside it. The
@@ -892,20 +892,21 @@ function cross(panel) {
 }
 
 /**
- * The four stops. A projected week has no market line to show, so that stop
- * says how far the projection is expected to miss instead - the widening the
- * simulations are drawn with (core/probability.js horizonVariance).
+ * The four stops: a key over a figure, and the working behind each figure in
+ * its tooltip. A projected week has no market line to show, so that stop is a
+ * dash and its tooltip says how far the projection is expected to miss
+ * instead - the widening the simulations are drawn with (core/probability.js
+ * horizonVariance).
  *
  * A settled week takes the same four, and only the words around them change:
  * the market's stop is the line the game was played on rather than the one it
  * is posting, and the model's stop carries the caveat that its ratings have
  * been refitted every week since.
  */
-function chain(state, board) {
+function chain(state) {
   const { subject } = state;
   const p = subject.pricing;
   const closed = state.kind === "past";
-  const tiers = board.rules?.tiers ?? DEFAULT_TIERS;
   const tier = subject.tier;
   // The lines and the chance in the tier's chalk, as the list sets a team's
   // spread and chance beside it (sideline.js), so the same pick reads in the
@@ -914,34 +915,6 @@ function chain(state, board) {
     tier && figure !== "—" ? ` chain__value--tier confidence--${tier}` : "";
 
   const rating = (value) => (Number.isFinite(value) ? value.toFixed(1) : "—");
-  // The two terms the line is the sum of: how many points better the team is
-  // than the one it is playing, and what the ground is worth - "3.4 better ·
-  // home +2.0" adds up to the -5.4 over it. The home term is its own span, so
-  // a box too narrow for both lets that go rather than cutting the gap short
-  // to keep it.
-  //
-  // In words rather than in the model's terms. It read "Ratings +3.4", and a
-  // rating is the model's number for a team rather than anybody's word for
-  // anything: what the difference between two of them MEANS is points on a
-  // neutral field, which is what it now says.
-  const signed = (value) => `${value < 0 ? "−" : "+"}${Math.abs(value).toFixed(1)}`;
-  const gap =
-    Number.isFinite(p.team.rating) && Number.isFinite(p.opponent.rating)
-      ? p.team.rating - p.opponent.rating
-      : null;
-  const gapTerm =
-    gap === null
-      ? "—"
-      : Math.abs(gap) < 0.05
-        ? "Evenly matched"
-        : `${Math.abs(gap).toFixed(1)} ${gap > 0 ? "better" : "worse"}`;
-  const homeTerm =
-    p.homeField > 0
-      ? `Home ${signed(p.homeField)}`
-      : p.homeField < 0
-        ? `Away ${signed(p.homeField)}`
-        : "";
-  const ratingsSub = gapTerm + (homeTerm ? `<span class="chain__term"> · ${homeTerm}</span>` : "");
   const homeNote =
     p.homeField > 0
       ? `, plus ${Math.abs(p.homeField)} for home field`
@@ -951,13 +924,6 @@ function chain(state, board) {
 
   const market = p.market;
   const marketValue = market ? formatSpread(market.spread) : "—";
-  const marketSub = market
-    ? market.opened !== null && market.opened !== market.spread
-      ? `opened ${formatSpread(market.opened)}`
-      : market.books
-        ? `${market.books} books`
-        : "posted"
-    : `±${p.horizonSd.toFixed(1)} pts`;
   const marketTitle = market
     ? `The line the market ${closed ? "went to the game with" : "is posting"}${
         market.books ? `, across ${market.books} books` : ""
@@ -966,14 +932,6 @@ function chain(state, board) {
 
   const price = subject.winProb;
   const blended = market && market.weight > 0 && market.moneylineProb !== null;
-  // The chance the pick goes wrong, as the odds a person says out loud: "loses
-  // 1 in 6" is the same number as 83.8%, but it is the one that says how
-  // often, and it makes 97.8 and 98.9 read as the two-to-one they are rather
-  // than as a point apart. It replaced the working - the margin's sigma, or
-  // the moneyline's decimal odds - which said how the number was reached in
-  // the model's own terms and meant nothing to anyone reading the board. The
-  // tooltip still carries it.
-  const priceSub = upsetOdds(price, board.rules?.objective);
   const priceTitle = blended
     ? `The spread alone says ${formatPercent(p.fromSpread, 1)}; the moneyline (${decimalOdds(market.moneyline)} decimal) says ${formatPercent(market.moneylineProb, 1)}; the blend weights the moneyline at ${Math.round(market.weight * 100)}%`
     : `A margin scattered ${p.sigma.toFixed(1)} points either side of the line${
@@ -995,40 +953,20 @@ function chain(state, board) {
     <li class="chain__stop" title="${escapeHtml(modelTitle)}">
       <span class="chain__key">Model line</span>
       <span class="chain__value${inTier(formatSpread(p.projected))}">${formatSpread(p.projected)}</span>
-      <span class="chain__sub">${ratingsSub}</span>
     </li>
     <li class="chain__stop" title="${escapeHtml(marketTitle)}">
       <span class="chain__key">${closed ? "Closing line" : "Market line"}</span>
       <span class="chain__value${inTier(marketValue)}">${marketValue}</span>
-      <span class="chain__sub">${escapeHtml(marketSub)}</span>
     </li>
     <li class="chain__stop" title="${escapeHtml(priceTitle)}">
       <span class="chain__key">Win prob</span>
       <span class="chain__value${inTier(formatPercent(price, 1))}">${formatPercent(price, 1)}</span>
-      <span class="chain__sub">${priceSub}</span>
     </li>
     <li class="chain__stop" title="Where that probability falls on this league's confidence scale">
       <span class="chain__key">Tier</span>
       <span class="chain__value"><span class="chip chip--${tier}">${TIER_WORD[tier] ?? TIER_LABEL[tier] ?? tier}</span></span>
-      <span class="chain__sub">${tierBand(tier, tiers)}</span>
     </li>
   </ol>`;
-}
-
-/**
- * How often a pick goes wrong, in words: the team losing its game in a
- * winners pool, winning it in a losers one. "1 in N" in whole numbers while
- * the miss is a third or less, and out of ten past that, where "1 in 1.7" is
- * a figure nobody says.
- */
-function upsetOdds(price, objective) {
-  if (!Number.isFinite(price)) return "—";
-  const verb = objective === "lose" ? "wins" : "loses";
-  const miss = 1 - price;
-  const n = 1 / miss;
-  if (n > 1000) return `${verb} 1 in 1000+`;
-  if (n >= 3) return `${verb} 1 in ${Math.round(n)}`;
-  return `${verb} ${Math.min(9, Math.round(miss * 10))} in 10`;
 }
 
 /** An American moneyline as decimal odds: -295 is 1.34, +180 is 2.80. */
@@ -1036,23 +974,6 @@ function decimalOdds(moneyline) {
   if (!Number.isFinite(moneyline) || moneyline === 0) return "—";
   const decimal = moneyline > 0 ? 1 + moneyline / 100 : 1 + 100 / Math.abs(moneyline);
   return decimal.toFixed(2);
-}
-
-/** The band of probability a tier covers, as the scale reads. */
-function tierBand(tier, tiers) {
-  const pct = (value) => `${Math.round(value * 100)}`;
-  switch (tier) {
-    case "safe":
-      return `${pct(tiers.safe)}%+`;
-    case "solid":
-      return `${pct(tiers.solid)}–${pct(tiers.safe)}%`;
-    case "thin":
-      return `${pct(tiers.thin)}–${pct(tiers.solid)}%`;
-    case "close":
-      return `50–${pct(tiers.thin)}%`;
-    default:
-      return "under 50%";
-  }
 }
 
 /**
