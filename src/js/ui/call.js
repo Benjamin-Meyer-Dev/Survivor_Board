@@ -1,20 +1,28 @@
 /**
  * The call: the week being looked at, and the one thing you can do about it.
  *
- * Under the field sits the week's date and tags, with the one action at the
- * end of that row as a mark in the flag's colour: lock the pick in, or take the
- * coach's call when the slot is empty. The other side of the game sits beside
- * it as a flip. Then the slot - or two, in a pool that takes two picks. The
- * actions are marks rather than words so the drawer under the card gets the
- * room; the slot's eyebrow says in words what state it is in.
+ * Under the field sits the week's date and tags, then the slot. The one action
+ * is a mark in the flag's colour at the end of the team's own row, beside the
+ * name it acts on: lock the pick in, or take the coach's call when the slot is
+ * empty. The other side of the game sits next to it as a flip. The actions are
+ * marks rather than words so the drawer under the card gets the room; the
+ * slot's eyebrow says in words what state it is in.
+ *
+ * They used to stand at the end of the week's row, and the pager for a
+ * two-pick week stood under them at the end of the eyebrow's - two discs, a
+ * ring and a pair of chevrons stacked in one corner of the card, the controls
+ * for the week and the controls for the pick read as one heap. Now each end of
+ * the card holds one kind of thing: the week's row carries the week and which
+ * of its picks is showing, and the team's row carries the team and what you
+ * can do about it.
  *
  * A slot is one of three things: empty, with the coach's suggestion pencilled
  * in; picked, a team the users chose but have not committed to; or locked. The
  * coach never fills a slot.
  *
  * One slot is on the card at a time, whatever the pool. A week that takes more
- * than one pick pages between them from a stepper on the slot's own head row -
- * "1 of 2", an arrow either side - and the slot on the card is the slot the
+ * than one pick pages between them from a stepper on the week's row - "1 of
+ * 2", an arrow either side - and the slot on the card is the slot the
  * sideline is filling, so there is one answer to "which pick am I working on"
  * rather than a bracket saying it about one of two cards.
  *
@@ -35,13 +43,13 @@
  * coach gives it (ui/sideline.js) - and a readout with no rows to spare must
  * not spend one saying the same thing twice.
  *
- * Every slot has the same rows in the same order - head, marks, team, matchup
- * - so a pick, a lock or a page changes what the rows say without moving
- * anything under the thumb that just tapped it. The head carries the eyebrow
- * and, where there is more than one pick, the pager. The marks (how safe the
+ * Every slot has the same rows in the same order - eyebrow, marks, team,
+ * matchup - so a pick, a lock or a page changes what the rows say without
+ * moving anything under the thumb that just tapped it. The marks (how safe the
  * coach rates the pick, whether it was the coach's call) take the line under
- * it. The result, once it is in, is not one of them - it is paint rather than
- * chalk, and it stands at the far end of that row on its own (resultStamp).
+ * the eyebrow. The result, once it is in, is not one of them - it is paint
+ * rather than chalk, and it stands at the far end of that row on its own
+ * (resultStamp).
  * The game holds the foot of the slot. The spread and the win chance are not
  * on the card: the chart above it and the team list carry the numbers.
  *
@@ -118,13 +126,13 @@ export function renderCall(root, board, viewWeek, activeSlot, handlers) {
     `<div class="call__head" data-key="head">
       <span class="call__when${isNow(week, board) ? " call__when--now" : ""}">${escapeHtml(whenLine(week, board))}</span>
       <span class="call__tags">${weekTags(week, board)}</span>
-      ${actionsMarkup(week.picks[active], board, handlers.canWrite)}
+      ${pagerMarkup(week.picks.length, active)}
     </div>
     <div class="call__slots" data-key="slots"></div>`,
   );
   const slots = box.querySelector(".call__slots");
-  reconcile(slots, slotsMarkup(week, board, active));
-  holdEveryWeek(root, slots, board);
+  reconcile(slots, slotsMarkup(week, board, active, handlers.canWrite));
+  holdEveryWeek(root, slots, board, handlers.canWrite);
 }
 
 /**
@@ -139,8 +147,8 @@ function slotInRange(slot, week) {
 }
 
 /** The one slot the card is showing. */
-function slotsMarkup(week, board, active) {
-  return slotMarkup(week.picks[active], board, week.picks.length, active);
+function slotsMarkup(week, board, active, canWrite) {
+  return slotMarkup(week.picks[active], board, canWrite);
 }
 
 /** The markup a card's floor was measured from. */
@@ -184,14 +192,14 @@ const watching = new WeakSet();
  * the card change height when the pager moved - which is the same jump under
  * the chart, asked for by the same hand, one control along.
  */
-function holdEveryWeek(root, slots, board) {
+function holdEveryWeek(root, slots, board, canWrite) {
   // The live card only. A week staged for a swipe is rendered into a detached
   // root (stageWeek in app.js) and then laid over the edge of this one, where
   // it inherits the floor already measured here - a copy that is about to
   // travel across the screen has nothing to measure and no time to do it in.
   if (!root.isConnected) return;
 
-  latest.set(root, { slots, board });
+  latest.set(root, { slots, board, canWrite });
   if (!watching.has(root)) {
     watching.add(root);
     // A rotation changes the width without a render, and a floor measured at
@@ -207,7 +215,7 @@ function holdEveryWeek(root, slots, board) {
 }
 
 function measureEveryWeek(root) {
-  const { slots, board } = latest.get(root) ?? {};
+  const { slots, board, canWrite } = latest.get(root) ?? {};
   // Raised, the card is trimmed to its name alone and the case is not on the
   // screen to be steadied (components.css drops the floor with it), so there
   // is nothing to measure and the floor already taken is still the right one.
@@ -218,7 +226,8 @@ function measureEveryWeek(root) {
   const markup = board.weeks
     .flatMap((week) =>
       week.picks.map(
-        (_, slot) => `<div class="${slots.className}">${slotsMarkup(week, board, slot)}</div>`,
+        (_, slot) =>
+          `<div class="${slots.className}">${slotsMarkup(week, board, slot, canWrite)}</div>`,
       ),
     )
     .join("");
@@ -279,10 +288,9 @@ function weekTags(week, board) {
 
 /**
  * One slot. The rows are the same whatever it holds: who the team belongs to,
- * the team, its game. Where the week takes more than one pick the
- * head row carries the pager that reaches the others.
+ * the team with what can be done about it, its game.
  */
-function slotMarkup(pick, board, count, active) {
+function slotMarkup(pick, board, canWrite) {
   const { status } = pick;
   const shown = pick.team ? pick : pick.suggestion;
   const state = pick.team ? (status.locked ? "locked" : "picked") : "empty";
@@ -354,23 +362,28 @@ function slotMarkup(pick, board, count, active) {
          data-week="${pick.week}" data-slot="${pick.slot}" data-key="${pick.week}-${pick.slot}"${shown ? ` data-tier="${shown.tier}"` : ""}
          data-motion-key="slot-${pick.week}-${pick.slot}"
          data-motion-signature="${escapeHtml(signature)}">
-      <div class="call__slot-head">
-        <div class="call__eyebrow${pick.suggestion && !pick.team ? " call__eyebrow--coach" : ""}">${eyebrow}</div>
-        ${pagerMarkup(count, active)}
-      </div>
+      <div class="call__eyebrow${pick.suggestion && !pick.team ? " call__eyebrow--coach" : ""}">${eyebrow}</div>
       <div class="call__marks">${resultStamp(status)}${marks}</div>
-      ${
+      <div class="call__team-row">
+        ${
+          shown
+            ? `<div class="call__team">${escapeHtml(shown.team)}</div>`
+            : `<div class="call__team call__team--blank">${escapeHtml(blank.team)}</div>`
+        }
+        ${actionsMarkup(pick, board, canWrite)}
+      </div>
+      <div class="call__matchup">${
         shown
-          ? `<div class="call__team">${escapeHtml(shown.team)}</div>
-             <div class="call__matchup">${escapeHtml(formatMatchup(shown.site, shown.opponent))} · ${escapeHtml(shown.conference)}${kickoffMarkup(shown)}</div>`
-          : `<div class="call__team call__team--blank">${escapeHtml(blank.team)}</div>
-             <div class="call__matchup">${escapeHtml(blank.text)}</div>`
-      }
+          ? `${escapeHtml(formatMatchup(shown.site, shown.opponent))} · ${escapeHtml(shown.conference)}${kickoffMarkup(shown)}`
+          : escapeHtml(blank.text)
+      }</div>
     </div>`;
 }
 
 /**
- * The pager, at the end of the slot's head row.
+ * The pager, at the end of the week's row: which of the week's picks is on
+ * the card is a thing about the week, and it keeps its place while the slot
+ * under it slides between them.
  *
  * A count and a step either side, which is the stepper this app already uses
  * for a number you nudge (the pool's own rules, ui/settings.js). It says where
@@ -430,33 +443,21 @@ function resultStamp(status) {
  * The actions: the flip and the one action, for the slot the sideline is
  * filling, as marks whose words are the tooltip and the accessible name.
  * Locking commits a pick; on an empty slot the action takes the coach's call,
- * which then becomes a pick to lock. Disabled when there is nothing to do, and
- * once a result is in, when the lock is history rather than a choice.
+ * which then becomes a pick to lock. Disabled while there is nothing to do yet.
+ *
+ * None at all once the week is history - a result in, or the run over. Both
+ * discs were drawn there anyway, disabled, and said nothing the eyebrow, the
+ * solid border and the result stamp were not already saying: two dead
+ * controls beside the name of a game that has been played.
  */
 function actionsMarkup(pick, board, canWrite) {
   const { status } = pick;
+  if (board.eliminated || status.result) return "";
   const shown = pick.team ? pick : pick.suggestion;
-  const moot = board.eliminated && pick.week > board.eliminatedWeek;
   const later = pick.week > board.currentWeek ? ` · wk ${pick.week}` : "";
 
   let lock;
-  if (moot) {
-    lock = button({ label: "Not played", icon: LOCK_OPEN, disabled: true });
-  } else if (board.eliminated) {
-    lock = button({
-      label: status.locked ? "Locked in · season over" : "Season over",
-      icon: status.locked ? LOCK_SHUT : LOCK_OPEN,
-      on: status.locked,
-      disabled: true,
-    });
-  } else if (status.result) {
-    lock = button({
-      label: `Final · ${status.result === "W" ? "won" : "lost"}`,
-      icon: LOCK_SHUT,
-      on: true,
-      disabled: true,
-    });
-  } else if (status.locked) {
+  if (status.locked) {
     const moved = lineMove(pick);
     lock = button({
       label: "Locked in · " + moved.words + " · tap to unlock",
@@ -499,7 +500,7 @@ function actionsMarkup(pick, board, canWrite) {
 
   // The reverse side is a shortcut only when it is a legal option right now.
   const reverse =
-    canWrite && shown && !status.locked && !status.result && !board.eliminated
+    canWrite && shown && !status.locked
       ? pick.options.find(
           (option) =>
             option.team === shown.opponent && option.opponent === shown.team && !option.disabled,

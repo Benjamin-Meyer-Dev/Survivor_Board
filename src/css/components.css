@@ -1587,20 +1587,9 @@
   gap: 10px;
 }
 
-/* No gap between the head and the slots under it.
-
-   The head is 36px tall because the action discs are, not because its line of
-   chalk is - that is 18. So nine pixels of the head already hang below the
-   week's line, and they are the disc's room rather than a space between the
-   week and what is picked for it. A gap on top of them stood the when-line
-   twenty pixels off the eyebrow below it, and the two are the same 12px caps
-   in the same colour: at that distance they read as two unrelated rows instead
-   of the week and its slot. Without it the ink lands twelve apart, which is
-   about one cap height, and the pair reads as one thing.
-
-   A slot with a box of its own still stands off the head - it is a box, and a
-   box against the head above it reads as a mistake. That is the two-pick
-   layout's own margin, below. */
+/* No gap between the head and the slot under it: the head and the eyebrow are
+   the same 12px caps in the same colour, and apart they read as two unrelated
+   rows instead of the week and its slot. */
 .call__box {
   /* For the ink strike a lock plays round this box (motion.css). */
   position: relative;
@@ -1611,22 +1600,23 @@
      above it, and the chart in it is the part of this board that is short of
      room (layout.css hands the case what the field and the card leave over).
      So the foot is tight: the card's own dashes are right under the game line.
-
-     The top is not, and for the opposite reason. The card's first row is two
-     discs, and a disc against the edge of the box it is in reads as having
-     been pushed there - the head's line of chalk is 12 in a 36 row, so trimming
-     here takes turf from the discs and none from the writing. Eight. */
+     The top has two more, for the pager's chevrons in its corner. */
   padding: 8px 12px 6px;
   border-radius: var(--radius);
 }
 
-/* One row: the week and its date, then the week's tags and the actions at the
-   end. The when-line gives way first, so the row never wraps and the drawer
-   keeps its height. */
+/* One row: the week and its date, then the week's tags and, in a week of more
+   than one pick, the pager at the end. The when-line gives way first, so the
+   row never wraps and the drawer keeps its height.
+
+   The pager's height whether there is a pager or not: a week with one pick
+   draws this row with nothing on its right, and a card that stood shorter for
+   it would put the NFL board's chart and the college board's at two sizes. */
 .call__head {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-height: 26px;
 }
 
 /* A block, not a flex row, and the dot is set in the line rather than laid out
@@ -1690,21 +1680,6 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 8px;
-  /* Turf between the head's controls and the slot's own head row. The two-slot
-     layout used to carry this and the lone slot did not, so the eyebrow's line
-     box started exactly where the lock's disc stopped - which nobody read,
-     because an eyebrow's words sit a few pixels down inside their line. The
-     pager sits on that line now, at the same end of it as the lock, and the
-     lock wears a ring two pixels outside its disc when it is shut.
-
-     Two, where it was six. Almost none of what stood between the week's line
-     and the eyebrow under it was ever this margin: the head is 36 tall for its
-     discs and its chalk is 12, so a dozen pixels of it hang under the writing
-     already, and the eyebrow's own row adds as much again above. This is what
-     is left to give. Two is what still clears the lock's ring - the chevron's
-     stroke starts about five pixels inside its box (a 24-unit glyph inset to
-     5, in a 22px box), and the ring stops four below the disc. */
-  margin-top: 2px;
   min-height: var(--call-floor, 0);
 }
 
@@ -1748,41 +1723,12 @@
   border-radius: var(--radius-sm);
 }
 
-/* The slot's own head: what state the slot is in, and - where the week takes
-   more than one pick - the pager that reaches the others. A row rather than
-   the eyebrow alone, and a row that is there in every pool: a week with one
-   pick draws it with nothing on its right, so an NFL card and a college card
-   are the same card at the same height and the chart under them is handed the
-   same box. */
-.call__slot-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  /* The pager's own height, held whether there is a pager or not: a week with
-     one pick draws this row empty, and a card that stood shorter for it would
-     put the NFL board's chart and the college board's at two different sizes
-     again - which is the whole of what the paged card was for.
-
-     Twenty-six, not the thirty-six the head's discs above stand at. A chevron
-     is not a disc: it carries no fill to be sized, only a 22px stroke, and the
-     pixels the box was holding around it were air on both of the seams this
-     row has - the one up to the week's line and the one down to the chips. The
-     thumb still gets its forty-four; the target is the ::after on .call__page,
-     widened each time this comes down. */
-  min-height: 26px;
-}
-
-.call__slot-head .call__eyebrow {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
 /* The pager: a count with a step either side - the stepper this app already
    uses for a number you nudge (.settings__stepper, in the pool's rules). Set
    in the eyebrow's own chalk and at the eyebrow's own size, because it is part
-   of what the row says rather than a thing done to the week: the two controls
-   that are - the flip and the lock - are discs in the head above, and a third
-   disc here would have read as a third action. */
+   of what the week's row says rather than a thing done to the pick: the two
+   controls that are - the flip and the lock - are discs beside the team, and a
+   third disc here would have read as a third action. */
 .call__pager {
   display: inline-flex;
   align-items: center;
@@ -1853,10 +1799,15 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Four under the eyebrow: it and the chips are two readings of the same slot
+   and belong together, but a chip is a boxed mark and its border against the
+   caps' feet read as one smudge. */
 .call__eyebrow {
+  margin-bottom: 4px;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 12px;
+  line-height: 18px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--chalk-3);
@@ -1882,12 +1833,11 @@
   align-items: center;
   gap: 6px;
   min-height: 20px;
-  /* Ten over the name. This is the card's one real break: everything above it
-     is the slot talking about itself - which state it is in, which pick of the
-     week's this is, what the coach makes of it - and everything below is the
-     pick. The chips sit straight under the eyebrow with nothing between them,
-     so the break is in one place instead of two. */
-  margin-bottom: 10px;
+  /* Ten over the name's line, less the three the discs stand above it
+     (.call__team-row). This is the card's one real break: everything above it
+     is the slot talking about itself - which state it is in, what the coach
+     makes of it - and everything below is the pick. */
+  margin-bottom: 7px;
 }
 
 /* The result, once the week is in the books: painted on, at the far end of
@@ -1905,10 +1855,9 @@
    Out of the flow at the row's right edge. Out of the flow because a fact does not queue
    behind opinions, and because the row is already a chip tall in every state -
    so the stamp is the one mark here that costs the card no height, and the
-   chips keep the whole of the row they were always short of. It rides this
-   row rather than the eyebrow's: the eyebrow's line runs under the head's own
-   controls, and the lock is a disc with a ring on it that a stamp in that
-   corner takes a bite out of. */
+   chips keep the whole of the row they were always short of. A week with a
+   result has no actions (actionsMarkup in ui/call.js), so nothing stands under
+   it at the end of the team's row. */
 .call__result {
   position: absolute;
   top: 50%;
@@ -1971,9 +1920,17 @@
   color: var(--chalk);
 }
 
-/* The team, chalked large, and the top of the block that holds the foot of
-   the slot: the name, the game it is in and the numbers off it, in that
-   order and with nothing opening between them.
+/* The team and what can be done about it: the name, and the flip and the lock
+   at the end of its row. The top of the block that holds the foot of the slot
+   - the name and the game it is in, in that order and with nothing opening
+   between them.
+
+   The discs are 36 and the name's line is 29, so the row stands three and a
+   half pixels taller than the name at each end. The seams either side are
+   trimmed by as much (the chips' margin, the game line's), so the name's ink
+   sits where it did and only the discs have the extra. The row holds the
+   discs' height without them too - a played week has none - so the name does
+   not climb three pixels when the week turns to history.
 
    The auto margin is here rather than on the game line under it, which is
    where it used to be. A slot is stretched to the tallest week of the season
@@ -1983,7 +1940,16 @@
    then stood their name twenty-two pixels clear of their own "vs". Above the
    name the same slack is air under the chip - which is a mark about the pick,
    not part of its name - and the three lines that describe the game stay
-   together at the foot, where two slots side by side still line up.
+   together at the foot, where two slots side by side still line up. */
+.call__team-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  margin-top: auto;
+}
+
+/* The team, chalked large.
 
    32, down from 36: the card is the board's one
    action and the name is the whole of what it says, but the case above it
@@ -1993,7 +1959,8 @@
    it, so the card is now one name at one size from the narrowest phone up to
    the wide layout. */
 .call__team {
-  margin-top: auto;
+  flex: 1 1 auto;
+  min-width: 0;
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 32px;
@@ -2020,9 +1987,10 @@
    auto margin is on .call__team). Whatever the marks wrap to above, the name
    and the game line up at the bottom. */
 .call__matchup {
-  /* Four under the name: the game line is the name's own small print, so it is
-     nearer to it than anything else on the slot is to anything. */
-  margin-top: 4px;
+  /* Four under the name's ink, one under its row: the game line is the name's
+     own small print, so it is nearer to it than anything else on the slot is
+     to anything (the discs make the row three taller underneath the name). */
+  margin-top: 1px;
   font-size: 13px;
   color: var(--chalk-2);
   line-height: 18px;
@@ -2061,7 +2029,7 @@
   color: var(--confidence-color);
 }
 
-/* The actions, at the end of the head row: the other side of the game in
+/* The actions, at the end of the team's row: the other side of the game in
    chalk and the one action on the flag, both filled so a thumb finds them
    without reading the row. Marks, not words, so the drawer under the card
    gets the room; the eyebrow says the state. Round, like the discs the
@@ -2070,6 +2038,12 @@
   display: flex;
   gap: 6px;
   flex: none;
+  /* Two up off the row's middle, which is the middle of the name's line box
+     and not of its capitals: the caps sit a pixel and a half low in it, and
+     a disc centred on the box read as sagging towards the game line, which
+     runs under it close enough that the two pixels are the air between them.
+     A negative margin rather than a nudge, so the row keeps its 36. */
+  margin-top: -4px;
 }
 
 .call__flip,
@@ -2321,10 +2295,10 @@
    The words are what is spaced evenly, not the dots. Each stop is as wide as
    its widest line, the first starts at the block's left edge, the last ends at
    its right, and the gaps between the four are equal - so the row reads as
-   four evenly set columns of type. Each dot stands over the middle of its own
-   stop, which leaves the dots only as even as the words under them allow: a
-   long note like "RATINGS +12.1" pulls its dot in from the edge, and that is
-   the trade for a dot that is always over the middle of what it labels.
+   four evenly set columns of type. The two middle dots stand over the middle
+   of their own stops; the first and last sit on the ends of the rule, which
+   are the first stop's left edge and the last stop's right, so the route
+   starts and finishes on a dot whatever width the words at either end are.
 
    The stops shrink rather than overflow, and a key or note that still does
    not fit is cut (below), so a narrow phone loses letters rather than the row
@@ -2379,8 +2353,17 @@
   background: linear-gradient(90deg, var(--line-soft), var(--line-strong) 52%, var(--flag) 75%);
 }
 
+/* The end dots, on the ends of the rule rather than over their words. */
+.chain__stop:first-child::before {
+  left: 0;
+  transform: none;
+}
+
 /* The tier's dot is the lit one that the line finishes on. */
 .chain__stop:last-child::before {
+  left: auto;
+  right: 0;
+  transform: none;
   background: var(--flag);
   box-shadow: 0 0 6px var(--flag);
 }
@@ -2447,16 +2430,17 @@
   max-width: 100%;
 }
 
-/* A symbol in the sub-line keeps its case. */
-.chain__sym {
-  text-transform: none;
-}
+/* The home-field term on the model's line. It went under six hundred when the
+   stops were four equal quarters, and a quarter of a phone could not hold it;
+   the stops are as wide as their words now, and the model's can take the room
+   the other three leave - which on a 360 phone is the whole of "12.1 better ·
+   away -2.0", the two terms that add up to the -10.1 over them. Without the
+   second the first read as a number that disagreed with the line.
 
-/* The home-field term on the model's line. A quarter of a phone or of the
-   desktop's side box is too narrow for the ratings and the term both, and the
-   ratings are the part that says what the line is, so the term goes first
-   (the ratings would otherwise be cut mid-number to keep it). */
-@container (max-width: 599px) {
+   It still goes first in a box too narrow for both: the other three stops take
+   about 160 and this one about 105, and the gap is the part that says what the
+   line is (it would otherwise be cut mid-word to keep the term). */
+@container (max-width: 279px) {
   .chain__term {
     display: none;
   }
@@ -2585,6 +2569,17 @@
 .route--ceiling .route__plot,
 .route--ceiling .route__axis {
   margin-left: 24px;
+}
+
+/* And the hundred's label hangs half its height over the plot's top edge,
+   which a scale short of the top never draws on - so the chart's title stood
+   two pixels off it and the two read as one line of type. Six more puts the
+   label a clear cap height under the title. The plot gives up the six rather
+   than the case growing; the morph reads positions as shares of the plot, so
+   the marks do not jump when the ceiling comes or goes (morphRoute in
+   ui/coach.js). */
+.route--ceiling .route__plot {
+  margin-top: 6px;
 }
 
 /* The two axes: one chalk L down the left of the plot and along its foot.
@@ -2865,6 +2860,19 @@
    the callout keeps between rows is what separates one mark from the next. */
 .route__callout-row--leg {
   margin-top: -2px;
+}
+
+/* What a college mark's two games come to: the week, under its games and in
+   the same column, so the product is read straight down from the figures it
+   is made of. It is not a line on the chart, so it wears no swatch - but it
+   keeps the swatch's room, so "Week" stands on the teams' left edge - and its
+   name is the head's chalk rather than a team's, because it is a sum. */
+.route__callout-row--total .route__swatch {
+  visibility: hidden;
+}
+
+.route__callout-row--total .route__callout-team {
+  color: var(--chalk-2);
 }
 
 .route__callout-row--you .route__swatch {
