@@ -1,0 +1,167 @@
+{
+  "$comment": "One run's lines, written by scripts/refresh-odds.mjs and never rewritten. Read by scripts/backtest.mjs to score what the board showed against what happened.",
+  "at": "2026-09-28T13:01:07Z",
+  "week": 3,
+  "lines": {
+    "3|Bears": {
+      "spread": 3.5,
+      "total": 41.5,
+      "source": "market",
+      "winProb": 0.3715,
+      "moneyline": 175,
+      "moneylineProb": 0.3515,
+      "books": 8,
+      "moneylineBooks": 9,
+      "capped": 0,
+      "opened": 3,
+      "openedAt": "2026-09-22T13:01:55Z",
+      "updatedAt": "2026-09-28T13:01:07Z",
+      "kickoff": "2026-09-29T00:15:00Z"
+    },
+    "3|Eagles": {
+      "spread": -3.5,
+      "total": 41.5,
+      "source": "market",
+      "winProb": 0.6285,
+      "moneyline": -210,
+      "moneylineProb": 0.6485,
+      "books": 8,
+      "moneylineBooks": 9,
+      "capped": 0,
+      "opened": -3,
+      "openedAt": "2026-09-22T13:01:55Z",
+      "updatedAt": "2026-09-28T13:01:07Z",
+      "kickoff": "2026-09-29T00:15:00Z"
+    }
+  },
+  "form": {
+    "updatedAt": "2026-09-28T13:01:07Z",
+    "ratings": {
+      "49ers": 85.67,
+      "Bears": 82.31,
+      "Bengals": 82.74,
+      "Bills": 84.36,
+      "Broncos": 83.12,
+      "Browns": 77.38,
+      "Buccaneers": 79.02,
+      "Cardinals": 77.06,
+      "Chargers": 77.98,
+      "Chiefs": 85.56,
+      "Colts": 77.02,
+      "Commanders": 79.08,
+      "Cowboys": 80.4,
+      "Dolphins": 72.47,
+      "Eagles": 82.77,
+      "Falcons": 75.65,
+      "Giants": 75.9,
+      "Jaguars": 86.42,
+      "Jets": 75.61,
+      "Lions": 80.38,
+      "Packers": 76.06,
+      "Panthers": 79.32,
+      "Patriots": 82.41,
+      "Raiders": 77.4,
+      "Rams": 85.23,
+      "Ravens": 83.12,
+      "Saints": 77.27,
+      "Seahawks": 87.38,
+      "Steelers": 76.71,
+      "Texans": 79.79,
+      "Titans": 74.02,
+      "Vikings": 81.9
+    }
+  },
+  "recommendation": {
+    "picks": {
+      "3": [
+        "Eagles"
+      ],
+      "4": [
+        "Vikings"
+      ],
+      "5": [
+        "Commanders"
+      ],
+      "6": [
+        "Rams"
+      ],
+      "7": [
+        "49ers"
+      ],
+      "8": [
+        "Bengals"
+      ],
+      "9": [
+        "Chiefs"
+      ],
+      "10": [
+        "Ravens"
+      ],
+      "11": [
+        "Bills"
+      ],
+      "12": [
+        "Jaguars"
+      ],
+      "13": [
+        "Broncos"
+      ],
+      "14": [
+        "Seahawks"
+      ],
+      "15": [
+        "Packers"
+      ],
+      "16": [
+        "Bears"
+      ],
+      "17": [
+        "Cowboys"
+      ],
+      "18": [
+        "Patriots"
+      ]
+    },
+    "pathProbability": 0.018149,
+    "frontier": {
+      "week": 3,
+      "scenarios": 128,
+      "pool": {
+        "mode": "safest",
+        "source": "implied",
+        "floor": 0.7,
+        "covered": false
+      },
+      "candidates": [
+        {
+          "teams": [
+            "Eagles"
+          ],
+          "weekWinProb": 0.6285,
+          "season": 0.018149,
+          "scenarioMean": 0.018645,
+          "robust": 1,
+          "seasonCost": 0,
+          "scenarioCost": 0,
+          "leverage": 1.025,
+          "equity": 0.01912,
+          "chosen": true
+        },
+        {
+          "teams": [
+            "Bears"
+          ],
+          "weekWinProb": 0.3715,
+          "season": 0.010255,
+          "scenarioMean": 0.010452,
+          "robust": 0,
+          "seasonCost": 0.4349,
+          "scenarioCost": 0.4394,
+          "leverage": 40.308,
+          "equity": 0.421315,
+          "chosen": false
+        }
+      ]
+    }
+  }
+}
