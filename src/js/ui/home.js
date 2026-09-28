@@ -17,9 +17,9 @@
  * icon beside it puts that same code on the clipboard. Leave sits in the card's
  * corner as an icon, apart from Open: it is about the league, not about going
  * into it, and it asks once more, in a sheet, before it acts. Open is the
- * card's one big action; it goes to the league's first pool - NFL winners,
- * when it runs one - and the topline on the board is where its other pools
- * are. The card names the pools it runs and nothing of their rules: those are
+ * card's one big action; it goes to the league's first pool that is still in
+ * play - the first of them all when none is - and the topline on the board is
+ * where its other pools are. The card names the pools it runs and nothing of their rules: those are
  * read inside the board, from the gear.
  *
  * Making and joining live in two sheets, opened from two buttons above the
@@ -544,8 +544,8 @@ function wire(root) {
 
   delegate(root, "click", "[data-sheet]", (button) => openSheet(button.dataset.sheet));
 
-  // No pool named: the board opens on the league's first, and its bar has the
-  // rest.
+  // No pool named: the board opens on the league's first still in play
+  // (openingPool in app.js), and its bar has the rest.
   delegate(root, "click", '[data-act="open"]', (button) =>
     homeHandlers.onOpen(button.closest(".home__card").dataset.league),
   );

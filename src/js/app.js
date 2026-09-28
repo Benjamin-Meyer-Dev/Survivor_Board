@@ -2060,8 +2060,8 @@ async function deleteCurrentLeague() {
 
 /**
  * Take one pool out of the open league, for everyone in it. The board moves to
- * the league's first remaining pool. The directory refuses to remove the last
- * one, and the sheet does not offer it.
+ * the league's first remaining pool still in play (openingPool). The directory
+ * refuses to remove the last one, and the sheet does not offer it.
  */
 async function removeCurrentPool(kind) {
   const league = app.league;
@@ -2189,8 +2189,9 @@ function themeFor(kind) {
  * A league is a code (its name and its members) plus one or more pools, each a
  * season played for winners or for losers, each with a shared board of its own
  * priced off the schedule, lines and ratings every league on that season
- * shares. `wanted` says which board to open; a pool the league does not run -
- * a stale link, an old cached list - falls back to its first. Opening is a
+ * shares. `wanted` says which board to open; none, or a pool the league does
+ * not run - a stale link, an old cached list - opens the first one still in it
+ * (openingPool). Opening is a
  * full reload rather than a filter over the last: old subscriptions are torn
  * down, and nothing from the previous board survives.
  *
@@ -2268,7 +2269,7 @@ async function poolFiles(kind) {
 async function prepareLeague(league, wanted = null) {
   const kinds = normaliseKinds(league.kinds);
   if (kinds.length === 0) kinds.push(KIND_IDS[0]);
-  const kind = kinds.includes(wanted) ? wanted : kinds[0];
+  const kind = kinds.includes(wanted) ? wanted : await openingPool(league.code, kinds);
 
   // The store opens alongside the files rather than after them. One is a
   // database round trip and the others are static fetches, and they have
@@ -2289,6 +2290,40 @@ async function prepareLeague(league, wanted = null) {
   const files = await poolFiles(kind);
   const { store, entry } = await opening;
   return { ...files, league: { ...league, kinds }, kind, store, entry };
+}
+
+/**
+ * The pool a league opens on when nobody named one: the first, in the order
+ * the league lists them, that is still in it - or simply the first when every
+ * one is out, since then there is nothing to prefer. It used to be the first
+ * whatever, so a league whose NFL pool had ended opened on that pool's review
+ * every time, with the one still being played a tap away behind the picker.
+ *
+ * Read off the row the home page's refresh already fetched (knownEntry) and the
+ * per-sport files the board reads anyway, so it costs no round trip, and the
+ * first pool's files are the ones poolFiles would load next. A pool whose
+ * standing cannot be worked out counts as in: this chooses a page, it does not
+ * hold one shut.
+ *
+ * @param {string} code
+ * @param {string[]} kinds The league's pools, in its order; at least one.
+ * @returns {Promise<string>} A kind id.
+ */
+async function openingPool(code, kinds) {
+  for (const kind of kinds) {
+    try {
+      const { sport, objective } = POOL_KINDS[kind];
+      const [plan, odds] = await Promise.all([
+        loadJson("plan.json", sport),
+        loadJson("odds.json", sport),
+      ]);
+      const entry = knownEntry(code, kind);
+      if (!poolStanding({ plan, odds, entry, objective }).eliminated) return kind;
+    } catch {
+      return kind;
+    }
+  }
+  return kinds[0];
 }
 
 /**
@@ -3119,7 +3154,7 @@ function registerServiceWorker() {
  * #/join/CODE is the link that gets sent around: it joins first, so the person
  * who opened it is in the members before the board draws. #/l/CODE/KIND is
  * what an open board leaves behind, so a reload comes back to it; without the
- * pool it opens the league's first.
+ * pool it opens the league's first still in play (openingPool).
  */
 async function openFromHash() {
   const asked = codeFromHash(window.location.hash);
