@@ -1023,7 +1023,10 @@ function estimateFor(state, board) {
  * the dashes go.
  *
  * With nothing pending, a locked week has the lock on its line and the coach's
- * call for the week stands beside it as a lone mark.
+ * call for the week beside it as a lone mark, on a branch of its own: out of
+ * the line the week before and back into it the week after, the way the
+ * dashes for a pending pick leave and rejoin. No mark on the chart stands on
+ * nothing.
  *
  * Drawn as an SVG stretched to the box for the lines, with the marks and
  * every word placed over it by percentage, so the marks stay round and the
@@ -1067,7 +1070,8 @@ function route(state, board) {
   // What was played: the teams that were locked in, priced as they were priced
   // on the day (week.pathWinProb, core/plan.js), and how each week went. A
   // week with nothing locked in it - a pool joined late, a week the run does
-  // not cover - is a hole in the line rather than a nought.
+  // not cover, a result still to come in - has no mark rather than a nought,
+  // and the line steps over it (lineOf).
   //
   // The weeks the pool actually forgave (board.buyBack.spent, a different list
   // from the weeks it is willing to forgive) ride the stops they belong to, so
@@ -1224,30 +1228,24 @@ function route(state, board) {
     )
     .join("");
 
-  // One polyline per unbroken run of weeks with a team on the route. `tail` is
-  // a point to finish the last run on that is not a week of its own: the
-  // played line runs into the first week still to come, so the season is one
-  // line through the current week rather than two charts side by side.
-  const lineOf = (entry, kind, tail = null) => {
-    const runs = [];
-    let run = [];
-    entry.stops.forEach((stop, index) => {
-      if (stop.prob === null) {
-        if (run.length) runs.push(run);
-        run = [];
-        return;
-      }
-      run.push(`${xAt(index).toFixed(2)},${yAt(stop.prob).toFixed(2)}`);
-    });
-    if (run.length) runs.push(run);
-    if (tail && runs.length) runs.at(-1).push(tail);
-    return runs
-      .filter((points) => points.length > 1)
-      .map(
-        (points, index) =>
-          `<polyline class="route__line route__line--${kind}" data-key="line-${kind}-${index}" points="${points.join(" ")}" />`,
-      )
-      .join("");
+  // One polyline through every week with a team on the route. A week with no
+  // mark - a result still to come in, a week nobody locked - is stepped over
+  // rather than broken at: the line is what connects the marks, and a break
+  // used to leave a week between two holes standing on nothing. `tail` is a
+  // point to finish on that is not a week of its own: the played line runs
+  // into the first week still to come, so the season is one line through the
+  // current week rather than two charts side by side. `head` is the same at
+  // the other end, for a route that picks up from a week of another line's.
+  const lineOf = (entry, kind, { head = null, tail = null } = {}) => {
+    const points = entry.stops.flatMap((stop, index) =>
+      stop.prob === null ? [] : [`${xAt(index).toFixed(2)},${yAt(stop.prob).toFixed(2)}`],
+    );
+    if (!points.length) return "";
+    if (head) points.unshift(head);
+    if (tail) points.push(tail);
+    return points.length > 1
+      ? `<polyline class="route__line route__line--${kind}" data-key="line-${kind}-0" points="${points.join(" ")}" />`
+      : "";
   };
 
   // The stretch of the played line a buy back paid for: the leg out of a week
@@ -1269,10 +1267,12 @@ function route(state, board) {
     return entry.stops
       .map((stop, index) => {
         if (!stop.bought || stop.prob === null) return "";
-        // The last week played runs into the week on the clock rather than
-        // into a week of its own, so a buy back there finishes on the same
-        // tail the green line does.
-        const out = pointAt(index + 1) ?? (index === lastPlayed ? tail : null);
+        // The next week with a mark, which the green line steps to over any
+        // week without one; and the last week played runs into the week on
+        // the clock rather than into a week of its own, so a buy back there
+        // finishes on the same tail the green line does.
+        const next = entry.stops.findIndex((later, at) => at > index && later.prob !== null);
+        const out = next >= 0 ? pointAt(next) : index === lastPlayed ? tail : null;
         const points = [pointAt(index), out].filter(Boolean);
         return points.length > 1
           ? `<polyline class="route__line route__line--bought" data-key="line-bought-${stop.week}" points="${points.join(" ")}" />`
@@ -1290,15 +1290,25 @@ function route(state, board) {
   // The head and the tail are read off the line the branch leaves and rejoins,
   // not off the branch: the week before the first difference can be a week
   // already played, which has no plan of its own to stand on, and the branch
-  // then leaves the played line where it hands over to the plan. Only the
-  // season's own ends go without one.
-  const branchOf = (entry, kind, differs, bases) => {
+  // then leaves the played line where it hands over to the plan. A week with
+  // no mark on either is stepped over to the next one out, the way the lines
+  // themselves step over it (lineOf). Only the season's own ends go without.
+  //
+  // `key` names the lines apart from any other of the same kind, since the
+  // chart patches them in place by key (patchRouteLines).
+  const branchOf = (entry, kind, differs, bases, key = kind) => {
     const pointAt = (stops, index) =>
       stops?.[index] && stops[index].prob !== null
         ? `${xAt(index).toFixed(2)},${yAt(stops[index].prob).toFixed(2)}`
         : null;
-    const joinAt = (index) =>
-      bases.map((stops) => pointAt(stops, index)).find(Boolean) ?? pointAt(entry.stops, index);
+    const joinAt = (index, step) => {
+      for (let week = index; week >= 0 && week < n; week += step) {
+        const found =
+          bases.map((stops) => pointAt(stops, week)).find(Boolean) ?? pointAt(entry.stops, week);
+        if (found) return found;
+      }
+      return null;
+    };
     const runs = [];
     differs.forEach((parted, index) => {
       if (!parted) return;
@@ -1309,15 +1319,15 @@ function route(state, board) {
     return runs
       .map((run) =>
         [
-          joinAt(run[0] - 1),
+          joinAt(run[0] - 1, -1),
           ...run.map((index) => pointAt(entry.stops, index)),
-          joinAt(run.at(-1) + 1),
+          joinAt(run.at(-1) + 1, 1),
         ].filter(Boolean),
       )
       .filter((points) => points.length > 1)
       .map(
         (points, index) =>
-          `<polyline class="route__line route__line--${kind}" data-key="line-${kind}-${index}" points="${points.join(" ")}" />`,
+          `<polyline class="route__line route__line--${kind}" data-key="line-${key}-${index}" points="${points.join(" ")}" />`,
       )
       .join("");
   };
@@ -1399,12 +1409,39 @@ function route(state, board) {
   // the weeks it played, and the weeks it would have. A line carrying the
   // green of a week survived out of the mark where the run ended and into a
   // week it never got to draws the ending as somewhere the season carried on
-  // through. It stops at the loss, and the pencil picks up on its own.
+  // through. The green stops at the loss, and the coach's dashes pick up from
+  // it instead (deadHead): the weeks after are its account of a season built
+  // on that loss, and a route that began in mid-air a week to its right was a
+  // line with nothing to come from.
   const firstLive = you.stops.findIndex((stop) => stop.prob !== null);
   const liveTail =
     anyPlayed && firstLive >= 0 && !board.eliminated
       ? `${xAt(firstLive).toFixed(2)},${yAt(you.stops[firstLive].prob).toFixed(2)}`
       : null;
+  const endedAt = played.stops.findLastIndex((stop) => stop.prob !== null);
+  const deadHead =
+    board.eliminated && endedAt >= 0 && firstLive > endedAt
+      ? `${xAt(endedAt).toFixed(2)},${yAt(played.stops[endedAt].prob).toFixed(2)}`
+      : null;
+
+  // The coach's call for a locked week, as a one-week branch: out of the week
+  // before and into the week after, off whichever line stands there - the
+  // route ahead, or the weeks played where the week before is history.
+  const loneLine = lone
+    ? branchOf(
+        {
+          stops: weeks.map((week, index) =>
+            index === at
+              ? { week: week.week, options: lone.options, prob: lone.prob }
+              : { week: week.week, options: [], prob: null },
+          ),
+        },
+        "coach",
+        weeks.map((_, index) => index === at),
+        [you.stops, anyPlayed ? played.stops : null],
+        "lone",
+      )
+    : "";
 
   // This week's figures used to ride their marks as boxed percentages over
   // the band. The chart is the shape; a tap on any mark reads its figures out
@@ -1486,7 +1523,7 @@ function route(state, board) {
       <span class="route__band" data-key="band" style="left:${pct((at / n) * 100)};width:${pct(100 / n)}"></span>
       ${grid}
       <svg class="route__lines" data-key="lines" viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
-        ${anyPlayed ? lineOf(played, "played", liveTail) + boughtOf(played, liveTail) : ""}${alternative ? branchOf(alternative, "coach", apart, [you.stops, anyPlayed ? played.stops : null]) : ""}${lineOf(you, ahead)}
+        ${anyPlayed ? lineOf(played, "played", { tail: liveTail }) + boughtOf(played, liveTail) : ""}${alternative ? branchOf(alternative, "coach", apart, [you.stops, anyPlayed ? played.stops : null]) : ""}${loneLine}${lineOf(you, ahead, { head: deadHead })}
       </svg>
       ${anyPlayed ? dotsOf(played, "played") : ""}${alternative ? dotsOf(alternative, "coach", { only: apart, reach: reachOf(alternative) }) : ""}${dotsOf(you, ahead, { reach: reachOf(you) })}${loneMark}
       <span class="route__callout" data-key="callout" hidden></span>
