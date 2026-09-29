@@ -1697,9 +1697,14 @@ function reveal(plot, clientX, { toggle = false } = {}) {
   // week's own line stood in the list of teams reading as a third pick.
   //
   // A swatch beside every team, in the colour of the line it rides. In a played
-  // week each team's swatch takes that team's own result, and the letter beside
-  // its figure says it too: a two-team week can win one game and lose the
+  // week each team's swatch takes that team's own result, and so does the
+  // letter beside its figure: a two-team week can win one game and lose the
   // other, and one swatch for the block could only tell the week's story.
+  //
+  // The letter is the game, the colour is the pick. A result on the board means
+  // "the pick worked" (advanceResult in core/objective.js), which in a losers
+  // pool is the team losing - so there the letter is turned back into what the
+  // team did, and a pick that went out because its team won reads a red W.
   //
   // Under the block, the chance of being in the pool to play the week at all:
   // the plan's own weeks up to there, and nothing from the weeks already
@@ -1708,16 +1713,16 @@ function reveal(plot, clientX, { toggle = false } = {}) {
   // you were there.
   const objective = plot.closest(".route")?.dataset.objective === "lose" ? "lose" : "win";
   const results = marks.some((mark) => mark.legs.some(([, , result]) => result));
-  const row = (kind, label, prob, { swatch = "", result = "" } = {}) =>
+  const row = (kind, label, prob, { swatch = "", result = "", game = "" } = {}) =>
     `<span class="route__callout-row route__callout-row--${kind}">${
       swatch ? `<i class="route__swatch route__swatch--${swatch}"></i>` : "<i></i>"
     }<span class="route__callout-label">${escapeHtml(label)}</span>${
       results
-        ? `<b class="route__callout-result${result ? ` route__callout-result--${result}` : ""}">${
-            result === "won" ? "W" : result ? "L" : ""
-          }</b>`
+        ? `<b class="route__callout-result${result ? ` route__callout-result--${result}` : ""}">${game}</b>`
         : ""
     }<b class="route__callout-prob">${escapeHtml(prob)}</b></span>`;
+  const gameOf = (result) =>
+    objective === "lose" ? ({ W: "L", L: "W" }[result] ?? "") : (result ?? "");
   const blocks = marks.map((mark) => {
     const legs = mark.legs.length ? mark.legs : [[mark.team, mark.prob, mark.result ?? ""]];
     const teams = legs.map(([team, prob, result]) => {
@@ -1725,6 +1730,7 @@ function reveal(plot, clientX, { toggle = false } = {}) {
       return row(legs.length > 1 ? "leg" : "team", team, prob, {
         swatch: mark.kind !== "played" ? mark.kind : lost || "played",
         result: result === "W" ? "won" : lost,
+        game: gameOf(result),
       });
     });
     const sum =
