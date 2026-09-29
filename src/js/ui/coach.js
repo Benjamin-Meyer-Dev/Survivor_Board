@@ -141,6 +141,8 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0, handlers = {}
     state.selection === "picked" && Boolean(board.previewPending),
   );
   panel.classList.toggle("coach--empty", state.kind === "none");
+  // A run that is over has no pick left to light the chain for.
+  panel.classList.toggle("coach--out", Boolean(board.eliminated));
   // The head and the chain are the week's page: they turn with the card, so
   // they travel with it under a finger (SLIDING in app.js names this box). The
   // chart is the season and stays where it is.
@@ -251,6 +253,7 @@ function renderRoute(current, markup) {
     "data-motion-key",
     "data-motion-signature",
     "data-view-week",
+    "data-at",
     "data-scale",
     "data-objective",
     "aria-label",
@@ -259,6 +262,10 @@ function renderRoute(current, markup) {
     if (value === null) current.removeAttribute(attribute);
     else current.setAttribute(attribute, value);
   }
+  // The column the band stands on. The band itself is kept across the turn
+  // (its markup is the same every week), so this moves a node that was
+  // already there, and slideBand below carries it over.
+  current.style.setProperty("--route-at", next.dataset.at ?? "0");
 
   const head = next.querySelector(':scope > [data-key="head"]');
   const plot = next.querySelector(':scope > [data-key="plot"]');
@@ -279,6 +286,7 @@ function renderRoute(current, markup) {
   reconcile(currentPlot, plot.innerHTML);
   patchRouteLines(currentPlot?.querySelector(':scope > [data-key="lines"]'), nextLines);
   if (was) morphRoute(current, was);
+  slideBand(currentPlot?.querySelector(':scope > [data-key="band"]'), Number(next.dataset.at));
 
   // A callout quotes one column. If the band moved to another one, close the
   // old quote even though its stable node was deliberately retained.
@@ -289,6 +297,58 @@ function renderRoute(current, markup) {
       callout.replaceChildren();
     }
   }
+}
+
+/**
+ * Where each chart's band last stood, and the slide carrying it there. Keyed
+ * by the band, so a band made new - the first render, a season of another
+ * length - has no column to come from and is simply placed.
+ */
+const bands = new WeakMap();
+
+/**
+ * Carry the band to the week the board has turned to, the way the field's
+ * bracket travels along its yard lines.
+ *
+ * Made by script, not by a transition on `--route-at`: the case is a size
+ * container, and Chrome drops a CSS transition in there straight to its end
+ * while the board re-lays around the turn (ownMotion in ui/motion.js). It is
+ * the same move morphRoute makes on the marks - `translate`, over the band's
+ * own transform - and it is measured in the band's own widths, which are
+ * columns, so nothing is laid out to find out how far.
+ *
+ * A second tap while the band is still travelling goes on from where the band
+ * has got to, not from the column it set out for. And a drag that turned the
+ * week has carried the band there already (trackFieldTurn in app.js), so that
+ * turn is only written down.
+ *
+ * @param {HTMLElement|null} band
+ * @param {number} at The column, 0-based, the band now stands on.
+ */
+function slideBand(band, at) {
+  if (!band || !Number.isFinite(at)) return;
+  const was = bands.get(band);
+  // The same column: a slide in flight is still going to the right place.
+  if (was?.at === at) return;
+
+  let from = was ? was.at - at : 0;
+  if (was?.slide) {
+    const progress = was.slide.effect?.getComputedTiming().progress;
+    if (Number.isFinite(progress)) from += was.from * (1 - progress);
+    was.slide.cancel();
+  }
+  const entry = { at, from, slide: null };
+  bands.set(band, entry);
+
+  if (!was || !band.isConnected || Math.abs(from) < 1e-3) return;
+  if (band.classList.contains("is-week-tracking") || prefersReducedMotion()) return;
+  const style = getComputedStyle(band);
+  const duration = durationOf(style.getPropertyValue("--route-band-slide"));
+  if (!(duration > 0)) return;
+  entry.slide = band.animate([{ translate: `${from * 100}% 0` }, { translate: "0 0" }], {
+    duration,
+    easing: style.getPropertyValue("--ease-out").trim() || "ease-out",
+  });
 }
 
 /** Keep each SVG route line mounted and change only the attributes it draws. */
@@ -1519,12 +1579,21 @@ function route(state, board) {
   // do not land any more (the route block in motion.css), so it does not, and
   // the settle no longer reaches in here at all.
 
-  return `<section class="route${alternative ? " route--compared" : ""}${ceiling ? " route--ceiling" : ""}" data-key="route" data-view-week="${viewed.week}" data-scale="${lo},${hi}" data-objective="${board.rules?.objective === "lose" ? "lose" : "win"}" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
+  // The band's own markup names no week, so the same node stands on the chart
+  // from one week to the next and the week it is on is `--route-at`, set on the
+  // chart (renderRoute). That is what lets it slide: it is the field's bracket
+  // and its `--yard` over again. With the week written into its `left` it was
+  // a new node at every turn, and a new node has nowhere to travel from.
+  //
+  // The column is worked out in its own style attribute, not the stylesheet's,
+  // so the band stands in the right place under a components.css from either
+  // side of this change (the per-file shell cache in sw.js).
+  return `<section class="route${alternative ? " route--compared" : ""}${ceiling ? " route--ceiling" : ""}" data-key="route" data-view-week="${viewed.week}" data-at="${at}" data-scale="${lo},${hi}" data-objective="${board.rules?.objective === "lose" ? "lose" : "win"}" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
     <div class="route__head" data-key="head">
       <span class="route__eyebrow">Survival chance by week</span>
     </div>
     <div class="route__plot" data-key="plot" aria-hidden="true">
-      <span class="route__band" data-key="band" style="left:${pct((at / n) * 100)};width:${pct(100 / n)}"></span>
+      <span class="route__band" data-key="band" style="left:calc(var(--route-at, 0) * 100% / ${n});width:${pct(100 / n)}"></span>
       ${grid}
       <svg class="route__lines" data-key="lines" viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
         ${anyPlayed ? lineOf(played, "played", { tail: liveTail }) + boughtOf(played, liveTail) : ""}${alternative ? branchOf(alternative, "coach", apart, [you.stops, anyPlayed ? played.stops : null]) : ""}${loneLine}${lineOf(you, ahead, { head: deadHead })}

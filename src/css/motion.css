@@ -778,9 +778,13 @@
 
 /* The chart's band travels between weeks the way the bracket does, and for the
    same reason: one mark moving says which way the week went where a highlight
-   lit in a new place only says that it moved. */
+   lit in a new place only says that it moved. The bracket's duration on the
+   board's ease, but not as a transition: the case is a size container, which
+   drops a CSS transition to its end as the board re-lays around the turn, so
+   the band is moved by script (slideBand in ui/coach.js) and this is only the
+   duration it reads. */
 .route__band {
-  transition: transform 0.2s var(--ease-out);
+  --route-band-slide: 0.2s;
 }
 
 /* A swipe expresses its progress as a fraction of the one-yard trip. It is

@@ -65,7 +65,9 @@
    one grid of blocks, markup the old components.css has no rules for; v34 has
    core/plan.js import planScope from core/recommend.js, the v25 hazard again;
    v35 draws the season's ending as a drive chart, whose cross is an SVG the
-   old components.css would leave at the browser's 300 by 150.
+   old components.css would leave at the browser's 300 by 150; v36 paints it
+   as the end zone never reached, a box score and a struck-out SURVIVE the old
+   stylesheet would set as a line of loose text.
 
    "Must not keep half of" is the whole point, and v4 is what that phrase was
    written for. Every shell file is cached first and refreshed on its own a few
@@ -82,7 +84,7 @@
    needs a hand here: ENGINE_VERSION in src/js/core/recommend.js is part of
    every plan's key, so a plan can only ever be read back by the engine that
    wrote it. Bump it there when the search or the ranking changes shape. */
-const CACHE = "sudden-death-v35";
+const CACHE = "sudden-death-v36";
 
 /** How long to wait for fresh data before opening with the last copy. */
 const DATA_TIMEOUT_MS = 2500;

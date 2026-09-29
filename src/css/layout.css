@@ -938,6 +938,14 @@
     margin: 0 auto;
   }
 
+  /* The band is taller than what it says here, and the lines sit at its foot,
+     so the end zone's word takes the room over them and crosses none of it. */
+  .review__mark {
+    top: 8px;
+    font-size: clamp(96px, 9vw, 140px);
+    -webkit-text-stroke-color: rgb(243 247 241 / 18%);
+  }
+
   /* The team list and the depth chart, in the 5:3 they always stood in - the
      4fr between them was the drive, and the season it listed is the route
      graph's now (ui/coach.js). */

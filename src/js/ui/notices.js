@@ -23,7 +23,7 @@
  * still play.
  */
 
-import { escapeHtml } from "../core/format.js";
+import { escapeHtml, formatPercent, formatSpread } from "../core/format.js";
 import { prefersReducedMotion, swapContents } from "./motion.js";
 
 /**
@@ -102,10 +102,12 @@ export function renderNotices(root, { store = null, board = null, message = "" }
  *
  * It tells the story the readout above it cannot. That already says the week
  * and the record - Eliminated, Wk 1, 0-1 - so this is the drive and the play
- * that ended it: the season as a drive chart from kickoff to the end zone it
- * never reached, stopped with a chalk cross on the week it ended; the game
- * that did it, with the margin, as the headline; and under it the line the
- * game was played at and what the coach had called that week.
+ * that ended it. The band is the end zone the run never reached, painted as
+ * the field's are and carrying the field's own SURVIVE, struck out. Across it
+ * the season as a drive chart from kickoff, stopped with a chalk cross on the
+ * week it ended; the game that did it, with the margin, as the headline; and
+ * under it a box score - the line, the chance the week gave you, how far the
+ * drive got, and what the coach had called instead.
  *
  * @param {HTMLElement|null} root
  * @param {object|null} board Null, or a board that is still alive: either way
@@ -125,8 +127,6 @@ function reviewMarkup(board) {
   const gameOf = (team) => ended?.optionByTeam?.get(team) ?? null;
   const byOf = (margin) =>
     Number.isFinite(margin) && margin !== 0 ? ` by ${Math.abs(margin)}` : "";
-  // An NFL side is a nickname and takes "the"; a college one is a school.
-  const named = (team) => (board.league === "nfl" ? `the ${team}` : team);
 
   // What the team did, not what the pick did. `status.result` is the entry's
   // result, swapped for a losers pool (core/objective.js), so the pick that
@@ -142,64 +142,74 @@ function reviewMarkup(board) {
         .join(" and ")
     : `Eliminated in week ${week}`;
 
-  // The line the game was played at, for a week that ended on one game: what
-  // the market made of the pick, which is what makes the result an upset.
-  const spread = losses.length === 1 ? gameOf(losses[0].team)?.spread : null;
-  const line = Number.isFinite(spread)
-    ? spread === 0
-      ? "A pick'em"
-      : `${Number(Math.abs(spread).toFixed(1))}-point ${spread < 0 ? "favourites" : "underdogs"}`
-    : "";
+  // The box score under the headline: a label over a figure, the way the
+  // readout above sets its own, so the ending reads as the board's last stat
+  // line rather than a sentence about it.
+  const stats = [];
+
+  // The line the game was played at - what the market made of the pick, which
+  // is what makes the result an upset - and the chance the week gave you.
+  const spreads = losses
+    .map((loss) => gameOf(loss.team)?.spread)
+    .filter(Number.isFinite)
+    .map((spread) => (spread === 0 ? "PK" : formatSpread(spread)));
+  if (spreads.length) stats.push({ label: "The line", value: escapeHtml(spreads.join(" / ")) });
+  if (Number.isFinite(ended?.pathWinProb)) {
+    stats.push({ label: "Your shot", value: escapeHtml(formatPercent(ended.pathWinProb, 1)) });
+  }
+
+  // How far the drive got, out of how far it had to go.
+  const survived = board.weeks.filter((entry) => entry.week < week).length;
+  stats.push({ label: "Survived", value: `${survived} of ${board.weeks.length}` });
 
   // The road not taken: what the coach had called that week (week.recommended,
   // the call as it stood when the slot was locked) wherever it was not the
-  // lock, and how that game went. A week of one pick says what it would have
-  // done to the run; a week of two cannot say it from one game.
+  // lock, each with whether that pick would have come through its game.
   const locked = new Set(losses.map((loss) => loss.team));
   const calls = ended?.recommended ?? [];
   const others = calls.filter((call) => !locked.has(call.team));
-  const gamePhrase = (margin) =>
-    Number.isFinite(margin)
-      ? margin === 0
-        ? "tied"
-        : `${margin > 0 ? "won" : "lost"}${byOf(margin)}`
-      : "";
-  let coach = "";
-  if (calls.length && !others.length) {
-    coach = "The coach's call too";
-  } else if (others.length === 1) {
-    const [call] = others;
-    const verdict =
-      board.rules?.picksPerWeek === 1 && call.result
-        ? call.result === "W"
-          ? "would have survived"
-          : "out too"
-        : "";
-    const how = [gamePhrase(call.margin), verdict].filter(Boolean).join(", ");
-    coach = `Coach had ${named(call.team)}${how ? `: ${how}` : ""}`;
-  } else if (others.length) {
-    coach = `Coach had ${others
-      .map((call) => {
-        const game = gamePhrase(call.margin);
-        return `${named(call.team)}${game ? ` (${game})` : ""}`;
-      })
-      .join(" and ")}`;
+  if (calls.length) {
+    stats.push({
+      label: "Coach had",
+      value: others.length
+        ? others
+            .map(
+              (call) =>
+                `${escapeHtml(call.team)}${call.result ? MARKS[call.result === "W" ? "won" : "lost"] : ""}`,
+            )
+            .join(" ")
+        : "Same pick",
+      team: true,
+    });
   }
 
   const used = board.buyBack?.used ?? 0;
-  const detail = [line, coach, used ? `${used} buy back${used === 1 ? "" : "s"} used` : ""]
-    .filter(Boolean)
-    .join(" · ");
+  if (used) stats.push({ label: "Buy backs", value: `${used} used` });
+
   const last = board.weeks.at(-1)?.week ?? week;
 
   // "Season over" is written into the turf nobody played on (driveOf), which
   // a screen reader does not see, so it is said to one ahead of the headline.
+  // Behind it all, the word the far end zone carries on the field above, which
+  // is where the drive was going, struck out.
   return `<div class="review" role="status">
+    <span class="review__mark" aria-hidden="true">Survive</span>
     ${driveOf(board)}
     <strong class="review__title"><span class="u-visually-hidden">Season over in week ${week} of ${last}: </span>${escapeHtml(title)}</strong>
-    ${detail ? `<span class="review__line">${escapeHtml(detail)}</span>` : ""}
+    <dl class="review__stats">${stats
+      .map(
+        (stat) =>
+          `<div class="review__stat${stat.team ? " review__stat--team" : ""}"><dt>${stat.label}</dt><dd>${stat.value}</dd></div>`,
+      )
+      .join("")}</dl>
   </div>`;
 }
+
+/** Whether a pick the coach had would have come through its game. */
+const MARKS = {
+  won: '<svg class="review__verdict review__verdict--won" viewBox="0 0 12 12" width="12" height="12" aria-label="would have survived" role="img"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" /></svg>',
+  lost: '<svg class="review__verdict review__verdict--lost" viewBox="0 0 12 12" width="12" height="12" aria-label="out too" role="img"><path d="M3 3l6 6M9 3l-6 6" /></svg>',
+};
 
 /**
  * The season as a drive chart: the field at the top of the board again, end

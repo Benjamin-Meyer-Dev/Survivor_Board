@@ -1354,6 +1354,20 @@
   opacity: 0.6;
 }
 
+/* And the flag is for a pick still to make, which none of them is: what
+   stands on them is drawn in the coach's grey, the chart's dashes. */
+.pitch__yard--moot .pitch__mark--coach {
+  background: repeating-linear-gradient(180deg, var(--neutral) 0 3px, transparent 3px 5px);
+}
+
+.pitch__yard--moot .pitch__mark--picked {
+  background: var(--neutral);
+}
+
+.pitch__yard--moot .pitch__mark--locked {
+  color: var(--neutral);
+}
+
 /* The drive line under the field: the readouts of the season - how fresh the
    lines are, what the pool forgives, what a pick being weighed would do - and
    the flag saying how far the end zone is on today's numbers. The flag drops
@@ -2376,6 +2390,17 @@
   box-shadow: 0 0 6px var(--flag);
 }
 
+/* The run is over: the rule stays chalk to its end, and the tier's dot is one
+   more unlit stop. */
+.coach--out .chain::before {
+  background: linear-gradient(90deg, var(--line-soft), var(--line-strong) 52%);
+}
+
+.coach--out .chain__stop:last-child::before {
+  background: var(--chalk-3);
+  box-shadow: none;
+}
+
 /* The chip in the chain is the small one: the row is 10px keys over 16px
    figures, and the card two boxes down is where the tier is called by its full name at
    full size. */
@@ -3096,16 +3121,67 @@
    its own, because the band IS the border. It carries the bottom inset too:
    nothing is under it now, so the home indicator is its to clear.
 
-   Painted, not chalked, because it is not a warning - the same danger it wore
-   as a banner, kept so a person who has seen one recognises the other. */
+   Painted, not chalked, because it is not a warning: it is the end zone the
+   drive never reached, in the paint and the hazard stripes the field's end
+   zones wear - navy, burnt orange or the college green, whichever the pool
+   plays in - with a floodlight's worth of the danger laid over it. The danger
+   is in the marks instead: the cross, the words across the dead turf, and the
+   line through the end zone's name. */
 .review {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 2px;
   flex: none;
-  padding: 10px var(--gutter) calc(11px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--line);
-  background: var(--stripes), var(--danger-bg);
+  padding: 12px var(--gutter) calc(12px + env(safe-area-inset-bottom));
+  border-top: 2px solid var(--line-strong);
+  background:
+    radial-gradient(ellipse 70% 120% at 100% 100%, var(--danger-bg), transparent 70%),
+    var(--stripes), var(--paint);
+}
+
+/* The far end zone's word, as the field above paints it, chalked out large
+   behind the lines and struck through in the danger red. It sits in the
+   band's corner and runs off its edge, as a word painted across an end zone
+   runs off a camera's frame.
+
+   On a phone the band has no room it is not already writing in, so the word
+   is the faintest chalk on the board and its line falls in the gap between
+   the headline and the box score, where it crosses no figure. A desktop's
+   band is taller than what it says, and there the word takes the room above
+   it (layout.css). */
+.review__mark {
+  position: absolute;
+  top: 22px;
+  right: -0.04em;
+  z-index: -1;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 84px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: transparent;
+  -webkit-text-stroke: 2px rgb(243 247 241 / 13%);
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* A line of chalk, not a bar of paint: two pixels whatever the word's size. */
+.review__mark::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -3%;
+  right: -3%;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--danger);
+  opacity: 0.55;
+  transform: rotate(-3deg);
 }
 
 /* The region it is written into, which is in the page from the first paint and
@@ -3254,15 +3330,71 @@
   color: var(--chalk);
 }
 
-/* What was behind it: the line the game was played at, the coach's call and
-   how that went. It wraps rather than ellipsising: a run has one ending and it
-   is worth the second line, where a league's name in the topline is worth
-   none. */
-.review__line {
-  margin-top: 3px;
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--chalk-2);
+/* The box score: a label over a figure, set the way the readout above sets its
+   own, so the ending is the board's last stat line. It wraps a stat to a
+   second row before it squeezes one. */
+.review__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  margin: 8px 0 0;
+}
+
+.review__stat {
+  display: grid;
+  gap: 2px;
+}
+
+.review__stat dt {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--chalk-3);
+}
+
+.review__stat dd {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-weight: 650;
+  font-size: 16px;
+  line-height: 20px;
+  color: var(--chalk);
+  white-space: nowrap;
+}
+
+/* A team is a name, and names on this board are the display face. */
+.review__stat--team dd {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* Whether the coach's pick would have come through, in the colours the field
+   marks a result in. */
+.review__verdict {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke-width: 2px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.review__verdict--won {
+  stroke: var(--safe);
+}
+
+.review__verdict--lost {
+  stroke: var(--danger);
 }
 
 /* The indicator: one mark that slides between the tabs. Every tab is an equal
