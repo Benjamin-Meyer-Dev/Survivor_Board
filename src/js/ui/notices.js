@@ -100,11 +100,12 @@ export function renderNotices(root, { store = null, board = null, message = "" }
  * bare over three lines reads as something that failed to load rather than as
  * a board with nothing left to write on it.
  *
- * Shorter than the banner it replaces, because it is now spending the drawer's
- * room rather than the board's: the sentence that said the board is in review
- * is gone, which the disabled lock and the emptied drawer say for themselves,
- * and what is left is the three facts - when it ended, what ended it, and what
- * the run came to.
+ * It tells the story the readout above it cannot. That already says the week
+ * and the record - Eliminated, Wk 1, 0-1 - so this is the drive and the play
+ * that ended it: the season as a drive chart from kickoff to the end zone it
+ * never reached, stopped with a chalk cross on the week it ended; the game
+ * that did it, with the margin, as the headline; and under it the line the
+ * game was played at and what the coach had called that week.
  *
  * @param {HTMLElement|null} root
  * @param {object|null} board Null, or a board that is still alive: either way
@@ -120,28 +121,108 @@ export function renderReview(root, board) {
 
 function reviewMarkup(board) {
   const { week, losses } = board.elimination;
-  const label = board.weeks.find((entry) => entry.week === week)?.labelFull ?? `Week ${week}`;
+  const ended = board.weeks.find((entry) => entry.week === week) ?? null;
+  const gameOf = (team) => ended?.optionByTeam?.get(team) ?? null;
+  const byOf = (margin) =>
+    Number.isFinite(margin) && margin !== 0 ? ` by ${Math.abs(margin)}` : "";
+  // An NFL side is a nickname and takes "the"; a college one is a school.
+  const named = (team) => (board.league === "nfl" ? `the ${team}` : team);
+
   // What the team did, not what the pick did. `status.result` is the entry's
   // result, swapped for a losers pool (core/objective.js), so the pick that
   // ended the run there is a team that WON its game - and "Seahawks lost to
   // Patriots" was the one sentence on the board that had the score backwards.
   const beat = board.rules?.objective === "lose";
-  const what = losses.length
+  const title = losses.length
     ? losses
-        .map((loss) => `${loss.team} ${beat ? "beat" : "lost to"} ${loss.opponent}`)
+        .map(
+          (loss) =>
+            `${loss.team} ${beat ? "beat" : "lost to"} ${loss.opponent}${byOf(gameOf(loss.team)?.margin)}`,
+        )
         .join(" and ")
-    : "";
-  const { won, lost } = board.record;
-  const used = board.buyBack?.used ?? 0;
-  const buyBacks = used ? ` · ${used} buy back${used === 1 ? "" : "s"} used` : "";
-  // The three facts on one line, in the order they are asked in: when, what,
-  // and what it came to. A week that ended with no loss on the board - a slot
-  // left empty past its kickoff - simply says nothing in the middle.
-  const line = [label, what, `Final ${won}-${lost}${buyBacks}`].filter(Boolean).join(" · ");
+    : `Eliminated in week ${week}`;
 
+  // The line the game was played at, for a week that ended on one game: what
+  // the market made of the pick, which is what makes the result an upset.
+  const spread = losses.length === 1 ? gameOf(losses[0].team)?.spread : null;
+  const line = Number.isFinite(spread)
+    ? spread === 0
+      ? "A pick'em"
+      : `${Number(Math.abs(spread).toFixed(1))}-point ${spread < 0 ? "favourites" : "underdogs"}`
+    : "";
+
+  // The road not taken: what the coach had called that week (week.recommended,
+  // the call as it stood when the slot was locked) wherever it was not the
+  // lock, and how that game went. A week of one pick says what it would have
+  // done to the run; a week of two cannot say it from one game.
+  const locked = new Set(losses.map((loss) => loss.team));
+  const calls = ended?.recommended ?? [];
+  const others = calls.filter((call) => !locked.has(call.team));
+  const gamePhrase = (margin) =>
+    Number.isFinite(margin)
+      ? margin === 0
+        ? "tied"
+        : `${margin > 0 ? "won" : "lost"}${byOf(margin)}`
+      : "";
+  let coach = "";
+  if (calls.length && !others.length) {
+    coach = "The coach's call too";
+  } else if (others.length === 1) {
+    const [call] = others;
+    const verdict =
+      board.rules?.picksPerWeek === 1 && call.result
+        ? call.result === "W"
+          ? "would have survived"
+          : "out too"
+        : "";
+    const how = [gamePhrase(call.margin), verdict].filter(Boolean).join(", ");
+    coach = `Coach had ${named(call.team)}${how ? `: ${how}` : ""}`;
+  } else if (others.length) {
+    coach = `Coach had ${others
+      .map((call) => {
+        const game = gamePhrase(call.margin);
+        return `${named(call.team)}${game ? ` (${game})` : ""}`;
+      })
+      .join(" and ")}`;
+  }
+
+  const used = board.buyBack?.used ?? 0;
+  const detail = [line, coach, used ? `${used} buy back${used === 1 ? "" : "s"} used` : ""]
+    .filter(Boolean)
+    .join(" · ");
+  const last = board.weeks.at(-1)?.week ?? week;
+
+  // "Season over" is written into the turf nobody played on (driveOf), which
+  // a screen reader does not see, so it is said to one ahead of the headline.
   return `<div class="review" role="status">
-    <span class="review__eyebrow">Season over</span>
-    <strong class="review__title">Eliminated in week ${week}</strong>
-    <span class="review__line">${escapeHtml(line)}</span>
+    ${driveOf(board)}
+    <strong class="review__title"><span class="u-visually-hidden">Season over in week ${week} of ${last}: </span>${escapeHtml(title)}</strong>
+    ${detail ? `<span class="review__line">${escapeHtml(detail)}</span>` : ""}
   </div>`;
+}
+
+/**
+ * The season as a drive chart: the field at the top of the board again, end
+ * zone to end zone, a yard a week. The drive runs from kickoff through every
+ * week survived - orange where the pool bought a loss back - and stops on a
+ * chalk cross at the week that ended it. The yards past it were never played,
+ * and "Season over" is chalked across them where there is the room.
+ */
+function driveOf(board) {
+  const bought = new Set(board.buyBack?.spent ?? []);
+  const cross =
+    '<svg viewBox="0 0 12 12" width="12" height="12" focusable="false"><path d="M2 2l8 8M10 2l-8 8" /></svg>';
+  const played = board.weeks
+    .filter((entry) => entry.week <= board.eliminatedWeek)
+    .map((entry) =>
+      entry.week === board.eliminatedWeek
+        ? `<i class="review__yard review__yard--out">${cross}</i>`
+        : `<i class="review__yard review__yard--${bought.has(entry.week) ? "bought" : "run"}"></i>`,
+    )
+    .join("");
+  const ahead = board.weeks.filter((entry) => entry.week > board.eliminatedWeek).length;
+  const rest = ahead
+    ? `<span class="review__rest" style="flex-grow:${ahead}">${'<i class="review__yard"></i>'.repeat(ahead)}<b class="review__rest-label">Season over</b></span>`
+    : "";
+  return `<span class="review__drive" aria-hidden="true"><i class="review__zone"></i>${played}${rest}<i class="review__zone"></i></span>`;
 }

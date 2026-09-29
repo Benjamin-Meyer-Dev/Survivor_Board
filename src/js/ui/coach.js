@@ -1336,6 +1336,11 @@ function route(state, board) {
   // chances - you are here, however you got here - so they weigh nothing, and
   // what is left is the plan between now and that week, multiplied through.
   //
+  // Facts cut both ways. A run that is over did not get there, however you
+  // count it: the loss that ended it is a nought in the product, and every week
+  // of the coach's account after it reads 0%. It started from a hundred as if
+  // the run were alive, which said a week-1 loss had left week 2 a certainty.
+  //
   // Buy backs are deliberately not in it, which is the one place on the board
   // that ignores them. A buy back is an option, not a result: the pool lets you
   // pay to come back from a loss in a forgiving week, and whether that is worth
@@ -1357,7 +1362,7 @@ function route(state, board) {
   // apart on.
   const figureOf = (value) => formatPercent(value, 1);
   const reachOf = (entry) => {
-    let reach = 1;
+    let reach = board.eliminated ? 0 : 1;
     return entry.stops.map((stop) => {
       const here = reach;
       for (const option of stop.options) reach *= option.winProb;

@@ -427,6 +427,10 @@ function weekOptions({
         // reads as what the outcome did to a pick of this team, so in a losers
         // pool the team that lost its game is the row that says "Won".
         result: advanceResult(odds.results?.[lineKey(week, team)], objective),
+        // By how much, signed from the team's side whatever the pool: a fact
+        // about the game, as the refresh job records it. The season's ending
+        // quotes it (ui/notices.js); null until the game has a final.
+        margin: odds.scores?.[lineKey(week, team)] ?? null,
       });
     }
   }

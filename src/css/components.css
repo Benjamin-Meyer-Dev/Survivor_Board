@@ -3091,10 +3091,10 @@
 
    The same band across the chalkboard the tab bar is - the gutter, a rule
    along the edge it meets the panels on - so the drawer's two ends are drawn
-   the same whether a season is being played or read back. Three lines, in the
-   order they are asked in, and no border of its own, because the band IS the
-   border. It carries the bottom inset too: nothing is under it now, so the
-   home indicator is its to clear.
+   the same whether a season is being played or read back. The drive, then the
+   three lines - when, what did it, and what was behind it - and no border of
+   its own, because the band IS the border. It carries the bottom inset too:
+   nothing is under it now, so the home indicator is its to clear.
 
    Painted, not chalked, because it is not a warning - the same danger it wore
    as a banner, kept so a person who has seen one recognises the other. */
@@ -3135,14 +3135,114 @@
   justify-content: flex-end;
 }
 
-.review__eyebrow {
+/* The season as a drive chart (driveOf in ui/notices.js): the field at the top
+   of the board in miniature, end zone to end zone in the league's paint, a
+   yard a week. The drive is the played line's green through every week the
+   run came through, orange where the pool bought a loss back, and it stops on
+   a chalk cross in the danger red at the week that ended it. What is past the
+   cross is turf nobody played on, drawn in the shade, and the words the band
+   used to open on are chalked across it. */
+.review__drive {
+  display: flex;
+  height: 20px;
+  margin-bottom: 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  background: var(--turf);
+  overflow: hidden;
+}
+
+/* A share of the strip, as the field's own end zones are a share of the field,
+   so a desktop's drive has end zones and not two slivers at either end. */
+.review__zone {
+  flex: 0 0 clamp(12px, 4%, 40px);
+  background: var(--stripes), var(--paint);
+}
+
+.review__yard {
+  position: relative;
+  flex: 1 1 0;
+  border-left: 1px solid var(--line-soft);
+}
+
+/* The goal lines, a chalk up from the yard lines between them. */
+.review__zone + .review__yard,
+.review__yard + .review__zone,
+.review__rest + .review__zone {
+  border-left: 1px solid var(--line-strong);
+}
+
+/* The drive, over the yard lines rather than broken by them, so it reads as
+   one line from the goal line to wherever it stopped. */
+.review__yard--run::before,
+.review__yard--bought::before,
+.review__yard--out::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: -1px;
+  right: 0;
+  height: 2px;
+  background: var(--safe);
+}
+
+.review__yard--bought::before {
+  background: var(--buyback);
+}
+
+.review__yard--out {
+  background: var(--danger-bg);
+}
+
+.review__yard--out::before {
+  right: 50%;
+}
+
+.review__yard--out svg {
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  transform: translateX(-50%);
+  fill: none;
+  stroke: var(--danger);
+  stroke-width: 2px;
+  stroke-linecap: round;
+}
+
+/* The weeks never reached, in one piece so the words can stand across them.
+   Its own width is what decides whether they fit: a run that ended a week or
+   two from the end has the cross and the end zone to say it, and no room for
+   anything else. */
+.review__rest {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  background: rgb(0 0 0 / 22%);
+  container-type: inline-size;
+}
+
+.review__rest-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 12px;
-  line-height: 16px;
-  letter-spacing: 0.16em;
+  font-weight: 800;
+  font-size: 10px;
+  line-height: 12px;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--danger);
+  white-space: nowrap;
+}
+
+@container (width < 100px) {
+  .review__rest-label {
+    display: none;
+  }
 }
 
 .review__title {
@@ -3154,9 +3254,10 @@
   color: var(--chalk);
 }
 
-/* The three facts on one line. It wraps rather than ellipsising: a run has one
-   ending and it is worth the second line, where a league's name in the topline
-   is worth none. */
+/* What was behind it: the line the game was played at, the coach's call and
+   how that went. It wraps rather than ellipsising: a run has one ending and it
+   is worth the second line, where a league's name in the topline is worth
+   none. */
 .review__line {
   margin-top: 3px;
   font-size: 12px;
