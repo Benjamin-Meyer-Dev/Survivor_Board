@@ -42,7 +42,8 @@ import {
   fetchScores,
   winnerOf,
   isTie,
-  sameTeam,
+  teamResolver,
+  finalsPlacer,
   SPORT_KEYS,
   MARKETS,
 } from "./lib/odds-api.mjs";
@@ -212,7 +213,7 @@ async function refreshLeague(league, apiKey) {
   const results = { ...(previous.results ?? {}) };
   const scores = { ...(previous.scores ?? {}) };
   if (scoresDue) {
-    await recordResults({ apiKey, sport, schedule, isEligible, results, scores });
+    await recordResults({ apiKey, sport, plan, schedule, ratings, isEligible, results, scores });
   } else {
     console.log("No games played yet. Skipping the scores call.");
   }
@@ -785,10 +786,33 @@ function findInversions(lines) {
  *
  * The job runs daily, so every game is seen at least twice before it falls out
  * of that window.
+ *
+ * A final is placed on the schedule by both of its teams and by its date
+ * (finalsPlacer). One that involves a pool team and cannot be placed is said
+ * in the log rather than guessed at.
  */
-async function recordResults({ apiKey, sport, schedule, isEligible, results, scores }) {
+async function recordResults({
+  apiKey,
+  sport,
+  plan,
+  schedule,
+  ratings,
+  isEligible,
+  results,
+  scores,
+}) {
   let recorded = 0;
   let margins = 0;
+
+  // Every name the league knows: the rated teams first, so theirs is the
+  // spelling a feed name resolves to, then every opponent the schedule names.
+  const resolve = teamResolver([
+    ...Object.keys(ratings.ratings ?? {}),
+    ...Object.values(schedule.weeks ?? {})
+      .flat()
+      .flatMap((game) => [game.home, game.away]),
+  ]);
+  const place = finalsPlacer({ plan, schedule, resolve });
 
   try {
     const scored = await fetchScores(apiKey, sport, 3);
@@ -804,26 +828,31 @@ async function recordResults({ apiKey, sport, schedule, isEligible, results, sco
         continue;
       }
 
-      for (const [weekNumber, games] of Object.entries(schedule.weeks)) {
-        const game = games.find(
-          (g) =>
-            (sameTeam(g.home, event.home_team) && sameTeam(g.away, event.away_team)) ||
-            (sameTeam(g.home, event.away_team) && sameTeam(g.away, event.home_team)),
-        );
-        if (!game) continue;
-
-        for (const team of [game.home, game.away]) {
-          if (!isEligible(team)) continue;
-          const key = lineKey(Number(weekNumber), team);
-          const won = sameTeam(team, outcome.winner);
-          const value = won ? "W" : "L";
-          if (results[key] !== value) recorded += 1;
-          results[key] = value;
-          const margin = won ? outcome.margin : -outcome.margin;
-          if (scores[key] !== margin) margins += 1;
-          scores[key] = margin;
+      const placed = place(event, outcome);
+      if (!placed) {
+        const ours = [event.home_team, event.away_team]
+          .map(resolve)
+          .filter((team) => team && isEligible(team));
+        if (ours.length) {
+          console.warn(
+            `  ${event.away_team} at ${event.home_team} (${event.commence_time}) is not a game ` +
+              `on the schedule. No result recorded for ${ours.join(" or ")}: add it to ` +
+              `odds.json by hand if it counts.`,
+          );
         }
-        break;
+        continue;
+      }
+
+      for (const team of [placed.game.home, placed.game.away]) {
+        if (!isEligible(team)) continue;
+        const key = lineKey(placed.week, team);
+        const won = team === placed.winner;
+        const value = won ? "W" : "L";
+        if (results[key] !== value) recorded += 1;
+        results[key] = value;
+        const margin = won ? outcome.margin : -outcome.margin;
+        if (scores[key] !== margin) margins += 1;
+        scores[key] = margin;
       }
     }
     console.log(

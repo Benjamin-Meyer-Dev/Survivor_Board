@@ -30,6 +30,7 @@ import { buildBoard } from "../src/js/core/plan.js";
 import { CONFIG } from "../src/js/config.js";
 import { cfbEfficiencyFromPpa, boardNameResolver, pullEfficiency } from "./lib/stats.mjs";
 import { atKickoff } from "./lib/feed.mjs";
+import { teamResolver, finalsPlacer } from "./lib/odds-api.mjs";
 
 const close = (a, b, tolerance, message) =>
   assert.ok(Math.abs(a - b) <= tolerance, `${message}: ${a} vs ${b}`);
@@ -297,6 +298,179 @@ const close = (a, b, tolerance, message) =>
   });
   assert.equal(Object.keys(pulled.document.games).length, 2);
   assert.match(pulled.reason, /^2 team-games from CFBD over 1 week\(s\)$/);
+}
+
+// ---------------------------------------------------------------------------
+// The scores feed.
+// ---------------------------------------------------------------------------
+
+{
+  const college = teamResolver([
+    "Alabama",
+    "South Alabama",
+    "Houston",
+    "Sam Houston",
+    "Georgia",
+    "Georgia Southern",
+    "Southern",
+    "Miami",
+    "Miami (OH)",
+    "Texas A&M",
+    "Hawaii",
+    "San Jose State",
+  ]);
+  assert.equal(
+    college("South Alabama Jaguars"),
+    "South Alabama",
+    "words out of the middle never fit",
+  );
+  assert.equal(college("Sam Houston Bearkats"), "Sam Houston");
+  assert.equal(college("Georgia Southern Eagles"), "Georgia Southern", "the longest fit wins");
+  assert.equal(college("Georgia Bulldogs"), "Georgia");
+  assert.equal(college("Southern Jaguars"), "Southern");
+  assert.equal(college("Miami (OH) RedHawks"), "Miami (OH)");
+  assert.equal(college("Miami Hurricanes"), "Miami");
+  assert.equal(college("Texas A&M Aggies"), "Texas A&M");
+  assert.equal(college("Hawai'i Rainbow Warriors"), "Hawaii", "an apostrophe is dropped");
+  assert.equal(college("San José State Spartans"), "San Jose State", "an accent is dropped");
+  assert.equal(college("LIU Sharks"), null, "a name that fits nothing is not guessed at");
+  const pro = teamResolver(["Patriots", "Seahawks", "Giants", "Jets"]);
+  assert.equal(pro("New England Patriots"), "Patriots", "an NFL nickname ends the feed's name");
+  assert.equal(pro("New York Giants"), "Giants");
+
+  // The three finals the substring match put in the wrong week, 26 September
+  // 2026, against a schedule where the same names meet earlier on.
+  const plan = {
+    weeks: [
+      { week: 2, kickoff: "2026-09-11" },
+      { week: 3, kickoff: "2026-09-18" },
+      { week: 4, kickoff: "2026-09-25" },
+    ],
+  };
+  const schedule = {
+    weeks: {
+      2: [
+        { away: "Alabama", home: "Kentucky" },
+        { away: "Southern", home: "Houston" },
+      ],
+      3: [{ away: "Houston", home: "Texas Tech" }],
+      4: [
+        { away: "South Alabama", home: "Kentucky" },
+        { away: "Houston", home: "Georgia Southern" },
+        { away: "Sam Houston", home: "Texas Tech" },
+      ],
+    },
+  };
+  const names = Object.values(schedule.weeks)
+    .flat()
+    .flatMap((game) => [game.home, game.away]);
+  const place = finalsPlacer({ plan, schedule, resolve: teamResolver(names) });
+  const final = (away, home, at, winner) => [
+    { away_team: away, home_team: home, commence_time: at },
+    { winner },
+  ];
+  const where = (placed) =>
+    placed && `${placed.week}: ${placed.game.away} at ${placed.game.home}, ${placed.winner}`;
+
+  assert.equal(
+    where(
+      place(
+        ...final(
+          "South Alabama Jaguars",
+          "Kentucky Wildcats",
+          "2026-09-26T16:45:00Z",
+          "Kentucky Wildcats",
+        ),
+      ),
+    ),
+    "4: South Alabama at Kentucky, Kentucky",
+  );
+  assert.equal(
+    where(
+      place(
+        ...final(
+          "Houston Cougars",
+          "Georgia Southern Eagles",
+          "2026-09-26T20:00:00Z",
+          "Houston Cougars",
+        ),
+      ),
+    ),
+    "4: Houston at Georgia Southern, Houston",
+  );
+  assert.equal(
+    where(
+      place(
+        ...final(
+          "Sam Houston Bearkats",
+          "Texas Tech Red Raiders",
+          "2026-09-26T16:00:00Z",
+          "Texas Tech Red Raiders",
+        ),
+      ),
+    ),
+    "4: Sam Houston at Texas Tech, Texas Tech",
+  );
+  assert.equal(
+    where(
+      place(
+        ...final(
+          "Alabama Crimson Tide",
+          "Kentucky Wildcats",
+          "2026-09-12T19:30:00Z",
+          "Alabama Crimson Tide",
+        ),
+      ),
+    ),
+    "2: Alabama at Kentucky, Alabama",
+    "the real week-2 game still lands on week 2",
+  );
+  assert.equal(
+    place(
+      ...final(
+        "Alabama Crimson Tide",
+        "Kentucky Wildcats",
+        "2026-09-26T19:30:00Z",
+        "Kentucky Wildcats",
+      ),
+    ),
+    null,
+    "a pairing the schedule has is still not that week's game a fortnight later",
+  );
+
+  // A Monday night game kicks off on the Tuesday in UTC, two days after the
+  // Sunday the NFL plan lists, and a Thursday game three days before it.
+  const nfl = finalsPlacer({
+    plan: {
+      weeks: [
+        { week: 1, kickoff: "2026-09-13" },
+        { week: 2, kickoff: "2026-09-20" },
+      ],
+    },
+    schedule: {
+      weeks: { 1: [{ away: "Patriots", home: "Seahawks" }], 2: [{ away: "Jets", home: "Giants" }] },
+    },
+    resolve: pro,
+  });
+  assert.equal(
+    where(
+      nfl(
+        ...final(
+          "New England Patriots",
+          "Seattle Seahawks",
+          "2026-09-15T00:15:00Z",
+          "Seattle Seahawks",
+        ),
+      ),
+    ),
+    "1: Patriots at Seahawks, Seahawks",
+  );
+  assert.equal(
+    where(
+      nfl(...final("New York Jets", "New York Giants", "2026-09-18T00:15:00Z", "New York Jets")),
+    ),
+    "2: Jets at Giants, Jets",
+  );
 }
 
 // ---------------------------------------------------------------------------

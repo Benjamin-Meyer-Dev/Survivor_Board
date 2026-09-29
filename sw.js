@@ -61,7 +61,8 @@
    screen - a device holding the new recommend.js beside the old equity.js
    imports a name that is not there yet and opens on nothing at all; v26 adds
    ENGINE_VERSION to that same graph, core/plan.js importing it from
-   core/recommend.js, for the same reason.
+   core/recommend.js, for the same reason; v33 rebuilds the chart's callout as
+   one grid of blocks, markup the old components.css has no rules for.
 
    "Must not keep half of" is the whole point, and v4 is what that phrase was
    written for. Every shell file is cached first and refreshed on its own a few
@@ -78,7 +79,7 @@
    needs a hand here: ENGINE_VERSION in src/js/core/recommend.js is part of
    every plan's key, so a plan can only ever be read back by the engine that
    wrote it. Bump it there when the search or the ranking changes shape. */
-const CACHE = "sudden-death-v32";
+const CACHE = "sudden-death-v33";
 
 /** How long to wait for fresh data before opening with the last copy. */
 const DATA_TIMEOUT_MS = 2500;

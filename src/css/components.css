@@ -1111,20 +1111,28 @@
   border-left: 2px solid var(--chalk);
 }
 
-/* The playing field between the end zones: one column a week. */
+/* The playing field between the end zones: one column a week.
+
+   It grows into a field wider than its weeks and never shrinks under them.
+   A phone's field is narrower than the season and scrolls exactly as it did,
+   but a window between a phone and the desktop layout - a tablet, a browser
+   pulled narrow - has room to spare, and a track that stood at its own width
+   left that room as bare turf past the far end zone. */
 .pitch__track {
   position: relative;
   display: flex;
-  flex: none;
+  flex: 1 0 auto;
 }
 
 /* A yard line. The button is the whole column, so the target is the width of
-   the week, not the width of the line. */
+   the week, not the width of the line. --yard-w is the least a week gets; any
+   width the track grows by is shared evenly, so every column stays the same
+   width and the bracket's arithmetic (.pitch__bracket) still holds. */
 .pitch__yard {
   appearance: none;
   position: relative;
   z-index: 1;
-  flex: none;
+  flex: 1 0 auto;
   width: var(--yard-w);
   padding: 0;
   border: 0;
@@ -2490,13 +2498,35 @@
   white-space: nowrap;
 }
 
-/* A piece of a line, drawn the way the chart draws it: the callout's rows wear
-   one each, so a row is read back against the line it came off. */
+/* A piece of a line, drawn the way the chart draws it: each block in the
+   callout wears one, so a mark is read back against the line it came off. The
+   coach's dashes unless it says otherwise. */
 .route__swatch {
   align-self: center;
   width: 14px;
   height: 0;
   border-top: 2px dashed var(--neutral);
+}
+
+.route__swatch--you {
+  border-top-style: solid;
+  border-top-color: var(--flag);
+}
+
+.route__swatch--played {
+  border-top-style: solid;
+  border-top-color: var(--safe);
+}
+
+.route__swatch--lost {
+  border-top-style: solid;
+  border-top-color: var(--danger);
+}
+
+/* A bought-back week reads the same here as its mark does on the chart. */
+.route__swatch--bought {
+  border-top-style: solid;
+  border-top-color: var(--buyback);
 }
 
 /* The plot proper, with a gutter to its left for the rules' labels.
@@ -2706,36 +2736,32 @@
   height: 10px;
 }
 
-/* The coach's call for a locked week: a call, not a route, so it is hollow. */
+/* The coach's call for a locked week, filled like every other coach's mark:
+   it stands on a branch of its own now, so the dashes already say it is the
+   coach's. It was hollow, and read as a different kind of mark. */
 .route__dot--lone {
   z-index: 3;
-  background: var(--turf-2);
-  border: 2px solid var(--neutral);
 }
 
 /* Touch a week and the chart says who is standing there (watchChart in
-   ui/coach.js): the week, and a line per route with its team and the chance
-   it carries. It hangs over the highest mark in the column, and it is not a
-   thing to touch itself - the next touch anywhere is what puts it away. */
+   ui/coach.js): the week, and a block per mark with its teams and the chances
+   they carry. It hangs over the highest mark in the column, and it is not a
+   thing to touch itself - the next touch anywhere is what puts it away.
+
+   One grid for the whole box, so every block's figures stand in the same
+   right-aligned column: a swatch, the words, and the figure. A played week
+   adds a column for each team's result (.route__callout--results). The rows
+   are `display: contents`, so their cells are the grid's own. */
 .route__callout {
   --shift-x: -50%;
   --shift-y: calc(-100% - 12px);
 
-  /* One width for both columns of figures and their heads, and one gutter
-     between them, so the two columns are set once rather than in four places.
-     The column is as wide as the widest thing that stands in it, which is the
-     word over it rather than the figure under it now that the heads are big
-     enough to read. The gutter is the space the columns do not have on their
-     own: every figure is right-aligned in its box, so two full six-character
-     figures - "100.0%" against a week written to a tenth - met with nothing
-     between them but the row's own five pixels and read as one number. */
-  --callout-col: 54px;
-  --callout-gutter: 9px;
-
   position: absolute;
   z-index: 5;
   display: grid;
-  gap: 2px;
+  grid-template-columns: 14px 1fr auto;
+  align-items: baseline;
+  gap: 2px 6px;
   padding: 5px 7px;
   transform: translate(var(--shift-x), calc(var(--shift-y) + var(--nudge-y, 0px)));
   border: 1px solid var(--line);
@@ -2765,26 +2791,21 @@
   --shift-y: 14px;
 }
 
-/* The head of the callout's little table: the week on the left, and over each
-   column of figures the word for what it is. The two figures are a week's own
-   chance and the chance of getting to the week to play it, and a pair of bare
-   numbers in a box says neither.
+.route__callout--results {
+  grid-template-columns: 14px 1fr auto auto;
+}
 
-   Which they only say if they can be read. The head was the chart's faintest
-   chalk at its smallest size, over figures in full white - a row of ghosts
-   over the only two numbers in the box that need naming, which is the head
-   failing at the one job it has. It is the second chalk now, a pixel larger,
-   and a hairline under it makes the row a head rather than a first line. */
+/* The week, over everything, with a hairline under it so the row is a head
+   rather than a first line. A flex row, so its height is the week's own type
+   and not a line box of the page's larger text. */
 .route__callout-head {
+  grid-column: 1 / -1;
   display: flex;
-  align-items: baseline;
-  gap: 5px;
   padding-bottom: 4px;
   border-bottom: 1px solid var(--line-soft);
 }
 
 .route__callout-week {
-  margin-right: auto;
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 10px;
@@ -2793,107 +2814,79 @@
   color: var(--chalk-2);
 }
 
-/* The column heads and the figures under them share one width, so the two
-   columns line up without the callout becoming a grid: everything in here is
-   one line of nowrap type and the widest thing in the column is the head. */
-.route__callout-label {
-  min-width: var(--callout-col);
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  text-align: right;
-  color: var(--chalk-2);
-}
-
-/* "To here" is the second column, in the head as in every row under it. */
-.route__callout-label + .route__callout-label {
-  margin-left: var(--callout-gutter);
-}
-
 .route__callout-row {
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
+  display: contents;
+}
+
+.route__callout-label {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 11px;
-  line-height: 1.2;
+  line-height: 14px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--chalk-2);
-}
-
-/* The second team of a week sits flush against the first, so a college mark's
-   two games read as the one week they are rather than as two routes. The gap
-   the callout keeps between rows is what separates one mark from the next. */
-.route__callout-row--leg {
-  margin-top: -2px;
-}
-
-/* What a college mark's two games come to: the week, under its games and in
-   the same column, so the product is read straight down from the figures it
-   is made of. It is not a line on the chart, so it wears no swatch - but it
-   keeps the swatch's room, so "Week" stands on the teams' left edge - and its
-   name is the head's chalk rather than a team's, because it is a sum. */
-.route__callout-row--total .route__swatch {
-  visibility: hidden;
-}
-
-.route__callout-row--total .route__callout-team {
-  color: var(--chalk-2);
-}
-
-.route__callout-row--you .route__swatch {
-  border-top-style: solid;
-  border-top-color: var(--flag);
-}
-
-.route__callout-row--played .route__swatch {
-  border-top-style: solid;
-  border-top-color: var(--safe);
-}
-
-.route__callout-row--lost .route__swatch {
-  border-top-style: solid;
-  border-top-color: var(--danger);
-}
-
-/* The swatch is the chart's key for the mark the callout is standing on, so a
-   bought-back week reads the same here as it does out there. */
-.route__callout-row--bought .route__swatch {
-  border-top-style: solid;
-  border-top-color: var(--buyback);
-}
-
-.route__callout-team {
   color: var(--chalk);
 }
 
 .route__callout-prob {
-  min-width: var(--callout-col);
-  margin-left: auto;
+  justify-self: end;
   font-family: var(--font-mono);
   font-weight: 650;
   font-size: 12px;
+  line-height: 14px;
   letter-spacing: 0;
-  text-align: right;
   color: var(--chalk);
 }
 
-/* Getting there: quieter than the week's own figure, because it is the same
-   number for every team standing in the column and the week's chance is the
-   one that changes with the pick. */
-.route__callout-reach {
-  min-width: var(--callout-col);
-  margin-left: var(--callout-gutter);
-  font-family: var(--font-mono);
-  font-weight: 650;
-  font-size: 12px;
-  letter-spacing: 0;
-  text-align: right;
+/* A played week's result per team, in the colours the field marks them in. */
+.route__callout-result {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: 0.04em;
+}
+
+.route__callout-result--won {
+  color: var(--safe);
+}
+
+.route__callout-result--lost {
+  color: var(--danger);
+}
+
+.route__callout-result--bought {
+  color: var(--buyback);
+}
+
+/* The teams of a week that takes more than one are its parts, a chalk down
+   from the sum they come to. The sum is the figure the mark is plotted at, so
+   it keeps full chalk; its words are a chalk down, because it is not a team. */
+.route__callout-row--leg .route__callout-prob,
+.route__callout-row--sum .route__callout-label {
+  color: var(--chalk-2);
+}
+
+/* The line a sum is drawn under, across the words and the figures but not the
+   swatch, so the swatch still marks where the block begins. */
+.route__callout-rule {
+  grid-column: 2 / -1;
+  align-self: start;
+  height: 1px;
+  background: var(--line-soft);
+}
+
+/* Getting there: quieter than the week's own figure, because the week's chance
+   is the one that changes with the pick. */
+.route__callout-row--reach .route__callout-label,
+.route__callout-row--reach .route__callout-prob {
   color: var(--chalk-3);
+}
+
+/* Between one mark's block and the next, where a column holds two routes. */
+.route__callout-gap {
+  grid-column: 1 / -1;
+  height: 3px;
 }
 
 /* The row of weeks, which is also a control: a tap on it turns the board to

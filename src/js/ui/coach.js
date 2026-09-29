@@ -252,6 +252,7 @@ function renderRoute(current, markup) {
     "data-motion-signature",
     "data-view-week",
     "data-scale",
+    "data-objective",
     "aria-label",
   ]) {
     const value = next.getAttribute(attribute);
@@ -689,15 +690,12 @@ function stateFor(board, week, activeSlot) {
       subject,
       teams: week.picks.map((pick) => pick.team).filter(Boolean),
       opening: [],
-      // What the coach had called for the week (week.recommended is the call
-      // as it stood when the slot was locked, core/plan.js), so the chart can
-      // stand the road not taken beside the one that was. Only once the run is
-      // over: a live board's comparison is the plan ahead of it, drawn over the
-      // weeks still to play, and a second one hung on a week already gone is a
-      // footnote on the column the band is standing on. A finished run has no
-      // plan ahead of it, and that comparison is the whole of what is left to
-      // read - the week it ended on especially.
-      coachOpening: board.eliminated ? (week.recommended ?? []) : [],
+      // No coach's call beside a week that has been played, a run that is
+      // over included. The week it ended on used to stand the road not taken
+      // (week.recommended) beside the loss, and it was a second mark and two
+      // more lines on the one column that is only the loss: what the week
+      // was, and where the coach's account of the rest leaves from.
+      coachOpening: [],
       // What the band is quoting, so the word over it is the truth about the
       // team under it. Read off the subject rather than off the active slot,
       // which in a two-pick week can be the empty one beside a slot that was
@@ -1515,7 +1513,7 @@ function route(state, board) {
   // do not land any more (the route block in motion.css), so it does not, and
   // the settle no longer reaches in here at all.
 
-  return `<section class="route${alternative ? " route--compared" : ""}${ceiling ? " route--ceiling" : ""}" data-key="route" data-view-week="${viewed.week}" data-scale="${lo},${hi}" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
+  return `<section class="route${alternative ? " route--compared" : ""}${ceiling ? " route--ceiling" : ""}" data-key="route" data-view-week="${viewed.week}" data-scale="${lo},${hi}" data-objective="${board.rules?.objective === "lose" ? "lose" : "win"}" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
     <div class="route__head" data-key="head">
       <span class="route__eyebrow">Survival chance by week</span>
     </div>
@@ -1685,66 +1683,73 @@ function reveal(plot, clientX, { toggle = false } = {}) {
     });
   }
 
-  // A line per team rather than per mark: a college pool picks two a week, and
-  // "Texas + Oregon 84%" is the product of two games neither of which is 84%.
-  // Each line carries the team's own chance, and under them a line for the
-  // week they multiply out to - the figure the mark is plotted at, which the
-  // chart does not write anywhere else now that the marks carry no figures of
-  // their own. A leg that lost is drawn as lost on its own line, because the
-  // other one may have won. "To here" is the week's, not the team's, so it
-  // rides the week's line; a pool that picks once a week has one line that is
-  // both the team and the week.
-  const rows = marks.flatMap((mark) =>
-    mark.legs.length > 1
-      ? [
-          ...mark.legs.map(([team, prob, result], index) => ({
-            kind: mark.kind,
-            team,
-            prob,
-            result: result || null,
-            bought: mark.bought,
-            leg: index > 0,
-          })),
-          {
-            kind: mark.kind,
-            team: "Week",
-            prob: mark.prob,
-            reach: mark.reach,
-            leg: true,
-            week: true,
-            total: true,
-          },
-        ]
-      : [{ ...mark, week: true }],
-  );
-  const split = marks.some((mark) => mark.legs.length > 1);
+  // A block per mark, with one column of figures, and the week worked out in
+  // it the way a sum is. A college pool picks two a week, and "Texas + Oregon
+  // 84%" is the product of two games neither of which is 84%: so the teams
+  // stand over a rule with their own games' chances, and under the rule is
+  // what they multiply out to - the figure the mark is plotted at, and the one
+  // place the chart writes it. A pool that picks once a week has one team, and
+  // its game is the week, so there is nothing to add up.
+  //
+  // It was a table, a column per figure with "Game" and "To here" over them.
+  // In a two-team week the second column was empty but for one line, and the
+  // week's own line stood in the list of teams reading as a third pick.
+  //
+  // One swatch to a block, because the mark is one mark on one line however
+  // many teams stand in it. A played week puts each team's result beside its
+  // figure instead, since a two-team week can win one game and lose the other.
+  //
+  // Under the block, the chance of being in the pool to play the week at all:
+  // the plan's own weeks up to there, and nothing from the weeks already
+  // played, which happened. A 90% week at the end of the season is not a 90%
+  // week if the plan only gets there half the time. A played week has none -
+  // you were there.
+  const objective = plot.closest(".route")?.dataset.objective === "lose" ? "lose" : "win";
+  const results = marks.some((mark) => mark.legs.some(([, , result]) => result));
+  const row = (kind, label, prob, { swatch = "", result = "" } = {}) =>
+    `<span class="route__callout-row route__callout-row--${kind}">${
+      swatch ? `<i class="route__swatch route__swatch--${swatch}"></i>` : "<i></i>"
+    }<span class="route__callout-label">${escapeHtml(label)}</span>${
+      results
+        ? `<b class="route__callout-result${result ? ` route__callout-result--${result}` : ""}">${
+            result === "won" ? "W" : result ? "L" : ""
+          }</b>`
+        : ""
+    }<b class="route__callout-prob">${escapeHtml(prob)}</b></span>`;
+  const blocks = marks.map((mark) => {
+    const legs = mark.legs.length ? mark.legs : [[mark.team, mark.prob, mark.result ?? ""]];
+    const swatch =
+      mark.kind !== "played"
+        ? mark.kind
+        : mark.bought
+          ? "bought"
+          : mark.result === "L"
+            ? "lost"
+            : "played";
+    const teams = legs.map(([team, prob, result], index) =>
+      row(legs.length > 1 ? "leg" : "team", team, prob, {
+        swatch: index === 0 ? swatch : "",
+        result: result === "W" ? "won" : result === "L" ? (mark.bought ? "bought" : "lost") : "",
+      }),
+    );
+    const sum =
+      legs.length > 1
+        ? `<i class="route__callout-rule"></i>${row(
+            "sum",
+            `${legs.length === 2 ? "Both" : `All ${legs.length}`} ${objective}`,
+            mark.prob,
+          )}`
+        : "";
+    const reach = mark.reach ? row("reach", "To here", mark.reach) : "";
+    return teams.join("") + sum + reach;
+  });
 
-  // Two figures, because one of them cannot be read without the other: what the
-  // week itself is worth, and the chance of being in the pool to play it - the
-  // plan's own weeks up to there, and nothing from the weeks already played,
-  // which happened. A 90% week in the last column of the season is not a 90%
-  // week if the plan only gets there half the time, and the two columns say so
-  // side by side rather than leaving it to be worked out. A played week has no
-  // second figure: you were there.
-  const reached = rows.some((row) => row.reach);
   const x = xOf(nearest);
   const y = Math.min(...column.map((dot) => parseFloat(dot.style.top)));
+  callout.classList.toggle("route__callout--results", results);
   callout.innerHTML =
-    `<span class="route__callout-head"><b class="route__callout-week">Wk ${escapeHtml(nearest.dataset.week)}</b>${
-      reached
-        ? `<span class="route__callout-label">${split ? "Game" : "Week"}</span><span class="route__callout-label">To here</span>`
-        : ""
-    }</span>` +
-    rows
-      .map(
-        (row) =>
-          `<span class="route__callout-row route__callout-row--${row.kind}${row.total ? " route__callout-row--total" : row.result === "L" ? (row.bought ? " route__callout-row--bought" : " route__callout-row--lost") : ""}${row.leg ? " route__callout-row--leg" : ""}"><i class="route__swatch" aria-hidden="true"></i><span class="route__callout-team">${escapeHtml(row.team)}</span><b class="route__callout-prob">${escapeHtml(row.prob)}</b>${
-            reached
-              ? `<b class="route__callout-reach">${row.week ? (row.reach ? escapeHtml(row.reach) : "—") : ""}</b>`
-              : ""
-          }</span>`,
-      )
-      .join("");
+    `<span class="route__callout-head"><b class="route__callout-week">Wk ${escapeHtml(nearest.dataset.week)}</b></span>` +
+    blocks.join('<i class="route__callout-gap"></i>');
   callout.style.left = `${x.toFixed(2)}%`;
   callout.style.top = `${y.toFixed(2)}%`;
   // Which column it is quoting, so the next tap on that one knows to close it.

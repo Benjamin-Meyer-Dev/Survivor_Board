@@ -116,11 +116,124 @@ export function isTie(event) {
   return Number.isFinite(a) && Number.isFinite(b) && a === b;
 }
 
-/** Do two spellings refer to the same programme? */
-export function sameTeam(a, b) {
-  const x = normalise(a);
-  const y = normalise(b);
-  return x === y || x.includes(y) || y.includes(x);
+/**
+ * Which of the league's teams a name in the feed is, out of every name the
+ * league knows, or null.
+ *
+ * The feed writes a school and its mascot ("South Alabama Jaguars") where the
+ * college board writes the school, and a city and a nickname ("New England
+ * Patriots") where the NFL board writes the nickname. So a known name fits
+ * when it is the feed's first words or its last words, whole words only, and
+ * never words out of the middle. Where more than one fits, the longest does:
+ * "Georgia Southern Eagles" is Georgia Southern, not Georgia. Two different
+ * names of the same length both fitting is no answer.
+ *
+ * Matching any substring is what this replaced, and it put finals in the
+ * wrong week: "South Alabama Jaguars" contains Alabama, "Sam Houston
+ * Bearkats" contains Houston, and "Georgia Southern Eagles" contains Southern.
+ *
+ * @param {Iterable<string>} names The spelling that comes first for a team is
+ *   the one returned for it.
+ * @returns {(name:string) => string|null}
+ */
+export function teamResolver(names) {
+  const known = new Map();
+  for (const name of names) {
+    const words = wordsOf(name);
+    const key = words.join(" ");
+    if (words.length && !known.has(key)) known.set(key, { name, words });
+  }
+  return (name) => {
+    const words = wordsOf(name);
+    let best = null;
+    let tied = false;
+    for (const candidate of known.values()) {
+      const size = candidate.words.length;
+      if (size > words.length) continue;
+      const leads = candidate.words.every((word, index) => words[index] === word);
+      const ends = candidate.words.every(
+        (word, index) => words[words.length - size + index] === word,
+      );
+      if (!leads && !ends) continue;
+      if (!best || size > best.words.length) {
+        best = candidate;
+        tied = false;
+      } else if (size === best.words.length) {
+        tied = true;
+      }
+    }
+    return best && !tied ? best.name : null;
+  };
+}
+
+/** One team's spellings reduced to the same words: case, accents and punctuation dropped. */
+export function teamKey(name) {
+  return wordsOf(name).join(" ");
+}
+
+/**
+ * How far from the date plan.json lists for a week a game may kick off and
+ * still be that week's game. Four days takes in a Thursday opener and a Monday
+ * night game on either side of the weekend the date names, and stays short of
+ * the six days between two listed dates.
+ */
+const PLACE_MS = 4 * 24 * 3600 * 1000;
+
+/**
+ * Where a final belongs on the schedule: its week, its game, and which of the
+ * game's two teams won. Null when the schedule has no such game.
+ *
+ * Both teams in the feed have to resolve to the two names of one scheduled
+ * game (teamResolver), and the game has to kick off within PLACE_MS of the
+ * date listed for its week. The date is what the old match was missing. It
+ * searched the weeks in order and took the first game whose two names it could
+ * find anywhere in the feed's, so Kentucky's week-4 win over South Alabama was
+ * written over its week-2 game against Alabama.
+ *
+ * @param {{plan:object, schedule:object, resolve:(name:string) => string|null}} league
+ * @returns {(event:object, outcome:{winner:string}) =>
+ *   {week:number, game:{home:string, away:string}, winner:string}|null}
+ */
+export function finalsPlacer({ plan, schedule, resolve }) {
+  const listed = new Map(
+    (plan.weeks ?? []).map((week) => [Number(week.week), Date.parse(`${week.kickoff}T00:00:00Z`)]),
+  );
+  const pairOf = (a, b) => [teamKey(a), teamKey(b)].sort().join("|");
+  const games = Object.entries(schedule.weeks ?? {}).flatMap(([week, list]) =>
+    list.map((game) => ({ week: Number(week), game, pair: pairOf(game.home, game.away) })),
+  );
+
+  return (event, outcome) => {
+    const home = resolve(event?.home_team);
+    const away = resolve(event?.away_team);
+    const winner = resolve(outcome?.winner);
+    if (!home || !away || !winner) return null;
+
+    const kickoff = Date.parse(event.commence_time ?? "");
+    const pair = pairOf(home, away);
+    let best = null;
+    for (const entry of games) {
+      if (entry.pair !== pair) continue;
+      const gap = Math.abs(kickoff - (listed.get(entry.week) ?? Number.NaN));
+      if (!(gap <= PLACE_MS)) continue;
+      if (!best || gap < best.gap) best = { ...entry, gap };
+    }
+    if (!best) return null;
+
+    const { week, game } = best;
+    return { week, game, winner: teamKey(winner) === teamKey(game.home) ? game.home : game.away };
+  };
+}
+
+function wordsOf(name) {
+  return String(name ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/['’&.]/g, "")
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .map((word) => (word === "state" ? "st" : word));
 }
 
 /**
