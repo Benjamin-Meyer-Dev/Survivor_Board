@@ -2498,9 +2498,10 @@
   white-space: nowrap;
 }
 
-/* A piece of a line, drawn the way the chart draws it: each block in the
-   callout wears one, so a mark is read back against the line it came off. The
-   coach's dashes unless it says otherwise. */
+/* A piece of a line, drawn the way the chart draws it: every team in the
+   callout wears one, so it is read back against the line it came off, and in
+   a played week in its own result's colour. The coach's dashes unless it says
+   otherwise. */
 .route__swatch {
   align-self: center;
   width: 14px;
@@ -2868,7 +2869,7 @@
 }
 
 /* The line a sum is drawn under, across the words and the figures but not the
-   swatch, so the swatch still marks where the block begins. */
+   swatches, which belong to the teams over it. */
 .route__callout-rule {
   grid-column: 2 / -1;
   align-self: start;

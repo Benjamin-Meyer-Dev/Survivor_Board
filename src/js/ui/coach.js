@@ -1695,9 +1695,10 @@ function reveal(plot, clientX, { toggle = false } = {}) {
   // In a two-team week the second column was empty but for one line, and the
   // week's own line stood in the list of teams reading as a third pick.
   //
-  // One swatch to a block, because the mark is one mark on one line however
-  // many teams stand in it. A played week puts each team's result beside its
-  // figure instead, since a two-team week can win one game and lose the other.
+  // A swatch beside every team, in the colour of the line it rides. In a played
+  // week each team's swatch takes that team's own result, and the letter beside
+  // its figure says it too: a two-team week can win one game and lose the
+  // other, and one swatch for the block could only tell the week's story.
   //
   // Under the block, the chance of being in the pool to play the week at all:
   // the plan's own weeks up to there, and nothing from the weeks already
@@ -1718,20 +1719,13 @@ function reveal(plot, clientX, { toggle = false } = {}) {
     }<b class="route__callout-prob">${escapeHtml(prob)}</b></span>`;
   const blocks = marks.map((mark) => {
     const legs = mark.legs.length ? mark.legs : [[mark.team, mark.prob, mark.result ?? ""]];
-    const swatch =
-      mark.kind !== "played"
-        ? mark.kind
-        : mark.bought
-          ? "bought"
-          : mark.result === "L"
-            ? "lost"
-            : "played";
-    const teams = legs.map(([team, prob, result], index) =>
-      row(legs.length > 1 ? "leg" : "team", team, prob, {
-        swatch: index === 0 ? swatch : "",
-        result: result === "W" ? "won" : result === "L" ? (mark.bought ? "bought" : "lost") : "",
-      }),
-    );
+    const teams = legs.map(([team, prob, result]) => {
+      const lost = result === "L" ? (mark.bought ? "bought" : "lost") : "";
+      return row(legs.length > 1 ? "leg" : "team", team, prob, {
+        swatch: mark.kind !== "played" ? mark.kind : lost || "played",
+        result: result === "W" ? "won" : lost,
+      });
+    });
     const sum =
       legs.length > 1
         ? `<i class="route__callout-rule"></i>${row(
