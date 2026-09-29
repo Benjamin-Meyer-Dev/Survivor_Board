@@ -42,7 +42,7 @@ import {
   resolveModel,
   DEFAULT_TIERS,
 } from "./probability.js";
-import { recommendForBoard, searchRequestFor, ENGINE_VERSION } from "./recommend.js";
+import { recommendForBoard, searchRequestFor, planScope, ENGINE_VERSION } from "./recommend.js";
 import { announceSearchSettled, searchRunner } from "./search.js";
 import { advanceProb, advanceResult, bySpread, dangerSign } from "./objective.js";
 import { mergeRules, sameRules } from "./rules.js";
@@ -970,6 +970,9 @@ export function buildBoard({
   const routePicks = [];
   // Each week's candidates for its open slots, in board order (see below).
   const suggestionPools = new Map();
+  // A run that is over keeps the coach's account of every week after its loss,
+  // games since played included (planScope in core/recommend.js).
+  const keepsPlayed = planScope(board).played;
 
   for (const week of board.weeks) {
     const lockedTeams = new Set(
@@ -977,9 +980,13 @@ export function buildBoard({
     );
     // Teams whose game this week has been played. A pick is a bet on a game
     // still to come, so these are off the menu (see weekOptions) and the coach
-    // must not name one: it would badge a row the board disables.
+    // must not name one: it would badge a row the board disables. Except on a
+    // run that is over, where nothing is picked and the coach's calls are an
+    // account of the season rather than advice.
     const settledTeams = new Set(
-      week.options.filter((option) => option.result).map((option) => option.team),
+      keepsPlayed
+        ? []
+        : week.options.filter((option) => option.result).map((option) => option.team),
     );
     // Which plan speaks for this week. A week holding a lock is read off its
     // own advice plan, made as if its slots were open (memoisedAdvice), so
@@ -1175,9 +1182,10 @@ export function buildBoard({
     // What an open slot may show, best first: the gold line's calls for the
     // week (the committed plan, liveCalls), then the rest of the coach's board,
     // then the plan's ghosts. Never a team you hold in this week, its
-    // opponent, or a game already played. A pick pending in another week does
-    // not move them: the calls follow the committed plan until a lock changes
-    // it. The season-wide pass below hands them out (suggestionPools).
+    // opponent, or - while the run is alive - a game already played. A pick
+    // pending in another week does not move them: the calls follow the
+    // committed plan until a lock changes it. The season-wide pass below hands
+    // them out (suggestionPools).
     const heldOpponents = new Set(
       [...heldTeams].map((team) => week.optionByTeam.get(team)?.opponent).filter(Boolean),
     );
@@ -1185,7 +1193,7 @@ export function buildBoard({
       all.findIndex((candidate) => candidate.team === option.team) === index &&
       !heldTeams.has(option.team) &&
       !heldOpponents.has(option.team) &&
-      !option.result;
+      (keepsPlayed || !option.result);
     const calls = liveCalls.filter(usable);
     const callTeams = new Set(calls.map((option) => option.team));
     suggestionPools.set(week, {

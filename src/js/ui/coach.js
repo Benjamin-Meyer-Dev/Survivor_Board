@@ -699,8 +699,9 @@ function stateFor(board, week, activeSlot) {
       // What the band is quoting, so the word over it is the truth about the
       // team under it. Read off the subject rather than off the active slot,
       // which in a two-pick week can be the empty one beside a slot that was
-      // filled and locked.
-      selection: subject ? "locked" : "coach",
+      // filled and locked. A run that is over has the coach's account on the
+      // weeks after its loss, played or not, and that is the coach's.
+      selection: subject && subject.kind !== "coach" ? "locked" : "coach",
     };
   }
 

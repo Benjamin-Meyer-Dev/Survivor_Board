@@ -785,6 +785,42 @@ assert.deepEqual(
 );
 assert.equal(weekOf(out, fatal).picks[0].status.result, "L");
 
+// And a run that ended weeks ago keeps that account for every week after the
+// loss, the weeks played since included, each game priced as it stood before
+// kickoff (planScope in core/recommend.js). Planned from the clock instead, it
+// lost a week off its front each time the clock moved: a losers pool out in
+// week 1 had no call at all in weeks 2 and 3 by week 4.
+{
+  const later = structuredClone(odds);
+  later.updatedAt = `${odds.updatedAt}-long-out`;
+  later.currentWeek = 4;
+  const opener = weekOf(empty, 1).picks[0].options[0].team;
+  later.results[lineKey(1, opener)] = "L";
+  for (const week of [2, 3]) {
+    for (const option of weekOf(empty, week).options) {
+      later.results[lineKey(week, option.team)] ??= "W";
+    }
+  }
+  const longOut = build(
+    { picks: { [slotKey(1, 0)]: { locked: true } }, swaps: { [slotKey(1, 0)]: opener } },
+    later,
+  );
+  assert.equal(longOut.eliminatedWeek, 1, "a week-1 loss, three weeks back");
+  for (const week of [2, 3]) {
+    const played = weekOf(longOut, week);
+    assert.ok(
+      played.options.every((option) => option.result),
+      `week ${week}: every game in it has been played`,
+    );
+    assert.equal(played.pathRecommendation.length, 1, `week ${week}: still has the coach's call`);
+    assert.equal(
+      played.picks[0].suggestion?.team,
+      played.pathRecommendation[0].team,
+      `week ${week}: and the field chalks it`,
+    );
+  }
+}
+
 // A week can run out of games before it runs out of slots. Two picks a week is
 // the college pool's rule, so that is the board these checks need: late on a
 // Saturday one fixture is left and both slots are open. The coach has one call

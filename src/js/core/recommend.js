@@ -153,7 +153,9 @@ export const ENGINE_VERSION = [
   // e2: the search stopped planning on buy backs (searchRequestFor), and an
   // opening got one spelling instead of whichever source reached it first
   // (judgeFrontier), which moves the coach's fallback order on a college week.
-  "e2",
+  // e3: a run that is over is planned from the week after its loss, played
+  // weeks included (planScope), rather than from the week on the clock.
+  "e3",
   DEFAULT_MODE,
   TIE_MARGIN,
   DEFAULT_FLOOR,
@@ -1006,7 +1008,7 @@ function quantile(values, q) {
  *
  * Pulled out of recommendForBoard so a search can be handed to a worker
  * (core/search.js): what crosses that boundary is this request, which is the
- * weeks from the current one on with their options and their fixed slots, and
+ * weeks the plan covers (planScope) with their options and their fixed slots, and
  * not the board it came from - a board carries every past week, every slot's
  * annotated copy of the week's list and a plan for each of them, none of which
  * the search reads.
@@ -1031,9 +1033,10 @@ export function searchRequestFor(board, seed = null, { holdPicks = false, quick 
     typeof holdPicks === "function"
       ? holdPicks
       : (pick) => pick.status.locked || (holdPicks && Boolean(pick.team));
+  const scope = planScope(board);
 
   for (const week of board.weeks) {
-    const isPast = week.week < board.currentWeek;
+    const isPast = week.week < scope.from;
 
     for (const pick of week.picks) {
       if (held(pick)) burned.add(pick.team);
@@ -1048,8 +1051,11 @@ export function searchRequestFor(board, seed = null, { holdPicks = false, quick 
       // candidate: advising it would put a badge on a row the board disables.
       // A locked slot's team stays in the list even once its game is final,
       // because `fixed` places it rather than choosing it and the search still
-      // needs its number to score the path.
-      options: week.options.filter((option) => !option.result || fixed.includes(option.team)),
+      // needs its number to score the path. A run that is over keeps every
+      // game (planScope).
+      options: week.options.filter(
+        (option) => scope.played || !option.result || fixed.includes(option.team),
+      ),
       fixed,
     });
   }
@@ -1099,6 +1105,30 @@ export function searchRequestFor(board, seed = null, { holdPicks = false, quick 
     pool: board.pool ?? null,
     poolBuyBacks: buyBacks,
   };
+}
+
+/**
+ * Which weeks a board's plan covers, and whether a game already played can be
+ * in it.
+ *
+ * A board still playing plans from the week on the clock, and a played game is
+ * no pick anyone can make. A run that is over has nothing left to pick: what
+ * its plan draws past the loss is the coach's account of the season it would
+ * have played (the route chart in ui/coach.js). That account runs from the
+ * week after the loss, weeks since played included, each game priced as it
+ * stood before kickoff and never by how it went. Planned from the clock
+ * instead, it lost a week off its front every time the clock moved: a losers
+ * pool out in week 1 had no call at all in weeks 2 and 3 by week 4.
+ *
+ * @param {{currentWeek:number, eliminated?:boolean, eliminatedWeek?:number|null}} board
+ * @returns {{from:number, played:boolean}} The first week planned, and whether
+ *   a settled game stays a candidate.
+ */
+export function planScope(board) {
+  if (board.eliminated && Number.isFinite(board.eliminatedWeek)) {
+    return { from: Math.min(board.currentWeek, board.eliminatedWeek + 1), played: true };
+  }
+  return { from: board.currentWeek, played: false };
 }
 
 /**
