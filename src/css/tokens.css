@@ -128,6 +128,13 @@
   --jumbo-rim: rgb(243 247 241 / 14%);
   --jumbo-rule: rgb(243 247 241 / 12%);
   --lamp: var(--kind-cfb);
+  /* A key set into the board: anything on it you can press. A breath of the
+     neutral for its face, a lit top edge and a dark foot to lift it off the
+     panel, and the lift taken away (the shadow turned inward) when it is
+     pushed in. */
+  --key: rgb(167 192 204 / 8%);
+  --key-lift: inset 0 1px 0 rgb(243 247 241 / 8%), 0 2px 0 rgb(0 0 0 / 55%);
+  --key-pressed: inset 0 1px 3px rgb(0 0 0 / 45%), 0 1px 0 rgb(0 0 0 / 55%);
 
   /* light -------------------------------------------------------------------
      Floodlight from above, the end zone's hazard stripes, the shadow a panel

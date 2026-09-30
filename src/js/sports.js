@@ -116,6 +116,10 @@ export const POOL_KINDS = Object.freeze(
             objective,
             /* "NFL winners", "College losers": the name a league lists it by. */
             label: `${SPORTS[sport].label} ${OBJECTIVES[objective].label}`,
+            /* The two halves of that name, for a readout with one word to a
+               line: the topline's pool cell, "College pool" over "Winners". */
+            seasonLabel: SPORTS[sport].label,
+            objectiveLabel: OBJECTIVES[objective].label,
             /* The chip: the season's short name, marked when the pick has to lose. */
             short: objective === "lose" ? `${SPORTS[sport].short} losers` : SPORTS[sport].short,
             hint: OBJECTIVES[objective].hint,

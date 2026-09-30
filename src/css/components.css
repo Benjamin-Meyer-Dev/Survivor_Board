@@ -281,7 +281,7 @@
     "back name gear"
     "cells cells cells";
   align-items: center;
-  padding: 2px 5px 5px;
+  padding: 2px 8px 8px;
   border-radius: 10px;
   background:
     radial-gradient(circle at 2px 2px, var(--jumbo-lamps) 1px, transparent 2px) 0 0 / 4px 4px,
@@ -302,20 +302,43 @@
   justify-self: end;
 }
 
-/* The way back and the gear, in the board's two top corners: bare glyphs in
-   the chalk the cells' keys are written in, lit on a press. No ring on either
-   - the board's own bezel is the outline now, and a ring inside it was a frame
-   in a frame. The 40px box is the target. Hover only where there is a pointer
+/* The way back and the gear, in the board's two top corners, built the way
+   every other thing on the board you can press is: a key set into the panel
+   (see the cells' faces, below) - the neutral rim, a little lift off the
+   board, and a press that pushes it in. Round, because these two hold a glyph
+   and nothing else, like the home card's (.home__icon). Bare glyphs read as
+   print on the board rather than as buttons on it.
+
+   The disc is 32 so it clears the bezel inside the board's edge; the target
+   is the corner's full 40 (the ::after). Hover only where there is a pointer
    to hover with. */
 .league-bar__back,
 .settings__open {
-  width: 40px;
-  height: 40px;
+  position: relative;
+  justify-self: center;
+  width: 32px;
+  height: 32px;
   padding: 0;
-  border: 0;
+  border: 1px solid var(--neutral-line);
   border-radius: 50%;
   flex: none;
-  color: var(--chalk-3);
+  background: var(--key);
+  box-shadow: var(--key-lift);
+  color: var(--neutral);
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+.league-bar__back::after,
+.settings__open::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
 }
 
 .league-bar__back {
@@ -325,15 +348,19 @@
 
 .league-bar__back:active,
 .settings__open:active {
-  color: var(--chalk);
-  background: rgb(243 247 241 / 10%);
+  border-color: var(--neutral);
+  background: var(--neutral-bg);
+  box-shadow: var(--key-pressed);
+  color: var(--neutral-2);
+  transform: translateY(1px);
 }
 
 @media (hover: hover) {
   .league-bar__back:hover,
   .settings__open:hover {
-    color: var(--chalk);
-    background: rgb(243 247 241 / 8%);
+    border-color: var(--neutral);
+    background: var(--neutral-bg);
+    color: var(--neutral-2);
   }
 }
 
@@ -391,17 +418,18 @@
   text-indent: 0.04em;
 }
 
-/* The cells: the pool, who is on the board, and when it last checked, ruled
-   off from the name and from each other the way a scoreboard's panels are.
-   The pool gets the most room because its readout is the longest:
-   "College winners" is the widest thing any cell says, and at 1.3 shares it
-   was cut to "College winn" on a 390 phone. At 1.6 it holds whole down to
-   360 (with the narrow type below), and the other two still hold two names
-   and "Checking". */
+/* The cells: the pool, who is on the board, and when it last checked, in
+   three equal thirds under the rule that sets them off from the name. Equal
+   because they are three of a kind - three keys on one panel - and a row
+   where the first was half as wide again as the others read as a label and
+   two afterthoughts. The pool holds its name in a third by splitting it over
+   the cell's two lines (ui/league-bar.js): "College pool" over "Winners". */
 .league-bar__cells {
   grid-area: cells;
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding-top: 4px;
   border-top: 1px solid var(--jumbo-rule);
 }
 
@@ -409,16 +437,18 @@
   position: relative;
   display: flex;
   min-width: 0;
-  padding: 3px 3px 0;
 }
 
-.league-bar__cell + .league-bar__cell {
-  border-left: 1px solid var(--jumbo-rule);
-}
+/* A cell's face: its key over its readout, centred. Where the cell does
+   something, the whole face is the button for it, and it is drawn as one: a
+   key set into the board in the neutral every secondary control wears, lifted
+   off the panel by a shadow along its foot, and pushed in on a press. What it
+   ends on - a chevron for a cell that hangs something under it, the wheel for
+   the one that goes and looks - says what the press will do.
 
-/* A cell's face: its key over its readout, centred, and the whole of it the
-   button for what it reads. The press lights the face inside the cell's rules
-   rather than the cell, so the rules never move. */
+   A face with nothing to press (a league of one pool, or of one person) keeps
+   the rim's pixel as a transparent one, so its words sit exactly where a
+   key's would, but is otherwise just the board's own print. */
 .league-bar__face {
   flex: 1;
   min-width: 0;
@@ -428,26 +458,39 @@
   justify-content: center;
   gap: 4px;
   min-height: 36px;
-  padding: 0 4px;
-  border: 0;
-  border-radius: 6px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 7px;
   background: none;
   color: var(--chalk);
   font-family: var(--font-display);
 }
 
-button.league-bar__face {
+button.league-bar__face:not(:disabled) {
+  border-color: var(--neutral-line);
+  background: var(--key);
+  box-shadow: var(--key-lift);
   cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
 }
 
-button.league-bar__face:active,
-.league-bar__face[aria-expanded="true"] {
-  background: rgb(243 247 241 / 10%);
+/* Pushed in while pressed, and held in while what it opened is open. */
+button.league-bar__face:not(:disabled):active,
+button.league-bar__face[aria-expanded="true"] {
+  border-color: var(--neutral);
+  background: var(--neutral-bg);
+  box-shadow: var(--key-pressed);
+  transform: translateY(1px);
 }
 
 @media (hover: hover) {
-  button.league-bar__face:hover:not(:disabled) {
-    background: rgb(243 247 241 / 7%);
+  button.league-bar__face:not(:disabled):hover {
+    border-color: var(--neutral);
+    background: var(--neutral-bg);
   }
 }
 
@@ -501,13 +544,15 @@ button.league-bar__face:active,
   pointer-events: none;
 }
 
+/* The marks a key ends on, in the key's own neutral: the ink that says "press
+   here", where the words say what is there. */
 .league-bar__chevron,
 .league-bar__refresh svg {
   width: 11px;
   height: 11px;
   flex: none;
   fill: none;
-  stroke: var(--chalk-3);
+  stroke: var(--neutral);
   stroke-width: 2.6;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -523,11 +568,12 @@ button.league-bar__face:active,
   transition: transform 0.2s var(--ease-out);
 }
 
-.league-bar__pool[aria-expanded="true"] .league-bar__chevron {
+.league-bar__face[aria-expanded="true"] .league-bar__chevron {
   transform: rotate(180deg);
 }
 
-/* A league of one pool has nothing to pick: the cell just names it. */
+/* A league of one pool has nothing to pick: the cell just names it, as print
+   rather than a key (the face's :disabled). */
 .league-bar__pool--one {
   cursor: default;
 }
@@ -5439,7 +5485,7 @@ button.league-bar__face:active,
   .topline__board {
     grid-template-columns: 40px minmax(0, max-content) minmax(320px, 1fr) 40px;
     grid-template-areas: "back name cells gear";
-    padding: 2px 5px;
+    padding: 4px 8px;
   }
 
   .league-bar__name,
@@ -5452,14 +5498,11 @@ button.league-bar__face:active,
     text-indent: 0;
   }
 
+  /* No rule down the name's side: on one row the keys are what set the cells
+     off from it, and a rule beside a key was a frame beside a frame. */
   .league-bar__cells {
-    align-self: stretch;
+    padding-top: 0;
     border-top: 0;
-    border-left: 1px solid var(--jumbo-rule);
-  }
-
-  .league-bar__cell {
-    padding: 3px;
   }
 
   .league-bar__face {

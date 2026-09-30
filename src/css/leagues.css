@@ -34,9 +34,9 @@
 
 /* The paint changes with the pool while the board is faded out, but the
    topline stays visible, so its colours travel rather than jump - the
-   scoreboard's name and the lamp in its pool cell included. */
+   scoreboard's name and the lamp in its pool cell included. The pool cell's
+   key is not in the paint at all, so it keeps its own press transitions. */
 body,
-.league-bar__pool,
 .pitch__zone {
   transition:
     background-color 0.3s ease,

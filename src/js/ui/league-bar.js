@@ -55,12 +55,18 @@ import { rosterMarkup } from "./roster.js";
 
 /**
  * The refresh glyph: one turn of the wheel, with the head where the turn ends.
- * Set after the time in the Checked cell, at the size of the pool cell's
- * chevron, so the two cells that can be pressed end on a mark that says so.
+ * Set after the time in the Checked cell, at the size of the chevrons the
+ * other two cells end on, so every cell that can be pressed ends on a mark
+ * that says what pressing it does.
  */
 const REFRESH = `<svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M20 5v5h-5" />
     <path d="M18.4 15.5A7.3 7.3 0 1 1 17.2 6.9L20 10" />
+  </svg>`;
+
+/** The chevron after a readout whose cell hangs something under it: the pool's menu, the roster. */
+const CHEVRON = `<svg class="league-bar__chevron" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="m6 9 6 6 6-6" />
   </svg>`;
 
 /**
@@ -132,15 +138,16 @@ export function renderLeagueBar(
   const people = Array.isArray(league?.people) ? league.people : [];
   const named = people.map((person) => `${person.id}:${person.name}`).join("|");
   if (named !== roster) {
-    const face = faceMarkup(
-      "On the board",
-      `<span class="league-bar__people">${escapeHtml(peopleText(people))}</span>`,
-    );
+    const readout = `<span class="league-bar__people">${escapeHtml(peopleText(people))}</span>`;
     // A league of one has no roster to open (rosterMarkup draws nothing), but
     // the cell still says so: a scoreboard with a hole in it reads as broken.
+    // Plain, though - no chevron and no key round it, since there is nothing
+    // there to press.
     root.querySelector(".league-bar__who").innerHTML =
-      rosterMarkup(people, me, { className: "league-bar__face", face }) ||
-      `<div class="league-bar__face">${face}</div>`;
+      rosterMarkup(people, me, {
+        className: "league-bar__face",
+        face: faceMarkup("On the board", readout + CHEVRON),
+      }) || `<div class="league-bar__face">${faceMarkup("On the board", readout)}</div>`;
     roster = named;
   }
 
@@ -172,7 +179,11 @@ export function renderLeagueBar(
   trigger.disabled = one;
   if (one) closeMenu(root);
 
-  root.querySelector(".league-bar__showing").textContent = POOL_KINDS[showing].label;
+  // The pool's name split over the cell's two lines, the season as the key and
+  // how it is played as the readout, so a third of the board holds it whole:
+  // "College winners" on one line was the widest thing any cell said.
+  trigger.querySelector(".league-bar__key").textContent = `${POOL_KINDS[showing].seasonLabel} pool`;
+  root.querySelector(".league-bar__showing").textContent = POOL_KINDS[showing].objectiveLabel;
   for (const option of menu.children) {
     option.setAttribute("aria-selected", String(option.dataset.kind === showing));
   }
@@ -328,9 +339,7 @@ function build(root) {
             "Pool",
             `<span class="league-bar__mark" aria-hidden="true"></span>
             <span class="league-bar__showing"></span>
-            <svg class="league-bar__chevron" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="m6 9 6 6 6-6" />
-            </svg>`,
+            ${CHEVRON}`,
           )}
         </button>
         <ul class="league-bar__menu" id="league-bar-menu" role="listbox" aria-label="Pool" hidden></ul>
