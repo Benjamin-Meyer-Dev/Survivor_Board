@@ -203,19 +203,49 @@ assert.equal(
   "an unlocked pick must not change committed season survival",
 );
 assert.equal(typeof picked.previewPathProbability, "number");
-// An open slot follows the committed plan (the gold line) whatever is pending
-// elsewhere: a pick only pencils in a new plan, and only a lock moves the calls.
+// But a pick pencils in a new plan, and the open slots follow it: they show
+// the route re-planned around every pick pending (the chart's dashes), so no
+// week plans on a team picked in another. Only the gold line and the season
+// number wait for the lock.
+const pencilledTeams = new Set(
+  picked.weeks.flatMap((week) => week.picks.map((pick) => pick.team).filter(Boolean)),
+);
 for (const week of picked.weeks.filter((entry) => entry.week > picked.currentWeek)) {
-  week.picks.forEach((pick, slot) => {
-    if (pick.team) return;
-    assert.ok(pick.suggestion, `week ${week.week}'s open slot always has a suggestion`);
-    assert.equal(
-      pick.suggestion.team,
-      week.pathRecommendation[slot]?.team,
-      `week ${week.week}'s open slot shows the gold line's team`,
-    );
-  });
+  const route = (week.rehearsalPath ?? []).filter((option) => !pencilledTeams.has(option.team));
+  week.picks
+    .filter((pick) => !pick.team)
+    .forEach((pick, open) => {
+      assert.ok(pick.suggestion, `week ${week.week}'s open slot always has a suggestion`);
+      assert.ok(
+        !pencilledTeams.has(pick.suggestion.team),
+        `week ${week.week}'s open slot never names a team picked in another week`,
+      );
+      assert.equal(
+        pick.suggestion.team,
+        route[open]?.team,
+        `week ${week.week}'s open slot shows the route re-planned around the pick`,
+      );
+    });
 }
+// The case that asked for it: a team pencilled in now that the plan was saving
+// for a later week, which went on showing it there too.
+const savedFor = empty.weeks
+  .filter((week) => week.week > empty.currentWeek)
+  .flatMap((week) => week.picks.map((pick) => ({ week: week.week, team: pick.suggestion?.team })))
+  .find(
+    ({ team }) =>
+      team &&
+      team !== other &&
+      first.options.some((option) => option.team === team && !option.disabled && !option.result),
+  );
+assert.ok(savedFor, "the plan saves a team this week could take for a later week");
+const takenEarly = build({ picks: {}, swaps: { [key]: savedFor.team } }, withFeedResult);
+assert.ok(
+  takenEarly.weeks
+    .find((week) => week.week === savedFor.week)
+    .picks.every((pick) => pick.suggestion?.team !== savedFor.team),
+  `the ${savedFor.team}, pencilled into week ${first.week}, leave week ${savedFor.week}'s plan`,
+);
 assert.ok(
   pickedSlot.options.some((option) => option.isCoach && option.team === coachTeam),
   "the coach's call stays badged while a different team is picked",

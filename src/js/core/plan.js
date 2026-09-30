@@ -1051,14 +1051,15 @@ export function buildBoard({
     }
     const liveCalls = week.pathRecommendation.filter((option) => !lockedTeams.has(option.team));
     // What fills the open slots on screen. With nothing being weighed it is
-    // the plan's own calls; with a pick pending it is the preview's, solved
-    // around the pick, so a ghost never names the team just picked and the
-    // path on screen is one that could actually be locked.
+    // the plan's own calls; with a pick pending it is the route re-planned
+    // around every pick pending (routePreview, the chart's dashes), so a ghost
+    // never names a team picked in any week and the path on screen is one
+    // that could actually be locked.
     const heldTeams = new Set(week.picks.filter((pick) => pick.team).map((pick) => pick.team));
     const ghostNames =
-      preview === recommendation
+      routePreview === recommendation
         ? planned
-        : (preview.picks[week.week] ?? []).filter(
+        : (routePreview.picks[week.week] ?? []).filter(
             (team) =>
               (spentTeams[team] === undefined || spentTeams[team] === week.week) &&
               !settledTeams.has(team),
@@ -1183,13 +1184,15 @@ export function buildBoard({
         return { ...option, tier: confidenceTier(option.winProb, rules.tiers), rank };
       });
 
-    // What an open slot may show, best first: the gold line's calls for the
-    // week (the committed plan, liveCalls), then the rest of the coach's board,
-    // then the plan's ghosts. Never a team you hold in this week, its
-    // opponent, or - while the run is alive - a game already played. A pick
-    // pending in another week does not move them: the calls follow the
-    // committed plan until a lock changes it. The season-wide pass below hands
-    // them out (suggestionPools).
+    // What an open slot may show, best first: the week's calls, then the rest
+    // of the coach's board, then the plan's ghosts. Never a team you hold in
+    // this week, its opponent, or - while the run is alive - a game already
+    // played. The calls are the gold line's (the committed plan, liveCalls)
+    // until a pick is pending somewhere; then they are the route re-planned
+    // around it (rehearsalPath), because a team pencilled into week 6 is not
+    // one week 13 can still plan on. The gold line and the season number
+    // still wait for the lock. The season-wide pass below hands them out
+    // (suggestionPools).
     const heldOpponents = new Set(
       [...heldTeams].map((team) => week.optionByTeam.get(team)?.opponent).filter(Boolean),
     );
@@ -1198,7 +1201,9 @@ export function buildBoard({
       !heldTeams.has(option.team) &&
       !heldOpponents.has(option.team) &&
       (keepsPlayed || !option.result);
-    const calls = liveCalls.filter(usable);
+    const pencilled =
+      week.rehearsalPath && week.week >= currentWeek ? week.rehearsalPath : liveCalls;
+    const calls = pencilled.filter(usable);
     const callTeams = new Set(calls.map((option) => option.team));
     suggestionPools.set(week, {
       calls,
@@ -1222,11 +1227,15 @@ export function buildBoard({
   }
 
   // The suggestions, handed out across the season. Every week's own calls go
-  // out first, so an open slot always shows the gold line's team for it; a
-  // slot whose call you have taken in its own week falls back onto a name no
-  // other week is showing, and failing that onto the best team the slot can
-  // still take, so a week still to play never reads "No pick yet".
-  const shownTeams = new Set();
+  // out first, so an open slot always shows its plan's team for it; a slot
+  // whose call you have taken in its own week falls back onto a name no other
+  // week is showing, and failing that onto the best team the slot can still
+  // take, so a week still to play never reads "No pick yet". A team you hold
+  // in any week is shown already: a fallback off the coach's board, which does
+  // not move for a pick, must not name it a second time.
+  const shownTeams = new Set(
+    board.weeks.flatMap((week) => week.picks.map((pick) => pick.team).filter(Boolean)),
+  );
   const handOut = (week, pool, fresh = true) => {
     for (const pick of week.picks) {
       if (pick.team || pick.suggestion) continue;
