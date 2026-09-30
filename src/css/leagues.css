@@ -19,6 +19,7 @@
 :root[data-league="nfl"] {
   --paint: #0b1f4d;
   --paint-ink: #f3f7f1;
+  --lamp: var(--kind-nfl);
 }
 
 /* --- picking losers: burnt orange end zones ------------------------------- */
@@ -26,18 +27,29 @@
 :root[data-objective="lose"] {
   --paint: #7a3d00;
   --paint-ink: #fff3e0;
+  --lamp: var(--kind-lose);
 }
 
 /* --- travelling colour ----------------------------------------------------- */
 
 /* The paint changes with the pool while the board is faded out, but the
-   topline stays visible, so its colours travel rather than jump. */
+   topline stays visible, so its colours travel rather than jump - the
+   scoreboard's name and the lamp in its pool cell included. */
 body,
 .league-bar__pool,
-.league-bar__mark,
 .pitch__zone {
   transition:
     background-color 0.3s ease,
     border-color 0.3s ease,
     color 0.3s ease;
+}
+
+.league-bar__name {
+  transition: text-shadow 0.3s ease;
+}
+
+.league-bar__mark {
+  transition:
+    background-color 0.3s ease,
+    box-shadow 0.3s ease;
 }

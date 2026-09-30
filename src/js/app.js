@@ -442,7 +442,7 @@ const SETTLED_FILES = new Set([
  */
 const FRESH_FOR_MS = 5 * 60 * 1000;
 
-/** Per sport and file: the request that answered, and when it goes stale. */
+/** Per sport and file: the request that answered, when it went out, and when it goes stale. */
 const files = new Map();
 
 /**
@@ -494,15 +494,42 @@ function fetchJson(folder, name) {
   // page had already paid for. Not for good, so a form.json written mid-season
   // is still picked up. Any other failure - the network, a bad answer - is not
   // an answer to hold on to at all, and the open asks again.
+  const at = Date.now();
   request.catch((error) => {
-    if (error?.status === 404) files.set(key, { request, until: Date.now() + FRESH_FOR_MS });
+    if (error?.status === 404) files.set(key, { request, at, until: at + FRESH_FOR_MS });
     else files.delete(key);
   });
   files.set(key, {
     request,
-    until: SETTLED_FILES.has(name) ? Infinity : Date.now() + FRESH_FOR_MS,
+    at,
+    until: SETTLED_FILES.has(name) ? Infinity : at + FRESH_FOR_MS,
   });
   return request;
+}
+
+/**
+ * When a pool's board last went to the network for what can change under it -
+ * the lines, the fit to them, the reports and the pool's numbers - taken as
+ * the oldest of those reads, since that is how far behind the board can be.
+ * The picks are not in it: they come over realtime and are never stale.
+ *
+ * What the topline's Checked cell counts from (ui/league-bar.js). Null when
+ * nothing has been read yet, and always in the artifact build, whose data is
+ * inlined rather than fetched.
+ *
+ * @param {string|null} kind
+ * @returns {number|null}
+ */
+function checkedAt(kind) {
+  if (!POOL_KINDS[kind]) return null;
+  const folder = resolveSport(POOL_KINDS[kind].sport);
+  let oldest = null;
+  for (const name of BOARD_FILES) {
+    if (SETTLED_FILES.has(name)) continue;
+    const at = files.get(`${folder}/${name}`)?.at;
+    if (Number.isFinite(at) && (oldest === null || at < oldest)) oldest = at;
+  }
+  return oldest;
 }
 
 /**
@@ -782,7 +809,13 @@ async function eachStanding(league) {
 
 /** What the picker is drawn from: the open league, the pool showing, and where each pool stands. */
 function barState(kind) {
-  return { league: app.league, kind, me: ME, standings: standingsFor(app.league) };
+  return {
+    league: app.league,
+    kind,
+    me: ME,
+    standings: standingsFor(app.league),
+    checkedAt: checkedAt(kind),
+  };
 }
 
 /** The standings of one league's pools, as the picker wants them: kind -> standing. */

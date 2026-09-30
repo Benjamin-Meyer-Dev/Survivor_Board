@@ -15,14 +15,19 @@
  * build of the app arrives on it (checkForUpdate in app.js), and the reload
  * that brings it in comes back to the week and the slot it left.
  *
- * The name and the pool stack as a title block - the name chalked large, the
- * pool as a line under it - so the name gets the bar's whole width between the
- * back arrow and the gear, minus the two tools it carries. The picker holds
- * this one league's
- * pools - "NFL winners", "NFL losers" - and nothing else, because that is the
- * choice a person on a board actually makes; another league is a trip through
- * the home page. A league of one pool has nothing to pick, so its line just
- * names it.
+ * Drawn as the stadium's scoreboard, hung over the field: the league's name lit
+ * across the top in the pool's own colour, with the way back and the gear in
+ * its two top corners, and under it a row of three cells - the pool, who is on
+ * the board, and when it last checked. Each cell is a key over a readout and
+ * each is the control for what it reads: the pool opens the picker, the names
+ * open the roster, the time goes and checks again. What used to be an info
+ * glyph and a refresh glyph beside the name are now things the bar says
+ * rather than things you have to know to press.
+ *
+ * The picker holds this one league's pools - "NFL winners", "NFL losers" - and
+ * nothing else, because that is the choice a person on a board actually makes;
+ * another league is a trip through the home page. A league of one pool has
+ * nothing to pick, so its cell just names it.
  *
  * The picker is drawn here, not by the platform: a chalkboard hung under the
  * line with a row per pool, the one showing checked and any pool whose run is
@@ -35,10 +40,12 @@
  *
  * Built ONCE and updated in place afterwards: this runs on every board render,
  * and replacing the elements under an open menu would close it mid-choice. The
- * only state kept here is whether the menu is open, which is the element's own.
+ * state kept here is whether the menu is open, which is the element's own, and
+ * when the board last checked, so the clock can run between renders.
  *
  * Rendering only: app.js owns the reload that follows a pick. The gear that
- * sits in the same topline is ui/settings.js, rendered into its own root.
+ * sits in the same topline is ui/settings.js, rendered into its own root and
+ * set in the scoreboard's corner by the grid (#league is display: contents).
  */
 
 import { escapeHtml } from "../core/format.js";
@@ -48,14 +55,28 @@ import { rosterMarkup } from "./roster.js";
 
 /**
  * The refresh glyph: one turn of the wheel, with the head where the turn ends.
- * Drawn on the same circle as the info button beside it (r=7.3 about the
- * middle, near enough the roster's r=9 once its arrow is counted), so the two
- * discs hold glyphs of the same weight rather than one large and one small.
+ * Set after the time in the Checked cell, at the size of the pool cell's
+ * chevron, so the two cells that can be pressed end on a mark that says so.
  */
 const REFRESH = `<svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M20 5v5h-5" />
     <path d="M18.4 15.5A7.3 7.3 0 1 1 17.2 6.9L20 10" />
   </svg>`;
+
+/**
+ * How long a name can run before it steps down a size. A scoreboard squeezes a
+ * long name rather than cutting it: at the full size the name area holds about
+ * sixteen letters on a 390 phone, and "Sunday Night Degenerates" is 24.
+ * Counted rather than measured, so the size never depends on whether the
+ * display face has loaded by the first render.
+ */
+const NAME_STEPS = [
+  { over: 20, className: "league-bar__name--longer" },
+  { over: 15, className: "league-bar__name--long" },
+];
+
+/** How often the Checked cell's clock is brought up to date. Its unit is the minute. */
+const TICK_MS = 15 * 1000;
 
 /** Latest handlers, so the listeners bound on the first render stay current. */
 let handlers = { onPool: () => {}, onHome: () => {}, onRefresh: () => {} };
@@ -67,6 +88,10 @@ let marked = "";
 let roster = "";
 /** The bar's root once built, for the outside-tap listener. */
 let bar = null;
+/** When the board last went to the network for its lines (app.js checkedAt). */
+let checked = null;
+/** Whether a check is out, which is what the Checked cell says while it is. */
+let checking = false;
 
 /**
  * @param {HTMLElement} root
@@ -77,9 +102,15 @@ let bar = null;
  *   the roster can say which row is you. `standings` says which of the
  *   league's pools are out (readStandings in app.js); a kind it does not name
  *   is one nothing is known about yet, and its row is drawn plain.
+ *   `checkedAt` is when the board last read its lines, in ms; null keeps the
+ *   time already showing (a pool being switched to has not been read yet).
  * @param {{onPool:(kind:string)=>void, onHome:()=>void, onRefresh:()=>void}} given
  */
-export function renderLeagueBar(root, { league, kind = null, me = "", standings = {} }, given) {
+export function renderLeagueBar(
+  root,
+  { league, kind = null, me = "", standings = {}, checkedAt = null },
+  given,
+) {
   if (!root) return;
   handlers = given;
 
@@ -89,7 +120,11 @@ export function renderLeagueBar(root, { league, kind = null, me = "", standings 
   if (kinds.length === 0) kinds.push(KIND_IDS[0]);
   const showing = kinds.includes(kind) ? kind : kinds[0];
 
-  root.querySelector(".league-bar__name").textContent = league?.name ?? "";
+  const name = league?.name ?? "";
+  const title = root.querySelector(".league-bar__name");
+  title.textContent = name;
+  const step = NAME_STEPS.find((each) => name.length > each.over);
+  for (const each of NAME_STEPS) title.classList.toggle(each.className, each === step);
 
   // Who else is on this board. Rebuilt only when the people change: this runs
   // on every render, and replacing the button under an open panel would shut
@@ -97,11 +132,20 @@ export function renderLeagueBar(root, { league, kind = null, me = "", standings 
   const people = Array.isArray(league?.people) ? league.people : [];
   const named = people.map((person) => `${person.id}:${person.name}`).join("|");
   if (named !== roster) {
-    root.querySelector(".league-bar__who").innerHTML = rosterMarkup(people, me, {
-      className: "league-bar__icon",
-    });
+    const face = faceMarkup(
+      "On the board",
+      `<span class="league-bar__people">${escapeHtml(peopleText(people))}</span>`,
+    );
+    // A league of one has no roster to open (rosterMarkup draws nothing), but
+    // the cell still says so: a scoreboard with a hole in it reads as broken.
+    root.querySelector(".league-bar__who").innerHTML =
+      rosterMarkup(people, me, { className: "league-bar__face", face }) ||
+      `<div class="league-bar__face">${face}</div>`;
     roster = named;
   }
+
+  if (Number.isFinite(checkedAt)) checked = checkedAt;
+  paintChecked(root);
 
   const menu = root.querySelector(".league-bar__menu");
   const signature = `${league?.code ?? ""}:${kinds.join(",")}`;
@@ -135,7 +179,7 @@ export function renderLeagueBar(root, { league, kind = null, me = "", standings 
 }
 
 /**
- * Say the pool named on the line is being got ready.
+ * Say the pool named in its cell is being got ready.
  *
  * A board is not swapped until the next one is built and planned (switchPool
  * in app.js), so between the tap and the change there is a stretch where the
@@ -143,8 +187,8 @@ export function renderLeagueBar(root, { league, kind = null, me = "", standings 
  * one. That stretch is the whole of what a cold pool costs, and it used to
  * happen behind a board faded to nothing, where there was nothing to say.
  *
- * The mark is on the line rather than beside it: no spinner, no word, just the
- * pool's own name breathing in the chalk it is about to be drawn in. The line
+ * The mark is in the cell rather than beside it: no spinner, no word, just the
+ * pool's own name breathing in the chalk it is about to be drawn in. The cell
  * stops taking taps while it runs - the switch is already being made, and a
  * second one cannot be.
  *
@@ -163,10 +207,12 @@ export function markPoolLoading(root, busy) {
  * Say the board is being checked.
  *
  * The glyph turns - the wheel it is drawn as, doing the thing it depicts -
- * rather than a spinner arriving beside it, and it takes no second tap while
- * it does, since the read is already out. What the refresh finds says itself:
- * a change settles onto the board the way another phone's lock does, and a
- * board that has not moved does not move.
+ * rather than a spinner arriving beside it, the cell reads "Checking" where the
+ * time was, and it takes no second tap while it does, since the read is
+ * already out. What the refresh finds says itself: a change settles onto the
+ * board the way another phone's lock does, and a board that has not moved
+ * does not move - but the clock goes back to "Just now" either way, because
+ * it did look.
  *
  * @param {HTMLElement|null} root
  * @param {boolean} busy
@@ -177,6 +223,64 @@ export function markRefreshing(root, busy) {
   button.classList.toggle("is-refreshing", busy);
   if (busy) button.setAttribute("aria-busy", "true");
   else button.removeAttribute("aria-busy");
+  checking = busy;
+  paintChecked(root);
+}
+
+/**
+ * A cell's face: what it is, over what it reads.
+ *
+ * @param {string} key
+ * @param {string} value Markup, already escaped.
+ */
+function faceMarkup(key, value) {
+  return `<span class="league-bar__key">${escapeHtml(key)}</span>
+      <span class="league-bar__value">${value}</span>`;
+}
+
+/**
+ * Who is on the board, in the width of one cell: the two names when there are
+ * two, which is most leagues, and a count past that - three names do not fit a
+ * third of a phone, and the roster the cell opens has them all.
+ *
+ * @param {Array<{name?:string}>} people
+ */
+function peopleText(people) {
+  if (people.length < 2) return "Just you";
+  if (people.length > 2) return `${people.length} players`;
+  return people.map((person) => person.name?.trim() || "Someone").join(" · ");
+}
+
+/**
+ * The Checked cell's readout: "Checking" while a check is out, otherwise how
+ * long ago the lines were read. Written only when it changes, since the clock
+ * calls this four times a minute whether or not anything moved.
+ *
+ * @param {HTMLElement|null} root
+ */
+function paintChecked(root) {
+  const ago = root?.querySelector(".league-bar__ago");
+  if (!ago) return;
+  const text = checking ? "Checking" : agoText(checked, Date.now());
+  if (ago.textContent !== text) ago.textContent = text;
+}
+
+/**
+ * How long ago, as a scoreboard would put it: to the minute under an hour, then
+ * to the hour, then to the day. A dash for a board that has never been read
+ * over the network (the artifact build, whose data is inlined).
+ *
+ * @param {number|null} at
+ * @param {number} now
+ */
+function agoText(at, now) {
+  if (!Number.isFinite(at)) return "—";
+  const minutes = Math.floor(Math.max(0, now - at) / 60000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
 }
 
 /**
@@ -215,30 +319,47 @@ function build(root) {
     <button type="button" class="league-bar__back" aria-label="All leagues" title="All leagues">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
     </button>
-    <div class="league-bar__league">
-      <div class="league-bar__title">
-        <h2 class="league-bar__name"></h2>
-        <div class="league-bar__tools">
-          <div class="league-bar__who"></div>
-          <button type="button" class="league-bar__icon league-bar__refresh"
-                  aria-label="Check for changes" title="Check for changes">${REFRESH}</button>
-        </div>
-      </div>
-      <div class="league-bar__picker">
-        <button type="button" class="league-bar__pool" aria-haspopup="listbox"
-                aria-expanded="false" aria-controls="league-bar-menu" title="Pool">
-          <span class="league-bar__mark" aria-hidden="true"></span>
-          <span class="league-bar__showing"></span>
-          <svg class="league-bar__chevron" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m6 9 6 6 6-6" />
-          </svg>
+    <h2 class="league-bar__name"></h2>
+    <div class="league-bar__cells">
+      <div class="league-bar__cell league-bar__picker">
+        <button type="button" class="league-bar__face league-bar__pool" aria-haspopup="listbox"
+                aria-expanded="false" aria-controls="league-bar-menu">
+          ${faceMarkup(
+            "Pool",
+            `<span class="league-bar__mark" aria-hidden="true"></span>
+            <span class="league-bar__showing"></span>
+            <svg class="league-bar__chevron" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m6 9 6 6 6-6" />
+            </svg>`,
+          )}
         </button>
         <ul class="league-bar__menu" id="league-bar-menu" role="listbox" aria-label="Pool" hidden></ul>
+      </div>
+      <div class="league-bar__cell league-bar__who"></div>
+      <div class="league-bar__cell">
+        <button type="button" class="league-bar__face league-bar__refresh"
+                aria-label="Check for changes" aria-describedby="league-bar-ago" title="Check for changes">
+          ${faceMarkup(
+            "Checked",
+            `<span class="league-bar__ago" id="league-bar-ago"></span>${REFRESH}`,
+          )}
+        </button>
       </div>
     </div>`;
 
   root.querySelector(".league-bar__back").addEventListener("click", () => handlers.onHome());
   root.querySelector(".league-bar__refresh").addEventListener("click", () => handlers.onRefresh());
+
+  // The clock runs between renders: a board left open does not re-render on
+  // its own, and "Just now" an hour later is the one thing this cell must not
+  // say. Brought up to date at once when the app comes back into view, which
+  // is when an hour has most often gone by unseen.
+  setInterval(() => {
+    if (!document.hidden) paintChecked(root);
+  }, TICK_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) paintChecked(root);
+  });
 
   const trigger = root.querySelector(".league-bar__pool");
   const menu = root.querySelector(".league-bar__menu");

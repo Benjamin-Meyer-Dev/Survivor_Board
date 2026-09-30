@@ -84,28 +84,12 @@
   display: none;
 }
 
-/* The topline: the way back, the league as a title block two lines tall - its
-   name over the pool showing - and the gear. The two glyphs sit centred on the
-   block, one at each edge, their boxes pulled into the gutter so the glyphs
-   themselves line up with the field below (components.css). */
+/* The topline: the scoreboard hung over the field (components.css draws it).
+   The header keeps the gutter, so the board's edges stand over the field's;
+   the grid inside is the board's own. */
 .topline {
   flex: none;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: calc(10px + env(safe-area-inset-top)) var(--gutter) 0;
-}
-
-.topline__league {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  flex: 1;
-}
-
-.topline__gear {
-  flex: none;
+  padding: calc(6px + env(safe-area-inset-top)) var(--gutter) 0;
 }
 
 /* A column rather than a plain block, so the region's own height counts the

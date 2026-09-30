@@ -116,6 +116,19 @@
   --kind-cfb: #a8ffc9;
   --kind-lose: #ffb05c;
 
+  /* the scoreboard -----------------------------------------------------------
+     The one thing in a stadium that is not on the ground: the board the
+     topline is drawn as (components.css). Turf taken nearly to black, a grid
+     of lamps in faint chalk, a bezel and the rules between its cells. --lamp
+     is what its name is lit in - the pool's own colour, repainted with the
+     pool in leagues.css. */
+  --jumbo: #072012;
+  --jumbo-2: #04140b;
+  --jumbo-lamps: rgb(243 247 241 / 6%);
+  --jumbo-rim: rgb(243 247 241 / 14%);
+  --jumbo-rule: rgb(243 247 241 / 12%);
+  --lamp: var(--kind-cfb);
+
   /* light -------------------------------------------------------------------
      Floodlight from above, the end zone's hazard stripes, the shadow a panel
      casts on the turf. */

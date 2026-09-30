@@ -86,12 +86,16 @@
            is the field, the drive line and the week's call; the drawer below
            is what you touch. -->
       <div class="board" id="board">
-        <!-- The topline: the way back, the league with its pool, who is in it
-             and the button that goes and looks for changes (ui/league-bar.js),
-             and the gear for the pool's rules (ui/settings.js). -->
+        <!-- The topline: the scoreboard over the field. The way back, the
+             league's name, and the cells for its pool, who is in it and when
+             it last checked (ui/league-bar.js), with the gear for the pool's
+             rules in the far corner (ui/settings.js). One grid holds both
+             roots: #league is display: contents. -->
         <header class="topline" id="league-bar">
-          <div class="topline__league" id="league"></div>
-          <div class="topline__gear" id="settings"></div>
+          <div class="topline__board">
+            <div class="topline__league" id="league"></div>
+            <div class="topline__gear" id="settings"></div>
+          </div>
         </header>
 
         <section class="readout" aria-label="The field">

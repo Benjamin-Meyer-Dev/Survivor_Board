@@ -261,13 +261,52 @@
   box-shadow: 0 0 0 3px var(--flag-soft);
 }
 
-/* topline: league bar (ui/league-bar.js) ----------------------------------- */
+/* topline: the scoreboard (ui/league-bar.js) ------------------------------- */
 
-/* The way back to every league, and the gear at the other end of the bar: one
-   glyph at each edge, on the same 40px disc. The way back stays bare - it is
-   the chevron every page has had, and the name beside it is what you read -
-   while the gear wears its ring (see the rules sheet, below). The 40px box is
-   the target. Hover only where there is a pointer to hover with. */
+/* The stadium's scoreboard, hung over the field: a dark board with a grid of
+   lamps in it and a bezel round its edge, the league's name lit across the
+   top, and a row of three cells under it. The one surface on the board that is
+   neither turf nor chalkboard, because it is the one thing in a stadium that
+   is not on the ground.
+
+   One grid holds two roots - the league bar's pieces and the gear, which
+   ui/settings.js renders on its own - because #league lays itself out as its
+   contents. The way back and the gear take the two top corners and the name
+   takes what is between them. */
+.topline__board {
+  position: relative;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  grid-template-areas:
+    "back name gear"
+    "cells cells cells";
+  align-items: center;
+  padding: 2px 5px 5px;
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 2px 2px, var(--jumbo-lamps) 1px, transparent 2px) 0 0 / 4px 4px,
+    linear-gradient(180deg, var(--jumbo), var(--jumbo-2));
+  box-shadow:
+    inset 0 0 0 1px var(--jumbo-rim),
+    inset 0 0 0 4px var(--jumbo-2),
+    inset 0 0 0 5px var(--jumbo-rule),
+    0 12px 24px -16px rgb(0 0 0 / 100%);
+}
+
+.topline__league {
+  display: contents;
+}
+
+.topline__gear {
+  grid-area: gear;
+  justify-self: end;
+}
+
+/* The way back and the gear, in the board's two top corners: bare glyphs in
+   the chalk the cells' keys are written in, lit on a press. No ring on either
+   - the board's own bezel is the outline now, and a ring inside it was a frame
+   in a frame. The 40px box is the target. Hover only where there is a pointer
+   to hover with. */
 .league-bar__back,
 .settings__open {
   width: 40px;
@@ -276,22 +315,23 @@
   border: 0;
   border-radius: 50%;
   flex: none;
-  color: var(--chalk-2);
+  color: var(--chalk-3);
 }
 
-/* The negative margin sets the glyph itself, not its box, on the field's edge. */
 .league-bar__back {
-  margin-left: -11px;
+  grid-area: back;
   font-size: 0;
 }
 
-.league-bar__back:active {
+.league-bar__back:active,
+.settings__open:active {
   color: var(--chalk);
   background: rgb(243 247 241 / 10%);
 }
 
 @media (hover: hover) {
-  .league-bar__back:hover {
+  .league-bar__back:hover,
+  .settings__open:hover {
     color: var(--chalk);
     background: rgb(243 247 241 / 8%);
   }
@@ -307,111 +347,179 @@
   stroke-linejoin: round;
 }
 
-/* The league as a title block: its name chalked large across the bar, and
-   under it which of its pools the board is showing. Stacked rather than side
-   by side so the name gets the whole width between the two buttons; the row
-   that held both cut "Sunday Night Degenerates" to twelve letters. */
-.league-bar__league {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  min-width: 0;
-  flex: 1;
-}
+/* The league's name, lit. The glow is the pool's colour (--lamp, leagues.css)
+   - mint for college, blue for the NFL, orange for any losers pool - so the
+   board says which pool it is before a cell is read, and says it again as the
+   colour travels on a switch.
 
-/* The league's name, chalked large. One line: a name too long for the bar is
-   cut, and read in full in the rules sheet. */
+   The line box is the row's full 40px so the glow has room inside the box
+   that clips it: at the name's own height the blur was cut flat along the top
+   and bottom of the caps. The indent is the letter-spacing given back at the
+   front, since the spacing also trails the last letter and a centred name sat
+   a pixel left of the middle. One line: a name too long for the board steps
+   down a size (NAME_STEPS in ui/league-bar.js) before it is ever cut. */
 .league-bar__name {
+  grid-area: name;
+  min-width: 0;
+  padding: 0 4px;
+  text-align: center;
+  text-indent: 0.08em;
   font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 24px;
-  line-height: 1;
-  letter-spacing: 0.03em;
+  font-weight: 900;
+  font-size: 26px;
+  line-height: 40px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  max-width: 100%;
+  color: var(--chalk);
+  text-shadow:
+    0 0 5px color-mix(in srgb, var(--lamp) 70%, transparent),
+    0 0 16px color-mix(in srgb, var(--lamp) 30%, transparent);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* The pool showing, as a line under the name: the league's paint as a mark,
-   the pool's name, a chevron. No outline of its own - the bar had three, and
-   the name was what got squeezed between them. Press it and the league's pools
-   hang under it on a chalkboard, each in its own paint, the one showing
-   checked (ui/league-bar.js). Drawn here rather than by the platform:
-   Android's own picker is a radio dialog in the system's face, floating over
-   the middle of the field. */
-.league-bar__picker {
+.league-bar__name--long {
+  font-size: 22px;
+  letter-spacing: 0.06em;
+  text-indent: 0.06em;
+}
+
+.league-bar__name--longer {
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  text-indent: 0.04em;
+}
+
+/* The cells: the pool, who is on the board, and when it last checked, ruled
+   off from the name and from each other the way a scoreboard's panels are.
+   The pool gets the most room because its readout is the longest:
+   "College winners" is the widest thing any cell says, and at 1.3 shares it
+   was cut to "College winn" on a 390 phone. At 1.6 it holds whole down to
+   360 (with the narrow type below), and the other two still hold two names
+   and "Checking". */
+.league-bar__cells {
+  grid-area: cells;
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr);
+  border-top: 1px solid var(--jumbo-rule);
+}
+
+.league-bar__cell {
   position: relative;
   display: flex;
   min-width: 0;
-  max-width: 100%;
+  padding: 3px 3px 0;
 }
 
-/* The line is 18px tall to look at and 28px to press: the target grows into
-   the room around it rather than pushing the field down. The side padding is
-   what the margin takes back, so the mark sits on the name's left edge. It
-   shrinks as a flex item (min-width) rather than by a max-width: a percentage
-   there resolves against the picker, which is sized from this very button
-   less its negative margin, and the label lost six pixels to the loop. */
-.league-bar__pool {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 28px;
+.league-bar__cell + .league-bar__cell {
+  border-left: 1px solid var(--jumbo-rule);
+}
+
+/* A cell's face: its key over its readout, centred, and the whole of it the
+   button for what it reads. The press lights the face inside the cell's rules
+   rather than the cell, so the rules never move. */
+.league-bar__face {
+  flex: 1;
   min-width: 0;
-  margin: -5px 0 -5px -6px;
-  padding: 0 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0 4px;
   border: 0;
+  border-radius: 6px;
   background: none;
-  color: var(--chalk-2);
+  color: var(--chalk);
+  font-family: var(--font-display);
+}
+
+button.league-bar__face {
   cursor: pointer;
 }
 
-/* Open, the line is drawn in full chalk. Hover only where there is a pointer
-   to hover with: on a phone the state would stick after every tap. */
-.league-bar__pool[aria-expanded="true"] {
-  color: var(--chalk);
+button.league-bar__face:active,
+.league-bar__face[aria-expanded="true"] {
+  background: rgb(243 247 241 / 10%);
 }
 
 @media (hover: hover) {
-  .league-bar__pool:hover:not(:disabled) {
-    color: var(--chalk);
+  button.league-bar__face:hover:not(:disabled) {
+    background: rgb(243 247 241 / 7%);
   }
 }
 
-.league-bar__mark {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--stripes), var(--paint);
-  box-shadow: 0 0 0 1px var(--chalk-4);
-  flex: none;
-  pointer-events: none;
-}
-
-.league-bar__showing {
-  min-width: 0;
+.league-bar__key {
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--font-display);
+  font-size: 10px;
+  line-height: 10px;
   font-weight: 700;
-  font-size: 14px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.2em;
+  text-indent: 0.2em;
   text-transform: uppercase;
+  color: var(--chalk-3);
 }
 
-.league-bar__chevron {
+.league-bar__value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  max-width: 100%;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 14px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* What each readout says is the part that gives when a cell is short of room:
+   the lamp, the chevron and the wheel keep their size. */
+.league-bar__showing,
+.league-bar__people,
+.league-bar__ago {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The pool's lamp: the colour the name is lit in, as a bulb. */
+.league-bar__mark {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--lamp);
+  box-shadow: 0 0 6px var(--lamp);
+  pointer-events: none;
+}
+
+.league-bar__chevron,
+.league-bar__refresh svg {
   width: 11px;
   height: 11px;
   flex: none;
   fill: none;
-  stroke: currentcolor;
+  stroke: var(--chalk-3);
   stroke-width: 2.6;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.league-bar__refresh svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.4;
+}
+
+.league-bar__chevron {
   transition: transform 0.2s var(--ease-out);
 }
 
@@ -419,18 +527,31 @@
   transform: rotate(180deg);
 }
 
-/* A league of one pool has nothing to pick: the line just names it. */
+/* A league of one pool has nothing to pick: the cell just names it. */
 .league-bar__pool--one {
   cursor: default;
-  opacity: 1;
 }
 
 .league-bar__pool--one .league-bar__chevron {
   display: none;
 }
 
-/* The menu, hung from the line's left edge; --right when that would run off
-   the screen. Above the field, which stacks its own zones. */
+/* The roster fills its cell, and its names hang from the middle of it: the
+   cell is in the middle of the board, and a panel hung from its left edge ran
+   off the right of a narrow phone. */
+.league-bar__who .roster {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+
+.league-bar__who .roster__panel {
+  left: 50%;
+  translate: -50% 0;
+}
+
+/* The menu, hung from the pool cell's left edge; --right when that would run
+   off the screen. Above the field, which stacks its own zones. */
 .league-bar__menu {
   position: absolute;
   top: calc(100% + 8px);
@@ -587,37 +708,13 @@
 
 /* pool rules sheet (ui/settings.js) ---------------------------------------- */
 
-/* The gear, at the end of the topline: the 40px disc the way back is drawn on
-   (see the league bar, above), ringed, and in the neutral every other button
-   that is only a thing you can press wears (.home__icon). Ringed because a
-   settings glyph nobody has told you about is a mark until it has an outline
-   round it; neutral because opening a sheet about the rules is not an action
-   the board is asking for. No negative margin: the ring is the mark now, so it
-   sits on the field's right edge itself rather than being pulled past it. */
-.settings__open {
-  border: 1px solid var(--neutral-line);
-  color: var(--neutral);
-}
-
+/* The gear, in the scoreboard's far corner: the bare glyph the way back is
+   drawn as, filled rather than stroked (see the scoreboard, above). */
 .settings__open svg {
   width: 20px;
   height: 20px;
   fill: currentcolor;
   stroke: none;
-}
-
-.settings__open:active {
-  border-color: var(--neutral);
-  background: var(--neutral-bg);
-  color: var(--neutral-2);
-}
-
-@media (hover: hover) {
-  .settings__open:hover {
-    border-color: var(--neutral);
-    background: var(--neutral-bg);
-    color: var(--neutral-2);
-  }
 }
 
 /* The sheet: a chalkboard, centred on a desktop, rising from the bottom edge
@@ -4199,7 +4296,7 @@
 }
 
 /* The button takes the class of whatever it is standing next to - .home__icon
-   on a card, .league-bar__icon in the bar - so there is nothing to set here
+   on a card, .league-bar__face in the bar - so there is nothing to set here
    beyond the pressed state its neighbours have no use for. */
 .roster__open[aria-expanded="true"] {
   border-color: var(--chalk);
@@ -4284,89 +4381,15 @@
   color: var(--chalk-3);
 }
 
-/* The bar's own info button: smaller than a card's, since it sits on the
-   name's line rather than in a row of tools. A disc like the card's, though -
-   the same button asking the same question, and one drawn as a rounded square
-   read as a different control that happened to share a glyph. */
-.league-bar__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  background: transparent;
-  color: var(--chalk-2);
-}
-
-.league-bar__icon svg {
-  width: 16px;
-  height: 16px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.league-bar__icon:hover {
-  border-color: var(--chalk);
-  color: var(--chalk);
-}
-
-/* The two tools the name carries - who is here, and whether anything has
-   changed since you looked - as a pair. Six between them rather than the
-   title's eight: they are one group of buttons about the league, and the wider
-   gap is what holds them off its name. */
-.league-bar__tools {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: none;
-}
-
-/* A league of one has nobody to list, so the info button is not drawn at all
-   (ui/roster.js). Its box has to go with it, or the gap it was holding stays
-   and the refresh stands fourteen pixels off the name instead of eight. */
-.league-bar__who:empty {
-  display: none;
-}
-
 /* Going to look. The glyph is a wheel, so it turns (refresh-turn in
-   motion.css) rather than growing a spinner beside it, and it takes no second
-   tap while it does - the read is already out. The chalk drops back the way
-   the pool picker's does while it is getting a board, which is also what says
-   the button is busy where motion is switched off and nothing turns. */
+   motion.css) rather than growing a spinner beside it, the cell reads
+   "Checking" where the time was, and it takes no second tap while it does -
+   the read is already out. The chalk drops back the way the pool cell's does
+   while it is getting a board, which is also what says the cell is busy where
+   motion is switched off and nothing turns. */
 .league-bar__refresh.is-refreshing {
   color: var(--chalk-3);
   pointer-events: none;
-}
-
-/* The name and its two tools on one line, with the name taking what is left:
-   the tools are a fixed 62px and the name is what has to give when the league
-   is called something long.
-
-   The max-width is what makes that true. This row is a flex item in a COLUMN -
-   the title block, name over pool - where the cross axis is the horizontal one
-   and `align-items: flex-start` sizes each row to its own content rather than
-   to the block. Nothing there caps the row at the bar's width, so before this
-   the row simply grew: the name never reached the ellipsis it is set up for
-   and the second tool ran out under the gear. Capped, the row is the bar's
-   width at most and the name shrinks inside it, which is the arrangement the
-   rule below was always describing. */
-.league-bar__title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  max-width: 100%;
-}
-
-.league-bar__title .league-bar__name {
-  min-width: 0;
-  flex: 0 1 auto;
 }
 
 /* The tools sit on the name's line, not level with the top of its box. A name
@@ -5377,8 +5400,25 @@
     font-size: 15px;
   }
 
+  /* The scoreboard's name a step down at every length, for the forty pixels
+     the board loses across. The long steps restated after the base so they
+     still win inside this block. */
   .league-bar__name {
-    font-size: 22px;
+    font-size: 24px;
+  }
+
+  .league-bar__name--long {
+    font-size: 20px;
+  }
+
+  .league-bar__name--longer {
+    font-size: 17px;
+  }
+
+  .league-bar__value {
+    font-size: 13px;
+    line-height: 14px;
+    letter-spacing: 0.06em;
   }
 }
 
@@ -5391,14 +5431,44 @@
    type comes down a step, the padding comes in, and the field loses the air
    above and below its lanes rather than the lanes. */
 @media (orientation: landscape) and (max-height: 560px) {
-  /* The title block goes back to one line's worth of weight: sideways the
-     league's name is a label on the board, not the headline of a page. */
-  .league-bar__name {
-    font-size: 19px;
+  /* Sideways the scoreboard is a ribbon: one row, the name after the way back
+     and the cells running on from it to the gear, so the board costs a single
+     row of a screen that has no height to spare. The name is a label on the
+     board here rather than its headline, and takes its own width and no more;
+     the cells keep enough to say what they say. */
+  .topline__board {
+    grid-template-columns: 40px minmax(0, max-content) minmax(320px, 1fr) 40px;
+    grid-template-areas: "back name cells gear";
+    padding: 2px 5px;
   }
 
-  .league-bar__showing {
-    font-size: 12px;
+  .league-bar__name,
+  .league-bar__name--long,
+  .league-bar__name--longer {
+    padding: 0 14px 0 2px;
+    font-size: 20px;
+    letter-spacing: 0.06em;
+    text-align: left;
+    text-indent: 0;
+  }
+
+  .league-bar__cells {
+    align-self: stretch;
+    border-top: 0;
+    border-left: 1px solid var(--jumbo-rule);
+  }
+
+  .league-bar__cell {
+    padding: 3px;
+  }
+
+  .league-bar__face {
+    gap: 3px;
+  }
+
+  .league-bar__value {
+    font-size: 13px;
+    line-height: 13px;
   }
 
   .pitch {
@@ -5551,6 +5621,37 @@
 /* wide ------------------------------------------------------------------------- */
 
 @media (min-width: 900px) and (min-height: 561px) {
+  /* The scoreboard at the size of the field it hangs over. At the phone's
+     type a board 1188 wide was a strip of small print with the name lost in
+     the middle of it. */
+  .league-bar__name {
+    font-size: 34px;
+    line-height: 44px;
+  }
+
+  .league-bar__name--long {
+    font-size: 30px;
+  }
+
+  .league-bar__name--longer {
+    font-size: 26px;
+  }
+
+  .league-bar__face {
+    gap: 5px;
+    min-height: 44px;
+  }
+
+  .league-bar__key {
+    font-size: 11px;
+    line-height: 12px;
+  }
+
+  .league-bar__value {
+    font-size: 17px;
+    line-height: 18px;
+  }
+
   /* Every week fits, so the field stops scrolling and the weeks share it.
 
      A length, not a band, the way the sideways layout writes it: the portrait

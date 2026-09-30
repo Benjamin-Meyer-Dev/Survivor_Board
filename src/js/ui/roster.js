@@ -46,10 +46,13 @@ let watching = false;
  *   wear whatever its neighbours wear.
  * @param {boolean} [options.right] Hang the panel off the right edge instead,
  *   for a button sitting at the right of its row.
+ * @param {string} [options.face] Markup for the button's face in place of the
+ *   info glyph, for a host that says who is here rather than asking to be
+ *   pressed to find out (the topline's scoreboard cell). Already escaped.
  * @returns {string} Empty when there is nobody else, which is the caller's
  *   answer to whether the button belongs there at all.
  */
-export function rosterMarkup(people, me, { className = "", right = false } = {}) {
+export function rosterMarkup(people, me, { className = "", right = false, face = INFO } = {}) {
   const list = Array.isArray(people) ? people : [];
   if (list.length < 2) return "";
 
@@ -58,7 +61,7 @@ export function rosterMarkup(people, me, { className = "", right = false } = {})
     <div class="roster">
       <button type="button" class="roster__open ${className}" data-roster="${id}"
               aria-expanded="false" aria-controls="${id}"
-              aria-label="Who is in this league" title="Who is in this league">${INFO}</button>
+              aria-label="Who is in this league" title="Who is in this league">${face}</button>
       <div class="roster__panel${right ? " roster__panel--right" : ""}" id="${id}" hidden
            role="group" aria-label="Who is in this league">
         <ul class="roster__list">
