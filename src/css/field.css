@@ -17,7 +17,20 @@
 
 /* --- turf ------------------------------------------------------------------ */
 
-/* Fixed, so the page pans over the field like a camera on a boom. */
+/* A night game: the turf under two banks of lights, one on each far corner of
+   the stadium, with the floodlight over the middle between them. Each bank is
+   a pool of warm light spilling in off its corner (the beams it throws are the
+   layer above, body::after), and the field falls away into the dark with
+   distance from them - to the edges, and most of all to the foot of the
+   screen, so the lower half of the page is deeper turf without there being a
+   line anywhere that says where it starts.
+
+   Grain on top: the nap of the turf, laid over the whole picture at a
+   strength that reads as texture rather than dirt. A tiled SVG, so it ships
+   inside this stylesheet, and its strength is in its own alpha (the colour
+   matrix's last row) rather than an opacity, so it can share this layer.
+
+   Fixed, so the page pans over the field like a camera on a boom. */
 body::before {
   content: "";
   position: fixed;
@@ -25,23 +38,52 @@ body::before {
   z-index: 0;
   pointer-events: none;
   background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")
+      0 0 / 220px 220px,
+    radial-gradient(circle at 0% 0%, var(--tower-glow), transparent 32vmax),
+    radial-gradient(circle at 100% 0%, var(--tower-glow), transparent 32vmax),
     var(--floodlight),
-    radial-gradient(ellipse 120% 90% at 50% 60%, transparent 55%, rgb(0 0 0 / 30%) 100%),
+    linear-gradient(180deg, transparent 35%, rgb(0 0 0 / 32%) 100%),
+    radial-gradient(ellipse 120% 90% at 50% 55%, transparent 50%, rgb(0 0 0 / 34%) 100%),
     var(--turf);
 }
 
-/* Grain: the nap of the turf, laid over the whole picture at a strength that
-   reads as texture rather than dirt. A tiled SVG, so it ships inside this
-   stylesheet. */
+/* The beams: three from each bank, fanned down into the field and mirrored
+   corner for corner. Soft-edged wedges (each rises to its brightest and falls
+   away again over a few degrees), and each bank's fade the mask's, so a beam
+   is gone before it reaches the middle - the two fans used to cross there,
+   and on a page with nothing over the middle (the home page's empty turf) the
+   crossings stood out as blotches. */
 body::after {
   content: "";
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.05;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-  background-size: 220px 220px;
+  background:
+    conic-gradient(
+      from 90deg at -3% -4%,
+      transparent 16deg,
+      var(--tower-beam) 22deg,
+      transparent 28deg 32deg,
+      var(--tower-beam-2) 38deg,
+      transparent 44deg 49deg,
+      var(--tower-beam) 55deg,
+      transparent 61deg
+    ),
+    conic-gradient(
+      from 209deg at 103% -4%,
+      transparent 0deg,
+      var(--tower-beam) 6deg,
+      transparent 12deg 17deg,
+      var(--tower-beam-2) 23deg,
+      transparent 29deg 33deg,
+      var(--tower-beam) 39deg,
+      transparent 45deg
+    );
+  mask-image:
+    radial-gradient(circle max(56vw, 300px) at 0 0, #000 25%, transparent),
+    radial-gradient(circle max(56vw, 300px) at 100% 0, #000 25%, transparent);
 }
 
 /* --- the pitch ------------------------------------------------------------- */
@@ -113,6 +155,19 @@ body::after {
 
 /* --- the drawer as a chalkboard ------------------------------------------- */
 
+/* A chalkboard under the turf while it is a drawer: on a phone it has a tab
+   bar and a grab, and it is the thing you raise over the field. */
 .drawer {
   background: var(--board);
+}
+
+/* From the wide layout it is neither. The tabs are gone and the panels stand
+   side by side under the readout, each its own chalk panel, so the board
+   behind them was only a full-width band of darker green cutting the page in
+   two halfway down. They stand on the turf instead, like the card and the
+   chart above them. */
+@media (min-width: 900px) and (min-height: 561px) {
+  .drawer {
+    background: none;
+  }
 }

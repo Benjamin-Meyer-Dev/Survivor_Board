@@ -137,13 +137,19 @@
   --key-pressed: inset 0 1px 3px rgb(0 0 0 / 45%), 0 1px 0 rgb(0 0 0 / 55%);
 
   /* light -------------------------------------------------------------------
-     Floodlight from above, the end zone's hazard stripes, the shadow a panel
-     casts on the turf. */
+     Floodlight from above, the stadium's two banks of lights and the beams
+     they throw (field.css), the end zone's hazard stripes, the shadow a panel
+     casts on the turf. The banks are a warm white, as the lamps on a stadium's
+     towers are, where the floodlight over the middle is the plain white it
+     always was. */
   --floodlight: radial-gradient(
-    ellipse 90% 40% at 50% -6%,
-    rgb(255 255 255 / 14%),
+    ellipse 70% 45% at 50% -10%,
+    rgb(255 255 255 / 8%),
     transparent 70%
   );
+  --tower-glow: rgb(255 248 220 / 22%);
+  --tower-beam: rgb(255 248 220 / 7%);
+  --tower-beam-2: rgb(255 248 220 / 6%);
   --stripes: repeating-linear-gradient(135deg, rgb(243 247 241 / 9%) 0 5px, transparent 5px 12px);
   --shadow: 0 14px 34px -18px rgb(0 0 0 / 70%);
   --shadow-lift: 0 24px 60px -20px rgb(0 0 0 / 85%);

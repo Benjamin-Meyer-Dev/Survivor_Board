@@ -911,15 +911,28 @@
     display: none;
   }
 
-  /* How the run ended, lined up with the panels above it rather than with the
-     screen: on a phone it is a band the width of the drawer, and here the
-     drawer is two columns that start at 1240 centred. A line of text
-     beginning twenty pixels to the left of the column it closes is a line that
-     belongs to something else. */
-  .review {
-    max-width: 1240px;
+  /* How the run ended, as one more panel under the readout. On a phone it is a
+     band across the drawer's chalkboard; here there is no chalkboard (the
+     drawer stands its panels on the turf, field.css), and a band of paint
+     reaching a gutter past everything above it read as a strip of something
+     else. So it takes the column the card and the chart stand in - the region
+     keeps the gutters, the band inside it the edges - is ruled all round and
+     rounded like the panels it replaces, and is held off the foot of the
+     screen by the air those leave under themselves. The padding is the band's
+     own, now the gutter is outside it. */
+  .drawer__review {
     width: 100%;
-    margin: 0 auto;
+    max-width: 1240px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0 var(--gutter);
+  }
+
+  .review {
+    margin-bottom: calc(var(--sp-5) + env(safe-area-inset-bottom));
+    padding: 12px 18px 14px;
+    border: 2px solid var(--line-strong);
+    border-radius: var(--radius);
   }
 
   /* The band is taller than what it says here, and the lines sit at its foot,
