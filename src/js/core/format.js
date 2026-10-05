@@ -25,6 +25,17 @@ export function escapeHtml(value) {
   );
 }
 
+/* Made once. A formatter is expensive to build and cheap to use, and the card
+   asks for a kickoff for every pick of the season each time it measures its
+   floor (holdEveryWeek in ui/call.js) - two new formatters a game was most of
+   what that cost. */
+const KICKOFF_DAY = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+});
+const KICKOFF_TIME = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
+
 /**
  * When a game kicks off, in the reader's own time: "Sun Sep 13 · 4:25 PM".
  * Nothing for a game the feed has not timed.
@@ -36,13 +47,5 @@ export function formatKickoff(iso) {
   if (!iso) return "";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
-  const day = new Intl.DateTimeFormat("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  }).format(date);
-  const time = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(
-    date,
-  );
-  return `${day} · ${time}`;
+  return `${KICKOFF_DAY.format(date)} · ${KICKOFF_TIME.format(date)}`;
 }

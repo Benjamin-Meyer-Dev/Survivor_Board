@@ -27,9 +27,10 @@ export function renderBench(root, legendEl, board) {
 
   // Card by card (ui/patch.js): a pick marks one card and clears another, and
   // the other thirty to fifty stay as they were rather than being rebuilt for
-  // the tap and again when the search lands.
+  // the tap and again when the search lands. The cards on screen are dealt in
+  // when the tab is opened (data-cascade, ui/tabs.js).
   reconcile(
-    frame(root, `<div class="bench"></div>`),
+    frame(root, `<div class="bench" data-cascade></div>`),
     board.roster
       .map(({ team, rating }, index) => {
         const mark = markFor(board, team);

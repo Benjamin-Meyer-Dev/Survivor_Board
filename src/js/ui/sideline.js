@@ -61,7 +61,8 @@ function coachMark(option) {
 export function renderSideline(root, board, viewWeek, activeSlot, handlers) {
   const week = board.weeks.find((entry) => entry.week === viewWeek) ?? board.weeks[0];
   const pick = week.picks[Math.min(activeSlot, week.picks.length - 1)];
-  const carried = captureState(root);
+  const id = `${pick.week}-${pick.slot}`;
+  const carried = captureState(root, id);
 
   // Bound to the panel's root rather than to each of a hundred-odd rows, which
   // this rebuilds on every render (see ui/events.js).
@@ -76,7 +77,6 @@ export function renderSideline(root, board, viewWeek, activeSlot, handlers) {
     });
   });
 
-  const id = `${pick.week}-${pick.slot}`;
   const locked = Boolean(pick.status.locked);
   const canPick = handlers.canWrite && !locked;
   const available = pick.options.filter((option) => !option.disabled).length;
@@ -115,14 +115,23 @@ export function renderSideline(root, board, viewWeek, activeSlot, handlers) {
  * replaced: how far the panel was scrolled, what was typed in the filter, and
  * which control had focus. Keyed by the slot's id, so a different week starts
  * fresh and the same slot picks up where it was.
+ *
+ * The scroll is read only for the slot it would be given back to. Reading it
+ * makes the browser lay the board out, and the card above has already been
+ * rewritten by then: a step of the pager or a turn of the week, which starts
+ * the list fresh anyway, was paying for a full layout before its first frame.
+ *
+ * @param {HTMLElement} root
+ * @param {string} id The slot about to be drawn.
  */
-function captureState(root) {
+function captureState(root, id) {
   const input = root.querySelector("[data-filter]");
   const panel = root.closest(".drawer__panel");
+  const same = input?.dataset.filter === id;
   const state = {
     id: input?.dataset.filter ?? null,
     filter: input?.value ?? "",
-    scrollTop: panel?.scrollTop ?? 0,
+    scrollTop: same ? (panel?.scrollTop ?? 0) : 0,
     focus: null,
   };
   const active = document.activeElement;

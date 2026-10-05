@@ -137,6 +137,8 @@ function buildTabBar(root) {
 
 /** The panel currently arriving, so a second tab change can cut its entrance. */
 let entering = null;
+/** The rows dealt in with it (cascadeIn). */
+let cascade = [];
 /** The panel on its way out, and the change it belongs to. */
 let leaving = null;
 /** The latest tab change, so one overtaken part way through gives way to it. */
@@ -218,16 +220,76 @@ function applyPanels(activeId, { animate = false, direction = 0, quiet = false }
  * on rather than through playOnce, which would first read offsetWidth to force
  * the browser to drop a finished play - a layout of the whole page for a panel
  * that had nothing to drop.
+ *
+ * The rows dealt in with it are measured first, which does lay the page out
+ * here rather than in the next frame - but once, and nothing written after it
+ * moves a box, so the frame has no layout of its own left to do.
+ *
+ * The classes come off when the last row has landed rather than when the panel
+ * has: the rows run on past the panel's own entrance, and the panel's class is
+ * what is playing them.
  */
 function enter(panel, direction) {
   entering = panel;
   if (direction) panel.style.setProperty("--slide", String(direction));
+  const rows = cascadeIn(panel);
+  cascade = rows;
   panel.classList.add("is-entering", ...(direction ? ["is-directed"] : []));
-  afterMotion(panel, { subtree: false }).then(() => {
+  Promise.all([panel, ...rows].map((node) => afterMotion(node, { subtree: false }))).then(() => {
+    // Overtaken: settlePanels has already taken all of this off.
+    if (cascade !== rows) return;
     panel.classList.remove("is-entering", "is-directed");
     panel.style.removeProperty("--slide");
-    if (entering === panel) entering = null;
+    clearCascade(rows);
+    cascade = [];
+    entering = null;
   });
+}
+
+/**
+ * Mark the rows of the panel's dealt lists (`data-cascade`) that are on screen,
+ * numbered in the order they show, for the stylesheet to deal (motion.css).
+ * The bench is two such lists, the cards and the key under them, whose
+ * swatches are cards too and would otherwise sit still at the foot.
+ *
+ * The ones on screen and no others: a college bench is fifty cards, and a play
+ * for every one of them on top of the panel's own is what made the first
+ * opening stutter - the rest come in with the panel. A count
+ * from the top of the list was the old way of asking, and it asked the wrong
+ * question twice: a phone's open drawer shows more cards than it allowed for,
+ * and a bench left scrolled down came back with nothing dealt at all. So the
+ * count starts at the first card showing, wherever the list was left.
+ *
+ * Read and then written, so the measuring is one layout and not one a row.
+ */
+function cascadeIn(panel) {
+  const all = panel.querySelectorAll("[data-cascade] > *");
+  if (all.length === 0) return [];
+
+  // In page order, so a row below the edge means every row after it is too.
+  const view = panel.getBoundingClientRect();
+  const top = Math.max(view.top, 0);
+  const bottom = Math.min(view.bottom, window.innerHeight);
+  const rows = [];
+  for (const row of all) {
+    const box = row.getBoundingClientRect();
+    if (box.bottom <= top) continue;
+    if (box.top >= bottom) break;
+    rows.push(row);
+  }
+
+  rows.forEach((row, at) => {
+    row.style.setProperty("--at", String(at));
+    row.classList.add("is-cascading");
+  });
+  return rows;
+}
+
+function clearCascade(rows) {
+  for (const row of rows) {
+    row.classList.remove("is-cascading");
+    row.style.removeProperty("--at");
+  }
 }
 
 /** Whatever an earlier change left on the panels, off. */
@@ -235,7 +297,9 @@ function settlePanels(panels) {
   change = null;
   entering?.classList.remove("is-entering", "is-directed");
   leaving?.classList.remove("is-leaving");
+  clearCascade(cascade);
   entering = null;
   leaving = null;
+  cascade = [];
   for (const panel of panels) panel.style.removeProperty("--slide");
 }

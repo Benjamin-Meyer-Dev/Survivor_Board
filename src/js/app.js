@@ -1171,10 +1171,13 @@ function renderSelection(board) {
       if (slot === app.activeSlot) return;
       const before = previewHolds(board, boardInputs().inHand);
       const direction = Math.sign(slot - app.activeSlot);
+      const leaving = leavingSlot();
       app.activeSlot = slot;
       if (lastBoard) renderSelection(lastBoard);
-      playSlotSwap(direction);
+      // Every render this step asks for, before any of it moves: a rebuild
+      // after the swap had started would take the leaving slot down with it.
       followTheBracket(before);
+      playSlotSwap(direction, leaving);
     },
   });
   renderSideline(el.sideline, board, app.viewWeek, app.activeSlot, {
@@ -1196,32 +1199,106 @@ function slotInWeek(board, viewWeek, slot) {
 }
 
 /**
- * Handing the sideline to the other slot, as one movement.
+ * The slot on the card before a step of the pager, read while the page is
+ * still the one that was tapped.
  *
- * The bracket round the active slot travels between the two (the marker in
- * components.css, moved by the index the call writes on the row), and the list
- * under it - which is every row replaced, because it is the other slot's list
- * - comes in from the side the bracket went. Without the second half the
- * outline slid and a hundred rows changed underneath it in the same frame,
- * which read as two things happening rather than one.
- *
- * @param {number} direction -1 for the slot on the left, +1 for the right.
+ * One that was itself still arriving - a second step taken inside the first -
+ * leaves from wherever it had got to rather than from fully in place, so it is
+ * read here, before the render dirties the layout and makes the read cost a
+ * reflow.
  */
-function playSlotSwap(direction) {
-  // Both are already the new pick's: renderSelection ran before this. So each
-  // plays an entrance from the side the step was taken rather than an exit,
-  // which is what a card and a list that are replaced whole can play.
-  for (const node of [
-    el.call?.querySelector(".call__slot"),
-    el.sideline?.querySelector(".sideline"),
-  ]) {
-    if (!node) continue;
-    node.style.setProperty("--slide", String(direction));
-    playOnce(node, ["is-slot-swap"], { subtree: false }).then(() =>
-      node.style.removeProperty("--slide"),
-    );
-  }
+function leavingSlot() {
+  const node = el.call?.querySelector(".call__slot:not(.is-slot-leaving)");
+  if (!node || prefersReducedMotion()) return null;
+  const caught = node.classList.contains("is-slot-arriving") ? getComputedStyle(node) : null;
+  return {
+    node,
+    opacity: caught?.opacity ?? null,
+    transform: caught && caught.transform !== "none" ? caught.transform : null,
+  };
 }
+
+/**
+ * Handing the card and the list to the other pick, as one movement.
+ *
+ * The card hands over from one pick to the other: the slot that was showing
+ * stays on the card just long enough to slide out the way the step went and
+ * fade, and the new one follows it in from the other side. The slot used to be
+ * replaced in a single frame and only the new one moved - from a quarter
+ * opacity, ten pixels over, most of the way home in the first eighty
+ * milliseconds - so what a person saw was the card blink rather than turn.
+ *
+ * The list under it - which is every row replaced, because it is the other
+ * slot's list - comes in from the same side. It is a hundred rows, so it has
+ * no copy to leave with; it arrives on the slot's own curve instead.
+ *
+ * Nothing here reads the layout. The render has just rewritten the card, the
+ * list and the chart, and every read in this task was another pass over the
+ * whole board before the first frame could go out: that pause, then the jump,
+ * was the other half of the step not feeling smooth.
+ *
+ * @param {number} direction -1 for the pick before, +1 for the next.
+ * @param {{node:HTMLElement, opacity:string|null, transform:string|null}|null} leaving
+ *   What leavingSlot() read before the render.
+ */
+function playSlotSwap(direction, leaving) {
+  if (prefersReducedMotion()) return;
+  const slots = el.call?.querySelector(".call__slots");
+  const arriving = slots?.querySelector(":scope > .call__slot:not(.is-slot-leaving)");
+
+  // The pick that was showing, put back over the one replacing it to leave
+  // from. Not if the render kept it - a week of one pick has nowhere to page.
+  const ghost = leaving?.node;
+  if (slots && arriving && ghost && ghost !== arriving && !ghost.isConnected) {
+    // Whatever it was still playing was about the pick, and the pick is going.
+    ghost.classList.remove("is-slot-arriving", "is-data-updated", ...Object.values(EFFECT_FOR));
+    ghost.removeAttribute("data-key");
+    ghost.removeAttribute("data-motion-key");
+    ghost.setAttribute("aria-hidden", "true");
+    ghost.inert = true;
+    if (leaving.opacity !== null) ghost.style.setProperty("--slot-from-opacity", leaving.opacity);
+    if (leaving.transform) ghost.style.setProperty("--slot-from-transform", leaving.transform);
+    slots.append(ghost);
+    swapOnce(ghost, "is-slot-leaving", direction).then(() => ghost.remove());
+  }
+
+  if (arriving) swapOnce(arriving, "is-slot-arriving", direction);
+  const list = el.sideline?.querySelector(".sideline");
+  if (list) swapOnce(list, "is-slot-swap", direction);
+}
+
+/**
+ * One play of a swap class, without a reflow to start it.
+ *
+ * playOnce reads the layout to restart a class that is already on, and waits
+ * by asking for the node's animations at once, which is another full style and
+ * layout pass. Neither is needed for a node that is new to the page or between
+ * plays, and both landed in the same task as the render. So the reflow is only
+ * taken for a list caught mid-swap by a second step, and the wait starts on
+ * the next frame, when the browser has the layout for its own paint anyway.
+ */
+function swapOnce(node, className, direction) {
+  const play = {};
+  swaps.set(node, play);
+  if (node.classList.contains(className)) {
+    node.classList.remove(className);
+    void node.offsetWidth;
+  }
+  node.style.setProperty("--slide", String(direction));
+  node.classList.add(className);
+  return new Promise((resolve) => requestAnimationFrame(resolve))
+    .then(() => afterMotion(node, { subtree: false }))
+    .then(() => {
+      // A later step has started this node's next play, and it is that
+      // play's to clear.
+      if (swaps.get(node) !== play) return;
+      node.classList.remove(className);
+      node.style.removeProperty("--slide");
+    });
+}
+
+/** The latest play on each node swapOnce has moved. */
+const swaps = new WeakMap();
 
 /**
  * The week a turn in this direction would land on, or null at the ends of the
@@ -2474,12 +2551,23 @@ function adoptLeague(ready) {
  * twice (playDataUpdates). The render clears it again as soon as the plan is
  * in, which - now that the wait happens off screen - is this same render.
  *
+ * And placed, not moved into: a board standing in for another has nothing to
+ * travel from, so it is laid out with every transition held (`is-placing` in
+ * motion.css) and the chart draws it where it is rather than morphing the last
+ * pool's marks into it (renderRoute in ui/coach.js).
+ *
  * @param {object} board From readyBoard.
  */
 function paintLeague(board) {
   app.arriving = true;
-  themeFor(app.kind);
-  render({ board });
+  el.board?.classList.add("is-placing");
+  try {
+    themeFor(app.kind);
+    render({ board });
+  } finally {
+    void el.board?.offsetWidth;
+    el.board?.classList.remove("is-placing");
+  }
 }
 
 /**

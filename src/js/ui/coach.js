@@ -238,13 +238,28 @@ function renderRoute(current, markup) {
   const next = template.content.firstElementChild;
   if (!next) return;
   const previousWeek = current.dataset.viewWeek;
+  const nextPlotMarkup = next.querySelector(':scope > [data-key="plot"]')?.innerHTML ?? "";
   // A chart redrawn on the same week is the season changing under it - a lock,
   // an unlock, a pick - and that moves from where it was (morphRoute). A week
-  // turning is the band's move, and the marks just stand in their places.
-  const was =
-    current.isConnected && previousWeek && previousWeek === next.dataset.viewWeek
-      ? captureRoute(current)
-      : null;
+  // turning is the band's move, and the marks just stand in their places. So
+  // does a board put up in place of another (paintLeague in app.js): two
+  // pools of one sport open on the same week, and the marks of the pool that
+  // was left have nothing to say about where this one's go.
+  const sameWeek =
+    current.isConnected &&
+    !current.closest(".is-placing") &&
+    previousWeek &&
+    previousWeek === next.dataset.viewWeek;
+  // Nor does a chart drawn again exactly as it stands. The pager stepping to
+  // the week's other pick reprices the case for another team and leaves every
+  // mark on the plot where it was - but finding where they all stood meant
+  // laying the whole board out, the card and the list freshly rewritten, before
+  // the step's first frame. A morph still running is left to the capture: it
+  // is the one thing that knows where it has got to.
+  const unchanged =
+    sameWeek && !morphs.has(current) && plotsDrawn.get(current) === nextPlotMarkup;
+  const was = sameWeek && !unchanged ? captureRoute(current) : null;
+  plotsDrawn.set(current, nextPlotMarkup);
   settleRoute(current);
 
   current.classList.toggle("route--compared", next.classList.contains("route--compared"));
@@ -341,7 +356,8 @@ function slideBand(band, at) {
   bands.set(band, entry);
 
   if (!was || !band.isConnected || Math.abs(from) < 1e-3) return;
-  if (band.classList.contains("is-week-tracking") || prefersReducedMotion()) return;
+  // Another pool's week is not a column this one is coming from.
+  if (band.closest(".is-week-tracking, .is-placing") || prefersReducedMotion()) return;
   const style = getComputedStyle(band);
   const duration = durationOf(style.getPropertyValue("--route-band-slide"));
   if (!(duration > 0)) return;
@@ -405,6 +421,9 @@ const ROUTE_MARKS = ".route__rule, .route__dot";
 
 /** The morph running in each chart, so the next render can take it over. */
 const morphs = new WeakMap();
+
+/** The plot markup each chart was last drawn from (renderRoute). */
+const plotsDrawn = new WeakMap();
 
 /** Where everything on the chart stands, before a render moves it. */
 function captureRoute(route) {

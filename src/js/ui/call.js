@@ -160,6 +160,9 @@ const latest = new WeakMap();
 /** Cards whose width is already being watched. */
 const watching = new WeakSet();
 
+/** The board and write access each card's floor was last taken for. */
+const measuredFor = new WeakMap();
+
 /**
  * Stand the card at the same height in every week of the season.
  *
@@ -191,6 +194,13 @@ const watching = new WeakSet();
  * now, and a floor that had only ever seen each week's first pick would let
  * the card change height when the pager moved - which is the same jump under
  * the chart, asked for by the same hand, one control along.
+ *
+ * Once per board, not once per render. Paging the card or turning the week
+ * hands this the board it measured last time, and the two things that can
+ * move the floor without a new board - the width and the face - are watched
+ * below. Measuring anyway built the whole season's markup and laid the board
+ * out in the middle of the tap, to arrive at the number it already held: most
+ * of what stood between a tap on the pager and the card starting to move.
  */
 function holdEveryWeek(root, slots, board, canWrite) {
   // The live card only. A week staged for a swipe is rendered into a detached
@@ -211,6 +221,8 @@ function holdEveryWeek(root, slots, board, canWrite) {
     // name that ends up drawn.
     document.fonts?.ready?.then(() => measureEveryWeek(root));
   }
+  const was = measuredFor.get(root);
+  if (was?.board === board && was.canWrite === canWrite) return;
   measureEveryWeek(root);
 }
 
@@ -232,6 +244,7 @@ function measureEveryWeek(root) {
     )
     .join("");
   const key = `${width}|${markup}`;
+  measuredFor.set(root, { board, canWrite });
   if (held.get(root) === key) return;
 
   // One box, one layout: every week stands in it at once and is read in a

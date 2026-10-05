@@ -139,8 +139,12 @@ body::after {
    It replaces a chalk-dust pulse that played over the slot on the tap. That
    said "something happened" for eight hundred milliseconds and then left the
    card looking exactly as it had; this says "this one is settled" and keeps
-   saying it. */
-.call__box:has(.call__slot--locked) {
+   saying it.
+
+   The pick on the card, not one on its way off it: the pager's step leaves the
+   last pick standing over the next for a moment (motion.css), and the line is
+   the next pick's to draw. */
+.call__box:has(.call__slot--locked:not(.is-slot-leaving)) {
   border-style: solid;
 }
 

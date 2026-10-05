@@ -323,11 +323,14 @@
   animation: panel-enter 0.26s var(--ease-out) both;
 }
 
-/* Bench cards arrive in sequence, the order the chart is sorted in - the
-   first dozen, which is what a phone shows above the fold. Every card used to
-   get its own play, fifty of them on a college board, and the first opening of
-   the bench started them all at once on top of the panel's own entrance. The
-   rest arrive with the panel. */
+/* Bench cards arrive in sequence, the order the chart is sorted in - every
+   card on screen as the panel comes in, counted from the first one showing
+   (cascadeIn in ui/tabs.js marks them and numbers them --at). Every card used
+   to get its own play, fifty of them on a college board, and the first
+   opening of the bench started them all at once on top of the panel's own
+   entrance; the cards below the edge still arrive with the panel. It was the
+   first dozen once, which is less than a phone's open drawer shows, and none
+   at all for a bench left scrolled down. */
 @keyframes row-enter {
   from {
     opacity: 0;
@@ -339,9 +342,9 @@
   }
 }
 
-.drawer__panel.is-entering .bench__team:nth-child(-n + 12) {
+.drawer__panel.is-entering .is-cascading {
   animation: row-enter 0.3s var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 5ms);
+  animation-delay: calc(var(--at, 0) * 5ms);
 }
 
 /* The board on its way out while the next pool is being built. The topline
@@ -473,6 +476,22 @@
 
 .shell.is-switching .drawer {
   animation-delay: 0.05s;
+}
+
+/* A board put up in place of another - another pool, another league - is laid
+   out where it will stand before it is shown (paintLeague in app.js), with
+   every transition on it held for that one frame. Without the hold, a pool
+   that has been knocked out (the drawer down to how it ended) and one still
+   running (the drawer shut to its bar) were two different sets of rows on a
+   board that transitions its rows for the raise: `auto` does not travel to a
+   length, so the change was a jump at the midpoint, which the ease puts about
+   seventy milliseconds into the entrance. The readout's track gave up the
+   drawer's height in one frame and the chart, which is what that track has
+   to spare, squashed with every mark on it - the board snapping into place
+   just after it had arrived. */
+.board.is-placing,
+.board.is-placing * {
+  transition: none !important;
 }
 
 /* --- changing data -------------------------------------------------------- */
@@ -1209,19 +1228,48 @@
 
 /* --- the card and its list changing pick ------------------------------------
    A week that takes more than one pick shows one of them at a time, and the
-   pager steps between them (ui/call.js). Both the slot on the card and the
-   list under it are replaced whole when it does, so both come in from the side
-   the step was taken - the card because that is the side-to-side the pager is
-   promising, the list because it belongs to the pick on the card and a list
-   that only repainted read as a second, unrelated change.
+   pager steps between them (ui/call.js). The card hands over from one pick to
+   the other (playSlotSwap in app.js): the slot that was showing slides out the
+   way the step went and fades, and the next follows it in from the other side
+   and glides home. The list under it belongs to the pick on the card, so it
+   comes in from the same side on the same curve - a list that only repainted
+   read as a second, unrelated change.
 
-   Ten pixels, not the width of the card: this is a card answering a tap on a
-   control inside it, not a week being dragged off the screen (the swipe's own
-   travel is in ui/swipe.js). The eye needs the direction, not the distance. */
-@keyframes list-swap {
+   It used to be the entrance alone: the old slot cut out in one frame and the
+   new one appeared at a quarter opacity, ten pixels over, on --ease-out, which
+   had it most of the way home inside eighty milliseconds. Short, front-loaded
+   and starting from a cut, it read as the card blinking rather than turning.
+
+   Still not the width of the card: this is a card answering a tap on a control
+   inside it, not a week being dragged off the screen (the swipe's own travel
+   is in ui/swipe.js). Far enough, and long enough, to be seen to travel, on a
+   curve that eases out of rest as well as into it, so the first frame after
+   the tap is a start rather than a jump.
+
+   The two hand over rather than cross. The leaving pick is gone in a straight
+   fade before the arriving one is a third of the way in, and the arrival's
+   opacity is spent in the first third of its run while its travel takes the
+   whole of it - so the next pick is fully there and gliding home, and the two
+   names are never both on the card at strength. */
+@keyframes slot-leave {
   from {
-    opacity: 0.25;
-    transform: translateX(calc(var(--slide, 1) * 10px));
+    /* A slot caught still arriving leaves from where it had got to. */
+    opacity: var(--slot-from-opacity, 1);
+    transform: var(--slot-from-transform, none);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(calc(var(--slide, 1) * -14px));
+  }
+}
+
+@keyframes slot-arrive {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--slide, 1) * 24px));
+  }
+  35% {
+    opacity: 1;
   }
   to {
     opacity: 1;
@@ -1229,9 +1277,54 @@
   }
 }
 
-.sideline.is-slot-swap,
-.call__slot.is-slot-swap {
-  animation: list-swap 0.22s var(--ease-out) both;
+/* The leaving pick stands over the arriving one, in the same box: the slots
+   are held to one floor (holdEveryWeek in ui/call.js), so the two are the same
+   size and the card does not move under them. */
+.call__slot.is-slot-leaving {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  animation: slot-leave 0.13s linear both;
+}
+
+/* While a step is in flight the card is the window the picks pass through:
+   the next pick's lock came in over the card's right-hand line, a disc and a
+   half wide of it, and the last pick's name went out over the left. Clipped
+   at the inside of the line, and only for the step - at rest nothing on a
+   slot reaches it. `clip` rather than `hidden`, which would make the card a
+   scroll box and let it shrink as one. */
+.call__box:has(> .call__slots > .is-slot-arriving, > .call__slots > .is-slot-leaving) {
+  overflow: clip;
+}
+
+/* A beat behind the one leaving, so the step reads as the first pick making
+   way for the second rather than the two crossing. */
+.call__slot.is-slot-arriving {
+  animation: slot-arrive 0.34s cubic-bezier(0.4, 0, 0.2, 1) 0.07s both;
+}
+
+/* The list has no copy of itself to make way, so it does not wait for one -
+   and it does not fade from nothing either. Two picks' lists are mostly the
+   same rows in the same order, and with the drawer up they are most of the
+   screen: brought in from nothing, a list that had barely changed went dark
+   for a beat. It dips a little, to cover the cut, and slides a shorter way on
+   the card's own curve. */
+@keyframes list-arrive {
+  from {
+    opacity: 0.4;
+    transform: translateX(calc(var(--slide, 1) * 16px));
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sideline.is-slot-swap {
+  animation: list-arrive 0.34s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 /* --- marks on the board ----------------------------------------------------

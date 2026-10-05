@@ -1842,6 +1842,9 @@ button.league-bar__face[aria-expanded="true"] {
    to it, so the reserved pixels are air under the name rather than under the
    card, and the game line holds the foot of the slot as it already does. */
 .call__slots {
+  /* For the pick leaving as the pager steps (motion.css, is-slot-leaving),
+     which stands over the one arriving rather than over the whole card. */
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 8px;
@@ -3723,13 +3726,14 @@ button.league-bar__face[aria-expanded="true"] {
    that is about the season rather than this week. Read at the contrast of the
    other spoken-for rows - it is a record you go looking for, not small print
    to squint at - and the band is fenced off from the week's own games by a
-   rule on its first row, so the weeks below read as a group. */
+   rule on its first row, so the weeks below read as a group. The rule is the
+   whole of the fence: the band sits at the list's own spacing, with no gap
+   opened above it. */
 .sideline__row--spent {
   opacity: 0.6;
 }
 
 .sideline__row:not(.sideline__row--spent) + .sideline__row--spent {
-  margin-top: 8px;
   border-top: 1px solid var(--line);
 }
 
