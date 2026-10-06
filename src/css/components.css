@@ -2787,12 +2787,18 @@ button.league-bar__face[aria-expanded="true"] {
    compared. It is the field's bracket in another hand: one week wide, standing
    on the week the card is showing, and carrying the same --week-turn while a
    drag turns the week under it (trackFieldTurn in app.js) - the chart holds
-   still through the turn, so this is the part of it that moves. */
+   still through the turn, so this is the part of it that moves.
+
+   It stops on the x axis rather than running through it: the frame's foot is
+   a pixel under the plot (.route__plot::before), so a bottom of nought sets
+   the band down on the line, square-cornered there so it sits flat on it.
+   Hanging four pixels past was a column that went on under the reading's
+   floor and into the row of week numbers. */
 .route__band {
   position: absolute;
   top: -4px;
-  bottom: -4px;
-  border-radius: 3px;
+  bottom: 0;
+  border-radius: 3px 3px 0 0;
   background: rgb(243 247 241 / 6%);
   transform: translateX(calc(var(--week-turn, 0) * 100%));
 }

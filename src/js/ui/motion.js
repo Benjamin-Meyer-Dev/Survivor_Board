@@ -158,6 +158,155 @@ export async function ownMotion(node, classes, { subtree = true } = {}) {
   await Promise.race([finished, wait(GUARD_MS)]);
 }
 
+/**
+ * ownMotion for a play made in the same task as a render: the class's own
+ * keyframes and timing, run from script, without asking the browser for the
+ * animations the class has started.
+ *
+ * Asking is what costs. Each time ownMotion asks, the page is laid out first -
+ * right after a render, a pass over the whole board - and the motion it has
+ * just taken over lays it out again before the next question. On the pager's
+ * step that was two passes on top of the frame's own before anything moved.
+ * Here the keyframes come from the stylesheet itself, read once per name, and
+ * the timing from the node's computed style with the class on: one look for
+ * every node, and nothing it starts lays the page out again. Inside a size
+ * container that one look is a layout too, since the node's style hangs on the
+ * container's size - but it is the layout the frame was about to make, made a
+ * moment early, and the frame then has none of its own to do.
+ *
+ * The custom properties the keyframes read are the node's own, taken in the
+ * same look and written into the keyframes as they are made, so they are only
+ * needed until this returns. A keyframe handed to animate() is not something
+ * every browser resolves var() in.
+ *
+ * Each node is one animation: the class names a single animation on it.
+ *
+ * @param {Array<[Element, string]>} plays Each node and the class to play.
+ * @returns {Promise<void>} Resolves when the last of them has finished.
+ */
+export async function ownKeyframes(plays) {
+  if (prefersReducedMotion()) return;
+  const live = plays.filter(([node]) => node?.isConnected);
+  for (const [node, name] of live) node.classList.add(name);
+  // One style pass for all of them: the first read takes it, the rest find
+  // the style already worked out.
+  const read = live.map(([node]) => {
+    const style = getComputedStyle(node);
+    const keyframes = keyframesNamed(style.animationName);
+    return (
+      keyframes && {
+        node,
+        // A CSS animation's timing function eases each stretch between two
+        // keyframes, not the run as a whole, which is what an effect's own
+        // easing does - and a keyframe can name its own.
+        frames: keyframes.map((frame) =>
+          resolveVars({ easing: style.animationTimingFunction, ...frame }, style),
+        ),
+        timing: {
+          duration: durationOf(style.animationDuration),
+          delay: durationOf(style.animationDelay),
+          fill: style.animationFillMode,
+          direction: style.animationDirection,
+          iterations:
+            style.animationIterationCount === "infinite"
+              ? Infinity
+              : Number(style.animationIterationCount),
+        },
+      }
+    );
+  });
+  for (const [node, name] of live) node.classList.remove(name);
+
+  const owned = read
+    .filter(Boolean)
+    .map(({ node, frames, timing }) => node.animate(frames, timing));
+  if (owned.length === 0) return;
+  const finished = Promise.allSettled(owned.map((animation) => animation.finished));
+  await Promise.race([finished, wait(GUARD_MS)]);
+}
+
+/** Every @keyframes rule read so far, by name, as animate() takes them. */
+const keyframeRules = new Map();
+
+/**
+ * A @keyframes rule as a list of keyframes, with each value as written - var()
+ * and all, for resolveVars to fill in per play.
+ */
+function keyframesNamed(name) {
+  if (!name || name === "none") return null;
+  // A name not found is not remembered: a sheet still loading has it later.
+  if (!keyframeRules.has(name)) {
+    const found = findKeyframes(name);
+    if (found) keyframeRules.set(name, found);
+    return found;
+  }
+  return keyframeRules.get(name);
+}
+
+function findKeyframes(name) {
+  const search = (rules) => {
+    for (const rule of rules) {
+      if (rule instanceof globalThis.CSSKeyframesRule && rule.name === name) return rule;
+      const inner = rule.cssRules ? search(rule.cssRules) : null;
+      if (inner) return inner;
+    }
+    return null;
+  };
+  for (const sheet of document.styleSheets) {
+    let rules;
+    try {
+      rules = sheet.cssRules;
+    } catch {
+      // Another origin's sheet keeps its rules to itself.
+      continue;
+    }
+    const rule = search(rules);
+    if (!rule) continue;
+    return [...rule.cssRules]
+      .flatMap((frame) =>
+        frame.keyText.split(",").map((key) => {
+          const at = key.trim();
+          const offset = at === "from" ? 0 : at === "to" ? 1 : parseFloat(at) / 100;
+          const keyframe = { offset };
+          for (const property of frame.style) {
+            const value = frame.style.getPropertyValue(property);
+            if (property === "animation-timing-function") keyframe.easing = value;
+            else
+              keyframe[property.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = value;
+          }
+          return keyframe;
+        }),
+      )
+      .sort((a, b) => a.offset - b.offset);
+  }
+  return null;
+}
+
+/** var(--name, fallback) in a keyframe's values, filled in from `style`. */
+function resolveVars(frame, style) {
+  const resolved = {};
+  for (const [key, value] of Object.entries(frame)) {
+    resolved[key] =
+      typeof value === "string"
+        ? value.replace(
+            /var\(\s*(--[\w-]+)\s*(?:,\s*((?:[^()]|\([^()]*\))*))?\)/g,
+            (_, property, fallback) => {
+              return style.getPropertyValue(property).trim() || (fallback ?? "").trim();
+            },
+          )
+        : value;
+  }
+  return resolved;
+}
+
+/** A CSS time as milliseconds: a duration a script-run motion reads off the stylesheet. */
+export function durationOf(value) {
+  const text = value.trim();
+  const amount = parseFloat(text);
+  if (!Number.isFinite(amount)) return 0;
+  return text.endsWith("ms") ? amount : amount * 1000;
+}
+
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

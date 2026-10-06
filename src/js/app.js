@@ -59,7 +59,7 @@ import { afterMotion, playOnce, prefersReducedMotion, twoFrames } from "./ui/mot
 import { renderHome, closeHomePanels, markOpening, playLeagueExit } from "./ui/home.js";
 import { renderPitch, markViewing } from "./ui/pitch.js";
 import { renderCall } from "./ui/call.js";
-import { renderCoach } from "./ui/coach.js";
+import { renderCoach, leavingChain, stepChain } from "./ui/coach.js";
 import { renderSideline } from "./ui/sideline.js";
 import { renderBench } from "./ui/bench.js";
 import { renderNotices, renderReview } from "./ui/notices.js";
@@ -1172,12 +1172,14 @@ function renderSelection(board) {
       const before = previewHolds(board, boardInputs().inHand);
       const direction = Math.sign(slot - app.activeSlot);
       const leaving = leavingSlot();
+      const chain = leavingChain(el.coach);
       app.activeSlot = slot;
       if (lastBoard) renderSelection(lastBoard);
       // Every render this step asks for, before any of it moves: a rebuild
       // after the swap had started would take the leaving slot down with it.
       followTheBracket(before);
       playSlotSwap(direction, leaving);
+      stepChain(el.coach, direction, chain);
     },
   });
   renderSideline(el.sideline, board, app.viewWeek, app.activeSlot, {

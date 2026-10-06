@@ -50,7 +50,7 @@
 import { formatPercent, formatSpread, escapeHtml } from "../core/format.js";
 import { TIER_LABEL } from "../core/probability.js";
 import { frame, reconcile } from "./patch.js";
-import { ownMotion, prefersReducedMotion } from "./motion.js";
+import { durationOf, ownKeyframes, ownMotion, prefersReducedMotion } from "./motion.js";
 import { delegate } from "./events.js";
 
 /**
@@ -256,8 +256,7 @@ function renderRoute(current, markup) {
   // laying the whole board out, the card and the list freshly rewritten, before
   // the step's first frame. A morph still running is left to the capture: it
   // is the one thing that knows where it has got to.
-  const unchanged =
-    sameWeek && !morphs.has(current) && plotsDrawn.get(current) === nextPlotMarkup;
+  const unchanged = sameWeek && !morphs.has(current) && plotsDrawn.get(current) === nextPlotMarkup;
   const was = sameWeek && !unchanged ? captureRoute(current) : null;
   plotsDrawn.set(current, nextPlotMarkup);
   settleRoute(current);
@@ -708,14 +707,6 @@ function along(points, x) {
   return points.length === 1 && Math.abs(points[0][0] - x) < 0.01 ? points[0][1] : null;
 }
 
-/** A CSS time as milliseconds. */
-function durationOf(value) {
-  const text = value.trim();
-  const amount = parseFloat(text);
-  if (!Number.isFinite(amount)) return 0;
-  return text.endsWith("ms") ? amount : amount * 1000;
-}
-
 /**
  * What there is to show for the week: the team to price, the opening it is
  * part of, and that opening's simulations when the coach ran them.
@@ -966,6 +957,95 @@ function cross(panel) {
   ownMotion(focus, ["coach__focus--sealing"]).then(() => {
     focus.querySelector(".coach__focus-say--gone")?.remove();
     focus.querySelector(".coach__focus-ring")?.remove();
+  });
+}
+
+/** The chains a step of the card's pager is still bringing in, each to its play (stepChain). */
+const arrivals = new WeakMap();
+
+/**
+ * The chain on the page before a step of the card's pager, read while the page
+ * is still the one that was tapped - leavingSlot in app.js, for the case.
+ *
+ * A chain still arriving from a step taken a moment ago leaves from where it
+ * had got to, so that one is read here, before the render dirties the layout
+ * and makes the read cost a reflow.
+ *
+ * @param {HTMLElement|null} root
+ * @returns {{node:HTMLElement, opacity:string|null, transform:string|null}|null}
+ */
+export function leavingChain(root) {
+  const node = root?.querySelector(":scope > .coach > .coach__page > .chain:not(.chain--gone)");
+  if (!node || prefersReducedMotion()) return null;
+  const caught = arrivals.has(node) ? getComputedStyle(node) : null;
+  return {
+    node,
+    opacity: caught?.opacity ?? null,
+    transform: caught && caught.transform !== "none" ? caught.transform : null,
+  };
+}
+
+/**
+ * Hand the chain to the other pick with the card, the way the card's slot is
+ * handed over (playSlotSwap in app.js): the chain that was showing slides out
+ * the way the step went and fades, and the next pick's follows it in from the
+ * other side. Same keyframes, same timings - the chain prices the team on the
+ * card, and a row of figures that cut while the card above it turned read as
+ * the two being about different things.
+ *
+ * The render has already replaced the page, so the chain that was showing is
+ * off it, and goes back on over its successor to leave from. It is set against
+ * the foot of the page, which is where the chain stands, so it lands on it
+ * without being measured.
+ *
+ * Run from script, since this box cancels the CSS animations inside it - and
+ * by ownKeyframes rather than ownMotion. ownMotion asks for the animations it
+ * is taking over, and every time it asked, right after the render, it laid the
+ * board out again: two more passes before the first frame went out, which is
+ * the very pause the card's step was cut down to be rid of. ownKeyframes lays
+ * it out once, and that once is the layout the frame was going to make.
+ *
+ * @param {HTMLElement|null} root
+ * @param {number} direction -1 for the pick before, +1 for the next.
+ * @param {ReturnType<typeof leavingChain>} leaving
+ */
+export function stepChain(root, direction, leaving) {
+  if (prefersReducedMotion()) return;
+  const page = root?.querySelector(":scope > .coach > .coach__page");
+  const arriving = page?.querySelector(":scope > .chain");
+  // Kept by the render: the same figures, with nothing to hand over.
+  if (!arriving || arriving === leaving?.node) return;
+
+  const ghost = leaving && !leaving.node.isConnected ? leaving.node : null;
+  if (ghost) {
+    // No longer arriving, so not that arrival's to tidy at the end. What it
+    // was still playing of it is left to run out under the leave, which is
+    // made later and so wins: cancelling it would mean asking the node for
+    // its animations, and that is a layout of its own.
+    arrivals.delete(ghost);
+    ghost.classList.add("chain--gone");
+    ghost.removeAttribute("data-key");
+    ghost.setAttribute("aria-hidden", "true");
+    ghost.inert = true;
+    if (leaving.opacity !== null) ghost.style.setProperty("--slot-from-opacity", leaving.opacity);
+    if (leaving.transform) ghost.style.setProperty("--slot-from-transform", leaving.transform);
+    page.append(ghost);
+  }
+  const play = {};
+  arrivals.set(arriving, play);
+  // On the chains and not the page, which a drag across the board writes its
+  // own --slide on (SLIDING in app.js). It is read into the keyframes as they
+  // are made, which is before ownKeyframes returns, so the arriving one is
+  // done with it at once; the ghost takes its own away when it goes.
+  arriving.style.setProperty("--slide", String(direction));
+  ghost?.style.setProperty("--slide", String(direction));
+  const plays = [[arriving, "is-slot-arriving"]];
+  if (ghost) plays.push([ghost, "is-slot-leaving"]);
+  const played = ownKeyframes(plays);
+  arriving.style.removeProperty("--slide");
+  played.then(() => {
+    ghost?.remove();
+    if (arrivals.get(arriving) === play) arrivals.delete(arriving);
   });
 }
 
@@ -1848,6 +1928,17 @@ function reveal(plot, clientX, { toggle = false } = {}) {
   callout.style.top = `${y.toFixed(2)}%`;
   // Which column it is quoting, so the next tap on that one knows to close it.
   callout.dataset.at = nearest.dataset.at;
+  // Opening, it grows in from the mark (growCallout, at the end). Already open
+  // - a mouse moving along the chart - it only follows. A grow still running
+  // is taken off the box while it is measured below, because the grow scales
+  // it toward its mark and a box measured small hangs from the wrong end; it
+  // goes on running, and is put back on once the measuring is done.
+  const opening = callout.hidden;
+  const grow = growing.get(callout);
+  if (grow) {
+    if (opening) grow.cancel();
+    else grow.effect.target = null;
+  }
   callout.hidden = false;
 
   // Which end it hangs from is measured rather than guessed at. It was a fifth
@@ -1895,4 +1986,40 @@ function reveal(plot, clientX, { toggle = false } = {}) {
   if (placed.bottom > clipBox.bottom) nudge = clipBox.bottom - placed.bottom;
   if (placed.top + nudge < clipBox.top) nudge = clipBox.top - placed.top;
   if (nudge) callout.style.setProperty("--nudge-y", `${Math.round(nudge)}px`);
+
+  if (opening) growCallout(callout);
+  else if (grow) grow.effect.target = callout;
+}
+
+/** Each callout's grow while it is still opening (growCallout). */
+const growing = new WeakMap();
+
+/**
+ * Grow the callout out of its mark as it opens: a shade under its size and
+ * nothing, to its size and full chalk, so a tap is answered from the place it
+ * landed rather than by a box that is simply there.
+ *
+ * By script, as the band is moved (slideBand): the case cancels the CSS
+ * animations inside it. The duration is the stylesheet's (motion.css), and so
+ * is the corner it grows from, which is the mark.
+ *
+ * @param {HTMLElement} callout
+ */
+function growCallout(callout) {
+  if (prefersReducedMotion()) return;
+  const style = getComputedStyle(callout);
+  const duration = durationOf(style.getPropertyValue("--route-callout-open"));
+  if (!(duration > 0)) return;
+  const grow = callout.animate(
+    [
+      { opacity: 0, scale: "0.92" },
+      { opacity: 1, scale: "1" },
+    ],
+    { duration, easing: style.getPropertyValue("--ease-out").trim() || "ease-out" },
+  );
+  growing.set(callout, grow);
+  const done = () => {
+    if (growing.get(callout) === grow) growing.delete(callout);
+  };
+  grow.finished.then(done, done);
 }

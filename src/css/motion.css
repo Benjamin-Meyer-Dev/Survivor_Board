@@ -806,6 +806,20 @@
   --route-band-slide: 0.2s;
 }
 
+/* The chart's callout grows out of the mark it is quoting as it opens: from a
+   shade under its size and nothing, to its size and full chalk (growCallout in
+   ui/coach.js). Played from script for the band's reason, so this is only the
+   duration it reads.
+
+   It grows from its own top-left corner because that corner is the mark: its
+   `left` and `top` put the corner there, and its transform only slides the box
+   off it to whichever side it hangs. So it comes out of the mark above, below,
+   or from either end, without being told which. */
+.route__callout {
+  --route-callout-open: 0.16s;
+  transform-origin: 0 0;
+}
+
 /* A swipe expresses its progress as a fraction of the one-yard trip. It is
    under the finger until release; the release then shares the page's settle
    below. Both marks that follow the week wear it. */
@@ -1284,6 +1298,10 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+
+.call__slot.is-slot-leaving,
+.chain.is-slot-leaving {
   animation: slot-leave 0.13s linear both;
 }
 
@@ -1299,8 +1317,30 @@
 
 /* A beat behind the one leaving, so the step reads as the first pick making
    way for the second rather than the two crossing. */
-.call__slot.is-slot-arriving {
+.call__slot.is-slot-arriving,
+.chain.is-slot-arriving {
   animation: slot-arrive 0.34s cubic-bezier(0.4, 0, 0.2, 1) 0.07s both;
+}
+
+/* The coach's chain prices the pick on the card, so it changes hands with it
+   on the same two keyframes (stepChain in ui/coach.js). Played from script -
+   the case cancels CSS animations inside it - so the classes are only read
+   for their keyframes and timing (ownKeyframes in ui/motion.js) and come
+   straight off again, and what holds the leaving chain in place is a class of
+   its own that stays on until it goes.
+
+   It stands at the foot of the page, which is where the chain is: the page is
+   the head and then the chain, so the two land on each other unmeasured. It
+   rests at nothing, so a copy the keyframe never reached shows nothing. */
+.coach__page:has(> .chain--gone) {
+  position: relative;
+}
+
+.chain.chain--gone {
+  position: absolute;
+  inset: auto 0 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* The list has no copy of itself to make way, so it does not wait for one -
