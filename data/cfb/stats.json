@@ -1,6 +1,6 @@
 {
   "$comment": "Written by scripts/pull-stats.mjs from CollegeFootballData game PPA. Never edit by hand. One record per team per game, keyed \"<week>|<team>\" like odds.json: `margin` is the team's offensive expected points added less its opponent's, capped, and is what the rating fit in form.json reads as an efficiency observation. The other fields say where it came from.",
-  "updatedAt": "2026-10-15T13:00:33Z",
+  "updatedAt": "2026-10-16T13:00:27Z",
   "source": "https://api.collegefootballdata.com/ppa/games",
   "season": 2026,
   "games": {
@@ -486,11 +486,11 @@
     },
     "1|Georgia Southern": {
       "opponent": "Charleston Southern",
-      "margin": 34.3,
-      "offensePerPlay": 0.19,
+      "margin": 33.6,
+      "offensePerPlay": 0.18,
       "defensePerPlay": 0.3,
       "passingPerPlay": 0.35,
-      "rushingPerPlay": -0.03
+      "rushingPerPlay": -0.08
     },
     "1|Georgia State": {
       "opponent": "North Carolina A&T",
