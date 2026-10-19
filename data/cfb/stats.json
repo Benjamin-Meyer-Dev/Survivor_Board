@@ -1,6 +1,6 @@
 {
   "$comment": "Written by scripts/pull-stats.mjs from CollegeFootballData game PPA. Never edit by hand. One record per team per game, keyed \"<week>|<team>\" like odds.json: `margin` is the team's offensive expected points added less its opponent's, capped, and is what the rating fit in form.json reads as an efficiency observation. The other fields say where it came from.",
-  "updatedAt": "2026-10-18T13:01:12Z",
+  "updatedAt": "2026-10-19T13:01:06Z",
   "source": "https://api.collegefootballdata.com/ppa/games",
   "season": 2026,
   "games": {
@@ -6190,65 +6190,65 @@
     },
     "7|Arkansas": {
       "opponent": "Vanderbilt",
-      "margin": 7,
-      "offensePerPlay": 0.2,
+      "margin": 11.9,
+      "offensePerPlay": 0.27,
       "defensePerPlay": -0.1,
       "passingPerPlay": 0.39,
-      "rushingPerPlay": 0.09
+      "rushingPerPlay": 0.2
     },
     "7|Arkansas State": {
       "opponent": "Southern Miss",
-      "margin": 22.4,
-      "offensePerPlay": 0.06,
+      "margin": 24.5,
+      "offensePerPlay": 0.09,
       "defensePerPlay": 0.26,
       "passingPerPlay": 0.25,
-      "rushingPerPlay": -0.07
+      "rushingPerPlay": -0.02
     },
     "7|Army": {
       "opponent": "Florida Atlantic",
-      "margin": 32.2,
+      "margin": 28,
       "offensePerPlay": 0.61,
-      "defensePerPlay": -0.15,
+      "defensePerPlay": -0.21,
       "passingPerPlay": -0.7,
       "rushingPerPlay": 0.67
     },
     "7|Auburn": {
       "opponent": "Georgia",
-      "margin": 7.7,
+      "margin": 8.4,
       "offensePerPlay": 0.21,
-      "defensePerPlay": -0.1,
+      "defensePerPlay": -0.09,
       "passingPerPlay": 0.21,
       "rushingPerPlay": 0.21
     },
     "7|Ball State": {
       "opponent": "Bowling Green",
-      "margin": 7,
-      "offensePerPlay": 0.22,
+      "margin": 11.9,
+      "offensePerPlay": 0.29,
       "defensePerPlay": -0.12,
       "passingPerPlay": 0.57,
-      "rushingPerPlay": -0.04
+      "rushingPerPlay": 0.07
     },
     "7|Baylor": {
       "opponent": "TCU",
-      "margin": -10.5,
-      "offensePerPlay": -0.15,
-      "defensePerPlay": 0,
-      "passingPerPlay": -0.01,
+      "margin": -9.8,
+      "offensePerPlay": -0.17,
+      "defensePerPlay": 0.03,
+      "passingPerPlay": -0.04,
       "rushingPerPlay": -0.43
     },
     "7|Boston College": {
       "opponent": "Pittsburgh",
-      "margin": -0.7,
-      "offensePerPlay": 0.07,
+      "margin": -1.4,
+      "offensePerPlay": 0.06,
       "defensePerPlay": -0.08,
       "passingPerPlay": 0.52,
-      "rushingPerPlay": -0.23
+      "rushingPerPlay": -0.24
     },
     "7|Bowling Green": {
       "opponent": "Ball State",
-      "margin": -7,
+      "margin": -11.9,
       "offensePerPlay": 0.12,
-      "defensePerPlay": -0.22,
+      "defensePerPlay": -0.29,
       "passingPerPlay": 0.24,
       "rushingPerPlay": 0.03
     },
@@ -6272,7 +6272,7 @@
       "opponent": "Wake Forest",
       "margin": -35,
       "offensePerPlay": -0.2,
-      "defensePerPlay": -0.52,
+      "defensePerPlay": -0.5,
       "passingPerPlay": -0.22,
       "rushingPerPlay": -0.03
     },
@@ -6322,15 +6322,15 @@
       "offensePerPlay": 0.1,
       "defensePerPlay": -0.01,
       "passingPerPlay": 0.18,
-      "rushingPerPlay": 0.21
+      "rushingPerPlay": 0.2
     },
     "7|Colorado State": {
       "opponent": "Texas State",
-      "margin": -28,
-      "offensePerPlay": 0.17,
+      "margin": -31.5,
+      "offensePerPlay": 0.12,
       "defensePerPlay": -0.57,
       "passingPerPlay": 0.04,
-      "rushingPerPlay": 0.39
+      "rushingPerPlay": 0.27
     },
     "7|Delaware": {
       "opponent": "Middle Tennessee",
@@ -6346,23 +6346,23 @@
       "offensePerPlay": 0.08,
       "defensePerPlay": -0.12,
       "passingPerPlay": 0.32,
-      "rushingPerPlay": -0.25
+      "rushingPerPlay": -0.26
     },
     "7|East Carolina": {
       "opponent": "UAB",
-      "margin": -19.6,
-      "offensePerPlay": -0.17,
-      "defensePerPlay": -0.11,
-      "passingPerPlay": -0.3,
-      "rushingPerPlay": -0.05
+      "margin": -21,
+      "offensePerPlay": -0.2,
+      "defensePerPlay": -0.1,
+      "passingPerPlay": -0.18,
+      "rushingPerPlay": -0.16
     },
     "7|Eastern Michigan": {
       "opponent": "Toledo",
-      "margin": -30.8,
-      "offensePerPlay": -0.21,
+      "margin": -32.2,
+      "offensePerPlay": -0.23,
       "defensePerPlay": -0.23,
       "passingPerPlay": -0.1,
-      "rushingPerPlay": -0.48
+      "rushingPerPlay": -0.52
     },
     "7|Florida": {
       "opponent": "Texas",
@@ -6374,10 +6374,10 @@
     },
     "7|Florida Atlantic": {
       "opponent": "Army",
-      "margin": -32.2,
-      "offensePerPlay": 0.15,
+      "margin": -28,
+      "offensePerPlay": 0.21,
       "defensePerPlay": -0.61,
-      "passingPerPlay": 0.28,
+      "passingPerPlay": 0.36,
       "rushingPerPlay": 0.17
     },
     "7|FIU": {
@@ -6406,17 +6406,17 @@
     },
     "7|Georgia": {
       "opponent": "Auburn",
-      "margin": -7.7,
-      "offensePerPlay": 0.1,
+      "margin": -8.4,
+      "offensePerPlay": 0.09,
       "defensePerPlay": -0.21,
-      "passingPerPlay": 0.31,
+      "passingPerPlay": 0.29,
       "rushingPerPlay": 0.12
     },
     "7|Georgia Southern": {
       "opponent": "Old Dominion",
-      "margin": 26.6,
+      "margin": 27.3,
       "offensePerPlay": 0.18,
-      "defensePerPlay": 0.2,
+      "defensePerPlay": 0.21,
       "passingPerPlay": 0.25,
       "rushingPerPlay": 0.12
     },
@@ -6446,17 +6446,17 @@
     },
     "7|Houston": {
       "opponent": "Oklahoma State",
-      "margin": 5.6,
-      "offensePerPlay": 0.37,
+      "margin": 3.5,
+      "offensePerPlay": 0.34,
       "defensePerPlay": -0.29,
       "passingPerPlay": 0.67,
-      "rushingPerPlay": 0.08
+      "rushingPerPlay": 0.05
     },
     "7|Indiana": {
       "opponent": "Ohio State",
-      "margin": -4.2,
+      "margin": -2.8,
       "offensePerPlay": 0.01,
-      "defensePerPlay": -0.07,
+      "defensePerPlay": -0.05,
       "passingPerPlay": 0.37,
       "rushingPerPlay": -0.44
     },
@@ -6478,35 +6478,35 @@
     },
     "7|Kansas": {
       "opponent": "Kansas State",
-      "margin": -14.7,
+      "margin": -13.3,
       "offensePerPlay": 0.03,
-      "defensePerPlay": -0.24,
+      "defensePerPlay": -0.22,
       "passingPerPlay": 0.03,
       "rushingPerPlay": 0.22
     },
     "7|Kansas State": {
       "opponent": "Kansas",
-      "margin": 14.7,
-      "offensePerPlay": 0.24,
+      "margin": 13.3,
+      "offensePerPlay": 0.22,
       "defensePerPlay": -0.03,
       "passingPerPlay": 0.3,
-      "rushingPerPlay": 0.2
+      "rushingPerPlay": 0.17
     },
     "7|Kennesaw State": {
       "opponent": "Missouri State",
-      "margin": 4.2,
-      "offensePerPlay": 0.08,
+      "margin": 4.9,
+      "offensePerPlay": 0.09,
       "defensePerPlay": -0.02,
-      "passingPerPlay": 0.24,
+      "passingPerPlay": 0.26,
       "rushingPerPlay": -0.16
     },
     "7|Kent State": {
       "opponent": "South Florida",
-      "margin": -19.6,
-      "offensePerPlay": -0.35,
+      "margin": -14.7,
+      "offensePerPlay": -0.28,
       "defensePerPlay": 0.07,
       "passingPerPlay": -0.19,
-      "rushingPerPlay": -0.51
+      "rushingPerPlay": -0.35
     },
     "7|Kentucky": {
       "opponent": "Oklahoma",
@@ -6527,10 +6527,10 @@
     "7|Louisiana Tech": {
       "opponent": "UL Monroe",
       "margin": 33.6,
-      "offensePerPlay": 0.18,
-      "defensePerPlay": 0.3,
-      "passingPerPlay": 0.35,
-      "rushingPerPlay": 0.07
+      "offensePerPlay": 0.13,
+      "defensePerPlay": 0.35,
+      "passingPerPlay": 0.33,
+      "rushingPerPlay": 0.02
     },
     "7|Louisville": {
       "opponent": "Syracuse",
@@ -6550,9 +6550,9 @@
     },
     "7|Maryland": {
       "opponent": "Rutgers",
-      "margin": -14,
+      "margin": -12.6,
       "offensePerPlay": 0.16,
-      "defensePerPlay": -0.36,
+      "defensePerPlay": -0.34,
       "passingPerPlay": 0.12,
       "rushingPerPlay": 0.38
     },
@@ -6622,27 +6622,27 @@
     },
     "7|Missouri": {
       "opponent": "Ole Miss",
-      "margin": -31.5,
-      "offensePerPlay": -0.09,
+      "margin": -27.3,
+      "offensePerPlay": -0.03,
       "defensePerPlay": -0.36,
       "passingPerPlay": 0.17,
-      "rushingPerPlay": -0.59
+      "rushingPerPlay": -0.39
     },
     "7|Missouri State": {
       "opponent": "Kennesaw State",
-      "margin": -4.2,
+      "margin": -4.9,
       "offensePerPlay": 0.02,
-      "defensePerPlay": -0.08,
+      "defensePerPlay": -0.09,
       "passingPerPlay": 0.33,
       "rushingPerPlay": -0.21
     },
     "7|Navy": {
       "opponent": "UTSA",
-      "margin": 11.2,
-      "offensePerPlay": 0.43,
+      "margin": 9.8,
+      "offensePerPlay": 0.41,
       "defensePerPlay": -0.27,
       "passingPerPlay": 0.98,
-      "rushingPerPlay": 0.38
+      "rushingPerPlay": 0.36
     },
     "7|Nebraska": {
       "opponent": "Oregon",
@@ -6689,7 +6689,7 @@
       "margin": -11.2,
       "offensePerPlay": 0.15,
       "defensePerPlay": -0.31,
-      "passingPerPlay": -0.05,
+      "passingPerPlay": -0.04,
       "rushingPerPlay": 0.59
     },
     "7|Northwestern": {
@@ -6711,18 +6711,18 @@
     "7|Ohio": {
       "opponent": "Sacramento State",
       "margin": 35,
-      "offensePerPlay": 0.52,
+      "offensePerPlay": 0.48,
       "defensePerPlay": 0.15,
-      "passingPerPlay": 0.71,
+      "passingPerPlay": 0.58,
       "rushingPerPlay": 0.46
     },
     "7|Ohio State": {
       "opponent": "Indiana",
-      "margin": 4.2,
-      "offensePerPlay": 0.07,
+      "margin": 2.8,
+      "offensePerPlay": 0.05,
       "defensePerPlay": -0.01,
       "passingPerPlay": 0.15,
-      "rushingPerPlay": -0.1
+      "rushingPerPlay": -0.13
     },
     "7|Oklahoma": {
       "opponent": "Kentucky",
@@ -6734,25 +6734,25 @@
     },
     "7|Oklahoma State": {
       "opponent": "Houston",
-      "margin": -5.6,
+      "margin": -3.5,
       "offensePerPlay": 0.29,
-      "defensePerPlay": -0.37,
+      "defensePerPlay": -0.34,
       "passingPerPlay": 0.53,
       "rushingPerPlay": 0.04
     },
     "7|Old Dominion": {
       "opponent": "Georgia Southern",
-      "margin": -26.6,
-      "offensePerPlay": -0.2,
+      "margin": -27.3,
+      "offensePerPlay": -0.21,
       "defensePerPlay": -0.18,
       "passingPerPlay": 0.16,
-      "rushingPerPlay": -0.47
+      "rushingPerPlay": -0.49
     },
     "7|Ole Miss": {
       "opponent": "Missouri",
-      "margin": 31.5,
+      "margin": 27.3,
       "offensePerPlay": 0.36,
-      "defensePerPlay": 0.09,
+      "defensePerPlay": 0.03,
       "passingPerPlay": 0.33,
       "rushingPerPlay": 0.47
     },
@@ -6766,9 +6766,9 @@
     },
     "7|Oregon State": {
       "opponent": "Washington State",
-      "margin": 4.9,
+      "margin": 6.3,
       "offensePerPlay": 0.37,
-      "defensePerPlay": -0.3,
+      "defensePerPlay": -0.28,
       "passingPerPlay": 0.28,
       "rushingPerPlay": 0.53
     },
@@ -6778,13 +6778,13 @@
       "offensePerPlay": -0.07,
       "defensePerPlay": -0.1,
       "passingPerPlay": 0.24,
-      "rushingPerPlay": -0.29
+      "rushingPerPlay": -0.3
     },
     "7|Pittsburgh": {
       "opponent": "Boston College",
-      "margin": 0.7,
+      "margin": 1.4,
       "offensePerPlay": 0.08,
-      "defensePerPlay": -0.07,
+      "defensePerPlay": -0.06,
       "passingPerPlay": 0.36,
       "rushingPerPlay": 0.1
     },
@@ -6806,27 +6806,27 @@
     },
     "7|Rutgers": {
       "opponent": "Maryland",
-      "margin": 14,
-      "offensePerPlay": 0.36,
+      "margin": 12.6,
+      "offensePerPlay": 0.34,
       "defensePerPlay": -0.16,
       "passingPerPlay": 0.57,
-      "rushingPerPlay": 0.16
+      "rushingPerPlay": 0.14
     },
     "7|Sacramento State": {
       "opponent": "Ohio",
       "margin": -35,
       "offensePerPlay": -0.15,
-      "defensePerPlay": -0.52,
+      "defensePerPlay": -0.48,
       "passingPerPlay": -0.18,
       "rushingPerPlay": -0.12
     },
     "7|Sam Houston": {
       "opponent": "Western Kentucky",
-      "margin": -21.7,
-      "offensePerPlay": -0.29,
+      "margin": -21,
+      "offensePerPlay": -0.28,
       "defensePerPlay": -0.02,
       "passingPerPlay": -0.37,
-      "rushingPerPlay": -0.18
+      "rushingPerPlay": -0.16
     },
     "7|San Diego State": {
       "opponent": "Fresno State",
@@ -6838,10 +6838,10 @@
     },
     "7|San Jose State": {
       "opponent": "UTEP",
-      "margin": 9.1,
-      "offensePerPlay": 0.32,
-      "defensePerPlay": -0.19,
-      "passingPerPlay": 0.22,
+      "margin": 11.9,
+      "offensePerPlay": 0.33,
+      "defensePerPlay": -0.16,
+      "passingPerPlay": 0.23,
       "rushingPerPlay": 0.4
     },
     "7|SMU": {
@@ -6854,17 +6854,17 @@
     },
     "7|Southern Miss": {
       "opponent": "Arkansas State",
-      "margin": -22.4,
+      "margin": -24.5,
       "offensePerPlay": -0.26,
-      "defensePerPlay": -0.06,
+      "defensePerPlay": -0.09,
       "passingPerPlay": 0.05,
       "rushingPerPlay": -0.36
     },
     "7|South Florida": {
       "opponent": "Kent State",
-      "margin": 19.6,
+      "margin": 14.7,
       "offensePerPlay": -0.07,
-      "defensePerPlay": 0.35,
+      "defensePerPlay": 0.28,
       "passingPerPlay": -0.05,
       "rushingPerPlay": -0.02
     },
@@ -6886,11 +6886,11 @@
     },
     "7|TCU": {
       "opponent": "Baylor",
-      "margin": 10.5,
-      "offensePerPlay": 0,
-      "defensePerPlay": 0.15,
+      "margin": 9.8,
+      "offensePerPlay": -0.03,
+      "defensePerPlay": 0.17,
       "passingPerPlay": 0.06,
-      "rushingPerPlay": -0.08
+      "rushingPerPlay": -0.15
     },
     "7|Temple": {
       "opponent": "Charlotte",
@@ -6906,7 +6906,7 @@
       "offensePerPlay": 0.08,
       "defensePerPlay": 0.29,
       "passingPerPlay": 0.26,
-      "rushingPerPlay": -0.01
+      "rushingPerPlay": -0.02
     },
     "7|Texas": {
       "opponent": "Florida",
@@ -6920,15 +6920,15 @@
       "opponent": "The Citadel",
       "margin": 35,
       "offensePerPlay": 0.45,
-      "defensePerPlay": 0.19,
+      "defensePerPlay": 0.2,
       "passingPerPlay": 0.39,
       "rushingPerPlay": 0.51
     },
     "7|Texas State": {
       "opponent": "Colorado State",
-      "margin": 28,
+      "margin": 31.5,
       "offensePerPlay": 0.57,
-      "defensePerPlay": -0.17,
+      "defensePerPlay": -0.12,
       "passingPerPlay": 0.73,
       "rushingPerPlay": 0.62
     },
@@ -6942,9 +6942,9 @@
     },
     "7|Toledo": {
       "opponent": "Eastern Michigan",
-      "margin": 30.8,
+      "margin": 32.2,
       "offensePerPlay": 0.23,
-      "defensePerPlay": 0.21,
+      "defensePerPlay": 0.23,
       "passingPerPlay": 0.77,
       "rushingPerPlay": -0.15
     },
@@ -6974,10 +6974,10 @@
     },
     "7|UAB": {
       "opponent": "East Carolina",
-      "margin": 19.6,
-      "offensePerPlay": 0.11,
-      "defensePerPlay": 0.17,
-      "passingPerPlay": 0.21,
+      "margin": 21,
+      "offensePerPlay": 0.1,
+      "defensePerPlay": 0.2,
+      "passingPerPlay": 0.2,
       "rushingPerPlay": -0.03
     },
     "7|UCLA": {
@@ -6991,10 +6991,10 @@
     "7|UL Monroe": {
       "opponent": "Louisiana Tech",
       "margin": -33.6,
-      "offensePerPlay": -0.3,
-      "defensePerPlay": -0.18,
-      "passingPerPlay": -0.28,
-      "rushingPerPlay": -0.35
+      "offensePerPlay": -0.35,
+      "defensePerPlay": -0.13,
+      "passingPerPlay": -0.2,
+      "rushingPerPlay": -0.53
     },
     "7|UNLV": {
       "opponent": "Air Force",
@@ -7014,25 +7014,25 @@
     },
     "7|UTEP": {
       "opponent": "San Jose State",
-      "margin": -9.1,
-      "offensePerPlay": 0.19,
-      "defensePerPlay": -0.32,
-      "passingPerPlay": 0.01,
+      "margin": -11.9,
+      "offensePerPlay": 0.16,
+      "defensePerPlay": -0.33,
+      "passingPerPlay": -0.03,
       "rushingPerPlay": 0.33
     },
     "7|UTSA": {
       "opponent": "Navy",
-      "margin": -11.2,
+      "margin": -9.8,
       "offensePerPlay": 0.27,
-      "defensePerPlay": -0.43,
+      "defensePerPlay": -0.41,
       "passingPerPlay": 0.51,
       "rushingPerPlay": -0.06
     },
     "7|Vanderbilt": {
       "opponent": "Arkansas",
-      "margin": -7,
+      "margin": -11.9,
       "offensePerPlay": 0.1,
-      "defensePerPlay": -0.2,
+      "defensePerPlay": -0.27,
       "passingPerPlay": 0.29,
       "rushingPerPlay": 0.09
     },
@@ -7055,9 +7055,9 @@
     "7|Wake Forest": {
       "opponent": "California",
       "margin": 35,
-      "offensePerPlay": 0.52,
+      "offensePerPlay": 0.5,
       "defensePerPlay": 0.2,
-      "passingPerPlay": 0.84,
+      "passingPerPlay": 0.78,
       "rushingPerPlay": 0.39
     },
     "7|Washington": {
@@ -7070,17 +7070,17 @@
     },
     "7|Washington State": {
       "opponent": "Oregon State",
-      "margin": -4.9,
-      "offensePerPlay": 0.3,
+      "margin": -6.3,
+      "offensePerPlay": 0.28,
       "defensePerPlay": -0.37,
-      "passingPerPlay": 0.23,
+      "passingPerPlay": 0.2,
       "rushingPerPlay": 0.43
     },
     "7|Western Kentucky": {
       "opponent": "Sam Houston",
-      "margin": 21.7,
+      "margin": 21,
       "offensePerPlay": 0.02,
-      "defensePerPlay": 0.29,
+      "defensePerPlay": 0.28,
       "passingPerPlay": 0.08,
       "rushingPerPlay": -0.04
     },
@@ -7106,7 +7106,7 @@
       "offensePerPlay": -0.04,
       "defensePerPlay": -0.13,
       "passingPerPlay": -0.37,
-      "rushingPerPlay": 0.09
+      "rushingPerPlay": 0.1
     },
     "7|Wyoming": {
       "opponent": "Northern Illinois",
