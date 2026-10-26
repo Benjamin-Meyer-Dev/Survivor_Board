@@ -1,6 +1,6 @@
 {
   "$comment": "Written by scripts/pull-stats.mjs from nflverse weekly team statistics. Never edit by hand. One record per team per game, keyed \"<week>|<team>\" like odds.json: `margin` is the team's offensive expected points added less its opponent's, capped, and is what the rating fit in form.json reads as an efficiency observation. The other fields say where it came from.",
-  "updatedAt": "2026-10-25T13:00:40Z",
+  "updatedAt": "2026-10-26T13:00:51Z",
   "source": "https://github.com/nflverse/nflverse-data/releases/download/stats_team/stats_team_week_2026.csv",
   "season": 2026,
   "games": {
@@ -2071,6 +2071,270 @@
       "passingEpa": 10.57,
       "rushingEpa": -2.81,
       "cpoe": 15.270558098952
+    },
+    "7|Cardinals": {
+      "opponent": "Broncos",
+      "margin": -19.38,
+      "offense": -8.47,
+      "defense": -10.9,
+      "offensePerPlay": -0.113,
+      "defensePerPlay": -0.195,
+      "passingEpa": -7.8,
+      "rushingEpa": -0.68,
+      "cpoe": -4.71865636381236
+    },
+    "7|Falcons": {
+      "opponent": "49ers",
+      "margin": -1.67,
+      "offense": 2.93,
+      "defense": -4.6,
+      "offensePerPlay": 0.047,
+      "defensePerPlay": -0.071,
+      "passingEpa": 9.19,
+      "rushingEpa": -6.26,
+      "cpoe": 5.54019371047616
+    },
+    "7|Ravens": {
+      "opponent": "Bengals",
+      "margin": -22.88,
+      "offense": -5.97,
+      "defense": -16.9,
+      "offensePerPlay": -0.092,
+      "defensePerPlay": -0.331,
+      "passingEpa": 3.45,
+      "rushingEpa": -9.43,
+      "cpoe": -1.80500991204206
+    },
+    "7|Panthers": {
+      "opponent": "Buccaneers",
+      "margin": -26.74,
+      "offense": -14.46,
+      "defense": -12.28,
+      "offensePerPlay": -0.268,
+      "defensePerPlay": -0.205,
+      "passingEpa": -18.02,
+      "rushingEpa": 3.56,
+      "cpoe": -12.5104814767838
+    },
+    "7|Bengals": {
+      "opponent": "Ravens",
+      "margin": 22.88,
+      "offense": 16.9,
+      "defense": 5.97,
+      "offensePerPlay": 0.331,
+      "defensePerPlay": 0.092,
+      "passingEpa": 18.2,
+      "rushingEpa": -1.3,
+      "cpoe": 15.5417507248265
+    },
+    "7|Browns": {
+      "opponent": "Titans",
+      "margin": 10.28,
+      "offense": 12.02,
+      "defense": -1.74,
+      "offensePerPlay": 0.182,
+      "defensePerPlay": -0.028,
+      "passingEpa": 4.61,
+      "rushingEpa": 7.41,
+      "cpoe": 6.88596291201455
+    },
+    "7|Broncos": {
+      "opponent": "Cardinals",
+      "margin": 19.38,
+      "offense": 10.9,
+      "defense": 8.47,
+      "offensePerPlay": 0.195,
+      "defensePerPlay": 0.113,
+      "passingEpa": 4.52,
+      "rushingEpa": 6.38,
+      "cpoe": -3.03850054740906
+    },
+    "7|Lions": {
+      "opponent": "Packers",
+      "margin": -8.73,
+      "offense": -6.33,
+      "defense": -2.4,
+      "offensePerPlay": -0.096,
+      "defensePerPlay": -0.037,
+      "passingEpa": 9.2,
+      "rushingEpa": -15.53,
+      "cpoe": -0.974686684147004
+    },
+    "7|Packers": {
+      "opponent": "Lions",
+      "margin": 8.73,
+      "offense": 2.4,
+      "defense": 6.33,
+      "offensePerPlay": 0.037,
+      "defensePerPlay": 0.096,
+      "passingEpa": 6.92,
+      "rushingEpa": -4.52,
+      "cpoe": -0.519307525384994
+    },
+    "7|Texans": {
+      "opponent": "Giants",
+      "margin": -19.24,
+      "offense": -3.43,
+      "defense": -15.81,
+      "offensePerPlay": -0.063,
+      "defensePerPlay": -0.243,
+      "passingEpa": -0.4,
+      "rushingEpa": -3.02,
+      "cpoe": -9.13081807749612
+    },
+    "7|Colts": {
+      "opponent": "Vikings",
+      "margin": 0.3,
+      "offense": -6.61,
+      "defense": 6.91,
+      "offensePerPlay": -0.112,
+      "defensePerPlay": 0.123,
+      "passingEpa": -7.77,
+      "rushingEpa": 1.16,
+      "cpoe": -10.0945506777082
+    },
+    "7|Chiefs": {
+      "opponent": "Seahawks",
+      "margin": -16.01,
+      "offense": -5.24,
+      "defense": -10.77,
+      "offensePerPlay": -0.105,
+      "defensePerPlay": -0.156,
+      "passingEpa": -6.04,
+      "rushingEpa": 0.8,
+      "cpoe": -9.79263531044126
+    },
+    "7|Rams": {
+      "opponent": "Raiders",
+      "margin": 18.58,
+      "offense": 7.85,
+      "defense": 10.73,
+      "offensePerPlay": 0.115,
+      "defensePerPlay": 0.168,
+      "passingEpa": 5.22,
+      "rushingEpa": 2.63,
+      "cpoe": 7.42766137780814
+    },
+    "7|Raiders": {
+      "opponent": "Rams",
+      "margin": -18.58,
+      "offense": -10.73,
+      "defense": -7.85,
+      "offensePerPlay": -0.168,
+      "defensePerPlay": -0.115,
+      "passingEpa": -3.99,
+      "rushingEpa": -6.74,
+      "cpoe": -7.27138484633246
+    },
+    "7|Dolphins": {
+      "opponent": "Jets",
+      "margin": 1.83,
+      "offense": 16.23,
+      "defense": -14.4,
+      "offensePerPlay": 0.254,
+      "defensePerPlay": -0.272,
+      "passingEpa": 11.4,
+      "rushingEpa": 4.82,
+      "cpoe": -4.4512376898811
+    },
+    "7|Vikings": {
+      "opponent": "Colts",
+      "margin": -0.3,
+      "offense": -6.91,
+      "defense": 6.61,
+      "offensePerPlay": -0.123,
+      "defensePerPlay": 0.112,
+      "passingEpa": -0.07,
+      "rushingEpa": -6.84,
+      "cpoe": -7.51731420556704
+    },
+    "7|Saints": {
+      "opponent": "Steelers",
+      "margin": 0.12,
+      "offense": 3.47,
+      "defense": -3.35,
+      "offensePerPlay": 0.061,
+      "defensePerPlay": -0.053,
+      "passingEpa": 10.56,
+      "rushingEpa": -7.09,
+      "cpoe": 3.29344523580451
+    },
+    "7|Giants": {
+      "opponent": "Texans",
+      "margin": 19.24,
+      "offense": 15.81,
+      "defense": 3.43,
+      "offensePerPlay": 0.243,
+      "defensePerPlay": 0.063,
+      "passingEpa": 5.58,
+      "rushingEpa": 10.24,
+      "cpoe": 8.00605714321137
+    },
+    "7|Jets": {
+      "opponent": "Dolphins",
+      "margin": -1.83,
+      "offense": 14.4,
+      "defense": -16.23,
+      "offensePerPlay": 0.272,
+      "defensePerPlay": -0.254,
+      "passingEpa": 12.21,
+      "rushingEpa": 2.19,
+      "cpoe": 11.1802382715817
+    },
+    "7|Steelers": {
+      "opponent": "Saints",
+      "margin": -0.12,
+      "offense": 3.35,
+      "defense": -3.47,
+      "offensePerPlay": 0.053,
+      "defensePerPlay": -0.061,
+      "passingEpa": 2.07,
+      "rushingEpa": 1.28,
+      "cpoe": -2.85845792719296
+    },
+    "7|Seahawks": {
+      "opponent": "Chiefs",
+      "margin": 16.01,
+      "offense": 10.77,
+      "defense": 5.24,
+      "offensePerPlay": 0.156,
+      "defensePerPlay": 0.105,
+      "passingEpa": 12.15,
+      "rushingEpa": -1.38,
+      "cpoe": 3.98254273114381
+    },
+    "7|49ers": {
+      "opponent": "Falcons",
+      "margin": 1.67,
+      "offense": 4.6,
+      "defense": -2.93,
+      "offensePerPlay": 0.071,
+      "defensePerPlay": -0.047,
+      "passingEpa": 1.99,
+      "rushingEpa": 2.61,
+      "cpoe": 0.518024426240188
+    },
+    "7|Buccaneers": {
+      "opponent": "Panthers",
+      "margin": 26.74,
+      "offense": 12.28,
+      "defense": 14.46,
+      "offensePerPlay": 0.205,
+      "defensePerPlay": 0.268,
+      "passingEpa": 5.29,
+      "rushingEpa": 6.99,
+      "cpoe": 1.61236768419092
+    },
+    "7|Titans": {
+      "opponent": "Browns",
+      "margin": -10.28,
+      "offense": 1.74,
+      "defense": -12.02,
+      "offensePerPlay": 0.028,
+      "defensePerPlay": -0.182,
+      "passingEpa": 5.85,
+      "rushingEpa": -4.11,
+      "cpoe": 1.59507473309835
     }
   }
 }
