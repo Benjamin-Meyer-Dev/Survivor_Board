@@ -1,6 +1,6 @@
 {
   "$comment": "Written by scripts/pull-stats.mjs from nflverse weekly team statistics. Never edit by hand. One record per team per game, keyed \"<week>|<team>\" like odds.json: `margin` is the team's offensive expected points added less its opponent's, capped, and is what the rating fit in form.json reads as an efficiency observation. The other fields say where it came from.",
-  "updatedAt": "2026-10-27T13:00:37Z",
+  "updatedAt": "2026-10-28T13:01:12Z",
   "source": "https://github.com/nflverse/nflverse-data/releases/download/stats_team/stats_team_week_2026.csv",
   "season": 2026,
   "games": {
@@ -1861,7 +1861,7 @@
       "defensePerPlay": 0.134,
       "passingEpa": 6.08,
       "rushingEpa": -3.78,
-      "cpoe": -5.79967841506004
+      "cpoe": -5.16923606395721
     },
     "6|Texans": {
       "opponent": "Jaguars",
@@ -2031,11 +2031,11 @@
     "6|49ers": {
       "opponent": "Commanders",
       "margin": 18.31,
-      "offense": 17.68,
+      "offense": 17.69,
       "defense": 0.63,
       "offensePerPlay": 0.295,
       "defensePerPlay": 0.01,
-      "passingEpa": 3.66,
+      "passingEpa": 3.67,
       "rushingEpa": 14.02,
       "cpoe": 7.20040274077448
     },
@@ -2043,7 +2043,7 @@
       "opponent": "49ers",
       "margin": -18.31,
       "offense": -0.63,
-      "defense": -17.68,
+      "defense": -17.69,
       "offensePerPlay": -0.01,
       "defensePerPlay": -0.295,
       "passingEpa": 2.62,
