@@ -1,6 +1,6 @@
 {
   "$comment": "Written by scripts/pull-stats.mjs from nflverse weekly team statistics. Never edit by hand. One record per team per game, keyed \"<week>|<team>\" like odds.json: `margin` is the team's offensive expected points added less its opponent's, capped, and is what the rating fit in form.json reads as an efficiency observation. The other fields say where it came from.",
-  "updatedAt": "2026-11-02T14:00:57Z",
+  "updatedAt": "2026-11-03T14:00:54Z",
   "source": "https://github.com/nflverse/nflverse-data/releases/download/stats_team/stats_team_week_2026.csv",
   "season": 2026,
   "games": {
@@ -2643,6 +2643,28 @@
       "passingEpa": 2.46,
       "rushingEpa": 3.45,
       "cpoe": -1.24739121507715
+    },
+    "8|Bears": {
+      "opponent": "Seahawks",
+      "margin": 23.66,
+      "offense": 14.39,
+      "defense": 9.27,
+      "offensePerPlay": 0.206,
+      "defensePerPlay": 0.166,
+      "passingEpa": 7.67,
+      "rushingEpa": 6.71,
+      "cpoe": 2.97664750148268
+    },
+    "8|Seahawks": {
+      "opponent": "Bears",
+      "margin": -23.66,
+      "offense": -9.27,
+      "defense": -14.39,
+      "offensePerPlay": -0.166,
+      "defensePerPlay": -0.206,
+      "passingEpa": -6.51,
+      "rushingEpa": -2.76,
+      "cpoe": -16.9464063118486
     }
   }
 }
