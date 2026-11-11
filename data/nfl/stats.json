@@ -1,6 +1,6 @@
 {
   "$comment": "Written by scripts/pull-stats.mjs from nflverse weekly team statistics. Never edit by hand. One record per team per game, keyed \"<week>|<team>\" like odds.json: `margin` is the team's offensive expected points added less its opponent's, capped, and is what the rating fit in form.json reads as an efficiency observation. The other fields say where it came from.",
-  "updatedAt": "2026-11-10T14:00:15Z",
+  "updatedAt": "2026-11-11T14:00:19Z",
   "source": "https://github.com/nflverse/nflverse-data/releases/download/stats_team/stats_team_week_2026.csv",
   "season": 2026,
   "games": {
@@ -2833,11 +2833,11 @@
     },
     "9|Rams": {
       "opponent": "Commanders",
-      "margin": 11.51,
+      "margin": 11.47,
       "offense": 3.36,
-      "defense": 8.15,
+      "defense": 8.11,
       "offensePerPlay": 0.046,
-      "defensePerPlay": 0.141,
+      "defensePerPlay": 0.14,
       "passingEpa": 2.44,
       "rushingEpa": 0.92,
       "cpoe": -4.18803408378508
@@ -2965,14 +2965,14 @@
     },
     "9|Commanders": {
       "opponent": "Rams",
-      "margin": -11.51,
-      "offense": -8.15,
+      "margin": -11.47,
+      "offense": -8.11,
       "defense": -3.36,
-      "offensePerPlay": -0.141,
+      "offensePerPlay": -0.14,
       "defensePerPlay": -0.046,
-      "passingEpa": -3.91,
+      "passingEpa": -3.87,
       "rushingEpa": -4.24,
-      "cpoe": 2.54589963485213
+      "cpoe": 2.42105533971506
     },
     "9|Bills": {
       "opponent": "Vikings",
