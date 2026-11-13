@@ -1,6 +1,6 @@
 {
   "$comment": "Written by scripts/pull-stats.mjs from nflverse weekly team statistics. Never edit by hand. One record per team per game, keyed \"<week>|<team>\" like odds.json: `margin` is the team's offensive expected points added less its opponent's, capped, and is what the rating fit in form.json reads as an efficiency observation. The other fields say where it came from.",
-  "updatedAt": "2026-11-12T14:00:16Z",
+  "updatedAt": "2026-11-13T14:00:39Z",
   "source": "https://github.com/nflverse/nflverse-data/releases/download/stats_team/stats_team_week_2026.csv",
   "season": 2026,
   "games": {
@@ -2995,6 +2995,28 @@
       "passingEpa": -26.26,
       "rushingEpa": -7.6,
       "cpoe": -20.0331411759059
+    },
+    "10|Giants": {
+      "opponent": "Commanders",
+      "margin": 8.43,
+      "offense": 9.6,
+      "defense": -1.17,
+      "offensePerPlay": 0.15,
+      "defensePerPlay": -0.017,
+      "passingEpa": 6.89,
+      "rushingEpa": 2.71,
+      "cpoe": -0.289978437563952
+    },
+    "10|Commanders": {
+      "opponent": "Giants",
+      "margin": -8.43,
+      "offense": 1.17,
+      "defense": -9.6,
+      "offensePerPlay": 0.017,
+      "defensePerPlay": -0.15,
+      "passingEpa": 2.03,
+      "rushingEpa": -0.86,
+      "cpoe": -0.226259502497586
     }
   }
 }
