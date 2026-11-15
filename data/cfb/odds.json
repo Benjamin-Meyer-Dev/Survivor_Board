@@ -1,7 +1,7 @@
 {
   "$comment": "Written by .github/workflows/refresh-odds.yml. Never edit by hand - your change will be overwritten on the next run. Line keys are \"<week>|<team>\", so a market line is found for any team, not just the two the plan names. Same keys in `results`, which is W/L and is what the board marks a locked pick from, and in `scores`, which is the signed margin and is what the rating fit in form.json learns from.",
-  "updatedAt": "2026-11-14T14:00:26Z",
-  "currentWeek": 11,
+  "updatedAt": "2026-11-15T14:00:24Z",
+  "currentWeek": 12,
   "lines": {
     "1|South Carolina": {
       "spread": -36,
@@ -6638,6 +6638,666 @@
       "openedAt": "2026-11-08T14:01:10Z",
       "updatedAt": "2026-11-14T14:00:26Z",
       "kickoff": "2026-11-15T03:30:00Z"
+    },
+    "12|Michigan State": {
+      "spread": 13.5,
+      "total": 44.5,
+      "source": "market",
+      "winProb": 0.1808,
+      "moneyline": 385,
+      "moneylineProb": 0.191,
+      "books": 3,
+      "moneylineBooks": 3,
+      "capped": 0,
+      "opened": 13.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T01:00:00Z"
+    },
+    "12|Oregon": {
+      "spread": -13.5,
+      "total": 44.5,
+      "source": "market",
+      "winProb": 0.8192,
+      "moneyline": -500,
+      "moneylineProb": 0.809,
+      "books": 3,
+      "moneylineBooks": 3,
+      "capped": 0,
+      "opened": -13.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T01:00:00Z"
+    },
+    "12|UCF": {
+      "spread": -1.5,
+      "total": 53.5,
+      "source": "market",
+      "winProb": 0.5337,
+      "moneyline": -122,
+      "moneylineProb": 0.518,
+      "books": 3,
+      "moneylineBooks": 3,
+      "capped": 0,
+      "opened": -1.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-20T23:00:00Z"
+    },
+    "12|Iowa State": {
+      "spread": 1.5,
+      "total": 53.5,
+      "source": "market",
+      "winProb": 0.4663,
+      "moneyline": 100,
+      "moneylineProb": 0.482,
+      "books": 3,
+      "moneylineBooks": 3,
+      "capped": 0,
+      "opened": 1.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-20T23:00:00Z"
+    },
+    "12|Washington": {
+      "spread": 7.5,
+      "total": 43.5,
+      "source": "market",
+      "winProb": 0.2952,
+      "moneyline": 235,
+      "moneylineProb": 0.2868,
+      "books": 2,
+      "moneylineBooks": 2,
+      "capped": 0,
+      "opened": 7.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T17:00:00Z"
+    },
+    "12|Indiana": {
+      "spread": -7.5,
+      "total": 43.5,
+      "source": "market",
+      "winProb": 0.7048,
+      "moneyline": -289,
+      "moneylineProb": 0.7132,
+      "books": 2,
+      "moneylineBooks": 2,
+      "capped": 0,
+      "opened": -7.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T17:00:00Z"
+    },
+    "12|Nebraska": {
+      "spread": 4.3,
+      "total": 44.5,
+      "source": "market",
+      "winProb": 0.3837,
+      "moneyline": 146.5,
+      "moneylineProb": 0.3888,
+      "books": 4,
+      "moneylineBooks": 4,
+      "capped": 0,
+      "opened": 4.3,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T20:30:00Z"
+    },
+    "12|Ohio State": {
+      "spread": -4.3,
+      "total": 44.5,
+      "source": "market",
+      "winProb": 0.6163,
+      "moneyline": -177.5,
+      "moneylineProb": 0.6112,
+      "books": 4,
+      "moneylineBooks": 4,
+      "capped": 0,
+      "opened": -4.3,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T20:30:00Z"
+    },
+    "12|Michigan": {
+      "spread": 6.8,
+      "total": 39.5,
+      "source": "market",
+      "winProb": 0.3106,
+      "moneyline": 220,
+      "moneylineProb": 0.2997,
+      "books": 2,
+      "moneylineBooks": 2,
+      "capped": 0,
+      "opened": 6.8,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T17:00:00Z"
+    },
+    "12|UCLA": {
+      "spread": -6.8,
+      "total": 39.5,
+      "source": "market",
+      "winProb": 0.6894,
+      "moneyline": -271.5,
+      "moneylineProb": 0.7003,
+      "books": 2,
+      "moneylineBooks": 2,
+      "capped": 0,
+      "opened": -6.8,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T17:00:00Z"
+    },
+    "12|USC": {
+      "spread": -17.5,
+      "total": 54.5,
+      "source": "market",
+      "winProb": 0.8775,
+      "moneyline": -900,
+      "moneylineProb": 0.8647,
+      "books": 1,
+      "moneylineBooks": 1,
+      "capped": 0,
+      "opened": -17.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T23:15:00Z"
+    },
+    "12|Maryland": {
+      "spread": 17.5,
+      "total": 54.5,
+      "source": "market",
+      "winProb": 0.1225,
+      "moneyline": 610,
+      "moneylineProb": 0.1353,
+      "books": 1,
+      "moneylineBooks": 1,
+      "capped": 0,
+      "opened": 17.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T23:15:00Z"
+    },
+    "12|Illinois": {
+      "spread": 6.5,
+      "total": 43.5,
+      "source": "market",
+      "winProb": 0.3217,
+      "moneyline": 202,
+      "moneylineProb": 0.3169,
+      "books": 3,
+      "moneylineBooks": 3,
+      "capped": 0,
+      "opened": 6.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T19:30:00Z"
+    },
+    "12|Iowa": {
+      "spread": -6.5,
+      "total": 43.5,
+      "source": "market",
+      "winProb": 0.6783,
+      "moneyline": -250,
+      "moneylineProb": 0.6831,
+      "books": 3,
+      "moneylineBooks": 3,
+      "capped": 0,
+      "opened": -6.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T19:30:00Z"
+    },
+    "12|Minnesota": {
+      "spread": 2.5,
+      "total": 43.5,
+      "source": "market",
+      "winProb": 0.4374,
+      "moneyline": 112,
+      "moneylineProb": 0.4517,
+      "books": 1,
+      "moneylineBooks": 1,
+      "capped": 0,
+      "opened": 2.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T17:00:00Z"
+    },
+    "12|Northwestern": {
+      "spread": -2.5,
+      "total": 43.5,
+      "source": "market",
+      "winProb": 0.5626,
+      "moneyline": -134,
+      "moneylineProb": 0.5483,
+      "books": 1,
+      "moneylineBooks": 1,
+      "capped": 0,
+      "opened": -2.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T17:00:00Z"
+    },
+    "12|Penn State": {
+      "spread": -22.5,
+      "total": 49.5,
+      "source": "market",
+      "winProb": 0.9362,
+      "moneyline": -2800,
+      "moneylineProb": null,
+      "books": 1,
+      "moneylineBooks": 0,
+      "capped": 1,
+      "opened": -22.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T20:30:00Z"
+    },
+    "12|Rutgers": {
+      "spread": 22.5,
+      "total": 49.5,
+      "source": "market",
+      "winProb": 0.0638,
+      "moneyline": 1160,
+      "moneylineProb": null,
+      "books": 1,
+      "moneylineBooks": 0,
+      "capped": 1,
+      "opened": 22.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T20:30:00Z"
+    },
+    "12|Purdue": {
+      "spread": 4.5,
+      "total": 44.5,
+      "source": "market",
+      "winProb": 0.3755,
+      "moneyline": 155,
+      "moneylineProb": 0.3753,
+      "books": 1,
+      "moneylineBooks": 1,
+      "capped": 0,
+      "opened": 4.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T17:00:00Z"
+    },
+    "12|Wisconsin": {
+      "spread": -4.5,
+      "total": 44.5,
+      "source": "market",
+      "winProb": 0.6245,
+      "moneyline": -188,
+      "moneylineProb": 0.6247,
+      "books": 1,
+      "moneylineBooks": 1,
+      "capped": 0,
+      "opened": -4.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T17:00:00Z"
+    },
+    "12|Florida": {
+      "spread": -12.5,
+      "total": 48.5,
+      "source": "market",
+      "winProb": 0.8045,
+      "moneyline": -525,
+      "moneylineProb": 0.8012,
+      "books": 2,
+      "moneylineBooks": 2,
+      "capped": 0,
+      "opened": -12.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T17:00:00Z"
+    },
+    "12|Vanderbilt": {
+      "spread": 12.5,
+      "total": 48.5,
+      "source": "market",
+      "winProb": 0.1955,
+      "moneyline": 380,
+      "moneylineProb": 0.1988,
+      "books": 2,
+      "moneylineBooks": 2,
+      "capped": 0,
+      "opened": 12.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T17:00:00Z"
+    },
+    "12|Missouri": {
+      "spread": -5.5,
+      "total": 48.5,
+      "source": "market",
+      "winProb": 0.6447,
+      "moneyline": -200,
+      "moneylineProb": 0.6343,
+      "books": 3,
+      "moneylineBooks": 3,
+      "capped": 0,
+      "opened": -5.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-22T00:30:00Z"
+    },
+    "12|Kentucky": {
+      "spread": 5.5,
+      "total": 48.5,
+      "source": "market",
+      "winProb": 0.3553,
+      "moneyline": 160,
+      "moneylineProb": 0.3657,
+      "books": 3,
+      "moneylineBooks": 3,
+      "capped": 0,
+      "opened": 5.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-22T00:30:00Z"
+    },
+    "12|South Carolina": {
+      "spread": 17,
+      "total": 49.5,
+      "source": "market",
+      "winProb": 0.1281,
+      "moneyline": 585,
+      "moneylineProb": 0.1397,
+      "books": 2,
+      "moneylineBooks": 2,
+      "capped": 0,
+      "opened": 17,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-22T00:30:00Z"
+    },
+    "12|Georgia": {
+      "spread": -17,
+      "total": 49.5,
+      "source": "market",
+      "winProb": 0.8719,
+      "moneyline": -900,
+      "moneylineProb": 0.8603,
+      "books": 2,
+      "moneylineBooks": 2,
+      "capped": 0,
+      "opened": -17,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-22T00:30:00Z"
+    },
+    "12|Tennessee": {
+      "spread": 1.5,
+      "total": 47.5,
+      "source": "market",
+      "winProb": 0.4676,
+      "moneyline": -104,
+      "moneylineProb": 0.486,
+      "books": 3,
+      "moneylineBooks": 3,
+      "capped": 0,
+      "opened": 1.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T16:00:00Z"
+    },
+    "12|LSU": {
+      "spread": -1.5,
+      "total": 47.5,
+      "source": "market",
+      "winProb": 0.5324,
+      "moneyline": -115,
+      "moneylineProb": 0.514,
+      "books": 3,
+      "moneylineBooks": 3,
+      "capped": 0,
+      "opened": -1.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T16:00:00Z"
+    },
+    "12|Texas": {
+      "spread": -20.5,
+      "total": 47.5,
+      "source": "market",
+      "winProb": 0.9132,
+      "moneyline": -1800,
+      "moneylineProb": 0.9026,
+      "books": 3,
+      "moneylineBooks": 2,
+      "capped": 1,
+      "opened": -20.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T20:30:00Z"
+    },
+    "12|Arkansas": {
+      "spread": 20.5,
+      "total": 47.5,
+      "source": "market",
+      "winProb": 0.0868,
+      "moneyline": 920,
+      "moneylineProb": 0.0974,
+      "books": 3,
+      "moneylineBooks": 2,
+      "capped": 1,
+      "opened": 20.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T20:30:00Z"
+    },
+    "12|Kansas State": {
+      "spread": 11.5,
+      "total": 50.5,
+      "source": "market",
+      "winProb": 0.2183,
+      "moneyline": 320,
+      "moneylineProb": 0.2285,
+      "books": 1,
+      "moneylineBooks": 1,
+      "capped": 0,
+      "opened": 11.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T20:30:00Z"
+    },
+    "12|Arizona": {
+      "spread": -11.5,
+      "total": 50.5,
+      "source": "market",
+      "winProb": 0.7817,
+      "moneyline": -410,
+      "moneylineProb": 0.7715,
+      "books": 1,
+      "moneylineBooks": 1,
+      "capped": 0,
+      "opened": -11.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T20:30:00Z"
+    },
+    "12|Kansas": {
+      "spread": 7,
+      "total": 49.5,
+      "source": "market",
+      "winProb": 0.3091,
+      "moneyline": 210,
+      "moneylineProb": 0.3032,
+      "books": 3,
+      "moneylineBooks": 3,
+      "capped": 0,
+      "opened": 7,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T17:00:00Z"
+    },
+    "12|BYU": {
+      "spread": -7,
+      "total": 49.5,
+      "source": "market",
+      "winProb": 0.6909,
+      "moneyline": -275,
+      "moneylineProb": 0.6968,
+      "books": 3,
+      "moneylineBooks": 3,
+      "capped": 0,
+      "opened": -7,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T17:00:00Z"
+    },
+    "12|Cincinnati": {
+      "spread": -2.5,
+      "total": 59.5,
+      "source": "market",
+      "winProb": 0.565,
+      "moneyline": -138,
+      "moneylineProb": 0.556,
+      "books": 1,
+      "moneylineBooks": 1,
+      "capped": 0,
+      "opened": -2.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T17:00:00Z"
+    },
+    "12|Colorado": {
+      "spread": 2.5,
+      "total": 59.5,
+      "source": "market",
+      "winProb": 0.435,
+      "moneyline": 116,
+      "moneylineProb": 0.444,
+      "books": 1,
+      "moneylineBooks": 1,
+      "capped": 0,
+      "opened": 2.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T17:00:00Z"
+    },
+    "12|West Virginia": {
+      "spread": 7.5,
+      "total": 71.5,
+      "source": "market",
+      "winProb": 0.2977,
+      "moneyline": 230,
+      "moneylineProb": 0.2905,
+      "books": 1,
+      "moneylineBooks": 1,
+      "capped": 0,
+      "opened": 7.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T20:30:00Z"
+    },
+    "12|Houston": {
+      "spread": -7.5,
+      "total": 71.5,
+      "source": "market",
+      "winProb": 0.7023,
+      "moneyline": -285,
+      "moneylineProb": 0.7095,
+      "books": 1,
+      "moneylineBooks": 1,
+      "capped": 0,
+      "opened": -7.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T20:30:00Z"
+    },
+    "12|Arizona State": {
+      "spread": 4.5,
+      "total": 65.5,
+      "source": "market",
+      "winProb": 0.381,
+      "moneyline": 146,
+      "moneylineProb": 0.3893,
+      "books": 1,
+      "moneylineBooks": 1,
+      "capped": 0,
+      "opened": 4.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-22T03:15:00Z"
+    },
+    "12|Oklahoma State": {
+      "spread": -4.5,
+      "total": 65.5,
+      "source": "market",
+      "winProb": 0.619,
+      "moneyline": -176,
+      "moneylineProb": 0.6107,
+      "books": 1,
+      "moneylineBooks": 1,
+      "capped": 0,
+      "opened": -4.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-22T03:15:00Z"
+    },
+    "12|Baylor": {
+      "spread": 3.5,
+      "total": 58.5,
+      "source": "market",
+      "winProb": 0.3995,
+      "moneyline": 142,
+      "moneylineProb": 0.3932,
+      "books": 1,
+      "moneylineBooks": 1,
+      "capped": 0,
+      "opened": 3.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T20:30:00Z"
+    },
+    "12|Texas Tech": {
+      "spread": -3.5,
+      "total": 58.5,
+      "source": "market",
+      "winProb": 0.6005,
+      "moneyline": -176,
+      "moneylineProb": 0.6068,
+      "books": 1,
+      "moneylineBooks": 1,
+      "capped": 0,
+      "opened": -3.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T20:30:00Z"
+    },
+    "12|TCU": {
+      "spread": 6.5,
+      "total": 47.5,
+      "source": "market",
+      "winProb": 0.3222,
+      "moneyline": 202,
+      "moneylineProb": 0.318,
+      "books": 1,
+      "moneylineBooks": 1,
+      "capped": 0,
+      "opened": 6.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T20:30:00Z"
+    },
+    "12|Utah": {
+      "spread": -6.5,
+      "total": 47.5,
+      "source": "market",
+      "winProb": 0.6778,
+      "moneyline": -245,
+      "moneylineProb": 0.682,
+      "books": 1,
+      "moneylineBooks": 1,
+      "capped": 0,
+      "opened": -6.5,
+      "openedAt": "2026-11-15T14:00:24Z",
+      "updatedAt": "2026-11-15T14:00:24Z",
+      "kickoff": "2026-11-21T20:30:00Z"
     }
   },
   "results": {
@@ -7076,7 +7736,51 @@
     "11|UCLA": "W",
     "11|Illinois": "L",
     "11|Colorado": "W",
-    "11|Houston": "L"
+    "11|Houston": "L",
+    "11|Iowa State": "W",
+    "11|Cincinnati": "L",
+    "11|Maryland": "W",
+    "11|Wisconsin": "L",
+    "11|Ohio State": "W",
+    "11|Northwestern": "L",
+    "11|Rutgers": "L",
+    "11|Nebraska": "W",
+    "11|Vanderbilt": "L",
+    "11|Alabama": "W",
+    "11|TCU": "W",
+    "11|Kansas State": "L",
+    "11|Texas A&M": "L",
+    "11|Tennessee": "W",
+    "11|West Virginia": "L",
+    "11|Kansas": "W",
+    "11|Indiana": "W",
+    "11|USC": "L",
+    "11|Oregon": "W",
+    "11|Michigan": "L",
+    "11|Georgia": "W",
+    "11|Missouri": "L",
+    "11|Mississippi State": "L",
+    "11|Auburn": "W",
+    "11|UCF": "L",
+    "11|Arizona State": "W",
+    "11|Michigan State": "L",
+    "11|Washington": "W",
+    "11|Kentucky": "L",
+    "11|Florida": "W",
+    "11|Penn State": "W",
+    "11|Minnesota": "L",
+    "11|BYU": "W",
+    "11|Baylor": "L",
+    "11|Iowa": "W",
+    "11|Purdue": "L",
+    "11|LSU": "L",
+    "11|Texas": "W",
+    "11|Arkansas": "W",
+    "11|South Carolina": "L",
+    "11|Oklahoma State": "L",
+    "11|Texas Tech": "W",
+    "11|Arizona": "L",
+    "11|Utah": "W"
   },
   "scores": {
     "1|Rutgers": -16,
@@ -7514,89 +8218,75 @@
     "11|UCLA": 8,
     "11|Illinois": -8,
     "11|Colorado": 10,
-    "11|Houston": -10
+    "11|Houston": -10,
+    "11|Iowa State": 28,
+    "11|Cincinnati": -28,
+    "11|Maryland": 3,
+    "11|Wisconsin": -3,
+    "11|Ohio State": 9,
+    "11|Northwestern": -9,
+    "11|Rutgers": -31,
+    "11|Nebraska": 31,
+    "11|Vanderbilt": -15,
+    "11|Alabama": 15,
+    "11|TCU": 10,
+    "11|Kansas State": -10,
+    "11|Texas A&M": -15,
+    "11|Tennessee": 15,
+    "11|West Virginia": -23,
+    "11|Kansas": 23,
+    "11|Indiana": 14,
+    "11|USC": -14,
+    "11|Oregon": 24,
+    "11|Michigan": -24,
+    "11|Georgia": 27,
+    "11|Missouri": -27,
+    "11|Mississippi State": -32,
+    "11|Auburn": 32,
+    "11|UCF": -13,
+    "11|Arizona State": 13,
+    "11|Michigan State": -7,
+    "11|Washington": 7,
+    "11|Kentucky": -7,
+    "11|Florida": 7,
+    "11|Penn State": 28,
+    "11|Minnesota": -28,
+    "11|BYU": 21,
+    "11|Baylor": -21,
+    "11|Iowa": 21,
+    "11|Purdue": -21,
+    "11|LSU": -1,
+    "11|Texas": 1,
+    "11|Arkansas": 28,
+    "11|South Carolina": -28,
+    "11|Oklahoma State": -25,
+    "11|Texas Tech": 25,
+    "11|Arizona": -1,
+    "11|Utah": 1
   },
   "flags": [
     {
-      "week": 11,
-      "team": "Penn State",
-      "spread": -11.5,
-      "kind": "movement",
-      "message": "Penn State has moved from -7.3 to -11.5 since the week was first priced."
-    },
-    {
-      "week": 11,
-      "team": "Minnesota",
-      "spread": 11.5,
-      "kind": "movement",
-      "message": "Minnesota has moved from +7.3 to +11.5 since the week was first priced."
-    },
-    {
-      "week": 11,
-      "team": "Oklahoma",
-      "spread": -2.5,
-      "kind": "movement",
-      "message": "Oklahoma has moved from +2.5 to -2.5 since the week was first priced."
-    },
-    {
-      "week": 11,
-      "team": "Ole Miss",
-      "spread": 2.5,
-      "kind": "movement",
-      "message": "Ole Miss has moved from -2.5 to +2.5 since the week was first priced."
-    },
-    {
-      "week": 11,
-      "team": "Vanderbilt",
-      "spread": 14,
-      "kind": "movement",
-      "message": "Vanderbilt has moved from +19 to +14 since the week was first priced."
-    },
-    {
-      "week": 11,
-      "team": "Alabama",
-      "spread": -14,
-      "kind": "movement",
-      "message": "Alabama has moved from -19 to -14 since the week was first priced."
-    },
-    {
-      "week": 11,
-      "team": "TCU",
-      "spread": -13.5,
-      "kind": "movement",
-      "message": "TCU has moved from -8.5 to -13.5 since the week was first priced."
-    },
-    {
-      "week": 11,
-      "team": "Kansas State",
-      "spread": 13.5,
-      "kind": "movement",
-      "message": "Kansas State has moved from +8.5 to +13.5 since the week was first priced."
-    },
-    {
-      "week": 11,
-      "kind": "recommendation",
-      "message": "Recommendation moved in 1 week(s): wk11 Iowa + Nebraska"
+      "week": 12,
+      "team": "Missouri",
+      "spread": -5.5,
+      "kind": "line",
+      "message": "Missouri is only 5.5 points. Consider a backup."
     }
   ],
   "recommendation": {
     "picks": {
-      "11": [
-        "Iowa",
-        "Nebraska"
-      ],
       "12": [
-        "Texas",
-        "Penn State"
+        "Penn State",
+        "Texas"
       ],
       "13": [
         "Georgia",
         "Indiana"
       ]
     },
-    "pathProbability": 0.551744,
+    "pathProbability": 0.774843,
     "frontier": {
-      "week": 11,
+      "week": 12,
       "scenarios": 128,
       "pool": {
         "mode": "safest",
@@ -7607,707 +8297,692 @@
       "candidates": [
         {
           "teams": [
-            "Iowa",
-            "Nebraska"
+            "Penn State",
+            "Texas"
           ],
-          "weekWinProb": 0.7433,
-          "season": 0.551744,
-          "scenarioMean": 0.564777,
+          "weekWinProb": 0.8549,
+          "season": 0.774843,
+          "scenarioMean": 0.789113,
           "robust": 1,
           "seasonCost": 0,
           "scenarioCost": 0,
-          "leverage": 1.334,
-          "equity": 0.753361,
+          "leverage": 1.202,
+          "equity": 0.948296,
           "chosen": true
         },
         {
           "teams": [
-            "Iowa",
-            "Alabama"
-          ],
-          "weekWinProb": 0.7336,
-          "season": 0.544562,
-          "scenarioMean": 0.557425,
-          "robust": 1,
-          "seasonCost": 0.013,
-          "scenarioCost": 0.013,
-          "leverage": 1.339,
-          "equity": 0.746368,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Ohio State"
-          ],
-          "weekWinProb": 0.729,
-          "season": 0.541167,
-          "scenarioMean": 0.553949,
-          "robust": 1,
-          "seasonCost": 0.0192,
-          "scenarioCost": 0.0192,
-          "leverage": 1.341,
-          "equity": 0.743003,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "TCU"
-          ],
-          "weekWinProb": 0.72,
-          "season": 0.534506,
-          "scenarioMean": 0.547132,
-          "robust": 0,
-          "seasonCost": 0.0312,
-          "scenarioCost": 0.0312,
-          "leverage": 1.346,
-          "equity": 0.736279,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Nebraska",
-            "Alabama"
-          ],
-          "weekWinProb": 0.7047,
-          "season": 0.523141,
-          "scenarioMean": 0.535498,
-          "robust": 0,
-          "seasonCost": 0.0518,
-          "scenarioCost": 0.0518,
-          "leverage": 1.355,
-          "equity": 0.72583,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Nebraska",
-            "Ohio State"
-          ],
-          "weekWinProb": 0.7003,
-          "season": 0.519879,
-          "scenarioMean": 0.532159,
-          "robust": 0,
-          "seasonCost": 0.0578,
-          "scenarioCost": 0.0578,
-          "leverage": 1.358,
-          "equity": 0.722566,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Georgia"
-          ],
-          "weekWinProb": 0.7554,
-          "season": 0.516522,
-          "scenarioMean": 0.528723,
-          "robust": 0,
-          "seasonCost": 0.0638,
-          "scenarioCost": 0.0638,
-          "leverage": 1.327,
-          "equity": 0.701844,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Oregon"
-          ],
-          "weekWinProb": 0.6783,
-          "season": 0.503491,
-          "scenarioMean": 0.514671,
-          "robust": 0,
-          "seasonCost": 0.0875,
-          "scenarioCost": 0.0887,
-          "leverage": 1.363,
-          "equity": 0.701629,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Penn State"
-          ],
-          "weekWinProb": 0.6926,
-          "season": 0.495048,
-          "scenarioMean": 0.505971,
-          "robust": 0,
-          "seasonCost": 0.1028,
-          "scenarioCost": 0.1041,
-          "leverage": 1.358,
-          "equity": 0.687027,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "BYU"
-          ],
-          "weekWinProb": 0.6458,
-          "season": 0.479397,
-          "scenarioMean": 0.490721,
-          "robust": 0,
-          "seasonCost": 0.1311,
-          "scenarioCost": 0.1311,
-          "leverage": 1.373,
-          "equity": 0.673877,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Wisconsin"
-          ],
-          "weekWinProb": 0.6407,
-          "season": 0.47561,
-          "scenarioMean": 0.486844,
-          "robust": 0,
-          "seasonCost": 0.138,
-          "scenarioCost": 0.138,
-          "leverage": 1.375,
-          "equity": 0.669187,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "South Carolina"
-          ],
-          "weekWinProb": 0.6264,
-          "season": 0.464967,
-          "scenarioMean": 0.47595,
-          "robust": 0,
-          "seasonCost": 0.1573,
-          "scenarioCost": 0.1573,
-          "leverage": 1.378,
-          "equity": 0.655788,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Indiana"
-          ],
-          "weekWinProb": 0.6547,
-          "season": 0.462855,
-          "scenarioMean": 0.473788,
-          "robust": 0,
-          "seasonCost": 0.1611,
-          "scenarioCost": 0.1611,
-          "leverage": 1.371,
-          "equity": 0.649472,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "LSU"
-          ],
-          "weekWinProb": 0.5627,
-          "season": 0.417693,
-          "scenarioMean": 0.427559,
-          "robust": 0,
-          "seasonCost": 0.243,
-          "scenarioCost": 0.243,
-          "leverage": 1.388,
-          "equity": 0.593295,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "UCF"
-          ],
-          "weekWinProb": 0.5298,
-          "season": 0.393273,
-          "scenarioMean": 0.402562,
-          "robust": 0,
-          "seasonCost": 0.2872,
-          "scenarioCost": 0.2872,
-          "leverage": 1.391,
-          "equity": 0.559769,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Oklahoma State"
-          ],
-          "weekWinProb": 0.5253,
-          "season": 0.389943,
-          "scenarioMean": 0.399154,
-          "robust": 0,
-          "seasonCost": 0.2933,
-          "scenarioCost": 0.2933,
-          "leverage": 1.391,
-          "equity": 0.555156,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Kentucky"
-          ],
-          "weekWinProb": 0.5112,
-          "season": 0.379496,
-          "scenarioMean": 0.38846,
-          "robust": 0,
-          "seasonCost": 0.3122,
-          "scenarioCost": 0.3122,
-          "leverage": 1.392,
-          "equity": 0.540638,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Iowa State"
-          ],
-          "weekWinProb": 0.5097,
-          "season": 0.378386,
-          "scenarioMean": 0.387323,
-          "robust": 0,
-          "seasonCost": 0.3142,
-          "scenarioCost": 0.3142,
-          "leverage": 1.392,
-          "equity": 0.539092,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Auburn"
-          ],
-          "weekWinProb": 0.4993,
-          "season": 0.370681,
-          "scenarioMean": 0.379436,
-          "robust": 0,
-          "seasonCost": 0.3282,
-          "scenarioCost": 0.3282,
-          "leverage": 1.392,
-          "equity": 0.52834,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "West Virginia"
-          ],
-          "weekWinProb": 0.4979,
-          "season": 0.369636,
-          "scenarioMean": 0.378367,
-          "robust": 0,
-          "seasonCost": 0.3301,
-          "scenarioCost": 0.3301,
-          "leverage": 1.393,
-          "equity": 0.52688,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Oklahoma"
-          ],
-          "weekWinProb": 0.4972,
-          "season": 0.369114,
-          "scenarioMean": 0.377832,
-          "robust": 0,
-          "seasonCost": 0.331,
-          "scenarioCost": 0.331,
-          "leverage": 1.393,
-          "equity": 0.52615,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Washington"
-          ],
-          "weekWinProb": 0.4942,
-          "season": 0.366828,
-          "scenarioMean": 0.375493,
-          "robust": 0,
-          "seasonCost": 0.3351,
-          "scenarioCost": 0.3351,
-          "leverage": 1.393,
-          "equity": 0.522954,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Utah"
-          ],
-          "weekWinProb": 0.4594,
-          "season": 0.341037,
-          "scenarioMean": 0.349092,
-          "robust": 0,
-          "seasonCost": 0.3819,
-          "scenarioCost": 0.3819,
-          "leverage": 1.394,
-          "equity": 0.486773,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Tennessee"
-          ],
-          "weekWinProb": 0.4578,
-          "season": 0.339861,
-          "scenarioMean": 0.347889,
-          "robust": 0,
-          "seasonCost": 0.384,
-          "scenarioCost": 0.384,
-          "leverage": 1.394,
-          "equity": 0.485121,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Texas A&M"
-          ],
-          "weekWinProb": 0.4218,
-          "season": 0.31309,
-          "scenarioMean": 0.320486,
-          "robust": 0,
-          "seasonCost": 0.4325,
-          "scenarioCost": 0.4325,
-          "leverage": 1.396,
-          "equity": 0.447472,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Arizona"
-          ],
-          "weekWinProb": 0.4202,
-          "season": 0.311915,
-          "scenarioMean": 0.31911,
-          "robust": 0,
-          "seasonCost": 0.4347,
-          "scenarioCost": 0.435,
-          "leverage": 1.396,
-          "equity": 0.445579,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Michigan State"
-          ],
-          "weekWinProb": 0.3854,
-          "season": 0.286124,
-          "scenarioMean": 0.292882,
-          "robust": 0,
-          "seasonCost": 0.4814,
-          "scenarioCost": 0.4814,
-          "leverage": 1.399,
-          "equity": 0.409642,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Ole Miss"
-          ],
-          "weekWinProb": 0.3824,
-          "season": 0.283838,
-          "scenarioMean": 0.290543,
-          "robust": 0,
-          "seasonCost": 0.4856,
-          "scenarioCost": 0.4856,
-          "leverage": 1.399,
-          "equity": 0.406447,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Kansas"
-          ],
-          "weekWinProb": 0.3817,
-          "season": 0.283316,
-          "scenarioMean": 0.290008,
-          "robust": 0,
-          "seasonCost": 0.4865,
-          "scenarioCost": 0.4865,
-          "leverage": 1.399,
-          "equity": 0.405717,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Mississippi State"
-          ],
-          "weekWinProb": 0.3803,
-          "season": 0.282271,
-          "scenarioMean": 0.288939,
-          "robust": 0,
-          "seasonCost": 0.4884,
-          "scenarioCost": 0.4884,
-          "leverage": 1.399,
-          "equity": 0.404257,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Cincinnati"
-          ],
-          "weekWinProb": 0.3699,
-          "season": 0.274566,
-          "scenarioMean": 0.281052,
-          "robust": 0,
-          "seasonCost": 0.5024,
-          "scenarioCost": 0.5024,
-          "leverage": 1.4,
-          "equity": 0.393507,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Florida"
-          ],
-          "weekWinProb": 0.3684,
-          "season": 0.273456,
-          "scenarioMean": 0.279775,
-          "robust": 0,
-          "seasonCost": 0.5044,
-          "scenarioCost": 0.5046,
-          "leverage": 1.4,
-          "equity": 0.391765,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Texas Tech"
-          ],
-          "weekWinProb": 0.3543,
-          "season": 0.263009,
-          "scenarioMean": 0.269221,
-          "robust": 0,
-          "seasonCost": 0.5233,
-          "scenarioCost": 0.5233,
-          "leverage": 1.402,
-          "equity": 0.377447,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Arizona State"
-          ],
-          "weekWinProb": 0.3498,
-          "season": 0.259679,
-          "scenarioMean": 0.265813,
-          "robust": 0,
-          "seasonCost": 0.5293,
-          "scenarioCost": 0.5293,
-          "leverage": 1.403,
-          "equity": 0.372837,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Texas"
-          ],
-          "weekWinProb": 0.3169,
-          "season": 0.22498,
-          "scenarioMean": 0.231544,
-          "robust": 0,
-          "seasonCost": 0.5922,
-          "scenarioCost": 0.59,
-          "leverage": 1.409,
-          "equity": 0.326272,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Arkansas"
-          ],
-          "weekWinProb": 0.2532,
-          "season": 0.187985,
-          "scenarioMean": 0.192425,
-          "robust": 0,
-          "seasonCost": 0.6593,
-          "scenarioCost": 0.6593,
-          "leverage": 1.44,
-          "equity": 0.277085,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Maryland"
-          ],
-          "weekWinProb": 0.2389,
-          "season": 0.177342,
-          "scenarioMean": 0.181531,
-          "robust": 0,
-          "seasonCost": 0.6786,
-          "scenarioCost": 0.6786,
-          "leverage": 1.453,
-          "equity": 0.263839,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
-            "Baylor"
-          ],
-          "weekWinProb": 0.2338,
-          "season": 0.173555,
-          "scenarioMean": 0.177654,
-          "robust": 0,
-          "seasonCost": 0.6854,
-          "scenarioCost": 0.6854,
-          "leverage": 1.459,
-          "equity": 0.259221,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Iowa",
+            "Penn State",
             "USC"
           ],
-          "weekWinProb": 0.2249,
-          "season": 0.16696,
-          "scenarioMean": 0.169078,
+          "weekWinProb": 0.8215,
+          "season": 0.744552,
+          "scenarioMean": 0.758264,
           "robust": 0,
-          "seasonCost": 0.6974,
-          "scenarioCost": 0.7006,
-          "leverage": 1.471,
-          "equity": 0.248632,
+          "seasonCost": 0.0391,
+          "scenarioCost": 0.0391,
+          "leverage": 1.209,
+          "equity": 0.917041,
           "chosen": false
         },
         {
           "teams": [
-            "Iowa",
-            "Michigan"
+            "Texas",
+            "USC"
           ],
-          "weekWinProb": 0.2013,
-          "season": 0.149461,
-          "scenarioMean": 0.152991,
+          "weekWinProb": 0.8013,
+          "season": 0.72626,
+          "scenarioMean": 0.739636,
           "robust": 0,
-          "seasonCost": 0.7291,
-          "scenarioCost": 0.7291,
-          "leverage": 1.512,
-          "equity": 0.231331,
+          "seasonCost": 0.0627,
+          "scenarioCost": 0.0627,
+          "leverage": 1.21,
+          "equity": 0.895295,
           "chosen": false
         },
         {
           "teams": [
-            "Iowa",
-            "Minnesota"
+            "Penn State",
+            "Georgia"
           ],
-          "weekWinProb": 0.187,
-          "season": 0.138818,
-          "scenarioMean": 0.142097,
+          "weekWinProb": 0.8163,
+          "season": 0.693223,
+          "scenarioMean": 0.714283,
           "robust": 0,
-          "seasonCost": 0.7484,
-          "scenarioCost": 0.7484,
-          "leverage": 1.549,
-          "equity": 0.220042,
+          "seasonCost": 0.1053,
+          "scenarioCost": 0.0948,
+          "leverage": 1.211,
+          "equity": 0.864912,
           "chosen": false
         },
         {
           "teams": [
-            "Iowa",
-            "Kansas State"
+            "Penn State",
+            "Oregon"
           ],
-          "weekWinProb": 0.1596,
-          "season": 0.118445,
-          "scenarioMean": 0.121243,
+          "weekWinProb": 0.7669,
+          "season": 0.695085,
+          "scenarioMean": 0.707878,
           "robust": 0,
-          "seasonCost": 0.7853,
-          "scenarioCost": 0.7853,
-          "leverage": 1.657,
-          "equity": 0.20093,
+          "seasonCost": 0.1029,
+          "scenarioCost": 0.1029,
+          "leverage": 1.225,
+          "equity": 0.86707,
           "chosen": false
         },
         {
           "teams": [
-            "Iowa",
-            "Northwestern"
+            "Penn State",
+            "Florida"
           ],
-          "weekWinProb": 0.1506,
-          "season": 0.111785,
-          "scenarioMean": 0.114426,
+          "weekWinProb": 0.7532,
+          "season": 0.682612,
+          "scenarioMean": 0.695184,
           "robust": 0,
-          "seasonCost": 0.7974,
-          "scenarioCost": 0.7974,
-          "leverage": 1.709,
-          "equity": 0.195606,
+          "seasonCost": 0.119,
+          "scenarioCost": 0.119,
+          "leverage": 1.228,
+          "equity": 0.853932,
           "chosen": false
         },
         {
           "teams": [
-            "Iowa",
-            "Vanderbilt"
+            "Penn State",
+            "Arizona"
           ],
-          "weekWinProb": 0.146,
-          "season": 0.10839,
-          "scenarioMean": 0.11095,
+          "weekWinProb": 0.7318,
+          "season": 0.663266,
+          "scenarioMean": 0.675482,
           "robust": 0,
-          "seasonCost": 0.8036,
-          "scenarioCost": 0.8036,
-          "leverage": 1.741,
-          "equity": 0.193112,
+          "seasonCost": 0.144,
+          "scenarioCost": 0.144,
+          "leverage": 1.233,
+          "equity": 0.83297,
           "chosen": false
         },
         {
           "teams": [
-            "Iowa",
-            "Rutgers"
+            "Penn State",
+            "Houston"
           ],
-          "weekWinProb": 0.1363,
-          "season": 0.101208,
-          "scenarioMean": 0.103598,
+          "weekWinProb": 0.6575,
+          "season": 0.595896,
+          "scenarioMean": 0.606871,
           "robust": 0,
-          "seasonCost": 0.8166,
-          "scenarioCost": 0.8166,
-          "leverage": 1.819,
-          "equity": 0.188401,
+          "seasonCost": 0.2309,
+          "scenarioCost": 0.2309,
+          "leverage": 1.244,
+          "equity": 0.755233,
           "chosen": false
         },
         {
           "teams": [
-            "Iowa",
+            "Penn State",
+            "Indiana"
+          ],
+          "weekWinProb": 0.6598,
+          "season": 0.583823,
+          "scenarioMean": 0.597413,
+          "robust": 0,
+          "seasonCost": 0.2465,
+          "scenarioCost": 0.2429,
+          "leverage": 1.244,
+          "equity": 0.743316,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "BYU"
+          ],
+          "weekWinProb": 0.6468,
+          "season": 0.586223,
+          "scenarioMean": 0.596484,
+          "robust": 0,
+          "seasonCost": 0.2434,
+          "scenarioCost": 0.2441,
+          "leverage": 1.246,
+          "equity": 0.742936,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "UCLA"
+          ],
+          "weekWinProb": 0.6454,
+          "season": 0.58495,
+          "scenarioMean": 0.595723,
+          "robust": 0,
+          "seasonCost": 0.2451,
+          "scenarioCost": 0.2451,
+          "leverage": 1.246,
+          "equity": 0.742066,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Oklahoma"
+          ],
+          "weekWinProb": 0.639,
+          "season": 0.579104,
+          "scenarioMean": 0.589769,
+          "robust": 0,
+          "seasonCost": 0.2526,
+          "scenarioCost": 0.2526,
+          "leverage": 1.246,
+          "equity": 0.734988,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Iowa"
+          ],
+          "weekWinProb": 0.635,
+          "season": 0.575532,
+          "scenarioMean": 0.586132,
+          "robust": 0,
+          "seasonCost": 0.2572,
+          "scenarioCost": 0.2572,
+          "leverage": 1.247,
+          "equity": 0.730649,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Utah"
+          ],
+          "weekWinProb": 0.6346,
+          "season": 0.575108,
+          "scenarioMean": 0.582268,
+          "robust": 0,
+          "seasonCost": 0.2578,
+          "scenarioCost": 0.2621,
+          "leverage": 1.247,
+          "equity": 0.725856,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
             "Missouri"
           ],
-          "weekWinProb": 0.1242,
-          "season": 0.092197,
-          "scenarioMean": 0.094375,
+          "weekWinProb": 0.6036,
+          "season": 0.547023,
+          "scenarioMean": 0.557097,
           "robust": 0,
-          "seasonCost": 0.8329,
-          "scenarioCost": 0.8329,
-          "leverage": 1.948,
-          "equity": 0.183802,
+          "seasonCost": 0.294,
+          "scenarioCost": 0.294,
+          "leverage": 1.249,
+          "equity": 0.695682,
           "chosen": false
         },
         {
           "teams": [
-            "Georgia",
+            "Penn State",
+            "Wisconsin"
+          ],
+          "weekWinProb": 0.5847,
+          "season": 0.529883,
+          "scenarioMean": 0.539642,
+          "robust": 0,
+          "seasonCost": 0.3161,
+          "scenarioCost": 0.3161,
+          "leverage": 1.25,
+          "equity": 0.674427,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Oklahoma State"
+          ],
+          "weekWinProb": 0.5795,
+          "season": 0.525217,
+          "scenarioMean": 0.53489,
+          "robust": 0,
+          "seasonCost": 0.3222,
+          "scenarioCost": 0.3222,
+          "leverage": 1.25,
+          "equity": 0.668616,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Ohio State"
+          ],
+          "weekWinProb": 0.577,
+          "season": 0.522926,
+          "scenarioMean": 0.532534,
+          "robust": 0,
+          "seasonCost": 0.3251,
+          "scenarioCost": 0.3251,
+          "leverage": 1.25,
+          "equity": 0.665732,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Texas Tech"
+          ],
+          "weekWinProb": 0.5622,
+          "season": 0.509519,
+          "scenarioMean": 0.518903,
+          "robust": 0,
+          "seasonCost": 0.3424,
+          "scenarioCost": 0.3424,
+          "leverage": 1.251,
+          "equity": 0.649008,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Cincinnati"
+          ],
+          "weekWinProb": 0.529,
+          "season": 0.479398,
+          "scenarioMean": 0.488227,
+          "robust": 0,
+          "seasonCost": 0.3813,
+          "scenarioCost": 0.3813,
+          "leverage": 1.252,
+          "equity": 0.611176,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Northwestern"
+          ],
+          "weekWinProb": 0.5267,
+          "season": 0.477362,
+          "scenarioMean": 0.486153,
+          "robust": 0,
+          "seasonCost": 0.3839,
+          "scenarioCost": 0.3839,
+          "leverage": 1.252,
+          "equity": 0.608611,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "UCF"
+          ],
+          "weekWinProb": 0.4996,
+          "season": 0.45284,
+          "scenarioMean": 0.46118,
+          "robust": 0,
+          "seasonCost": 0.4156,
+          "scenarioCost": 0.4156,
+          "leverage": 1.253,
+          "equity": 0.577675,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "LSU"
+          ],
+          "weekWinProb": 0.4984,
+          "season": 0.451737,
+          "scenarioMean": 0.460057,
+          "robust": 0,
+          "seasonCost": 0.417,
+          "scenarioCost": 0.417,
+          "leverage": 1.253,
+          "equity": 0.576282,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Tennessee"
+          ],
+          "weekWinProb": 0.4378,
+          "season": 0.396755,
+          "scenarioMean": 0.404062,
+          "robust": 0,
+          "seasonCost": 0.488,
+          "scenarioCost": 0.488,
+          "leverage": 1.254,
+          "equity": 0.506791,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Iowa State"
+          ],
+          "weekWinProb": 0.4366,
+          "season": 0.395652,
+          "scenarioMean": 0.402939,
+          "robust": 0,
+          "seasonCost": 0.4894,
+          "scenarioCost": 0.4894,
+          "leverage": 1.254,
+          "equity": 0.505398,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Minnesota"
+          ],
+          "weekWinProb": 0.4095,
+          "season": 0.37113,
+          "scenarioMean": 0.377966,
+          "robust": 0,
+          "seasonCost": 0.521,
+          "scenarioCost": 0.521,
+          "leverage": 1.255,
+          "equity": 0.474463,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Colorado"
+          ],
+          "weekWinProb": 0.4072,
+          "season": 0.369094,
+          "scenarioMean": 0.375892,
+          "robust": 0,
+          "seasonCost": 0.5237,
+          "scenarioCost": 0.5237,
+          "leverage": 1.255,
+          "equity": 0.471898,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Baylor"
+          ],
+          "weekWinProb": 0.374,
+          "season": 0.338973,
+          "scenarioMean": 0.345215,
+          "robust": 0,
+          "seasonCost": 0.5625,
+          "scenarioCost": 0.5625,
+          "leverage": 1.257,
+          "equity": 0.43407,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Nebraska"
+          ],
+          "weekWinProb": 0.3592,
+          "season": 0.325566,
+          "scenarioMean": 0.331562,
+          "robust": 0,
+          "seasonCost": 0.5798,
+          "scenarioCost": 0.5798,
+          "leverage": 1.259,
+          "equity": 0.417321,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Arizona State"
+          ],
+          "weekWinProb": 0.3567,
+          "season": 0.323275,
+          "scenarioMean": 0.329229,
+          "robust": 0,
+          "seasonCost": 0.5828,
+          "scenarioCost": 0.5828,
+          "leverage": 1.259,
+          "equity": 0.414466,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
             "Purdue"
           ],
-          "weekWinProb": 0.1034,
-          "season": 0.070702,
-          "scenarioMean": 0.072372,
+          "weekWinProb": 0.3515,
+          "season": 0.318609,
+          "scenarioMean": 0.324477,
           "robust": 0,
-          "seasonCost": 0.8719,
-          "scenarioCost": 0.8719,
-          "leverage": 2.267,
-          "equity": 0.16406,
+          "seasonCost": 0.5888,
+          "scenarioCost": 0.5888,
+          "leverage": 1.259,
+          "equity": 0.408657,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Kentucky"
+          ],
+          "weekWinProb": 0.3326,
+          "season": 0.301469,
+          "scenarioMean": 0.307021,
+          "robust": 0,
+          "seasonCost": 0.6109,
+          "scenarioCost": 0.6109,
+          "leverage": 1.262,
+          "equity": 0.387411,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "TCU"
+          ],
+          "weekWinProb": 0.3016,
+          "season": 0.273384,
+          "scenarioMean": 0.278419,
+          "robust": 0,
+          "seasonCost": 0.6472,
+          "scenarioCost": 0.6472,
+          "leverage": 1.268,
+          "equity": 0.35299,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Illinois"
+          ],
+          "weekWinProb": 0.3012,
+          "season": 0.27296,
+          "scenarioMean": 0.277987,
+          "robust": 0,
+          "seasonCost": 0.6477,
+          "scenarioCost": 0.6477,
+          "leverage": 1.268,
+          "equity": 0.352475,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Texas A&M"
+          ],
+          "weekWinProb": 0.2972,
+          "season": 0.269388,
+          "scenarioMean": 0.27435,
+          "robust": 0,
+          "seasonCost": 0.6523,
+          "scenarioCost": 0.6523,
+          "leverage": 1.269,
+          "equity": 0.348142,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Michigan"
+          ],
+          "weekWinProb": 0.2908,
+          "season": 0.263542,
+          "scenarioMean": 0.268395,
+          "robust": 0,
+          "seasonCost": 0.6599,
+          "scenarioCost": 0.6599,
+          "leverage": 1.271,
+          "equity": 0.341076,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Kansas"
+          ],
+          "weekWinProb": 0.2894,
+          "season": 0.262269,
+          "scenarioMean": 0.267099,
+          "robust": 0,
+          "seasonCost": 0.6615,
+          "scenarioCost": 0.6615,
+          "leverage": 1.271,
+          "equity": 0.339542,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "West Virginia"
+          ],
+          "weekWinProb": 0.2787,
+          "season": 0.252596,
+          "scenarioMean": 0.257248,
+          "robust": 0,
+          "seasonCost": 0.674,
+          "scenarioCost": 0.674,
+          "leverage": 1.275,
+          "equity": 0.327938,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Washington"
+          ],
+          "weekWinProb": 0.2764,
+          "season": 0.250475,
+          "scenarioMean": 0.255088,
+          "robust": 0,
+          "seasonCost": 0.6767,
+          "scenarioCost": 0.6767,
+          "leverage": 1.276,
+          "equity": 0.325406,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Kansas State"
+          ],
+          "weekWinProb": 0.2044,
+          "season": 0.185226,
+          "scenarioMean": 0.188637,
+          "robust": 0,
+          "seasonCost": 0.761,
+          "scenarioCost": 0.761,
+          "leverage": 1.33,
+          "equity": 0.250902,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Vanderbilt"
+          ],
+          "weekWinProb": 0.183,
+          "season": 0.16588,
+          "scenarioMean": 0.168935,
+          "robust": 0,
+          "seasonCost": 0.7859,
+          "scenarioCost": 0.7859,
+          "leverage": 1.365,
+          "equity": 0.230575,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Michigan State"
+          ],
+          "weekWinProb": 0.1693,
+          "season": 0.153407,
+          "scenarioMean": 0.156233,
+          "robust": 0,
+          "seasonCost": 0.802,
+          "scenarioCost": 0.802,
+          "leverage": 1.396,
+          "equity": 0.218076,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "South Carolina"
+          ],
+          "weekWinProb": 0.1199,
+          "season": 0.108692,
+          "scenarioMean": 0.110694,
+          "robust": 0,
+          "seasonCost": 0.8597,
+          "scenarioCost": 0.8597,
+          "leverage": 1.613,
+          "equity": 0.178519,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Maryland"
+          ],
+          "weekWinProb": 0.1147,
+          "season": 0.10394,
+          "scenarioMean": 0.105855,
+          "robust": 0,
+          "seasonCost": 0.8659,
+          "scenarioCost": 0.8659,
+          "leverage": 1.653,
+          "equity": 0.174931,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Penn State",
+            "Arkansas"
+          ],
+          "weekWinProb": 0.0813,
+          "season": 0.073649,
+          "scenarioMean": 0.075006,
+          "robust": 0,
+          "seasonCost": 0.9049,
+          "scenarioCost": 0.9049,
+          "leverage": 2.08,
+          "equity": 0.15602,
+          "chosen": false
+        },
+        {
+          "teams": [
+            "Texas",
+            "Rutgers"
+          ],
+          "weekWinProb": 0.0583,
+          "season": 0.052804,
+          "scenarioMean": 0.053776,
+          "robust": 0,
+          "seasonCost": 0.9319,
+          "scenarioCost": 0.9319,
+          "leverage": 2.703,
+          "equity": 0.145367,
           "chosen": false
         }
       ]
