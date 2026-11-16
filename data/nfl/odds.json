@@ -1,6 +1,6 @@
 {
   "$comment": "Written by the refresh workflow. Line keys are \"<week>|<team>\", and the same keys carry W/L in `results` for the board and the signed margin in `scores` for the form.json rating fit.",
-  "updatedAt": "2026-11-15T14:00:13Z",
+  "updatedAt": "2026-11-16T14:01:02Z",
   "currentWeek": 10,
   "lines": {
     "1|Seahawks": {
@@ -4477,30 +4477,30 @@
       "spread": -4.5,
       "total": 39,
       "source": "market",
-      "winProb": 0.6576,
-      "moneyline": -220,
-      "moneylineProb": 0.6598,
+      "winProb": 0.6587,
+      "moneyline": -225,
+      "moneylineProb": 0.6654,
       "books": 9,
       "moneylineBooks": 9,
       "capped": 0,
       "opened": -5,
       "openedAt": "2026-11-10T14:00:15Z",
-      "updatedAt": "2026-11-15T14:00:13Z",
+      "updatedAt": "2026-11-16T14:01:02Z",
       "kickoff": "2026-11-17T01:15:00Z"
     },
     "10|Chargers": {
       "spread": 4.5,
       "total": 39,
       "source": "market",
-      "winProb": 0.3424,
-      "moneyline": 183,
-      "moneylineProb": 0.3402,
+      "winProb": 0.3413,
+      "moneyline": 186,
+      "moneylineProb": 0.3346,
       "books": 9,
       "moneylineBooks": 9,
       "capped": 0,
       "opened": 5,
       "openedAt": "2026-11-10T14:00:15Z",
-      "updatedAt": "2026-11-15T14:00:13Z",
+      "updatedAt": "2026-11-16T14:01:02Z",
       "kickoff": "2026-11-17T01:15:00Z"
     }
   },
@@ -4776,7 +4776,31 @@
     "9|Vikings": "L",
     "9|Bills": "W",
     "10|Giants": "L",
-    "10|Commanders": "W"
+    "10|Commanders": "W",
+    "10|Lions": "W",
+    "10|Patriots": "L",
+    "10|Falcons": "L",
+    "10|Chiefs": "W",
+    "10|Packers": "L",
+    "10|Vikings": "W",
+    "10|Titans": "L",
+    "10|Jaguars": "W",
+    "10|Saints": "L",
+    "10|Panthers": "W",
+    "10|Browns": "W",
+    "10|Texans": "L",
+    "10|Colts": "W",
+    "10|Dolphins": "L",
+    "10|Jets": "L",
+    "10|Bills": "W",
+    "10|Raiders": "L",
+    "10|Seahawks": "W",
+    "10|Cardinals": "L",
+    "10|Rams": "W",
+    "10|Cowboys": "L",
+    "10|49ers": "W",
+    "10|Bengals": "W",
+    "10|Steelers": "L"
   },
   "scores": {
     "1|Seahawks": 3,
@@ -5050,21 +5074,43 @@
     "9|Vikings": -17,
     "9|Bills": 17,
     "10|Giants": -3,
-    "10|Commanders": 3
+    "10|Commanders": 3,
+    "10|Lions": 25,
+    "10|Patriots": -25,
+    "10|Falcons": -22,
+    "10|Chiefs": 22,
+    "10|Packers": -20,
+    "10|Vikings": 20,
+    "10|Titans": -17,
+    "10|Jaguars": 17,
+    "10|Saints": -3,
+    "10|Panthers": 3,
+    "10|Browns": 3,
+    "10|Texans": -3,
+    "10|Colts": 2,
+    "10|Dolphins": -2,
+    "10|Jets": -19,
+    "10|Bills": 19,
+    "10|Raiders": -8,
+    "10|Seahawks": 8,
+    "10|Cardinals": -28,
+    "10|Rams": 28,
+    "10|Cowboys": -6,
+    "10|49ers": 6,
+    "10|Bengals": 20,
+    "10|Steelers": -20
   },
   "flags": [
     {
       "week": 10,
-      "team": "Colts",
-      "spread": -4.5,
-      "kind": "line",
-      "message": "Colts is only 4.5 points. Consider a backup."
+      "kind": "recommendation",
+      "message": "Recommendation moved in 1 week(s): wk10 Ravens"
     }
   ],
   "recommendation": {
     "picks": {
       "10": [
-        "Rams"
+        "Ravens"
       ],
       "11": [
         "Bills"
@@ -5091,7 +5137,7 @@
         "Chiefs"
       ]
     },
-    "pathProbability": 0.235071,
+    "pathProbability": 0.203949,
     "frontier": {
       "week": 10,
       "scenarios": 128,
@@ -5104,366 +5150,30 @@
       "candidates": [
         {
           "teams": [
-            "Rams"
+            "Ravens"
           ],
-          "weekWinProb": 0.8128,
-          "season": 0.235071,
-          "scenarioMean": 0.243254,
+          "weekWinProb": 0.6587,
+          "season": 0.203949,
+          "scenarioMean": 0.210803,
           "robust": 1,
           "seasonCost": 0,
           "scenarioCost": 0,
-          "leverage": 1.216,
-          "equity": 0.295888,
+          "leverage": 1.011,
+          "equity": 0.213065,
           "chosen": true
-        },
-        {
-          "teams": [
-            "Jaguars"
-          ],
-          "weekWinProb": 0.8278,
-          "season": 0.215094,
-          "scenarioMean": 0.221571,
-          "robust": 0,
-          "seasonCost": 0.085,
-          "scenarioCost": 0.0891,
-          "leverage": 1.206,
-          "equity": 0.267162,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Seahawks"
-          ],
-          "weekWinProb": 0.7194,
-          "season": 0.208058,
-          "scenarioMean": 0.215301,
-          "robust": 0,
-          "seasonCost": 0.1149,
-          "scenarioCost": 0.1149,
-          "leverage": 1.265,
-          "equity": 0.272275,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Bills"
-          ],
-          "weekWinProb": 0.7577,
-          "season": 0.198532,
-          "scenarioMean": 0.209704,
-          "robust": 0,
-          "seasonCost": 0.1554,
-          "scenarioCost": 0.1379,
-          "leverage": 1.249,
-          "equity": 0.261858,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Ravens"
-          ],
-          "weekWinProb": 0.6576,
-          "season": 0.190185,
-          "scenarioMean": 0.196806,
-          "robust": 0,
-          "seasonCost": 0.1909,
-          "scenarioCost": 0.1909,
-          "leverage": 1.281,
-          "equity": 0.252137,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Colts"
-          ],
-          "weekWinProb": 0.6568,
-          "season": 0.189954,
-          "scenarioMean": 0.196566,
-          "robust": 0,
-          "seasonCost": 0.1919,
-          "scenarioCost": 0.1919,
-          "leverage": 1.281,
-          "equity": 0.251861,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Bengals"
-          ],
-          "weekWinProb": 0.6245,
-          "season": 0.180612,
-          "scenarioMean": 0.1869,
-          "robust": 0,
-          "seasonCost": 0.2317,
-          "scenarioCost": 0.2317,
-          "leverage": 1.287,
-          "equity": 0.240479,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Texans"
-          ],
-          "weekWinProb": 0.6588,
-          "season": 0.174303,
-          "scenarioMean": 0.180371,
-          "robust": 0,
-          "seasonCost": 0.2585,
-          "scenarioCost": 0.2585,
-          "leverage": 1.281,
-          "equity": 0.231039,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Chiefs"
-          ],
-          "weekWinProb": 0.6089,
-          "season": 0.174619,
-          "scenarioMean": 0.178713,
-          "robust": 0,
-          "seasonCost": 0.2572,
-          "scenarioCost": 0.2653,
-          "leverage": 1.289,
-          "equity": 0.230311,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "49ers"
-          ],
-          "weekWinProb": 0.6433,
-          "season": 0.159071,
-          "scenarioMean": 0.165852,
-          "robust": 0,
-          "seasonCost": 0.3233,
-          "scenarioCost": 0.3182,
-          "leverage": 1.284,
-          "equity": 0.212914,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Lions"
-          ],
-          "weekWinProb": 0.5849,
-          "season": 0.157195,
-          "scenarioMean": 0.162518,
-          "robust": 0,
-          "seasonCost": 0.3313,
-          "scenarioCost": 0.3319,
-          "leverage": 1.291,
-          "equity": 0.209868,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Saints"
-          ],
-          "weekWinProb": 0.5317,
-          "season": 0.153773,
-          "scenarioMean": 0.159126,
-          "robust": 0,
-          "seasonCost": 0.3458,
-          "scenarioCost": 0.3458,
-          "leverage": 1.296,
-          "equity": 0.206191,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Packers"
-          ],
-          "weekWinProb": 0.5855,
-          "season": 0.150257,
-          "scenarioMean": 0.155488,
-          "robust": 0,
-          "seasonCost": 0.3608,
-          "scenarioCost": 0.3608,
-          "leverage": 1.291,
-          "equity": 0.20078,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Panthers"
-          ],
-          "weekWinProb": 0.4683,
-          "season": 0.135437,
-          "scenarioMean": 0.140152,
-          "robust": 0,
-          "seasonCost": 0.4238,
-          "scenarioCost": 0.4238,
-          "leverage": 1.301,
-          "equity": 0.182307,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Patriots"
-          ],
-          "weekWinProb": 0.4151,
-          "season": 0.120051,
-          "scenarioMean": 0.124231,
-          "robust": 0,
-          "seasonCost": 0.4893,
-          "scenarioCost": 0.4893,
-          "leverage": 1.308,
-          "equity": 0.162464,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Vikings"
-          ],
-          "weekWinProb": 0.4145,
-          "season": 0.119878,
-          "scenarioMean": 0.124051,
-          "robust": 0,
-          "seasonCost": 0.49,
-          "scenarioCost": 0.49,
-          "leverage": 1.308,
-          "equity": 0.162243,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Falcons"
-          ],
-          "weekWinProb": 0.3911,
-          "season": 0.11311,
-          "scenarioMean": 0.117048,
-          "robust": 0,
-          "seasonCost": 0.5188,
-          "scenarioCost": 0.5188,
-          "leverage": 1.313,
-          "equity": 0.153685,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Steelers"
-          ],
-          "weekWinProb": 0.3755,
-          "season": 0.108599,
-          "scenarioMean": 0.112299,
-          "robust": 0,
-          "seasonCost": 0.538,
-          "scenarioCost": 0.5383,
-          "leverage": 1.318,
-          "equity": 0.147964,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Cowboys"
-          ],
-          "weekWinProb": 0.3567,
-          "season": 0.103161,
-          "scenarioMean": 0.106254,
-          "robust": 0,
-          "seasonCost": 0.5611,
-          "scenarioCost": 0.5632,
-          "leverage": 1.325,
-          "equity": 0.140768,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Dolphins"
-          ],
-          "weekWinProb": 0.3432,
-          "season": 0.099257,
-          "scenarioMean": 0.102712,
-          "robust": 0,
-          "seasonCost": 0.5778,
-          "scenarioCost": 0.5778,
-          "leverage": 1.332,
-          "equity": 0.136765,
-          "chosen": false
         },
         {
           "teams": [
             "Chargers"
           ],
-          "weekWinProb": 0.3424,
-          "season": 0.099026,
-          "scenarioMean": 0.102473,
+          "weekWinProb": 0.3413,
+          "season": 0.105674,
+          "scenarioMean": 0.109226,
           "robust": 0,
-          "seasonCost": 0.5787,
-          "scenarioCost": 0.5787,
-          "leverage": 1.332,
-          "equity": 0.136492,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Browns"
-          ],
-          "weekWinProb": 0.3412,
-          "season": 0.098679,
-          "scenarioMean": 0.102114,
-          "robust": 0,
-          "seasonCost": 0.5802,
-          "scenarioCost": 0.5802,
-          "leverage": 1.333,
-          "equity": 0.136083,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Raiders"
-          ],
-          "weekWinProb": 0.2806,
-          "season": 0.081153,
-          "scenarioMean": 0.083978,
-          "robust": 0,
-          "seasonCost": 0.6548,
-          "scenarioCost": 0.6548,
-          "leverage": 1.393,
-          "equity": 0.116951,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Jets"
-          ],
-          "weekWinProb": 0.2423,
-          "season": 0.070076,
-          "scenarioMean": 0.072515,
-          "robust": 0,
-          "seasonCost": 0.7019,
-          "scenarioCost": 0.7019,
-          "leverage": 1.481,
-          "equity": 0.107424,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Cardinals"
-          ],
-          "weekWinProb": 0.1872,
-          "season": 0.05414,
-          "scenarioMean": 0.056025,
-          "robust": 0,
-          "seasonCost": 0.7697,
-          "scenarioCost": 0.7697,
-          "leverage": 1.833,
-          "equity": 0.102686,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Titans"
-          ],
-          "weekWinProb": 0.1722,
-          "season": 0.049802,
-          "scenarioMean": 0.051536,
-          "robust": 0,
-          "seasonCost": 0.7881,
-          "scenarioCost": 0.7881,
-          "leverage": 2.055,
-          "equity": 0.105882,
+          "seasonCost": 0.4819,
+          "scenarioCost": 0.4819,
+          "leverage": 94.157,
+          "equity": 10.284354,
           "chosen": false
         }
       ]
