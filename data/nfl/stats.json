@@ -1,6 +1,6 @@
 {
   "$comment": "Written by scripts/pull-stats.mjs from nflverse weekly team statistics. Never edit by hand. One record per team per game, keyed \"<week>|<team>\" like odds.json: `margin` is the team's offensive expected points added less its opponent's, capped, and is what the rating fit in form.json reads as an efficiency observation. The other fields say where it came from.",
-  "updatedAt": "2026-11-17T14:01:18Z",
+  "updatedAt": "2026-11-18T14:00:34Z",
   "source": "https://github.com/nflverse/nflverse-data/releases/download/stats_team/stats_team_week_2026.csv",
   "season": 2026,
   "games": {
@@ -2730,7 +2730,7 @@
       "defensePerPlay": 0.162,
       "passingEpa": -5.45,
       "rushingEpa": -2.61,
-      "cpoe": 1.02468124207328
+      "cpoe": -0.600037319319589
     },
     "9|Bengals": {
       "opponent": "Falcons",
