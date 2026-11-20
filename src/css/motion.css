@@ -171,30 +171,22 @@
   animation-play-state: running;
 }
 
-/* The handoff, once the play has landed: the layer lifts away over the board
-   rising in under it. Seven tenths of a second, from five - the two are one
-   movement, and the board had been arriving before the eye had finished with
-   the play. Both halves run the same length for that reason, and --ease-out
-   is front-loaded enough that the board still lands early in it rather than
-   drifting the whole way. app.js stops the play for the duration (HANDOFF_MS
-   there is this length) so a cycle cannot wrap round mid-fade. */
+/* The handoff, once the play has landed: the layer fades off the board, which
+   is already standing in its place under it. Seven tenths of a second, from
+   five: the board had been arriving before the eye had finished with the
+   play. app.js stops the play for the duration (HANDOFF_MS there is this
+   length) so a cycle cannot wrap round mid-fade.
+
+   A fade and nothing else. The layer used to grow to 1.03 as it went, and the
+   board rose ten pixels into place under it - the home page's wordmark
+   jolting upward on every launch. The growing was the worse half: scaling the
+   layer had it painted again at the new size in the fade's first frame, which
+   froze the screen for half a second (measured headless, 450-750 ms against
+   20-60 ms without it), so the board turned up most of the way faded in and
+   still on its way up. */
 .startup.is-ready {
   opacity: 0;
-  transform: scale(1.03);
-  transition:
-    opacity 0.7s ease,
-    transform 0.7s var(--ease-out);
-}
-
-.is-starting .shell {
-  opacity: 0;
-  transform: translateY(10px);
-}
-
-.shell {
-  transition:
-    opacity 0.7s ease,
-    transform 0.7s var(--ease-out);
+  transition: opacity 0.7s ease;
 }
 
 /* --- press and hover, the states that outlive a render ------------------- */

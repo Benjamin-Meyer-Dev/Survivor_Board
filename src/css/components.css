@@ -1289,6 +1289,28 @@ button.league-bar__face[aria-expanded="true"] {
   border-left: 0;
 }
 
+/* A season short enough to stand whole across the field does, rather than
+   scrolling a ten-week pool past the edge by three columns. ui/pitch.js puts
+   this on (fitSeason) where every week can have at least the column its lanes
+   need - 28 for one, 38 for two - and the weeks then share the field the way
+   they do on a desktop. Equal shares, so the bracket's arithmetic holds.
+
+   The basis is two pixels, not nought. A border-box with a basis of nought
+   still starts from its own border, so the first week (no line), every fifth
+   (a line of two) and the rest (one) came out a pixel apart and the bracket
+   stood a pixel off them. Two is the widest line a yard has, so every week
+   starts from the same two and ends the same width. */
+.pitch__field--fit .pitch__track {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.pitch__field--fit .pitch__yard {
+  flex: 1 1 2px;
+  width: auto;
+  min-width: 0;
+}
+
 /* Every fifth week is heavier and numbered, the way a field is. */
 .pitch__yard--five {
   border-left-width: 2px;
@@ -1411,7 +1433,8 @@ button.league-bar__face[aria-expanded="true"] {
   color: var(--flag);
 }
 
-.pitch__mark--locked svg {
+.pitch__mark--locked svg,
+.pitch__mark--missed svg {
   width: 16px;
   height: 16px;
   fill: none;
@@ -1419,6 +1442,29 @@ button.league-bar__face[aria-expanded="true"] {
   stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* A played week with nothing locked in it: a pick the board is still owed
+   (missedSlot in core/amend.js). The ring and its exclamation stand where the
+   padlock would, in the flag, because what it asks for is yours to do - the
+   week's list records the team that was played. */
+.pitch__mark--missed {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  color: var(--flag);
+}
+
+.pitch__mark--missed .pitch__mark-dot {
+  fill: currentcolor;
+  stroke: none;
+}
+
+/* And "No pick" down the line in the mark's colour, so it does not read as a
+   team called that - on the week being looked at too, which lights a team's
+   name to full chalk. */
+.pitch__label.pitch__label--note {
+  color: var(--flag);
 }
 
 .pitch__mark--picked {
@@ -2701,6 +2747,11 @@ button.league-bar__face[aria-expanded="true"] {
   border-top-color: var(--buyback);
 }
 
+/* A played week still owed its pick, read back off its badge. */
+.route__swatch--missed {
+  border-top-color: var(--flag);
+}
+
 /* The plot proper, with a gutter to its left for the rules' labels.
 
    Twenty-two, which is what the labels actually take: a rule's label is three
@@ -2801,6 +2852,43 @@ button.league-bar__face[aria-expanded="true"] {
   border-radius: 3px 3px 0 0;
   background: rgb(243 247 241 / 6%);
   transform: translateX(calc(var(--week-turn, 0) * 100%));
+}
+
+/* A played week with nothing locked in it (route in ui/coach.js). There is no
+   mark to draw - nothing was priced, won or lost - so the column says where
+   one is missing instead: a dashed rule in the flag up the week's column, and
+   the flag's badge where it meets the axis, set on the line the way every mark
+   on this chart stands on one. The badge is what a touch reads back. */
+.route__miss {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed color-mix(in srgb, var(--flag) 45%, transparent);
+  pointer-events: none;
+}
+
+/* Centred on the dashed rule (the border's own pixel), and resting on the axis
+   line rather than threaded on it: centred there, it ran into the week number
+   under it. */
+.route__miss svg {
+  position: absolute;
+  bottom: 0;
+  left: -6px;
+  width: 13px;
+  height: 13px;
+  overflow: visible;
+}
+
+.route__miss circle {
+  fill: var(--flag);
+}
+
+.route__miss path {
+  fill: none;
+  stroke: var(--on-flag);
+  stroke-width: 3;
+  stroke-linecap: round;
 }
 
 /* Rules every ten points, solid hairlines a shade off the turf. The hundred,
@@ -3111,6 +3199,12 @@ button.league-bar__face[aria-expanded="true"] {
 
 .route__week--here {
   color: var(--chalk);
+}
+
+/* A played week still owed its pick: its number in the flag, under the badge
+   standing on the axis over it. */
+.route__week--missed {
+  color: var(--flag);
 }
 
 /* How much of the working there is room for, asked of its own box (layout.css
@@ -4987,11 +5081,6 @@ button.league-bar__face[aria-expanded="true"] {
   position: fixed;
   inset: 0;
   z-index: 20;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-6);
   overflow: hidden;
   color: var(--ink);
   background:
@@ -5001,6 +5090,61 @@ button.league-bar__face[aria-expanded="true"] {
 
 .startup[hidden] {
   display: none;
+}
+
+/* The phone's launch screen, carried on. Android opens an installed app on its
+   icon alone, centred on the manifest's background colour: the full-bleed
+   (maskable) icon at 240, masked to a circle of 160. This is that, at that
+   size, on that colour, pinned to the middle of the screen - so when the page
+   takes over, the logo is already where the eye left it and the rest of the
+   screen arrives around it. The layer used to open on the ball graphic forty
+   pixels above the middle, which read as the logo jolting upward. */
+.startup__logo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 240px;
+  height: 240px;
+  margin: -120px 0 0 -120px;
+  clip-path: circle(80px);
+}
+
+/* Everything else hangs from the logo rather than being centred with it, so
+   no line of it - a season line still loading, a status that wraps - can move
+   the logo by being there. */
+.startup__below {
+  position: absolute;
+  top: calc(50% + 80px + 28px);
+  right: 0;
+  left: 0;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 0 var(--sp-6);
+}
+
+/* A screen too short to hang all of that under the middle - a phone held
+   sideways - goes back to one centred column, with a smaller logo on top. */
+@media (max-height: 640px) {
+  .startup {
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 10px;
+    padding: var(--sp-3);
+  }
+
+  .startup__logo {
+    position: static;
+    width: 144px;
+    height: 144px;
+    margin: -24px;
+    clip-path: circle(48px);
+  }
+
+  .startup__below {
+    display: contents;
+  }
 }
 
 .is-starting .shell {
@@ -5015,12 +5159,14 @@ button.league-bar__face[aria-expanded="true"] {
    startup instead, so a late font can never change a layer that is on screen. */
 .startup__scene,
 .startup__brand,
+.startup__season,
 .startup__status {
   opacity: 0;
 }
 
 .startup.is-typography-ready .startup__scene,
 .startup.is-typography-ready .startup__brand,
+.startup.is-typography-ready .startup__season,
 .startup.is-typography-ready .startup__status {
   opacity: 1;
   transition: opacity 0.14s ease-out;
@@ -5029,6 +5175,7 @@ button.league-bar__face[aria-expanded="true"] {
 .startup.is-typography-fallback,
 .startup.is-typography-fallback .startup__yard,
 .startup.is-typography-fallback .startup__brand,
+.startup.is-typography-fallback .startup__season,
 .startup.is-typography-fallback .startup__status {
   font-family:
     system-ui,
@@ -5037,12 +5184,15 @@ button.league-bar__face[aria-expanded="true"] {
     sans-serif;
 }
 
+/* A beat further down than the name and its season over it, so those read as
+   the title block and the field as the thing loading. */
 .startup__scene {
   --startup-scene: min(72vw, 310px);
   --startup-track: calc(var(--startup-scene) * 0.6);
   position: relative;
   width: var(--startup-scene);
   height: 84px;
+  margin-top: 14px;
   border-top: 2px solid var(--line);
   border-bottom: 2px solid var(--line);
 }
@@ -5130,8 +5280,23 @@ button.league-bar__face[aria-expanded="true"] {
 }
 
 .startup__brand,
+.startup__season,
 .startup__status {
   margin: 0;
+}
+
+/* Where each season stands - "NFL week 11 · College week 12" - in the ball's
+   yellow under the name. Its line is held open while it loads, so arriving
+   late moves nothing under it. */
+.startup__season {
+  min-height: 16px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 16px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--startup-accent);
 }
 
 .startup__brand {
@@ -5758,8 +5923,10 @@ button.league-bar__face[aria-expanded="true"] {
     flex: 1 1 auto;
   }
 
+  /* From an equal two pixels rather than nought, for the reason the fitted
+     phone field gives (.pitch__field--fit): every week the same width. */
   .pitch__yard {
-    flex: 1 1 0;
+    flex: 1 1 2px;
     width: auto;
     min-width: 0;
   }

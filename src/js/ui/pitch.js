@@ -37,6 +37,7 @@ import { formatDuration } from "../core/refresh.js";
 import { delegate } from "./events.js";
 import { frame, paint, reconcile } from "./patch.js";
 import { afterMotion, twoFrames } from "./motion.js";
+import { missedSlot } from "../core/amend.js";
 
 /** How long the season number wears the colour of its change (see motion.css). */
 const PULSE_MS = 1400;
@@ -114,6 +115,26 @@ const PREVIEW_RULE = `<span class="pitch__stat-rule" aria-hidden="true"></span><
  * so a lock looks the same wherever the board says it.
  */
 const LOCK = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>`;
+
+/**
+ * A played week that never had its pick locked: a ring with an exclamation in
+ * it, standing where the padlock would, drawn with the same stroke.
+ */
+const MISSED = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7.5v5.5" /><circle class="pitch__mark-dot" cx="12" cy="16.6" r="1.4" /></svg>`;
+
+/** The marks drawn as a glyph rather than a line. */
+const GLYPHS = { locked: LOCK, missed: MISSED };
+
+/**
+ * The narrowest a yard line may stand at when the field fits its season across
+ * the screen instead of scrolling: room for its lanes (16 apiece with 4
+ * between) and a pixel either side, and never under 28, which is the 22 of the
+ * ball with three to spare each side. One lane: 28. Two: 38, the column the
+ * sideways layout already reads at.
+ */
+function fitFloor(lanes) {
+  return Math.max(28, lanes * 20 - 2);
+}
 
 /**
  * @param {HTMLElement} root
@@ -206,6 +227,12 @@ export function renderPitch(root, board, viewWeek, handlers) {
     `${board.weeks.map((week) => yardMarkup(week, board)).join("")}
       <span class="pitch__bracket pitch__bracket--placing" data-key="bracket" data-bracket aria-hidden="true"></span>`,
   );
+  // Whether the season stands whole across the screen, from the width the
+  // field's observer last measured: a render never measures it (fitSeason).
+  const field = pitch.querySelector(".pitch__field");
+  field.dataset.lanes = String(board.rules?.picksPerWeek ?? 1);
+  watchFit(field);
+  fitSeason(field);
 
   // The readouts, and the countdown set into them after: it changes every
   // second, so carrying it in the markup made the readouts a change on every
@@ -305,6 +332,75 @@ function bringIntoView(root, week, behavior) {
   });
 }
 
+/**
+ * The width each field has for its yard lines - itself less its two end
+ * zones - as its observer last measured it.
+ */
+const rooms = new WeakMap();
+
+/** The fields already being watched (watchFit). */
+const watched = new WeakSet();
+
+/**
+ * Measured after layout, never during a render: an observer's callback runs
+ * once the frame's layout is done and before it is painted, so the width is
+ * read for free and the field is fitted in the first frame that shows it.
+ */
+const fitObserver =
+  typeof ResizeObserver === "function"
+    ? new ResizeObserver((entries) => {
+        for (const { target: field } of entries) {
+          let room = field.clientWidth;
+          for (const zone of field.querySelectorAll(".pitch__zone")) room -= zone.offsetWidth;
+          rooms.set(field, room);
+          const was = field.classList.contains("pitch__field--fit");
+          fitSeason(field);
+          // Narrowed out of fitting - a phone turned upright - and the field
+          // scrolls again, so the week being looked at is brought back into it.
+          if (was && !field.classList.contains("pitch__field--fit")) {
+            const root = field.closest(".pitch")?.parentElement;
+            if (root && viewing.has(root)) bringIntoView(root, viewing.get(root), "auto");
+          }
+        }
+      })
+    : null;
+
+/**
+ * Watch a field's width. Once per field: observing a target again restarts
+ * its observation, which would hand back a fresh measurement on every render.
+ */
+function watchFit(field) {
+  if (!fitObserver || watched.has(field)) return;
+  watched.add(field);
+  fitObserver.observe(field);
+}
+
+/**
+ * Stand the whole season across the field where it fits, rather than scroll a
+ * short one by a column or two.
+ *
+ * On a phone a yard line is 44 wide and a full season scrolls, because a week
+ * squeezed to fit eighteen into a phone is too narrow to read. A pool that
+ * joined in week 9 has ten weeks, and those ten were scrolling past the edge
+ * by three columns of a field that could have held them all at thirty. So
+ * where every week can have at least the column its lanes need (fitFloor), the
+ * weeks share the field instead (pitch__field--fit in components.css); where
+ * they cannot, the field is the 44-a-week strip it always was. A season short
+ * enough to fit at 44 is spread across the field either way.
+ *
+ * Off the width the observer measured, so a render that changes the number of
+ * weeks - the settings sheet moving the pool's start - refits without reading
+ * the layout. Before the first measurement there is nothing to go on, and the
+ * observer's first callback fits it before the first paint.
+ */
+function fitSeason(field) {
+  const room = rooms.get(field);
+  if (room === undefined) return;
+  const weeks = Number(field.querySelector(".pitch__track")?.style.getPropertyValue("--weeks"));
+  const lanes = Number(field.dataset.lanes) || 1;
+  field.classList.toggle("pitch__field--fit", weeks > 0 && room >= weeks * fitFloor(lanes));
+}
+
 /** The week the bracket is on, as the field records it. */
 function viewingWeek(root) {
   return Number(root.querySelector(".pitch__field")?.dataset.week ?? NaN);
@@ -323,7 +419,7 @@ function yardMarkup(week, board) {
   // A loss the pool forgave is not the same mark as a loss: the run came
   // through the week, and the field is where the run is read.
   const bought = board.buyBack?.spent?.includes(week.week) ?? false;
-  const lanes = week.picks.map((pick) => slotMark(pick, bought));
+  const lanes = week.picks.map((pick) => slotMark(pick, bought, missedSlot(board, pick)));
   const says = lanes
     .map((lane) => lane.says)
     .filter(Boolean)
@@ -344,7 +440,9 @@ function yardMarkup(week, board) {
   // under no tap of yours (playDataUpdates in app.js). The marks alone: which
   // week the bracket is on is not in the markup, and the line itself is the
   // ruler the field is read against - only the chalk on it moves.
-  const signature = lanes.map((lane) => `${lane.mark ?? ""}:${lane.team}`).join("|");
+  const signature = lanes
+    .map((lane) => `${lane.mark ?? ""}:${lane.team || lane.note || ""}`)
+    .join("|");
 
   // A week the run never reached is greyed and still live: what stands on it
   // is the coach's account of the week, which is a thing to go and read. The
@@ -385,11 +483,15 @@ function mootWeek(week, board) {
  * @param {number} slot Which pick of the week's this lane is, for the key.
  * @param {number} week
  */
-function laneMarkup({ mark, team }, slot, week) {
+function laneMarkup({ mark, team, note = "" }, slot, week) {
   const key = `yard-${week}-name-${slot}`;
+  // A lane with no team can still have something to say in its place: a played
+  // week with nothing locked reads "No pick" down the line, in the mark's
+  // colour so it is not taken for a team of that name.
+  const name = team || note;
   return `<span class="pitch__lane">
-      ${mark ? `<span class="pitch__mark pitch__mark--${mark}">${mark === "locked" ? LOCK : ""}</span>` : ""}
-      ${team ? `<span class="pitch__label" data-motion-key="${key}" data-motion-signature="${escapeHtml(team)}">${escapeHtml(team)}</span>` : ""}
+      ${mark ? `<span class="pitch__mark pitch__mark--${mark}">${GLYPHS[mark] ?? ""}</span>` : ""}
+      ${name ? `<span class="pitch__label${team ? "" : " pitch__label--note"}" data-motion-key="${key}" data-motion-signature="${escapeHtml(name)}">${escapeHtml(name)}</span>` : ""}
     </span>`;
 }
 
@@ -402,8 +504,12 @@ function laneMarkup({ mark, team }, slot, week) {
  *   pick still lost, and the field still says so - but in the buy back's
  *   orange rather than the red that means the run stopped here, because
  *   reading down the field this is a week the run came through.
+ * @param {boolean} missed Whether the week has been played with nothing
+ *   locked in this slot (missedSlot in core/amend.js). It outranks a pick and
+ *   the coach's plan, neither of which can be locked any more: the slot is a
+ *   pick the board is still owed, and the mark says so.
  */
-function slotMark(pick, bought = false) {
+function slotMark(pick, bought = false, missed = false) {
   const team = pick.team ?? pick.suggestion?.team ?? "";
   const { result, locked } = pick.status;
   if (result === "L" && bought) {
@@ -412,6 +518,11 @@ function slotMark(pick, bought = false) {
   if (result === "L") return { mark: "lost", team, says: `${team} lost` };
   if (result === "W") return { mark: "won", team, says: `${team} won` };
   if (locked) return { mark: "locked", team, says: `${team} locked in` };
+  if (missed) {
+    return pick.team
+      ? { mark: "missed", team: pick.team, says: `${pick.team} never locked in` }
+      : { mark: "missed", team: "", note: "No pick", says: "no pick locked in" };
+  }
   if (pick.team) return { mark: "picked", team, says: `${team} picked` };
   if (pick.suggestion) return { mark: "coach", team, says: `coach suggests ${team}` };
   return { mark: null, team: "", says: "" };

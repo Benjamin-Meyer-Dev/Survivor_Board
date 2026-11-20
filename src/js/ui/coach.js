@@ -52,6 +52,7 @@ import { TIER_LABEL } from "../core/probability.js";
 import { frame, reconcile } from "./patch.js";
 import { durationOf, ownKeyframes, ownMotion, prefersReducedMotion } from "./motion.js";
 import { delegate } from "./events.js";
+import { missedSlot } from "../core/amend.js";
 
 /**
  * The tier in one word, for the chain's last stop.
@@ -1256,6 +1257,12 @@ function route(state, board) {
   };
   const anyPlayed = played.stops.some((stop) => stop.prob !== null);
 
+  // The played weeks still owed a pick: gone by with a slot nobody locked
+  // (missedSlot in core/amend.js). They have no mark to stand on - nothing was
+  // priced, nothing won or lost - so the line steps over them like any week
+  // without one, and the hole is marked instead (missMarks, below).
+  const missing = weeks.map((week) => week.picks.filter((pick) => missedSlot(board, pick)).length);
+
   const coachStops = stopsOf((week) => week.pathRecommendation);
   // A pick pending anywhere on the board has the coach re-planning the season
   // around it (week.rehearsalPath): the route a lock would put the board on.
@@ -1637,9 +1644,28 @@ function route(state, board) {
   const axis = weeks
     .map(
       (week, index) =>
-        `<span class="route__week${index === at ? " route__week--here" : ""}" style="left:${pct(xAt(index))}" data-week="${week.week}">${week.week}</span>`,
+        `<span class="route__week${index === at ? " route__week--here" : ""}${missing[index] ? " route__week--missed" : ""}" style="left:${pct(xAt(index))}" data-week="${week.week}">${week.week}</span>`,
     )
     .join("");
+
+  // A played week still owed its pick: a dashed rule up its column where the
+  // mark should be, and the flag's badge where the rule meets the axis - set
+  // on the line, not floating in the plot. It answers a touch like a mark does
+  // (reveal), so the callout can say what is missing.
+  const missMarks = weeks
+    .map((week, index) => {
+      if (!missing[index]) return "";
+      const slots = week.picks.length;
+      const says =
+        missing[index] === slots
+          ? slots > 1
+            ? "No picks"
+            : "No pick"
+          : `${missing[index]} of ${slots} not picked`;
+      return `<span class="route__miss" data-key="miss-${week.week}" style="left:${pct(xAt(index))}" data-at="${index}" data-week="${week.week}" data-says="${escapeHtml(says)}"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" /><path d="M12 6.5v6.5M12 17.5v.01" /></svg></span>`;
+    })
+    .join("");
+  const missedWeeks = weeks.filter((_, index) => missing[index]).map((week) => week.week);
 
   // The season figures each route arrives at were set in a key across the top
   // right of the chart, and they are not here any more: the one the board is
@@ -1672,6 +1698,9 @@ function route(state, board) {
             `${entry === you ? "the plan" : "the plan with your pick"}:${figureOf(entry.stops[at].prob ?? 0)} this week, ${formatPercent(entry.season, 1)} for the season`,
         )
         .join("; ");
+  const owed = missedWeeks.length
+    ? `; no pick locked in week${missedWeeks.length > 1 ? "s" : ""} ${missedWeeks.join(", ")}`
+    : "";
 
   // The chart used to carry a key for the shared data-settle motion (app.js),
   // so that its marks landed again whenever the plan they draw changed. They
@@ -1687,13 +1716,13 @@ function route(state, board) {
   // The column is worked out in its own style attribute, not the stylesheet's,
   // so the band stands in the right place under a components.css from either
   // side of this change (the per-file shell cache in sw.js).
-  return `<section class="route${alternative ? " route--compared" : ""}${ceiling ? " route--ceiling" : ""}" data-key="route" data-view-week="${viewed.week}" data-at="${at}" data-scale="${lo},${hi}" data-objective="${board.rules?.objective === "lose" ? "lose" : "win"}" aria-label="${escapeHtml(`Survival chance by week - ${summary}`)}">
+  return `<section class="route${alternative ? " route--compared" : ""}${ceiling ? " route--ceiling" : ""}" data-key="route" data-view-week="${viewed.week}" data-at="${at}" data-scale="${lo},${hi}" data-objective="${board.rules?.objective === "lose" ? "lose" : "win"}" aria-label="${escapeHtml(`Survival chance by week - ${summary}${owed}`)}">
     <div class="route__head" data-key="head">
       <span class="route__eyebrow">Survival chance by week</span>
     </div>
     <div class="route__plot" data-key="plot" aria-hidden="true">
       <span class="route__band" data-key="band" style="left:calc(var(--route-at, 0) * 100% / ${n});width:${pct(100 / n)}"></span>
-      ${grid}
+      ${grid}${missMarks}
       <svg class="route__lines" data-key="lines" viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
         ${anyPlayed ? lineOf(played, "played", { tail: liveTail }) + boughtOf(played, liveTail) : ""}${alternative ? branchOf(alternative, "coach", apart, [you.stops, anyPlayed ? played.stops : null]) : ""}${loneLine}${lineOf(you, ahead, { head: deadHead })}
       </svg>
@@ -1820,12 +1849,16 @@ function hideCallout(root) {
 function reveal(plot, clientX, { toggle = false } = {}) {
   const callout = plot.querySelector(".route__callout");
   if (!callout) return;
-  const dots = [...plot.querySelectorAll(".route__dot[data-at]")];
+  // The marks, and the badges of the played weeks still owed a pick, which
+  // stand in a column of their own and answer a touch the same way.
+  const dots = [...plot.querySelectorAll(".route__dot[data-at], .route__miss[data-at]")];
   if (!dots.length) return;
 
   const box = plot.getBoundingClientRect();
   const wanted = box.width > 0 ? ((clientX - box.left) / box.width) * 100 : 0;
   const xOf = (dot) => parseFloat(dot.style.left);
+  // A badge sits on the axis, the foot of the plot.
+  const yOf = (dot) => (dot.classList.contains("route__miss") ? 100 : parseFloat(dot.style.top));
   const nearest = dots.reduce((best, dot) =>
     Math.abs(xOf(dot) - wanted) < Math.abs(xOf(best) - wanted) ? dot : best,
   );
@@ -1844,6 +1877,10 @@ function reveal(plot, clientX, { toggle = false } = {}) {
   const marks = [];
   const order = (dot) => (dot.dataset.kind === "you" ? 0 : 1);
   for (const dot of [...column].sort((a, b) => order(a) - order(b))) {
+    if (dot.classList.contains("route__miss")) {
+      marks.push({ kind: "missed", team: dot.dataset.says, prob: "", legs: [] });
+      continue;
+    }
     const { kind, team, prob, reach, result, legs, bought } = dot.dataset;
     if (marks.some((mark) => mark.team === team && mark.prob === prob)) continue;
     marks.push({
@@ -1919,7 +1956,7 @@ function reveal(plot, clientX, { toggle = false } = {}) {
   });
 
   const x = xOf(nearest);
-  const y = Math.min(...column.map((dot) => parseFloat(dot.style.top)));
+  const y = Math.min(...column.map(yOf));
   callout.classList.toggle("route__callout--results", results);
   callout.innerHTML =
     `<span class="route__callout-head"><b class="route__callout-week">Wk ${escapeHtml(nearest.dataset.week)}</b></span>` +

@@ -52,19 +52,36 @@
     <!-- Present in the document from the first paint, so returning devices get
          an intentional startup screen while app.js loads the board. -->
     <div class="startup" id="startup" role="status" aria-live="polite">
-      <div class="startup__scene" aria-hidden="true">
-        <span class="startup__yard startup__yard--left">20</span>
-        <span class="startup__yard startup__yard--right">40</span>
-        <span class="startup__ball">
-          <svg viewBox="0 0 54 34">
-            <path d="M3 17C9 4 20 1 27 1s18 3 24 16c-6 13-17 16-24 16S9 30 3 17Z" />
-            <path d="M15 17h24M19 14v6M23 14v6M27 14v6M31 14v6M35 14v6" />
-          </svg>
-        </span>
-        <span class="startup__route"></span>
+      <!-- The logo the phone's own launch screen was showing, in the place it
+           was showing it, so the app takes over without the logo moving: the
+           launcher's full-bleed icon, masked to the circle Android draws it
+           in (.startup__logo). Everything else hangs underneath it. -->
+      <img
+        class="startup__logo"
+        src="./icons/icon-maskable.svg"
+        alt=""
+        width="240"
+        height="240"
+        decoding="sync"
+        fetchpriority="high"
+      />
+      <div class="startup__below">
+        <p class="startup__brand">Sudden Death</p>
+        <!-- Where each season stands, filled in by app.js (callTheSeason). -->
+        <p class="startup__season" id="startup-season"></p>
+        <div class="startup__scene" aria-hidden="true">
+          <span class="startup__yard startup__yard--left">20</span>
+          <span class="startup__yard startup__yard--right">40</span>
+          <span class="startup__ball">
+            <svg viewBox="0 0 54 34">
+              <path d="M3 17C9 4 20 1 27 1s18 3 24 16c-6 13-17 16-24 16S9 30 3 17Z" />
+              <path d="M15 17h24M19 14v6M23 14v6M27 14v6M31 14v6M35 14v6" />
+            </svg>
+          </span>
+          <span class="startup__route"></span>
+        </div>
+        <p class="startup__status" id="startup-status">Chalking up the field…</p>
       </div>
-      <p class="startup__brand">Sudden Death</p>
-      <p class="startup__status" id="startup-status">Chalking up the field…</p>
     </div>
 
     <!-- Start screen: the name, once per device. app.js fills it and clears it. -->

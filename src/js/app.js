@@ -13,7 +13,7 @@
  */
 
 import { APP_NAME, CONFIG } from "./config.js";
-import { POOL_KINDS, KIND_IDS, resolveSport, normaliseKinds } from "./sports.js";
+import { POOL_KINDS, KIND_IDS, SPORTS, SPORT_IDS, resolveSport, normaliseKinds } from "./sports.js";
 import {
   buildBoard,
   exportPlans,
@@ -3223,6 +3223,28 @@ function callTheStartupLine() {
 }
 
 /**
+ * Where each season stands, under the name on the startup screen: "NFL week 11
+ * · College week 12". Read off each sport's odds file, the week the season is
+ * on, through the same shared request the board opens on (fetchJson), so the
+ * line costs the launch nothing it was not already fetching. A sport whose
+ * file will not load is left out, and with neither the line stays empty - its
+ * height is held open either way (components.css), so nothing moves when it
+ * fills.
+ */
+async function callTheSeason() {
+  const line = document.getElementById("startup-season");
+  if (!line) return;
+  const weeks = await Promise.all(
+    SPORT_IDS.map(async (sport) => {
+      const odds = await loadJson("odds.json", sport).catch(() => null);
+      const week = Number(odds?.currentWeek);
+      return Number.isInteger(week) && week > 0 ? `${SPORTS[sport].label} week ${week}` : "";
+    }),
+  );
+  line.textContent = weeks.filter(Boolean).join(" · ");
+}
+
+/**
  * Where in the play the layer is handed over, as a fraction of one cycle.
  *
  * The keyframes are in motion.css: the ball is gathered in at 68%, holds
@@ -3276,7 +3298,7 @@ async function settleStartupTypography() {
 
   const requested = [
     ['900 32px "Big Shoulders Display"', "Sudden Death"],
-    ['800 12px "Big Shoulders Display"', "2040"],
+    ['800 12px "Big Shoulders Display"', "2040 NFL College week ·"],
     ['400 12px "IBM Plex Sans"', "Chalking up the field"],
   ];
   let timer;
@@ -3398,8 +3420,8 @@ async function finishStartup() {
   // route across a layer on its way out, which is a snap of its own.
   for (const play of startupPlays()) play.pause();
   el.startup.classList.add("is-ready");
-  // Reveal the board beneath the fading layer, making this one handoff rather
-  // than a blank beat followed by a second entrance.
+  // The board goes on under the fading layer, already in its place: the layer
+  // lifting off it is the whole handoff (motion.css).
   document.body.classList.remove("is-starting");
 
   const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : HANDOFF_MS;
@@ -3466,6 +3488,7 @@ async function main() {
   // Every "who is in this league" panel on the page, from one listener.
   watchRosters();
   callTheStartupLine();
+  callTheSeason();
   // Started here, at the top, and awaited at the bottom: the play is held at
   // its first frame until the page is on screen, and it is what says when the
   // layer has been up long enough. Not awaited here - the loading below has no

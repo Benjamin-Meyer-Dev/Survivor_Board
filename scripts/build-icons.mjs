@@ -65,13 +65,19 @@ const BALL_AT = { x: 256, y: 262, tilt: -18 };
 /** The rounded "any" layout, shared by the two PNG sizes and the SVG. */
 const ANY = { ball: 0.66, corner: 0.22 };
 
+/**
+ * The full-bleed layout a launcher masks. Launchers may crop it to a circle
+ * 80% of the width, so the ball stays well inside that. Android's launch
+ * screen draws it too, which is why the startup layer in index.html opens on
+ * it (icon-maskable.svg, .startup__logo).
+ */
+const MASKABLE = { ball: 0.56, corner: 0 };
+
 /** Every PNG, with the ball's length and the corner radius as fractions of the tile. */
 const OUTPUTS = [
   { file: "icon-192.png", size: 192, ...ANY },
   { file: "icon-512.png", size: 512, ...ANY },
-  // Launchers may crop this to a circle 80% of the width, so the ball stays
-  // well inside that.
-  { file: "icon-maskable-512.png", size: 512, ball: 0.56, corner: 0 },
+  { file: "icon-maskable-512.png", size: 512, ...MASKABLE },
   { file: "apple-touch-icon.png", size: 180, ball: 0.66, corner: 0 },
 ];
 
@@ -233,6 +239,8 @@ try {
   }
   writeFileSync(join(ICONS_DIR, "icon.svg"), svg({ size: 512, ...ANY }));
   console.log("wrote icons/icon.svg");
+  writeFileSync(join(ICONS_DIR, "icon-maskable.svg"), svg({ size: 512, ...MASKABLE }));
+  console.log("wrote icons/icon-maskable.svg");
 } finally {
   // Chrome's helper processes can hold the profile open for a moment on Windows.
   rmSync(workDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });

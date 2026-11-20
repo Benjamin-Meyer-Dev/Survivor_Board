@@ -39,6 +39,20 @@ export function fixableWeek(board, week) {
 }
 
 /**
+ * Whether a slot is still owed its pick: the season has moved on past its
+ * week and nothing was ever locked into it, in a week the board can still put
+ * right. The pool was played on something, so the board is short of a fact -
+ * the field and the chart mark it, and the week's list is where it is
+ * recorded (amendEntry).
+ *
+ * @param {object} board Result of buildBoard().
+ * @param {object} pick A slot from board.weeks[].picks.
+ */
+export function missedSlot(board, pick) {
+  return !pick.status.locked && pick.week < board.currentWeek && fixableWeek(board, pick.week);
+}
+
+/**
  * Whether a team in a slot's list can be corrected onto: not the slot's own
  * team, not one the week's other slot holds, and not one an earlier week has
  * already spent.
