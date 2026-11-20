@@ -695,6 +695,8 @@ export function buildBoard({
             // The other slot has not just picked this team but locked it: a
             // firmer hold, and the list wears the padlock for it.
             siblingLocked: takenBySibling && siblings.get(option.team) === true,
+            /** The week's other slot holds it, locked or not (core/amend.js). */
+            heldBySibling: takenBySibling,
             /** The week a lock burned this team, for any week but this one. */
             spentWeek: usedElsewhere ? spentTeams[option.team] : null,
             reason: settled

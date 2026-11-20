@@ -60,6 +60,8 @@ import { formatMatchup, formatKickoff, escapeHtml } from "../core/format.js";
 import { TIER_LABEL } from "../core/probability.js";
 import { delegate } from "./events.js";
 import { frame, reconcile } from "./patch.js";
+import { fixableWeek } from "../core/amend.js";
+import { slotKey } from "../core/plan.js";
 
 /** What an open slot says while the optimiser has not reported yet. */
 const WORKING = "Working out the path…";
@@ -72,6 +74,9 @@ const LOCK_SHUT = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11
    with the stroke on top of that there was nothing between them. */
 const FLIP = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h13m-4-4 4 4-4 4M21 18H8m4 4-4-4 4-4" /></svg>`;
 /** Taking the coach's call: a check. */
+/* Correcting a played week: the pencil, and the cross that puts it down. */
+const PENCIL = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4" /></svg>`;
+const STOP = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>`;
 const TAKE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7" /></svg>`;
 /* The result, once the game is in the books. The check is the take's, drawn
    again at the weight a stamp wants; the cross is its answer. */
@@ -88,11 +93,19 @@ const NEXT = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"
  * @param {object} board Result of buildBoard().
  * @param {number} viewWeek The week being looked at (1-based).
  * @param {number} activeSlot Which of the week's slots the sideline is filling.
- * @param {{onAction:Function, onSlot:(slot:number)=>void, canWrite:boolean}} handlers
+ * @param {{onAction:Function, onSlot:(slot:number)=>void, canWrite:boolean,
+ *          canFix?:boolean, amend?:string|null}} handlers `canFix` offers a
+ *   played lock its correction (core/amend.js); `amend` is the slot key being
+ *   corrected, if any.
  */
 export function renderCall(root, board, viewWeek, activeSlot, handlers) {
   const week = board.weeks.find((entry) => entry.week === viewWeek) ?? board.weeks[0];
   const active = slotInRange(activeSlot, week);
+  const access = {
+    canWrite: Boolean(handlers.canWrite),
+    canFix: Boolean(handlers.canFix),
+    amend: handlers.amend ?? null,
+  };
 
   // Bound to the card's root, which no render replaces: the week's markup is
   // rewritten on every pick and lock, and a listener per control meant a fresh
@@ -131,8 +144,8 @@ export function renderCall(root, board, viewWeek, activeSlot, handlers) {
     <div class="call__slots" data-key="slots"></div>`,
   );
   const slots = box.querySelector(".call__slots");
-  reconcile(slots, slotsMarkup(week, board, active, handlers.canWrite));
-  holdEveryWeek(root, slots, board, handlers.canWrite);
+  reconcile(slots, slotsMarkup(week, board, active, access));
+  holdEveryWeek(root, slots, board, access);
 }
 
 /**
@@ -147,8 +160,8 @@ function slotInRange(slot, week) {
 }
 
 /** The one slot the card is showing. */
-function slotsMarkup(week, board, active, canWrite) {
-  return slotMarkup(week.picks[active], board, canWrite);
+function slotsMarkup(week, board, active, access) {
+  return slotMarkup(week.picks[active], board, access);
 }
 
 /** The markup a card's floor was measured from. */
@@ -202,14 +215,14 @@ const measuredFor = new WeakMap();
  * out in the middle of the tap, to arrive at the number it already held: most
  * of what stood between a tap on the pager and the card starting to move.
  */
-function holdEveryWeek(root, slots, board, canWrite) {
+function holdEveryWeek(root, slots, board, access) {
   // The live card only. A week staged for a swipe is rendered into a detached
   // root (stageWeek in app.js) and then laid over the edge of this one, where
   // it inherits the floor already measured here - a copy that is about to
   // travel across the screen has nothing to measure and no time to do it in.
   if (!root.isConnected) return;
 
-  latest.set(root, { slots, board, canWrite });
+  latest.set(root, { slots, board, access });
   if (!watching.has(root)) {
     watching.add(root);
     // A rotation changes the width without a render, and a floor measured at
@@ -222,12 +235,12 @@ function holdEveryWeek(root, slots, board, canWrite) {
     document.fonts?.ready?.then(() => measureEveryWeek(root));
   }
   const was = measuredFor.get(root);
-  if (was?.board === board && was.canWrite === canWrite) return;
+  if (was?.board === board && was.access === accessKey(access)) return;
   measureEveryWeek(root);
 }
 
 function measureEveryWeek(root) {
-  const { slots, board, canWrite } = latest.get(root) ?? {};
+  const { slots, board, access } = latest.get(root) ?? {};
   // Raised, the card is trimmed to its name alone and the case is not on the
   // screen to be steadied (components.css drops the floor with it), so there
   // is nothing to measure and the floor already taken is still the right one.
@@ -239,12 +252,12 @@ function measureEveryWeek(root) {
     .flatMap((week) =>
       week.picks.map(
         (_, slot) =>
-          `<div class="${slots.className}">${slotsMarkup(week, board, slot, canWrite)}</div>`,
+          `<div class="${slots.className}">${slotsMarkup(week, board, slot, access)}</div>`,
       ),
     )
     .join("");
   const key = `${width}|${markup}`;
-  measuredFor.set(root, { board, canWrite });
+  measuredFor.set(root, { board, access: accessKey(access) });
   if (held.get(root) === key) return;
 
   // One box, one layout: every week stands in it at once and is read in a
@@ -264,6 +277,11 @@ function measureEveryWeek(root) {
   // swipe stages inside it stands at the same height as the week it is
   // replacing.
   root.style.setProperty("--call-floor", `${Math.round(floor)}px`);
+}
+
+/** What the card's controls were drawn for, as one comparable value. */
+function accessKey(access) {
+  return `${access.canWrite}|${access.canFix}|${access.amend}`;
 }
 
 function isNow(week, board) {
@@ -303,22 +321,25 @@ function weekTags(week, board) {
  * One slot. The rows are the same whatever it holds: who the team belongs to,
  * the team with what can be done about it, its game.
  */
-function slotMarkup(pick, board, canWrite) {
+function slotMarkup(pick, board, access) {
   const { status } = pick;
+  const amending = access.amend === slotKey(pick.week, pick.slot);
   const shown = pick.team ? pick : pick.suggestion;
   const state = pick.team ? (status.locked ? "locked" : "picked") : "empty";
   const moot = board.eliminated && pick.week > board.eliminatedWeek;
   const pending = !shown && board.recommendationPending && pick.week >= board.currentWeek;
 
-  const eyebrow = pick.team
-    ? status.locked
-      ? "Locked in"
-      : "Your pick"
-    : pick.suggestion
-      ? "Coach suggests"
-      : moot
-        ? "Not played"
-        : "Open slot";
+  const eyebrow = amending
+    ? "Correcting · pick from the list"
+    : pick.team
+      ? status.locked
+        ? "Locked in"
+        : "Your pick"
+      : pick.suggestion
+        ? "Coach suggests"
+        : moot
+          ? "Not played"
+          : "Open slot";
 
   const blank = moot
     ? { team: "Season over", text: `The run ended in week ${board.eliminatedWeek}.` }
@@ -383,7 +404,7 @@ function slotMarkup(pick, board, canWrite) {
             ? `<div class="call__team">${escapeHtml(shown.team)}</div>`
             : `<div class="call__team call__team--blank">${escapeHtml(blank.team)}</div>`
         }
-        ${actionsMarkup(pick, board, canWrite)}
+        ${actionsMarkup(pick, board, access)}
       </div>
       <div class="call__matchup">${
         shown
@@ -463,8 +484,34 @@ function resultStamp(status) {
  * solid border and the result stamp were not already saying: two dead
  * controls beside the name of a game that has been played.
  */
-function actionsMarkup(pick, board, canWrite) {
+function actionsMarkup(pick, board, access) {
   const { status } = pick;
+  const { canWrite } = access;
+  // A played lock has one control: putting it right, for a pick that was the
+  // wrong team (core/amend.js). The same key puts the correction down again.
+  // A finished pool's open slot in a played week gets it too, to record the
+  // pick that was never locked here: its list is put away with the review.
+  const missed = board.eliminated && !status.locked && pick.options.some((option) => option.result);
+  if ((status.locked && status.result) || missed) {
+    if (!access.canFix || !fixableWeek(board, pick.week)) return "";
+    const amending = access.amend === slotKey(pick.week, pick.slot);
+    return `<div class="call__actions">${button({
+      label: amending
+        ? "Stop correcting"
+        : missed
+          ? `Record week ${pick.week}'s pick`
+          : `Correct week ${pick.week}'s pick`,
+      icon: amending ? STOP : PENCIL,
+      on: amending,
+      action: "correct",
+      pick,
+      title: amending
+        ? "Keep the pick as it is"
+        : missed
+          ? "Picked but never locked here? Record the team you played"
+          : "Locked in the wrong team? Pick the one you played",
+    })}</div>`;
+  }
   if (board.eliminated || status.result) return "";
   const shown = pick.team ? pick : pick.suggestion;
   const later = pick.week > board.currentWeek ? ` · wk ${pick.week}` : "";

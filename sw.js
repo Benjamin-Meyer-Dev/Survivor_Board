@@ -67,7 +67,9 @@
    v35 draws the season's ending as a drive chart, whose cross is an SVG the
    old components.css would leave at the browser's 300 by 150; v36 paints it
    as the end zone never reached, a box score and a struck-out SURVIVE the old
-   stylesheet would set as a line of loose text.
+   stylesheet would set as a line of loose text. v41 adds core/amend.js and
+   ui/amend.js to the graph (correcting a played week), with the list reading
+   a field only the new core/plan.js writes.
 
    "Must not keep half of" is the whole point, and v4 is what that phrase was
    written for. Every shell file is cached first and refreshed on its own a few
@@ -84,7 +86,7 @@
    needs a hand here: ENGINE_VERSION in src/js/core/recommend.js is part of
    every plan's key, so a plan can only ever be read back by the engine that
    wrote it. Bump it there when the search or the ranking changes shape. */
-const CACHE = "sudden-death-v40";
+const CACHE = "sudden-death-v41";
 
 /** How long to wait for fresh data before opening with the last copy. */
 const DATA_TIMEOUT_MS = 2500;

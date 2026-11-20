@@ -3743,6 +3743,18 @@ button.league-bar__face[aria-expanded="true"] {
   border-top: 1px solid var(--line);
 }
 
+/* A played game, or a spent team, that can still be recorded here as a
+   correction (core/amend.js): brought most of the way back up from the
+   record's dimming, since it can be pressed. Last, so it wins over both. */
+.sideline__row--fix {
+  opacity: 0.9;
+}
+
+/* Correcting a played lock: the label says so in the lock's flag. */
+.sideline--amending .sideline__label {
+  color: var(--flag);
+}
+
 /* And the row above it gives up its own rule, or the fence is two lines with
    a gap between them - the band's rule and the last of the week's rows -
    which reads as a mistake rather than as a break. */
@@ -4652,6 +4664,30 @@ button.league-bar__face[aria-expanded="true"] {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* Correcting a played week (ui/amend.js): the cost of it read in full chalk,
+   and the weeks it emptied as a column of ways back to them. */
+.amend__warn {
+  color: var(--chalk);
+}
+
+.amend__weeks {
+  display: grid;
+  gap: 8px;
+}
+
+.amend__week {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.amend__was {
+  color: var(--chalk-3);
+  font-size: 14px;
 }
 
 .home__menu {

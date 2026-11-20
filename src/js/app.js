@@ -24,6 +24,8 @@ import {
   searchesSettled,
 } from "./core/plan.js";
 import { poolStanding } from "./core/standing.js";
+import { amendable, amendEntry, amendImpact, fixableWeek } from "./core/amend.js";
+import { chooseRepair, confirmAmend } from "./ui/amend.js";
 import { readPlans, writePlans } from "./store/plans.js";
 import { onSearchSettled, searchRunner } from "./core/search.js";
 import { useWorkerForSearch } from "./worker-search.js";
@@ -148,6 +150,17 @@ const app = {
    * Every board opens with it shut, the way every visit opens on the sideline.
    */
   raised: false,
+  /**
+   * The played slot whose lock is being corrected (core/amend.js), as its
+   * slot key, or null. Set by the card's pencil; the list opens to every team
+   * the slot could have been while it is.
+   */
+  amend: null,
+  /**
+   * Later slots a correction emptied, still to be picked again: the sheet that
+   * lists them comes back after each lock until none are left.
+   */
+  repair: [],
   effect: null,
   /** One line for the notices area, such as a league that failed to load. */
   message: "",
@@ -454,6 +467,26 @@ const files = new Map();
  * objective into the plan's rules and two pools of one league would otherwise
  * be reading each other's.
  */
+/**
+ * A new league's pools start in the week their season is in now. A league
+ * made in week 8 never played weeks 1-7, so they are no part of its field, its
+ * chart or its picks - and the plan's own startWeek (week 1) would put them
+ * there. Before the season it is week 1 anyway. A sport whose odds will not
+ * load keeps the plan's start; the settings sheet can still move it.
+ *
+ * @param {string[]} kinds
+ * @returns {Promise<Object<string,{startWeek:number}>>} Overrides by kind.
+ */
+async function startingNow(kinds) {
+  const rules = {};
+  for (const id of normaliseKinds(kinds)) {
+    const odds = await loadJson("odds.json", POOL_KINDS[id].sport).catch(() => null);
+    const week = Number(odds?.currentWeek);
+    if (Number.isInteger(week) && week > 1) rules[id] = { startWeek: week };
+  }
+  return rules;
+}
+
 async function loadJson(name, sport = POOL_KINDS[app.kind]?.sport) {
   // Per sport, not per league: every league on the NFL schedule is priced off
   // the one data/nfl pull, however many of them there are.
@@ -1078,14 +1111,7 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = 
   // person had is left exactly as it was: it is what the next live board opens
   // on, and a pool switch out of a dead pool should not land them somewhere
   // they never chose.
-  const review = Boolean(board.eliminated);
-  // The raise buys the lists height over the field. With no lists it would
-  // fold the field away for nothing, so a board that dies while it is up is
-  // put back down before the handle goes.
-  if (review) setRaised(false, { lift: false });
-  if (el.panels) el.panels.hidden = review;
-  renderTabs(el.tabs, app.activeTab, selectTab, { hidden: review });
-  renderGrab(el.grab, el.pitch, app.raised, toggleRaised, { hidden: review });
+  showLists(board);
   renderBench(el.bench, el.benchLegend, board);
   // The action's own feedback first, so the settle knows which slot to leave
   // to it.
@@ -1104,6 +1130,22 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = 
   readStandings();
   measure("sudden-death:render", started);
   return board;
+}
+
+/**
+ * The lists, the tabs and the grab: put away whole on a finished pool, and
+ * back for as long as one of its played weeks is being corrected - the list is
+ * where the team is chosen (core/amend.js).
+ */
+function showLists(board) {
+  const review = Boolean(board.eliminated) && !app.amend;
+  // The raise buys the lists height over the field. With no lists it would
+  // fold the field away for nothing, so a board that dies while it is up is
+  // put back down before the handle goes.
+  if (review) setRaised(false, { lift: false });
+  if (el.panels) el.panels.hidden = review;
+  renderTabs(el.tabs, app.activeTab, selectTab, { hidden: review });
+  renderGrab(el.grab, el.pitch, app.raised, toggleRaised, { hidden: review });
 }
 
 /**
@@ -1164,8 +1206,13 @@ function renderSelection(board) {
   // claim about the list and the case as well: all three are handed the same
   // settled index rather than each settling it for itself.
   app.activeSlot = slotInWeek(board, app.viewWeek, app.activeSlot);
+  // Putting a played week right is not a pick, so a finished pool can still do
+  // it up to the week its run ended (core/amend.js, fixableWeek).
+  const canFix = Boolean(app.store.canWrite);
   renderCall(el.call, board, app.viewWeek, app.activeSlot, {
     canWrite,
+    canFix,
+    amend: app.amend,
     onAction: handleAction,
     onSlot: (slot) => {
       if (slot === app.activeSlot) return;
@@ -1184,6 +1231,8 @@ function renderSelection(board) {
   });
   renderSideline(el.sideline, board, app.viewWeek, app.activeSlot, {
     canWrite,
+    canFix,
+    amending: app.amend === slotKey(app.viewWeek, app.activeSlot),
     onAction: handleAction,
   });
   // Read-only. It prices the team on the card, so it follows the week and the
@@ -1468,6 +1517,7 @@ function stageWeek(direction, parts) {
       case "call":
         renderCall(root, lastBoard, next.week, 0, {
           canWrite,
+          canFix: Boolean(app.store.canWrite),
           onAction: () => {},
           onSlot: () => {},
         });
@@ -1478,6 +1528,7 @@ function stageWeek(direction, parts) {
       case "week":
         renderSideline(root, lastBoard, next.week, 0, {
           canWrite,
+          canFix: Boolean(app.store.canWrite),
           onAction: () => {},
         });
         return stagedRoot(moves, root);
@@ -1537,6 +1588,11 @@ function lookAt(week) {
   const before = lastBoard ? previewHolds(lastBoard, boardInputs().inHand) : "";
   app.viewWeek = week;
   app.activeSlot = 0;
+  // A correction is of the week it was opened on; turning away puts it down.
+  if (app.amend) {
+    app.amend = null;
+    if (lastBoard) showLists(lastBoard);
+  }
   // The field first: it is the thing under the thumb that just asked.
   markViewing(el.pitch, week);
   if (lastBoard) renderSelection(lastBoard);
@@ -1599,7 +1655,7 @@ function renderHomeView() {
       // did not open, a board that would not load.
       onCreate: async ({ name, kinds }) => {
         app.homeMessage = "";
-        const league = await createLeague({ name, kinds });
+        const league = await createLeague({ name, kinds, rules: await startingNow(kinds) });
         await reloadLeagues();
         openBoard(league.code, null, { league });
       },
@@ -2019,6 +2075,11 @@ function canRaise() {
 
 function handleAction({ action, week, slot, team }) {
   if (!app.store.canWrite) return;
+  // Corrections have their own path, and their own rule about review.
+  if (action === "correct" || action === "amend") {
+    handleCorrection({ action, week, slot, team });
+    return;
+  }
   // The controls are disabled in review; this is the same rule, held here too.
   if (lastBoard?.eliminated) return;
 
@@ -2071,8 +2132,103 @@ function handleAction({ action, week, slot, team }) {
       return;
   }
 
-  app.effect = { week, slot, className: EFFECT_FOR[action] };
+  // A lock that fills a slot a correction emptied takes it off the list, and
+  // the list comes back with whatever is left.
+  const repairNext =
+    action === "lock" &&
+    Boolean(app.entry.picks[key]?.locked) &&
+    app.repair.some((gone) => slotKey(gone.week, gone.slot) === key);
+  if (repairNext) app.repair = app.repair.filter((gone) => slotKey(gone.week, gone.slot) !== key);
 
+  app.effect = { week, slot, className: EFFECT_FOR[action] };
+  replan();
+  if (repairNext && app.repair.length) setTimeout(promptRepair, REPLAN_DELAY_MS);
+}
+
+/**
+ * The card's pencil and the list's rows of played games: putting a played
+ * week right (core/amend.js). Nothing is written until the sheet says yes.
+ */
+async function handleCorrection({ action, week, slot, team }) {
+  const board = lastBoard;
+  if (!board || !fixableWeek(board, week)) return;
+  const key = slotKey(week, slot);
+
+  if (action === "correct") {
+    app.amend = app.amend === key ? null : key;
+    if (app.amend && app.activeSlot !== slot) app.activeSlot = slot;
+    renderSelection(board);
+    showLists(board);
+    // The list is where the team is chosen, and on a phone it is in the drawer.
+    if (app.amend) selectTab("week");
+    return;
+  }
+
+  const here = board.weeks.find((entry) => entry.week === week);
+  const pick = here?.picks[slot];
+  const option = pick?.options.find((candidate) => candidate.team === team);
+  if (!option || !amendable(pick, option)) return;
+
+  const { replacing, displaced } = amendImpact(board, { week, slot, team });
+  const yes = await confirmAmend({
+    week,
+    team,
+    result: option.result ?? null,
+    replacing,
+    displaced,
+  });
+  // The board may have moved on under the sheet - another device's lock, a
+  // refresh. The correction is asked of the board as it is now.
+  if (!yes || !lastBoard || !fixableWeek(lastBoard, week)) return;
+
+  const done = amendEntry(app.entry, lastBoard, {
+    week,
+    slot,
+    team,
+    spread: Number.isFinite(option.spread) ? option.spread : null,
+    by: ME,
+  });
+  app.entry = done.entry;
+  app.amend = null;
+  const owed = new Map(
+    app.repair
+      .filter((gone) => slotKey(gone.week, gone.slot) !== key)
+      .map((gone) => [slotKey(gone.week, gone.slot), gone]),
+  );
+  for (const gone of done.displaced) owed.set(slotKey(gone.week, gone.slot), gone);
+  app.repair = [...owed.values()].sort((a, b) => a.week - b.week || a.slot - b.slot);
+
+  app.effect = { week, slot, className: EFFECT_FOR.lock };
+  replan();
+  if (app.repair.length) setTimeout(promptRepair, REPLAN_DELAY_MS);
+}
+
+/**
+ * The weeks a correction emptied, as a sheet, and the board taken to the one
+ * chosen with its list open. A slot locked since by any route is not owed.
+ */
+async function promptRepair() {
+  if (!lastBoard) return;
+  app.repair = app.repair.filter((gone) => {
+    const week = lastBoard.weeks.find((entry) => entry.week === gone.week);
+    return week && !week.picks[gone.slot]?.status.locked;
+  });
+  if (!app.repair.length) return;
+  const slots = Math.max(...lastBoard.weeks.map((week) => week.picks.length));
+  const chosen = await chooseRepair(app.repair, slots);
+  if (!chosen || !lastBoard) return;
+  lookAt(chosen.week);
+  if (app.activeSlot !== chosen.slot) {
+    app.activeSlot = chosen.slot;
+    renderSelection(lastBoard);
+  }
+  selectTab("week");
+}
+
+/**
+ * Paint an action that moved the picks, then let the coach plan around it.
+ */
+function replan() {
   // A lock or an unlock changes what the coach has to plan around, and the
   // search that answers it blocks the main thread. Paint the change
   // first and let the timer run the search once the feedback has played. An
@@ -2515,6 +2671,8 @@ function adoptLeague(ready) {
 
   app.store = ready.store;
   app.entry = ready.entry;
+  app.amend = null;
+  app.repair = [];
   app.unsubscribe = app.store.subscribe((entry) => {
     // A late push from the store we just replaced - another league, or this
     // league's other pool - must not land on this board.

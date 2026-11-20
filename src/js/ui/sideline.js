@@ -21,6 +21,7 @@
 import { formatSpread, formatPercent, formatMatchup, escapeHtml } from "../core/format.js";
 import { delegate } from "./events.js";
 import { frame, reconcile } from "./patch.js";
+import { amendable, fixableWeek } from "../core/amend.js";
 
 /**
  * The board's padlock: worn by a locked row, by a row the other slot has
@@ -56,7 +57,10 @@ function coachMark(option) {
  * @param {object} board Result of buildBoard().
  * @param {number} viewWeek
  * @param {number} activeSlot
- * @param {{onAction:Function, canWrite:boolean}} handlers
+ * @param {{onAction:Function, canWrite:boolean, canFix?:boolean,
+ *          amending?:boolean}} handlers `canFix` lets a played game be recorded
+ *   after the fact (core/amend.js); `amending` is this slot's lock being
+ *   corrected, which opens every team it could have been.
  */
 export function renderSideline(root, board, viewWeek, activeSlot, handlers) {
   const week = board.weeks.find((entry) => entry.week === viewWeek) ?? board.weeks[0];
@@ -79,14 +83,28 @@ export function renderSideline(root, board, viewWeek, activeSlot, handlers) {
 
   const locked = Boolean(pick.status.locked);
   const canPick = handlers.canWrite && !locked;
+  const amending = Boolean(handlers.amending);
+  // A row goes to the correction rather than to a pick when its game is over
+  // and the slot is open to one, or when the slot's lock is being corrected.
+  const canFix = Boolean(handlers.canFix) && fixableWeek(board, pick.week);
+  const fixes = (option) =>
+    canFix && amendable(pick, option) && (amending || (!locked && Boolean(option.result)));
   const available = pick.options.filter((option) => !option.disabled).length;
-  const label = board.eliminated
-    ? locked
-      ? "Locked in"
-      : "In review: nothing more to pick"
-    : locked
-      ? "Unlock to change the team"
-      : `${pick.team ? "Change the team" : "Pick a team"} · ${available} available`;
+  const recordable =
+    !locked && canFix && pick.options.some((option) => option.result && fixes(option));
+  const label = amending
+    ? `Correcting week ${pick.week} · pick the team you played`
+    : board.eliminated
+      ? locked
+        ? "Locked in"
+        : recordable
+          ? "In review · a played game can still be recorded"
+          : "In review: nothing more to pick"
+      : locked
+        ? "Unlock to change the team"
+        : recordable && available === 0
+          ? "Played · tap the team you picked to record it"
+          : `${pick.team ? "Change the team" : "Pick a team"} · ${available} available`;
 
   // Patched rather than rebuilt (ui/patch.js): the label, the filter and the
   // list are kept while the slot is the same slot, and inside the list each
@@ -94,7 +112,8 @@ export function renderSideline(root, board, viewWeek, activeSlot, handlers) {
   // one taken and the one let go - and the other hundred stay where they
   // were, scroll, focus and typed filter with them.
   const panel = frame(root, `<div class="sideline"></div>`);
-  panel.classList.toggle("sideline--locked", locked);
+  panel.classList.toggle("sideline--locked", locked && !amending);
+  panel.classList.toggle("sideline--amending", amending);
   reconcile(
     panel,
     `<label class="u-eyebrow sideline__label" for="filter-${id}" data-key="label">${escapeHtml(label)}</label>
@@ -104,7 +123,7 @@ export function renderSideline(root, board, viewWeek, activeSlot, handlers) {
   );
   reconcile(
     panel.querySelector(".sideline__list"),
-    pick.options.map((option) => rowMarkup(pick, option, canPick)).join(""),
+    pick.options.map((option) => rowMarkup(pick, option, canPick, fixes(option))).join(""),
   );
 
   restoreState(root, carried);
@@ -186,7 +205,7 @@ function applyFilter(root, input) {
  * lock too, so the two lists of a two-pick week agree with each other. A row
  * whose game has been played is kept as a record of the week, not a choice.
  */
-function rowMarkup(pick, option, canPick) {
+function rowMarkup(pick, option, canPick, fixes = false) {
   const locked = option.isCurrent && Boolean(pick.status.locked);
   const held = Boolean(option.siblingLocked) && !option.isCurrent;
   // Burned in another week: the foot of the list (see core/plan.js), where the
@@ -196,7 +215,8 @@ function rowMarkup(pick, option, canPick) {
     "sideline__row",
     option.isCurrent ? "sideline__row--current" : "",
     locked ? "sideline__row--locked" : "",
-    option.disabled && !option.isCurrent ? "sideline__row--disabled" : "",
+    option.disabled && !option.isCurrent && !fixes ? "sideline__row--disabled" : "",
+    fixes ? "sideline__row--fix" : "",
     held ? "sideline__row--held" : "",
     spent ? "sideline__row--spent" : "",
     option.result ? "sideline__row--settled" : "",
@@ -210,9 +230,11 @@ function rowMarkup(pick, option, canPick) {
       ? 'aria-current="true" title="Tap again to clear this pick"'
       : held
         ? 'title="Locked in the other slot this week"'
-        : spent
-          ? `title="Locked in week ${option.spentWeek}. A team is only spent once"`
-          : "";
+        : fixes
+          ? `title="${spent ? `Record the ${escapeHtml(option.team)} here. Week ${option.spentWeek} loses them and needs a new pick` : `Record the ${escapeHtml(option.team)} as this week's pick`}"`
+          : spent
+            ? `title="Locked in week ${option.spentWeek}. A team is only spent once"`
+            : "";
 
   // What the row is, for the settle that plays when it changes under no tap of
   // yours (playDataUpdates in app.js): which of the six states it is in, and
@@ -227,6 +249,7 @@ function rowMarkup(pick, option, canPick) {
     held ? "held" : "",
     spent ? `spent-${option.spentWeek}` : "",
     option.disabled ? "disabled" : "",
+    fixes ? "fix" : "",
     option.result ?? "",
   ]
     .filter(Boolean)
@@ -234,12 +257,12 @@ function rowMarkup(pick, option, canPick) {
 
   return `
     <button type="button" class="${classes}"
-            data-action="pick" data-week="${pick.week}" data-slot="${pick.slot}"
+            data-action="${fixes ? "amend" : "pick"}" data-week="${pick.week}" data-slot="${pick.slot}"
             data-team="${escapeHtml(option.team)}" data-key="${escapeHtml(option.team)}"
             data-motion-key="sideline-${pick.week}-${pick.slot}-${escapeHtml(option.team)}"
             data-motion-signature="${escapeHtml(signature)}"
             data-search="${escapeHtml((option.team + " " + option.opponent).toLowerCase())}"
-            ${canPick && (!option.disabled || option.isCurrent) ? "" : "disabled"}
+            ${fixes || (canPick && (!option.disabled || option.isCurrent)) ? "" : "disabled"}
             ${current}>
       <span class="sideline__team">
         <span class="sideline__name">${locked || held ? LOCK_ICON : ""}<span class="sideline__team-name">${escapeHtml(option.team)}</span>${coachMark(option)}</span>
