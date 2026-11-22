@@ -28,8 +28,8 @@
  * to be able to find it, and a copy stored under a one-off query string is a
  * copy nothing will ever match again.
  *
- * There is still no precache list: whatever the app fetches while online is
- * what is available offline.
+ * One file is precached (PRECACHE below); everything else is whatever the app
+ * fetches while online.
  *
  * Both strategies keep a copy for next time, and both hand back a response
  * before that copy has been written. So the write is handed to
@@ -73,7 +73,11 @@
    pick on the field and the chart with SVG badges the old components.css
    would leave at 300 by 150, and rebuilds the startup layer around the
    launcher's logo (icons/icon-maskable.svg), which the old stylesheet would
-   set at full size over the top of the play.
+   set at full size over the top of the play. v43 takes the field's
+   fit-to-screen squeeze back out of ui/pitch.js and components.css together.
+   v44 moves the startup layer's styles out of components.css and motion.css
+   into index.html, so an old index.html beside the new stylesheets would
+   draw the layer with no styles at all.
 
    "Must not keep half of" is the whole point, and v4 is what that phrase was
    written for. Every shell file is cached first and refreshed on its own a few
@@ -90,7 +94,13 @@
    needs a hand here: ENGINE_VERSION in src/js/core/recommend.js is part of
    every plan's key, so a plan can only ever be read back by the engine that
    wrote it. Bump it there when the search or the ranking changes shape. */
-const CACHE = "sudden-death-v42";
+const CACHE = "sudden-death-v44";
+
+/**
+ * Kept from install rather than on first use, so the first launch after an
+ * install or a CACHE bump paints the startup layer (index.html) with its logo.
+ */
+const PRECACHE = "./icons/icon-512.png";
 
 /** How long to wait for fresh data before opening with the last copy. */
 const DATA_TIMEOUT_MS = 2500;
@@ -124,9 +134,16 @@ const isData = (url) => /\/data\/.+\.json$/.test(url.pathname);
 const isSettledData = (url) =>
   /\/data\/[^/]+\/(plan|teams|schedule|ratings|calibration)\.json$/.test(url.pathname);
 
-self.addEventListener("install", () => {
-  // Nothing to precache; take over as soon as this version is ready.
+self.addEventListener("install", (event) => {
+  // Take over as soon as this version is ready. A failed precache leaves the
+  // install alone: the icon is then kept on first use, like everything else.
   self.skipWaiting();
+  event.waitUntil(
+    caches
+      .open(CACHE)
+      .then((cache) => keep(cache, PRECACHE, fetchFresh(new Request(PRECACHE))))
+      .catch(() => {}),
+  );
 });
 
 self.addEventListener("activate", (event) => {

@@ -123,6 +123,10 @@ noise:
 Everything is switched off by the `prefers-reduced-motion` block in
 `base.css`, and nothing in the app depends on an animation completing.
 
+The startup layer is the one exception: its styles are inline in `index.html`,
+its fades survive reduced motion (only the slide goes), and its exit and the
+board's arrival after it run from script, timed in `app.js` (`finishStartup`).
+
 - **A duration is written once, in the stylesheet that draws it.** Nothing in
   `src/js/` counts milliseconds to know when a move is over: `ui/motion.js`
   asks the browser (`getAnimations`, which reports transitions too) and

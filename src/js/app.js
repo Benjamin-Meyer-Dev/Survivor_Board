@@ -313,7 +313,13 @@ function repaintAfterMotion() {
 function applyTheme(sport, objective = "win") {
   document.documentElement.dataset.league = resolveSport(sport);
   document.documentElement.dataset.objective = objective === "lose" ? "lose" : "win";
+  // Not while the startup layer is up: the bar keeps the launch screen's
+  // colour (index.html) until the layer leaves, and finishStartup tints it.
+  if (!document.body.classList.contains("is-starting")) tintStatusBar();
+}
 
+/** The status bar, in the colour of the ground the app is standing on. */
+function tintStatusBar() {
   const meta = document.querySelector('meta[name="theme-color"]');
   if (!meta) return;
   const styles = getComputedStyle(document.documentElement);
@@ -3228,7 +3234,7 @@ function callTheStartupLine() {
  * on, through the same shared request the board opens on (fetchJson), so the
  * line costs the launch nothing it was not already fetching. A sport whose
  * file will not load is left out, and with neither the line stays empty - its
- * height is held open either way (components.css), so nothing moves when it
+ * height is held open either way (index.html), so nothing moves when it
  * fills.
  */
 async function callTheSeason() {
@@ -3247,7 +3253,7 @@ async function callTheSeason() {
 /**
  * Where in the play the layer is handed over, as a fraction of one cycle.
  *
- * The keyframes are in motion.css: the ball is gathered in at 68%, holds
+ * The keyframes are in index.html: the ball is gathered in at 68%, holds
  * there, and everything begins to fade at 84%. The beat to leave on is the
  * one just past the catch, not the one before the fade - the fade the play
  * was about to do is done by the layer instead, and waiting for it left the
@@ -3260,23 +3266,43 @@ async function callTheSeason() {
  */
 const PLAY_LANDED = 0.74;
 
-/** How long the handoff takes: the layer fading out over the board rising in. */
-const HANDOFF_MS = 700;
+/**
+ * How long after the window's load the layer's entrance begins. Chrome takes
+ * an installed app's launch screen down once the page has loaded, fading it
+ * over about a fifth of a second, and the entrance waits that out: the launch
+ * screen fades off the logo alone, and the name, the season, the play and the
+ * floodlight come in on a screen that has stopped changing.
+ */
+const ENTRANCE_DELAY_MS = 300;
+
+/**
+ * How long the entrance takes (index.html): half a second of fade, the field
+ * a tenth behind the name. Under reduced motion there is no play to hold the
+ * layer by, and this is the least it stays up instead.
+ */
+const ENTRANCE_MS = 600;
+
+/** The longest the entrance waits on a load event, should something stall it. */
+const LOAD_CEILING_MS = 3000;
+
+/** How long the layer takes to leave. */
+const LEAVE_MS = 250;
+
+/** And how long the board then takes to come up where it was. */
+const ARRIVE_MS = 250;
 
 /** Do not hold an offline launch indefinitely for Google's font files. */
 const STARTUP_TYPE_TIMEOUT_MS = 1000;
 
-/** Every animation the startup play is made of, the route's own included. */
+/**
+ * Every animation the startup play is made of, the route's own included. The
+ * play's keyframes only: the entrance's transitions are left to finish.
+ */
 function startupPlays() {
   if (!el.startup || !document.getAnimations) return [];
   return document
     .getAnimations()
-    .filter((play) => el.startup.contains(play.effect?.target ?? null));
-}
-
-/** How long one cycle of the play lasts, as the animation itself reports it. */
-function playCycle(play) {
-  return Number(play?.effect?.getComputedTiming?.().duration) || 0;
+    .filter((play) => play.animationName && el.startup.contains(play.effect?.target ?? null));
 }
 
 /**
@@ -3284,15 +3310,15 @@ function playCycle(play) {
  *
  * A web font is not requested until layout discovers text that uses it. That
  * left the loading layer visible for one frame in the wide fallback before its
- * condensed display face arrived. The stylesheet holds the copy transparent;
- * ask for the three faces it uses, then reveal it. If they cannot answer in a
- * second, pin this startup to the system face before revealing it so a font
+ * condensed display face arrived. The copy is hidden until the entrance, and
+ * the entrance waits on this: ask for the three faces it uses, and if they
+ * cannot answer in a second, pin this startup to the system face so a font
  * arriving later cannot cause the same snap after the timeout.
  */
 async function settleStartupTypography() {
   if (!el.startup) return;
   if (!document.fonts?.load) {
-    el.startup.classList.add("is-typography-fallback", "is-typography-ready");
+    el.startup.classList.add("is-typography-fallback");
     return;
   }
 
@@ -3312,41 +3338,34 @@ async function settleStartupTypography() {
   clearTimeout(timer);
 
   if (!available) el.startup.classList.add("is-typography-fallback");
-  el.startup.classList.add("is-typography-ready");
 }
 
 /**
- * The first paint, or as near as the browser will admit to one.
+ * A beat after the window's load event: when an installed app's launch screen
+ * has finished fading off the page (ENTRANCE_DELAY_MS).
  *
- * Chrome and Firefox report it, so the entry itself is what is waited on.
- * Safari does not, and there two animation frames is the soonest the page can
- * have drawn. Either way the wait is bounded: a launch straight into a
- * background tab may never paint at all, and that must not leave the board
- * behind a startup screen nobody is looking at.
+ * Measured from the event itself, so a module that runs after the page has
+ * loaded waits only what is left of the beat. Bounded, as every wait in front
+ * of the board is: a request that never finishes holds the load event with it,
+ * and that must not leave the layer standing on its logo for good.
  */
-function firstPaint(ceiling) {
+function afterLoad(delay, ceiling) {
   return new Promise((resolve) => {
-    const timer = setTimeout(resolve, ceiling);
-    const done = () => {
-      clearTimeout(timer);
-      resolve();
-    };
-    if (PerformanceObserver.supportedEntryTypes?.includes("paint")) {
-      const observer = new PerformanceObserver(() => {
-        observer.disconnect();
-        done();
-      });
-      observer.observe({ type: "paint", buffered: true });
+    setTimeout(resolve, ceiling);
+    if (document.readyState !== "complete") {
+      window.addEventListener("load", () => setTimeout(resolve, delay), { once: true });
       return;
     }
-    requestAnimationFrame(() => requestAnimationFrame(done));
+    const loaded = performance.getEntriesByType("navigation")[0]?.loadEventEnd || 0;
+    setTimeout(resolve, delay - (performance.now() - loaded));
   });
 }
 
 /**
- * Hold the pre-game play at its first frame until the page is on screen and
- * its copy has one stable face, then hand back the play itself, which is the
- * clock everything after this is timed against.
+ * Hold the pre-game play at its first frame until the launch screen has gone
+ * and the copy has one stable face, then bring the rest of the layer in and
+ * hand back the play itself, which is the clock everything after this is timed
+ * against.
  *
  * The play is a CSS animation, so its clock starts the moment the stylesheets
  * apply - and that is well before anything is painted. The fonts arrive from
@@ -3359,17 +3378,14 @@ function firstPaint(ceiling) {
  * of the animation and putting the board up immediately after.
  *
  * So the play is held at nought - where the ball has not been thrown yet -
- * and released on the first paint. The stylesheet holds it there from the
- * start (animation-play-state in motion.css), so nothing has been drawn when
- * it is wound back here and there is nothing to see in the winding. It is
- * wound back whatever the clock says: this used to stand aside once a paint
- * had been reported, on the theory that a play already on screen should not
- * be restarted - but on a warm installed launch the shell paints and the play
- * runs on behind the system's own splash, and what that reasoning handed the
- * beat below was a clock past the catch and a layer that lifted at once.
+ * and released with the entrance, once the launch screen has gone
+ * (afterLoad). The stylesheet holds it there from the start
+ * (animation-play-state in index.html), so nothing has been drawn when it is
+ * wound back here and there is nothing to see in the winding.
  *
  * Under reduced motion there is no animation to hold (base.css) and this finds
- * none: the null it hands back is what turns the floor below off.
+ * none: the null it hands back turns the floor below off, and the layer is
+ * held for its entrance's fades instead.
  */
 async function startTheStartupPlay() {
   const plays = startupPlays();
@@ -3378,9 +3394,12 @@ async function startTheStartupPlay() {
     entry.pause();
     entry.currentTime = 0;
   }
-  const cycle = playCycle(play) || HANDOFF_MS;
-  await Promise.all([firstPaint(cycle), settleStartupTypography()]);
-  if (!play) return null;
+  await Promise.all([afterLoad(ENTRANCE_DELAY_MS, LOAD_CEILING_MS), settleStartupTypography()]);
+  el.startup?.classList.add("is-entering");
+  if (!play) {
+    await new Promise((resolve) => setTimeout(resolve, ENTRANCE_MS));
+    return null;
+  }
   // Released both ways: the class is for the stylesheet's hold, play() for the
   // animations themselves, so the play starts here whether or not the browser
   // keeps honouring animation-play-state once a script has touched an animation.
@@ -3400,7 +3419,7 @@ async function startTheStartupPlay() {
  * its own, so the board goes straight up.
  */
 function playToTheBeat(play) {
-  const cycle = playCycle(play);
+  const cycle = Number(play?.effect?.getComputedTiming?.().duration) || 0;
   if (!cycle) return Promise.resolve();
   const beat = cycle * PLAY_LANDED;
   // The clock counts every cycle the play has run, not the one it is in.
@@ -3409,9 +3428,21 @@ function playToTheBeat(play) {
   return new Promise((resolve) => setTimeout(resolve, beat - elapsed));
 }
 
-/** Hand the fully rendered board over from the startup layer. */
+/**
+ * Hand the fully rendered board over from the startup layer: the layer fades
+ * out and is taken out of the page, and only then does the board fade in, so
+ * the two are never on screen together at partial opacity. The status bar
+ * takes the app's colour as the board arrives.
+ *
+ * Both fades run from script, which base.css's reduced-motion rule does not
+ * reach, and both are fades and nothing else: a board that rose or grew into
+ * place read as the home page's wordmark jolting. The leave is raced against
+ * a timer because a page in a background tab draws no frames, and an
+ * animation that draws none never finishes.
+ */
 async function finishStartup() {
-  if (!el.startup) return;
+  const layer = el.startup;
+  if (!layer?.isConnected) return;
   if (el.startupStatus) el.startupStatus.textContent = "Board ready";
   // The play is stopped where it stands rather than left running under the
   // fade. On the beat it is stopped on the ball is already still, at the far
@@ -3419,14 +3450,20 @@ async function finishStartup() {
   // wrapped round mid-fade threw the ball back to the near end and re-drew the
   // route across a layer on its way out, which is a snap of its own.
   for (const play of startupPlays()) play.pause();
-  el.startup.classList.add("is-ready");
-  // The board goes on under the fading layer, already in its place: the layer
-  // lifting off it is the whole handoff (motion.css).
-  document.body.classList.remove("is-starting");
+  const leaving = layer.animate([{ opacity: 1 }, { opacity: 0 }], {
+    duration: LEAVE_MS,
+    easing: "ease",
+    fill: "forwards",
+  });
+  await Promise.race([
+    leaving.finished,
+    new Promise((resolve) => setTimeout(resolve, LEAVE_MS + 100)),
+  ]);
+  layer.remove();
 
-  const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : HANDOFF_MS;
-  await new Promise((resolve) => setTimeout(resolve, duration));
-  el.startup.hidden = true;
+  document.body.classList.remove("is-starting");
+  tintStatusBar();
+  el.shell?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ARRIVE_MS, easing: "ease-out" });
 }
 
 /**
@@ -3490,9 +3527,9 @@ async function main() {
   callTheStartupLine();
   callTheSeason();
   // Started here, at the top, and awaited at the bottom: the play is held at
-  // its first frame until the page is on screen, and it is what says when the
-  // layer has been up long enough. Not awaited here - the loading below has no
-  // reason to wait on the first paint.
+  // its first frame until the launch screen has gone, and it is what says when
+  // the layer has been up long enough. Not awaited here - the loading below
+  // has no reason to wait on the launch screen.
   const play = startTheStartupPlay();
   // Every visit begins in the first sport's palette, which is what the start
   // screen and the home page wear before any league is open.
@@ -3626,6 +3663,7 @@ main().catch((error) => {
   document.body.classList.remove("is-gated");
   document.body.classList.remove("is-starting");
   if (el.startup) el.startup.hidden = true;
+  tintStatusBar();
   if (el.start) el.start.hidden = true;
   // textContent, not innerHTML: this message carries whatever a failure had to
   // say for itself - a server's response, a parse error quoting the input back

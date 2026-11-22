@@ -1270,7 +1270,10 @@ button.league-bar__face[aria-expanded="true"] {
 /* A yard line. The button is the whole column, so the target is the width of
    the week, not the width of the line. --yard-w is the least a week gets; any
    width the track grows by is shared evenly, so every column stays the same
-   width and the bracket's arithmetic (.pitch__bracket) still holds. */
+   width and the bracket's arithmetic (.pitch__bracket) still holds.
+
+   A short pool stretches across the field and a long one scrolls; neither is
+   squeezed under --yard-w, 44 (38 sideways), a thumb's target. */
 .pitch__yard {
   appearance: none;
   position: relative;
@@ -1287,28 +1290,6 @@ button.league-bar__face[aria-expanded="true"] {
 
 .pitch__yard:first-child {
   border-left: 0;
-}
-
-/* A season short enough to stand whole across the field does, rather than
-   scrolling a ten-week pool past the edge by three columns. ui/pitch.js puts
-   this on (fitSeason) where every week can have at least the column its lanes
-   need - 28 for one, 38 for two - and the weeks then share the field the way
-   they do on a desktop. Equal shares, so the bracket's arithmetic holds.
-
-   The basis is two pixels, not nought. A border-box with a basis of nought
-   still starts from its own border, so the first week (no line), every fifth
-   (a line of two) and the rest (one) came out a pixel apart and the bracket
-   stood a pixel off them. Two is the widest line a yard has, so every week
-   starts from the same two and ends the same width. */
-.pitch__field--fit .pitch__track {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.pitch__field--fit .pitch__yard {
-  flex: 1 1 2px;
-  width: auto;
-  min-width: 0;
 }
 
 /* Every fifth week is heavier and numbered, the way a field is. */
@@ -5067,254 +5048,6 @@ button.league-bar__face[aria-expanded="true"] {
   min-height: 44px;
 }
 
-/* startup screen --------------------------------------------------------------- */
-
-.startup {
-  /* Self-contained rather than aliases to the root theme: the overlay paints
-     before JavaScript applies any league attribute. */
-  --ground: #0f4d2c;
-  --line: rgb(243 247 241 / 35%);
-  --ink: #f3f7f1;
-  --ink-3: rgb(243 247 241 / 58%);
-  --startup-accent: #ffe066;
-  --startup-accent-soft: #0a3a20;
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  overflow: hidden;
-  color: var(--ink);
-  background:
-    radial-gradient(ellipse 90% 40% at 50% -6%, rgb(255 255 255 / 14%), transparent 70%),
-    var(--ground);
-}
-
-.startup[hidden] {
-  display: none;
-}
-
-/* The phone's launch screen, carried on. Android opens an installed app on its
-   icon alone, centred on the manifest's background colour: the full-bleed
-   (maskable) icon at 240, masked to a circle of 160. This is that, at that
-   size, on that colour, pinned to the middle of the screen - so when the page
-   takes over, the logo is already where the eye left it and the rest of the
-   screen arrives around it. The layer used to open on the ball graphic forty
-   pixels above the middle, which read as the logo jolting upward. */
-.startup__logo {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 240px;
-  height: 240px;
-  margin: -120px 0 0 -120px;
-  clip-path: circle(80px);
-}
-
-/* Everything else hangs from the logo rather than being centred with it, so
-   no line of it - a season line still loading, a status that wraps - can move
-   the logo by being there. */
-.startup__below {
-  position: absolute;
-  top: calc(50% + 80px + 28px);
-  right: 0;
-  left: 0;
-  display: grid;
-  justify-items: center;
-  gap: 10px;
-  padding: 0 var(--sp-6);
-}
-
-/* A screen too short to hang all of that under the middle - a phone held
-   sideways - goes back to one centred column, with a smaller logo on top. */
-@media (max-height: 640px) {
-  .startup {
-    display: grid;
-    place-content: center;
-    justify-items: center;
-    gap: 10px;
-    padding: var(--sp-3);
-  }
-
-  .startup__logo {
-    position: static;
-    width: 144px;
-    height: 144px;
-    margin: -24px;
-    clip-path: circle(48px);
-  }
-
-  .startup__below {
-    display: contents;
-  }
-}
-
-.is-starting .shell {
-  visibility: hidden;
-}
-
-/* The Google faces are discovered only after the first layout. Without this
-   hold, the startup copy gets one painted frame in the wide system fallback
-   before Big Shoulders and Plex arrive, and the wordmark visibly snaps inward.
-   app.js releases these three pieces only after their exact faces have loaded;
-   if that takes too long it pins them to the fallback for the rest of this
-   startup instead, so a late font can never change a layer that is on screen. */
-.startup__scene,
-.startup__brand,
-.startup__season,
-.startup__status {
-  opacity: 0;
-}
-
-.startup.is-typography-ready .startup__scene,
-.startup.is-typography-ready .startup__brand,
-.startup.is-typography-ready .startup__season,
-.startup.is-typography-ready .startup__status {
-  opacity: 1;
-  transition: opacity 0.14s ease-out;
-}
-
-.startup.is-typography-fallback,
-.startup.is-typography-fallback .startup__yard,
-.startup.is-typography-fallback .startup__brand,
-.startup.is-typography-fallback .startup__season,
-.startup.is-typography-fallback .startup__status {
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    sans-serif;
-}
-
-/* A beat further down than the name and its season over it, so those read as
-   the title block and the field as the thing loading. */
-.startup__scene {
-  --startup-scene: min(72vw, 310px);
-  --startup-track: calc(var(--startup-scene) * 0.6);
-  position: relative;
-  width: var(--startup-scene);
-  height: 84px;
-  margin-top: 14px;
-  border-top: 2px solid var(--line);
-  border-bottom: 2px solid var(--line);
-}
-
-.startup__scene::before,
-.startup__scene::after {
-  content: "";
-  position: absolute;
-  inset-block: 0;
-  width: 1px;
-  background: var(--line);
-}
-
-.startup__scene::before {
-  left: 25%;
-}
-
-.startup__scene::after {
-  right: 25%;
-}
-
-.startup__yard {
-  position: absolute;
-  top: 50%;
-  font: 800 12px/1 var(--font-display);
-  color: var(--ink-3);
-  transform: translateY(-50%);
-}
-
-.startup__yard--left {
-  left: 8%;
-}
-
-.startup__yard--right {
-  right: 8%;
-}
-
-.startup__route {
-  position: absolute;
-  left: 20%;
-  right: 20%;
-  top: 50%;
-  height: 2px;
-  background: repeating-linear-gradient(90deg, var(--startup-accent) 0 6px, transparent 6px 11px);
-  opacity: 0.55;
-}
-
-.startup__route::after {
-  content: "";
-  position: absolute;
-  inset: -1px -1px -1px 0;
-  background: var(--ground);
-  transform: scaleX(0);
-  transform-origin: right;
-}
-
-.startup__ball {
-  position: absolute;
-  z-index: 1;
-  top: 25px;
-  left: calc(20% - 18px);
-  width: 36px;
-  height: 24px;
-  color: var(--startup-accent);
-}
-
-.startup__ball svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.startup__ball path:first-child {
-  fill: var(--startup-accent);
-  stroke: var(--startup-accent-soft);
-  stroke-width: 2;
-}
-
-.startup__ball path:last-child {
-  fill: none;
-  stroke: var(--startup-accent-soft);
-  stroke-width: 2;
-  stroke-linecap: round;
-}
-
-.startup__brand,
-.startup__season,
-.startup__status {
-  margin: 0;
-}
-
-/* Where each season stands - "NFL week 11 · College week 12" - in the ball's
-   yellow under the name. Its line is held open while it loads, so arriving
-   late moves nothing under it. */
-.startup__season {
-  min-height: 16px;
-  font-family: var(--font-display);
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 16px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--startup-accent);
-}
-
-.startup__brand {
-  font-family: var(--font-display);
-  font-size: 32px;
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--ink);
-}
-
-.startup__status {
-  min-height: 1.5em;
-  font-size: 12px;
-  color: var(--ink-3);
-}
-
 /* start screen (ui/name.js) ------------------------------------------------------ */
 
 /* Sits over everything until the device has answered once: a portrait field
@@ -5923,8 +5656,11 @@ button.league-bar__face[aria-expanded="true"] {
     flex: 1 1 auto;
   }
 
-  /* From an equal two pixels rather than nought, for the reason the fitted
-     phone field gives (.pitch__field--fit): every week the same width. */
+  /* The basis is two pixels, not nought. A border-box with a basis of nought
+     still starts from its own border, so the first week (no line), every fifth
+     (a line of two) and the rest (one) came out a pixel apart and the bracket
+     stood a pixel off them. Two is the widest line a yard has, so every week
+     starts from the same two and ends the same width. */
   .pitch__yard {
     flex: 1 1 2px;
     width: auto;

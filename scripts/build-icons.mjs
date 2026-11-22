@@ -67,9 +67,7 @@ const ANY = { ball: 0.66, corner: 0.22 };
 
 /**
  * The full-bleed layout a launcher masks. Launchers may crop it to a circle
- * 80% of the width, so the ball stays well inside that. Android's launch
- * screen draws it too, which is why the startup layer in index.html opens on
- * it (icon-maskable.svg, .startup__logo).
+ * 80% of the width, so the ball stays well inside that.
  */
 const MASKABLE = { ball: 0.56, corner: 0 };
 
@@ -239,8 +237,6 @@ try {
   }
   writeFileSync(join(ICONS_DIR, "icon.svg"), svg({ size: 512, ...ANY }));
   console.log("wrote icons/icon.svg");
-  writeFileSync(join(ICONS_DIR, "icon-maskable.svg"), svg({ size: 512, ...MASKABLE }));
-  console.log("wrote icons/icon-maskable.svg");
 } finally {
   // Chrome's helper processes can hold the profile open for a moment on Windows.
   rmSync(workDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });

@@ -17,7 +17,33 @@
       content="Shared college and NFL survivor pool tracker with market lines, backups and a burn board."
     />
     <meta name="color-scheme" content="dark" />
+    <!-- The manifest's background_color, which is what the status bar wears
+         over Android's launch screen. Held there while the startup layer is up
+         so the bar does not change colour at the handoff; app.js moves it to
+         the app's own colour as the layer leaves (tintStatusBar). -->
     <meta name="theme-color" content="#0f4d2c" />
+
+    <!-- Android centres its launch screen on the whole screen; the page can
+         only centre on the viewport, between the status bar and the
+         navigation bar. --boot-nudge moves the startup logo by the
+         difference, (navBar - statusBar) / 2, before the first paint: the
+         navigation bar taken as the 24px of gesture navigation, a reading that
+         makes no sense falling back to -13px. A browser tab has no launch
+         screen and stays centred. In a function so nothing lands on window. -->
+    <script>
+      (function () {
+        if (matchMedia("(display-mode: browser)").matches) return;
+        const bars = screen.height - innerHeight;
+        const navBar = 24;
+        const statusBar = bars - navBar;
+        const nudge = bars > 0 && bars < 200 ? Math.round((navBar - statusBar) / 2) : -13;
+        document.documentElement.style.setProperty("--boot-nudge", nudge + "px");
+      })();
+    </script>
+
+    <!-- The startup layer's logo, fetched at high priority ahead of the
+         stylesheets. -->
+    <link rel="preload" as="image" href="./icons/icon-512.png" fetchpriority="high" />
 
     <!-- Installable to a phone home screen. Chrome needs the manifest's 192
          and 512 icons plus the service worker registered in app.js before it
@@ -46,41 +72,423 @@
     <link rel="stylesheet" href="./src/css/field.css" />
     <link rel="stylesheet" href="./src/css/leagues.css" />
     <link rel="stylesheet" href="./src/css/motion.css" />
+
+    <!-- The startup layer's styles, in the page rather than the stylesheets:
+         the screen a launch opens on belongs to the document that opens it.
+         scripts/build-artifact.mjs carries this block across too. -->
+    <style>
+      .is-starting .shell {
+        visibility: hidden;
+      }
+
+      /* Its own colours rather than the theme's: it paints before app.js has
+         put a league on the root. --startup-middle is where the launch screen
+         centred its icon (--boot-nudge, from the script above). */
+      .startup {
+        --ground: #0f4d2c;
+        --line: rgb(243 247 241 / 35%);
+        --ink: #f3f7f1;
+        --ink-3: rgb(243 247 241 / 58%);
+        --startup-accent: #ffe066;
+        --startup-accent-soft: #0a3a20;
+        --startup-logo: 240px;
+        --startup-middle: calc(50% + var(--boot-nudge, 0px));
+        --startup-gap: 24px;
+        --startup-scene: min(72vw, 310px);
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        overflow: hidden;
+        color: var(--ink);
+        background: var(--ground);
+      }
+
+      /* The floodlight over the top. The launch screen has none, so it comes
+         in with the rest of the layer. */
+      .startup::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          ellipse 90% 40% at 50% -6%,
+          rgb(255 255 255 / 14%),
+          transparent 70%
+        );
+        opacity: 0;
+      }
+
+      /* Android's launch screen, carried on: the manifest's 512 icon at the
+         size and in the place the launch screen drew it, on the same colour,
+         so Chrome's fade off its launch screen cannot be seen. Nothing moves
+         or resizes it; everything else is placed around it. */
+      .startup__logo {
+        position: absolute;
+        top: var(--startup-middle);
+        left: 50%;
+        width: var(--startup-logo);
+        height: var(--startup-logo);
+        margin: calc(var(--startup-logo) / -2) 0 0 calc(var(--startup-logo) / -2);
+      }
+
+      /* The name and the season, then the field and the status line, under
+         the logo. Placed off the logo rather than centred with it, so nothing
+         in it - a season still loading, a status that wraps - can move the
+         logo. */
+      .startup__copy {
+        position: absolute;
+        top: calc(var(--startup-middle) + var(--startup-logo) / 2 + var(--startup-gap));
+        right: 0;
+        left: 0;
+        display: grid;
+        justify-items: center;
+        gap: var(--startup-gap);
+        padding: 0 var(--sp-6);
+      }
+
+      /* Hidden until the entrance (below). */
+      .startup__title,
+      .startup__progress {
+        display: grid;
+        justify-items: center;
+        gap: 10px;
+        opacity: 0;
+        transform: translateY(12px);
+      }
+
+      /* A screen too short to hang all of that under the logo: the name goes
+         above it, the same gap clear of it. */
+      @media (max-height: 719px) {
+        .startup__title {
+          position: absolute;
+          right: 0;
+          bottom: calc(100% + var(--startup-logo) + 2 * var(--startup-gap));
+          left: 0;
+          padding: 0 var(--sp-6);
+        }
+      }
+
+      /* Too short even for that - a phone held sideways - and wide enough to
+         stand it all beside the logo instead. */
+      @media (max-height: 551px) and (orientation: landscape) {
+        .startup__copy {
+          --startup-scene: min(310px, 50vw - var(--startup-logo) / 2 - 48px);
+          top: var(--startup-middle);
+          left: calc(50% + var(--startup-logo) / 2 + 32px);
+          width: var(--startup-scene);
+          padding: 0;
+          transform: translateY(-50%);
+        }
+
+        .startup__title {
+          position: static;
+          padding: 0;
+        }
+      }
+
+      /* The entrance, a beat after the launch screen has gone (is-entering,
+         from app.js). Important so the fades outlast base.css, which takes
+         every transition away under reduced motion; there only the slide
+         goes. */
+      .startup.is-entering .startup__title,
+      .startup.is-entering .startup__progress {
+        opacity: 1;
+        transform: none;
+        transition:
+          opacity 0.5s ease-out,
+          transform 0.5s var(--ease-out) !important;
+      }
+
+      .startup.is-entering .startup__progress {
+        transition-delay: 0.1s !important;
+      }
+
+      .startup.is-entering::before {
+        opacity: 1;
+        transition: opacity 0.9s ease-out !important;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .startup__title,
+        .startup__progress {
+          transform: none;
+        }
+      }
+
+      /* A late font must never change a layer that is on screen. app.js asks
+         for the three faces before the entrance and, if they have not come in
+         a second, pins the layer to the system face for this launch. */
+      .startup.is-typography-fallback,
+      .startup.is-typography-fallback .startup__yard,
+      .startup.is-typography-fallback .startup__brand,
+      .startup.is-typography-fallback .startup__season {
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      .startup__brand,
+      .startup__season,
+      .startup__status {
+        margin: 0;
+      }
+
+      .startup__brand {
+        font-family: var(--font-display);
+        font-size: 32px;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      /* "NFL week 11 · College week 12" in the ball's yellow. The line is held
+         open while it loads, so arriving late moves nothing. */
+      .startup__season {
+        min-height: 16px;
+        font-family: var(--font-display);
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 16px;
+        letter-spacing: 0.18em;
+        text-align: center;
+        text-transform: uppercase;
+        color: var(--startup-accent);
+      }
+
+      .startup__status {
+        min-height: 18px;
+        font-size: 12px;
+        line-height: 18px;
+        color: var(--ink-3);
+      }
+
+      /* The field the play runs on. */
+      .startup__scene {
+        --startup-track: calc(var(--startup-scene) * 0.6);
+        --startup-cycle: 2.2s;
+        position: relative;
+        width: var(--startup-scene);
+        height: 84px;
+        border-top: 2px solid var(--line);
+        border-bottom: 2px solid var(--line);
+      }
+
+      .startup__scene::before,
+      .startup__scene::after {
+        content: "";
+        position: absolute;
+        inset-block: 0;
+        width: 1px;
+        background: var(--line);
+      }
+
+      .startup__scene::before {
+        left: 25%;
+      }
+
+      .startup__scene::after {
+        right: 25%;
+      }
+
+      .startup__yard {
+        position: absolute;
+        top: 50%;
+        font: 800 12px/1 var(--font-display);
+        color: var(--ink-3);
+        transform: translateY(-50%);
+      }
+
+      .startup__yard--left {
+        left: 8%;
+      }
+
+      .startup__yard--right {
+        right: 8%;
+      }
+
+      /* The play's four animations are held at their first frame - the ball
+         not yet thrown - until app.js starts them with the entrance
+         (startTheStartupPlay, is-playing). */
+      .startup__route {
+        position: absolute;
+        left: 20%;
+        right: 20%;
+        top: 50%;
+        height: 2px;
+        background: repeating-linear-gradient(
+          90deg,
+          var(--startup-accent) 0 6px,
+          transparent 6px 11px
+        );
+        opacity: 0.55;
+        animation: startup-route-fade var(--startup-cycle) linear infinite paused;
+      }
+
+      .startup__route::after {
+        content: "";
+        position: absolute;
+        inset: -1px -1px -1px 0;
+        background: var(--ground);
+        transform: scaleX(0);
+        transform-origin: right;
+        animation: startup-route var(--startup-cycle) linear infinite paused;
+      }
+
+      .startup__ball {
+        position: absolute;
+        z-index: 1;
+        top: 25px;
+        left: calc(20% - 18px);
+        width: 36px;
+        height: 24px;
+        animation: startup-throw var(--startup-cycle) linear infinite paused;
+      }
+
+      .startup__ball svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+        animation: startup-arc var(--startup-cycle) linear infinite paused;
+      }
+
+      .startup.is-playing .startup__ball,
+      .startup.is-playing .startup__ball svg,
+      .startup.is-playing .startup__route,
+      .startup.is-playing .startup__route::after {
+        animation-play-state: running;
+      }
+
+      .startup__ball path {
+        stroke: var(--startup-accent-soft);
+        stroke-width: 2;
+      }
+
+      .startup__ball path:first-child {
+        fill: var(--startup-accent);
+      }
+
+      .startup__ball path:last-child {
+        fill: none;
+        stroke-linecap: round;
+      }
+
+      /* A pass on loop. The ball fades in at the near end, arcs to the far end
+         with the route drawing in under it, holds, and fades, so the reset
+         happens while nothing is visible. Transform and opacity only, so it
+         keeps running on the compositor while the board's search holds the
+         main thread.
+
+         The ball is gathered in over the last twentieth of the track rather
+         than stopping dead. The route's mask repeats that curve as a literal:
+         a var() inside a keyframe's timing function is dropped, and the two
+         must stay identical. */
+      @keyframes startup-throw {
+        0% {
+          opacity: 0;
+          transform: translateX(0) rotate(-12deg);
+        }
+        8% {
+          opacity: 1;
+          transform: translateX(0) rotate(-12deg);
+        }
+        62% {
+          transform: translateX(calc(var(--startup-track) * 0.95)) rotate(332deg);
+          animation-timing-function: cubic-bezier(0.2, 0.42, 0.4, 1);
+        }
+        68%,
+        84% {
+          opacity: 1;
+          transform: translateX(var(--startup-track)) rotate(350deg);
+        }
+        100% {
+          opacity: 0;
+          transform: translateX(var(--startup-track)) rotate(350deg);
+        }
+      }
+
+      /* The height, a function of time in the air alone, so the top of the
+         arc stays at the middle of the flight in time. */
+      @keyframes startup-arc {
+        0%,
+        8% {
+          transform: none;
+          animation-timing-function: ease-out;
+        }
+        38% {
+          transform: translateY(-11px) scale(1.08);
+          animation-timing-function: ease-in;
+        }
+        68%,
+        100% {
+          transform: none;
+        }
+      }
+
+      /* The mask over the route: the ball's own progress read backwards. */
+      @keyframes startup-route {
+        0%,
+        8% {
+          transform: scaleX(1);
+        }
+        62% {
+          transform: scaleX(0.05);
+          animation-timing-function: cubic-bezier(0.2, 0.42, 0.4, 1);
+        }
+        68%,
+        100% {
+          transform: scaleX(0);
+        }
+      }
+
+      @keyframes startup-route-fade {
+        0%,
+        84% {
+          opacity: 0.55;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+    </style>
   </head>
 
   <body class="is-starting">
     <!-- Present in the document from the first paint, so returning devices get
          an intentional startup screen while app.js loads the board. -->
     <div class="startup" id="startup" role="status" aria-live="polite">
-      <!-- The logo the phone's own launch screen was showing, in the place it
-           was showing it, so the app takes over without the logo moving: the
-           launcher's full-bleed icon, masked to the circle Android draws it
-           in (.startup__logo). Everything else hangs underneath it. -->
+      <!-- The launch screen's own picture (.startup__logo). -->
       <img
         class="startup__logo"
-        src="./icons/icon-maskable.svg"
+        src="./icons/icon-512.png"
         alt=""
         width="240"
         height="240"
         decoding="sync"
         fetchpriority="high"
       />
-      <div class="startup__below">
-        <p class="startup__brand">Sudden Death</p>
-        <!-- Where each season stands, filled in by app.js (callTheSeason). -->
-        <p class="startup__season" id="startup-season"></p>
-        <div class="startup__scene" aria-hidden="true">
-          <span class="startup__yard startup__yard--left">20</span>
-          <span class="startup__yard startup__yard--right">40</span>
-          <span class="startup__ball">
-            <svg viewBox="0 0 54 34">
-              <path d="M3 17C9 4 20 1 27 1s18 3 24 16c-6 13-17 16-24 16S9 30 3 17Z" />
-              <path d="M15 17h24M19 14v6M23 14v6M27 14v6M31 14v6M35 14v6" />
-            </svg>
-          </span>
-          <span class="startup__route"></span>
+      <div class="startup__copy">
+        <div class="startup__title">
+          <p class="startup__brand">Sudden Death</p>
+          <!-- Where each season stands, filled in by app.js (callTheSeason). -->
+          <p class="startup__season" id="startup-season"></p>
         </div>
-        <p class="startup__status" id="startup-status">Chalking up the field…</p>
+        <div class="startup__progress">
+          <div class="startup__scene" aria-hidden="true">
+            <span class="startup__yard startup__yard--left">20</span>
+            <span class="startup__yard startup__yard--right">40</span>
+            <span class="startup__ball">
+              <svg viewBox="0 0 54 34">
+                <path d="M3 17C9 4 20 1 27 1s18 3 24 16c-6 13-17 16-24 16S9 30 3 17Z" />
+                <path d="M15 17h24M19 14v6M23 14v6M27 14v6M31 14v6M35 14v6" />
+              </svg>
+            </span>
+            <span class="startup__route"></span>
+          </div>
+          <p class="startup__status" id="startup-status">Chalking up the field…</p>
+        </div>
       </div>
     </div>
 

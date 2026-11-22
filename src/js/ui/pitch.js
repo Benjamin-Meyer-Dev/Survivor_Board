@@ -126,17 +126,6 @@ const MISSED = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="
 const GLYPHS = { locked: LOCK, missed: MISSED };
 
 /**
- * The narrowest a yard line may stand at when the field fits its season across
- * the screen instead of scrolling: room for its lanes (16 apiece with 4
- * between) and a pixel either side, and never under 28, which is the 22 of the
- * ball with three to spare each side. One lane: 28. Two: 38, the column the
- * sideways layout already reads at.
- */
-function fitFloor(lanes) {
-  return Math.max(28, lanes * 20 - 2);
-}
-
-/**
  * @param {HTMLElement} root
  * @param {object} board Result of buildBoard().
  * @param {number} viewWeek The week being looked at (1-based).
@@ -227,12 +216,6 @@ export function renderPitch(root, board, viewWeek, handlers) {
     `${board.weeks.map((week) => yardMarkup(week, board)).join("")}
       <span class="pitch__bracket pitch__bracket--placing" data-key="bracket" data-bracket aria-hidden="true"></span>`,
   );
-  // Whether the season stands whole across the screen, from the width the
-  // field's observer last measured: a render never measures it (fitSeason).
-  const field = pitch.querySelector(".pitch__field");
-  field.dataset.lanes = String(board.rules?.picksPerWeek ?? 1);
-  watchFit(field);
-  fitSeason(field);
 
   // The readouts, and the countdown set into them after: it changes every
   // second, so carrying it in the markup made the readouts a change on every
@@ -330,75 +313,6 @@ function bringIntoView(root, week, behavior) {
     const target = within - (field.clientWidth - yardBox.width) / 2;
     field.scrollTo({ left: Math.max(0, target), behavior: ask.behavior });
   });
-}
-
-/**
- * The width each field has for its yard lines - itself less its two end
- * zones - as its observer last measured it.
- */
-const rooms = new WeakMap();
-
-/** The fields already being watched (watchFit). */
-const watched = new WeakSet();
-
-/**
- * Measured after layout, never during a render: an observer's callback runs
- * once the frame's layout is done and before it is painted, so the width is
- * read for free and the field is fitted in the first frame that shows it.
- */
-const fitObserver =
-  typeof ResizeObserver === "function"
-    ? new ResizeObserver((entries) => {
-        for (const { target: field } of entries) {
-          let room = field.clientWidth;
-          for (const zone of field.querySelectorAll(".pitch__zone")) room -= zone.offsetWidth;
-          rooms.set(field, room);
-          const was = field.classList.contains("pitch__field--fit");
-          fitSeason(field);
-          // Narrowed out of fitting - a phone turned upright - and the field
-          // scrolls again, so the week being looked at is brought back into it.
-          if (was && !field.classList.contains("pitch__field--fit")) {
-            const root = field.closest(".pitch")?.parentElement;
-            if (root && viewing.has(root)) bringIntoView(root, viewing.get(root), "auto");
-          }
-        }
-      })
-    : null;
-
-/**
- * Watch a field's width. Once per field: observing a target again restarts
- * its observation, which would hand back a fresh measurement on every render.
- */
-function watchFit(field) {
-  if (!fitObserver || watched.has(field)) return;
-  watched.add(field);
-  fitObserver.observe(field);
-}
-
-/**
- * Stand the whole season across the field where it fits, rather than scroll a
- * short one by a column or two.
- *
- * On a phone a yard line is 44 wide and a full season scrolls, because a week
- * squeezed to fit eighteen into a phone is too narrow to read. A pool that
- * joined in week 9 has ten weeks, and those ten were scrolling past the edge
- * by three columns of a field that could have held them all at thirty. So
- * where every week can have at least the column its lanes need (fitFloor), the
- * weeks share the field instead (pitch__field--fit in components.css); where
- * they cannot, the field is the 44-a-week strip it always was. A season short
- * enough to fit at 44 is spread across the field either way.
- *
- * Off the width the observer measured, so a render that changes the number of
- * weeks - the settings sheet moving the pool's start - refits without reading
- * the layout. Before the first measurement there is nothing to go on, and the
- * observer's first callback fits it before the first paint.
- */
-function fitSeason(field) {
-  const room = rooms.get(field);
-  if (room === undefined) return;
-  const weeks = Number(field.querySelector(".pitch__track")?.style.getPropertyValue("--weeks"));
-  const lanes = Number(field.dataset.lanes) || 1;
-  field.classList.toggle("pitch__field--fit", weeks > 0 && room >= weeks * fitFloor(lanes));
 }
 
 /** The week the bracket is on, as the field records it. */

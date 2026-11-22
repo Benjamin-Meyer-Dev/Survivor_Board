@@ -182,7 +182,13 @@ if (!body) throw new Error("Could not find <body> in index.html");
 const fontLink = html.match(/<link[^>]+fonts\.googleapis\.com[^>]*>/i)?.[0] ?? "";
 const markup = body.replace(/<script[\s\S]*?<\/script>/gi, "").trim();
 
-const css = (await Promise.all(CSS.map((file) => read("src", "css", file)))).join("\n");
+// The page's own <style> blocks (the startup layer's) after the stylesheets,
+// where the page has them.
+const inlineCss = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map((match) => match[1]);
+const css = [
+  ...(await Promise.all(CSS.map((file) => read("src", "css", file)))),
+  ...inlineCss,
+].join("\n");
 
 const modules = await Promise.all(
   JS.map(async (file) => [file, flatten(await read("src", "js", file))]),
