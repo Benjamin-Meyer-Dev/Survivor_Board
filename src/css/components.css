@@ -318,12 +318,12 @@
   width: 32px;
   height: 32px;
   padding: 0;
-  border: 1px solid var(--neutral-line);
+  border: 1px solid var(--flag);
   border-radius: 50%;
   flex: none;
-  background: var(--key);
+  background: var(--flag);
   box-shadow: var(--key-lift);
-  color: var(--neutral);
+  color: var(--on-flag);
   cursor: pointer;
   transition:
     background-color 160ms ease,
@@ -347,19 +347,19 @@
 
 .league-bar__back:active,
 .settings__open:active {
-  border-color: var(--neutral);
-  background: var(--neutral-bg);
+  border-color: var(--flag-2);
+  background: var(--flag-2);
   box-shadow: var(--key-pressed);
-  color: var(--neutral-2);
+  color: var(--on-flag);
   transform: translateY(1px);
 }
 
 @media (hover: hover) {
   .league-bar__back:hover,
   .settings__open:hover {
-    border-color: var(--neutral);
-    background: var(--neutral-bg);
-    color: var(--neutral-2);
+    border-color: var(--flag-2);
+    background: var(--flag-2);
+    color: var(--on-flag);
   }
 }
 
@@ -466,9 +466,10 @@
 }
 
 button.league-bar__face:not(:disabled) {
-  border-color: var(--neutral-line);
-  background: var(--key);
+  border-color: var(--flag);
+  background: var(--flag);
   box-shadow: var(--key-lift);
+  color: var(--on-flag);
   cursor: pointer;
   transition:
     background-color 160ms ease,
@@ -480,17 +481,27 @@ button.league-bar__face:not(:disabled) {
 /* Pushed in while pressed, and held in while what it opened is open. */
 button.league-bar__face:not(:disabled):active,
 button.league-bar__face[aria-expanded="true"] {
-  border-color: var(--neutral);
-  background: var(--neutral-bg);
+  border-color: var(--flag-2);
+  background: var(--flag-2);
   box-shadow: var(--key-pressed);
   transform: translateY(1px);
 }
 
 @media (hover: hover) {
   button.league-bar__face:not(:disabled):hover {
-    border-color: var(--neutral);
-    background: var(--neutral-bg);
+    border-color: var(--flag-2);
+    background: var(--flag-2);
   }
+}
+
+/* On the flag the print goes dark: the key a step back from the value, and
+   the pool's lamp ringed so mint and blue still read against the yellow. */
+button.league-bar__face:not(:disabled) .league-bar__key {
+  color: color-mix(in srgb, var(--on-flag) 70%, transparent);
+}
+
+button.league-bar__face:not(:disabled) .league-bar__mark {
+  box-shadow: 0 0 0 1px var(--on-flag);
 }
 
 .league-bar__key {
@@ -551,7 +562,7 @@ button.league-bar__face[aria-expanded="true"] {
   height: 11px;
   flex: none;
   fill: none;
-  stroke: var(--neutral);
+  stroke: currentcolor;
   stroke-width: 2.6;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -3256,7 +3267,7 @@ button.league-bar__face[aria-expanded="true"] {
 
    Whether there is a field to raise the drawer over at all is a question about
    the shape of the screen, so where it shows is layout.css's. */
-/* 14 tall, and the bar runs the full width of the drawer: the strip is a grab
+/* 28 tall, and the bar runs the full width of the drawer: the strip is a grab
    for a thumb travelling up the screen rather than a target to be hit, and the
    tab bar under it is the other 44 of the same edge - a thumb that misses the
    strip lands on a tab, which opens the drawer too. Shut, those pixels are
@@ -3278,8 +3289,8 @@ button.league-bar__face[aria-expanded="true"] {
   align-items: flex-end;
   justify-content: center;
   width: 100%;
-  height: 14px;
-  padding: 0 0 1px;
+  height: 28px;
+  padding: 0 0 6px;
   border: 0;
   border-radius: 0;
   background: none;
@@ -3293,21 +3304,21 @@ button.league-bar__face[aria-expanded="true"] {
 }
 
 .drawer__grab-bar {
-  width: 40px;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--chalk-3);
+  width: 56px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--chalk-2);
   transition:
     background-color 180ms ease,
     width 220ms var(--ease-out);
 }
 
 .drawer__grab:hover .drawer__grab-bar {
-  background: var(--chalk-2);
+  background: var(--chalk);
 }
 
 .drawer__grab[aria-pressed="true"] .drawer__grab-bar {
-  width: 56px;
+  width: 72px;
   background: var(--flag);
 }
 
@@ -4539,7 +4550,7 @@ button.league-bar__face[aria-expanded="true"] {
    while it is getting a board, which is also what says the cell is busy where
    motion is switched off and nothing turns. */
 .league-bar__refresh.is-refreshing {
-  color: var(--chalk-3);
+  color: color-mix(in srgb, var(--on-flag) 55%, transparent);
   pointer-events: none;
 }
 

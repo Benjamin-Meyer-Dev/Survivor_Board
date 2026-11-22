@@ -1286,15 +1286,15 @@
 @keyframes pool-loading {
   0%,
   100% {
-    color: var(--chalk-3);
+    color: color-mix(in srgb, var(--on-flag) 45%, transparent);
   }
   50% {
-    color: var(--chalk);
+    color: var(--on-flag);
   }
 }
 
 .league-bar__pool.is-loading {
-  color: var(--chalk-3);
+  color: color-mix(in srgb, var(--on-flag) 45%, transparent);
   pointer-events: none;
   animation: pool-loading 1.1s ease-in-out infinite;
 }

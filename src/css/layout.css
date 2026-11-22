@@ -261,7 +261,7 @@
      got the chance - nothing had told the column it was allowed to be
      narrower. Nought is that permission. */
   .board {
-    --drawer-shut: calc(6px + 14px + 45px + env(safe-area-inset-bottom));
+    --drawer-shut: calc(6px + 28px + 45px + env(safe-area-inset-bottom));
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(auto, 1fr) minmax(var(--drawer-shut), 0fr);

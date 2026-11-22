@@ -81,7 +81,9 @@
    maskable icon in a circle, and PRECACHE with it. v47 moves that logo up to
    the middle of the whole screen, where Android's launch screen has it - an
    index.html the worker would otherwise keep serving until it got round to
-   refreshing it.
+   refreshing it. v48 doubles the drawer's grab in components.css and the
+   shut drawer's height in layout.css with it - half of that pair clips the
+   tab bar.
 
    "Must not keep half of" is the whole point, and v4 is what that phrase was
    written for. Every shell file is cached first and refreshed on its own a few
@@ -98,7 +100,7 @@
    needs a hand here: ENGINE_VERSION in src/js/core/recommend.js is part of
    every plan's key, so a plan can only ever be read back by the engine that
    wrote it. Bump it there when the search or the ranking changes shape. */
-const CACHE = "sudden-death-v47";
+const CACHE = "sudden-death-v48";
 
 /**
  * Kept from install rather than on first use, so the first launch after an
