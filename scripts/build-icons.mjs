@@ -67,7 +67,9 @@ const ANY = { ball: 0.66, corner: 0.22 };
 
 /**
  * The full-bleed layout a launcher masks. Launchers may crop it to a circle
- * 80% of the width, so the ball stays well inside that.
+ * 80% of the width, so the ball stays well inside that. Android's launch
+ * screen draws it in a circle too, which is why the startup layer in
+ * index.html opens on it (.startup__logo).
  */
 const MASKABLE = { ball: 0.56, corner: 0 };
 

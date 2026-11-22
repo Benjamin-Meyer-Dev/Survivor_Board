@@ -77,7 +77,8 @@
    fit-to-screen squeeze back out of ui/pitch.js and components.css together.
    v44 moves the startup layer's styles out of components.css and motion.css
    into index.html, so an old index.html beside the new stylesheets would
-   draw the layer with no styles at all.
+   draw the layer with no styles at all. v45 swaps the layer's logo for the
+   maskable icon in a circle, and PRECACHE with it.
 
    "Must not keep half of" is the whole point, and v4 is what that phrase was
    written for. Every shell file is cached first and refreshed on its own a few
@@ -94,13 +95,13 @@
    needs a hand here: ENGINE_VERSION in src/js/core/recommend.js is part of
    every plan's key, so a plan can only ever be read back by the engine that
    wrote it. Bump it there when the search or the ranking changes shape. */
-const CACHE = "sudden-death-v44";
+const CACHE = "sudden-death-v45";
 
 /**
  * Kept from install rather than on first use, so the first launch after an
  * install or a CACHE bump paints the startup layer (index.html) with its logo.
  */
-const PRECACHE = "./icons/icon-512.png";
+const PRECACHE = "./icons/icon-maskable-512.png";
 
 /** How long to wait for fresh data before opening with the last copy. */
 const DATA_TIMEOUT_MS = 2500;

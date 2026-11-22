@@ -23,27 +23,9 @@
          the app's own colour as the layer leaves (tintStatusBar). -->
     <meta name="theme-color" content="#0f4d2c" />
 
-    <!-- Android centres its launch screen on the whole screen; the page can
-         only centre on the viewport, between the status bar and the
-         navigation bar. --boot-nudge moves the startup logo by the
-         difference, (navBar - statusBar) / 2, before the first paint: the
-         navigation bar taken as the 24px of gesture navigation, a reading that
-         makes no sense falling back to -13px. A browser tab has no launch
-         screen and stays centred. In a function so nothing lands on window. -->
-    <script>
-      (function () {
-        if (matchMedia("(display-mode: browser)").matches) return;
-        const bars = screen.height - innerHeight;
-        const navBar = 24;
-        const statusBar = bars - navBar;
-        const nudge = bars > 0 && bars < 200 ? Math.round((navBar - statusBar) / 2) : -13;
-        document.documentElement.style.setProperty("--boot-nudge", nudge + "px");
-      })();
-    </script>
-
     <!-- The startup layer's logo, fetched at high priority ahead of the
          stylesheets. -->
-    <link rel="preload" as="image" href="./icons/icon-512.png" fetchpriority="high" />
+    <link rel="preload" as="image" href="./icons/icon-maskable-512.png" fetchpriority="high" />
 
     <!-- Installable to a phone home screen. Chrome needs the manifest's 192
          and 512 icons plus the service worker registered in app.js before it
@@ -83,7 +65,10 @@
 
       /* Its own colours rather than the theme's: it paints before app.js has
          put a league on the root. --startup-middle is where the launch screen
-         centred its icon (--boot-nudge, from the script above). */
+         centred its icon: the middle of the band between the status bar and
+         the navigation bar, which is the page's safe area. Where Chrome draws
+         the page under the gesture bar the safe-area insets say by how much;
+         elsewhere they are nought and this is the plain middle. */
       .startup {
         --ground: #0f4d2c;
         --line: rgb(243 247 241 / 35%);
@@ -92,7 +77,10 @@
         --startup-accent: #ffe066;
         --startup-accent-soft: #0a3a20;
         --startup-logo: 240px;
-        --startup-middle: calc(50% + var(--boot-nudge, 0px));
+        --startup-art: 276px;
+        --startup-middle: calc(
+          50% + (env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) / 2
+        );
         --startup-gap: 24px;
         --startup-scene: min(72vw, 310px);
         position: fixed;
@@ -117,17 +105,22 @@
         opacity: 0;
       }
 
-      /* Android's launch screen, carried on: the manifest's 512 icon at the
-         size and in the place the launch screen drew it, on the same colour,
-         so Chrome's fade off its launch screen cannot be seen. Nothing moves
-         or resizes it; everything else is placed around it. */
+      /* Android's launch screen, carried on, so Chrome's fade off it cannot
+         be seen. Chrome's WebAPK draws the manifest's maskable icon as an
+         adaptive icon in a 240dp box: the phone's icon mask (a circle) fills
+         the box, and the art is drawn half as large again behind it - the
+         icon padded to the launcher's 83 of 108 first, so 276px here - which
+         leaves the 240 circle showing the middle 87% of the picture. Nothing
+         moves or resizes it; everything else is placed around the circle
+         (--startup-logo). */
       .startup__logo {
         position: absolute;
         top: var(--startup-middle);
         left: 50%;
-        width: var(--startup-logo);
-        height: var(--startup-logo);
-        margin: calc(var(--startup-logo) / -2) 0 0 calc(var(--startup-logo) / -2);
+        width: var(--startup-art);
+        height: var(--startup-art);
+        margin: calc(var(--startup-art) / -2) 0 0 calc(var(--startup-art) / -2);
+        clip-path: circle(calc(var(--startup-logo) / 2));
       }
 
       /* The name and the season, then the field and the status line, under
@@ -462,10 +455,10 @@
       <!-- The launch screen's own picture (.startup__logo). -->
       <img
         class="startup__logo"
-        src="./icons/icon-512.png"
+        src="./icons/icon-maskable-512.png"
         alt=""
-        width="240"
-        height="240"
+        width="276"
+        height="276"
         decoding="sync"
         fetchpriority="high"
       />

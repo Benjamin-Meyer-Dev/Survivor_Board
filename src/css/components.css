@@ -4317,30 +4317,43 @@ button.league-bar__face[aria-expanded="true"] {
   overflow-wrap: anywhere;
 }
 
-/* Changing your name: a quiet chalk pill, big enough to hit. */
+/* Changing your name: a pill built as a key, like everything else you can
+   press (the board's back and gear) - the neutral fill, a solid rim and a
+   little lift - so it reads as a button and not as print on the page. */
 .home__name {
   display: inline-flex;
   align-items: center;
   height: 38px;
   padding: 0 14px;
-  border: 1px solid var(--neutral-line);
+  border: 1px solid var(--neutral);
   border-radius: 999px;
-  background: none;
-  color: var(--neutral);
+  background: var(--neutral-bg);
+  box-shadow: var(--key-lift);
+  color: var(--neutral-2);
   font-family: var(--font-display);
-  font-weight: 700;
+  font-weight: 800;
   font-size: 15px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
   transition:
+    background-color 160ms ease,
     border-color 160ms ease,
-    color 160ms ease;
+    color 160ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
 }
 
-.home__name:hover {
-  border-color: var(--neutral);
-  color: var(--neutral-2);
+.home__name:active {
+  box-shadow: var(--key-pressed);
+  transform: translateY(1px);
+}
+
+@media (hover: hover) {
+  .home__name:hover {
+    border-color: var(--neutral-2);
+    color: var(--chalk);
+  }
 }
 
 /* No margin rule of its own. A line above the list is one of the page's bands
@@ -4770,18 +4783,26 @@ button.league-bar__face[aria-expanded="true"] {
   gap: 10px;
 }
 
+/* New league and Join: keys, as .home__name above - filled, rimmed and
+   lifted off the page, the label a step brighter than the outline it was. */
 .home__menu-btn {
   flex: 1 1 0;
   min-height: 50px;
   padding: 0 14px;
-  border-color: var(--neutral-line);
-  color: var(--neutral);
+  border-color: var(--neutral);
+  background: var(--neutral-bg);
+  box-shadow: var(--key-lift);
+  color: var(--neutral-2);
 }
 
 .home__menu-btn:hover:not(:disabled) {
-  border-color: var(--neutral);
+  border-color: var(--neutral-2);
   background: var(--neutral-bg);
-  color: var(--neutral-2);
+  color: var(--chalk);
+}
+
+.home__menu-btn:active:not(:disabled) {
+  box-shadow: var(--key-pressed);
 }
 
 .home__menu-btn svg {
