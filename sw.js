@@ -95,7 +95,7 @@
    needs a hand here: ENGINE_VERSION in src/js/core/recommend.js is part of
    every plan's key, so a plan can only ever be read back by the engine that
    wrote it. Bump it there when the search or the ranking changes shape. */
-const CACHE = "sudden-death-v45";
+const CACHE = "sudden-death-v46";
 
 /**
  * Kept from install rather than on first use, so the first launch after an

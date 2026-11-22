@@ -43,14 +43,14 @@ import { missedSlot } from "../core/amend.js";
 const PULSE_MS = 1400;
 
 /**
- * The last season number shown for each league. Held while a search is owed
- * and compared against when the new number lands. Keyed by league so a switch
- * never shows one pool's number on the other's board.
+ * The last season number shown for each pool. Held while a search is owed
+ * and compared against when the new number lands. Keyed by pool (renderPitch's
+ * `pool`) so a switch never shows one pool's number on the other's board.
  */
 const shown = new Map();
 
 /**
- * What each league's "if locked" readout is saying, as ifLocked() wrote it.
+ * What each pool's "if locked" readout is saying, as ifLocked() wrote it.
  * Kept for the render that changes it: a lock and an unlock are the readout
  * being answered and asked again, and what it said a tap ago is what crosses
  * off it. The figure in it is also what the flag takes on a lock.
@@ -59,7 +59,7 @@ const quoted = new Map();
 
 /**
  * The figure a lock was priced at, held on the flag until the plan behind the
- * lock lands. Keyed by league, and dropped the moment that plan is in.
+ * lock lands. Keyed by pool, and dropped the moment that plan is in.
  */
 const promised = new Map();
 
@@ -129,18 +129,24 @@ const GLYPHS = { locked: LOCK, missed: MISSED };
  * @param {HTMLElement} root
  * @param {object} board Result of buildBoard().
  * @param {number} viewWeek The week being looked at (1-based).
- * @param {{onWeekChange:(week:number)=>void, locking?:boolean}} handlers
+ * @param {{onWeekChange:(week:number)=>void, locking?:boolean, pool?:string|null}} handlers
  *   `locking` says this render is a lock or an unlock being made, which is the
  *   one render where the readout has just been answered (see `quoted`).
+ *   `pool` says which board this is - a league's code and one of its pools -
+ *   for the numbers held from one render to the next (`shown`, `quoted`,
+ *   `promised`). They used to be held by the board's sport, which two pools
+ *   of one league, or two leagues of one season, share: a switch from one to
+ *   the other read as the number rising or falling.
  */
 export function renderPitch(root, board, viewWeek, handlers) {
+  const pool = handlers.pool ?? board.league;
   // What the readout was saying, where this render is the lock or the unlock
   // that changes it. A readout that says the same thing either side of one has
   // nothing to cross with: a lock made in the OTHER slot of a two-pick week
   // leaves this one's dash exactly where it was.
   const now = ifLocked(board);
-  const was = handlers.locking ? (quoted.get(board.league) ?? null) : null;
-  quoted.set(board.league, now);
+  const was = handlers.locking ? (quoted.get(pool) ?? null) : null;
+  quoted.set(pool, now);
   const crossing = was && was.html !== now.html ? was : null;
   // buildBoard prices the lock to the digit before it is made (core/plan.js:
   // the preview IS the search the lock will be answered with), so the flag can
@@ -152,12 +158,12 @@ export function renderPitch(root, board, viewWeek, handlers) {
   // always did.
   const priced = crossing?.probability ?? null;
   if (priced !== null && now.probability === null && board.recommendationPending) {
-    promised.set(board.league, priced);
+    promised.set(pool, priced);
   }
-  if (!board.recommendationPending) promised.delete(board.league);
+  if (!board.recommendationPending) promised.delete(pool);
 
-  const before = shown.get(board.league)?.probability;
-  const season = seasonSurvival(board);
+  const before = shown.get(pool)?.probability;
+  const season = seasonSurvival(board, pool);
 
   // The frame is built once and kept: the field with its end zones and an
   // empty track, the drive line with an empty readout row and the season tag.
@@ -243,7 +249,7 @@ export function renderPitch(root, board, viewWeek, handlers) {
   if (bracket?.classList.contains("pitch__bracket--placing")) {
     requestAnimationFrame(() => bracket.classList.remove("pitch__bracket--placing"));
   }
-  markChange(root, board.league, before, season.probability);
+  markChange(root, pool, before, season.probability);
 }
 
 /** The week each field's bracket was last placed on. */
@@ -594,7 +600,7 @@ function stat(key, value, { modifier = "", raw = false, figure = false } = {}) {
     </span>`;
 }
 
-function seasonSurvival(board) {
+function seasonSurvival(board, pool) {
   if (board.eliminated) return { value: "Out", out: true };
   // A lock made a moment ago, with the plan behind it still running. What the
   // lock was priced at is that plan's own answer to the digit (the rehearsal
@@ -602,22 +608,22 @@ function seasonSurvival(board) {
   // so the flag carries it from the lock rather than from the landing a second
   // later. The number moves once, when the person did the thing that moved it,
   // and the direction it wears is the one the readout had been promising.
-  const priced = promised.get(board.league);
+  const priced = promised.get(pool);
   if (priced !== undefined) {
     const cell = { probability: priced, value: formatPercent(priced) };
-    shown.set(board.league, cell);
+    shown.set(pool, cell);
     return cell;
   }
   if (board.recommendationPending && !board.recommendationStale) {
     // A search is owed and no plan stands in. The last number holds, so the
     // number moves once, from here, rather than via a flash of dots.
-    const last = shown.get(board.league);
+    const last = shown.get(pool);
     if (last) return last;
     return { value: "…" };
   }
   const probability = board.pathProbability;
   const cell = { probability, value: formatPercent(probability) };
-  shown.set(board.league, cell);
+  shown.set(pool, cell);
   return cell;
 }
 

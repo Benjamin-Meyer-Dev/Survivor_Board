@@ -37,6 +37,17 @@ function dialog() {
   return sheet;
 }
 
+/**
+ * Put away whichever sheet is up, answering it "no", because the board it was
+ * asked about is going. The sheet lives on the body rather than on the board,
+ * so nothing else takes it down: one left up across a league change used to
+ * take its yes to the next board and lock the first one's team into it.
+ */
+export function dismissAmend() {
+  if (!sheet?.open) return;
+  closeDialog(sheet, { now: true });
+}
+
 /** Fill the sheet, open it, and resolve with the button's value or null. */
 function ask(markup) {
   const root = dialog();

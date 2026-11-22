@@ -111,7 +111,15 @@ function fakeClient() {
       };
       return channel;
     },
-    removeChannel() {},
+    // supabase-js reports CLOSED to the subscribe callback when a channel is
+    // removed, the same word a dropped socket gets.
+    removeChannel() {
+      onStatus?.("CLOSED");
+    },
+    /** How many requests of a kind are still waiting on an answer. */
+    waiting(label) {
+      return pending.filter((request) => request.label === label).length;
+    },
     /** Deliver one queued realtime event. */
     hear(index = 0) {
       const [event] = client.echoes.splice(index, 1);
@@ -219,22 +227,26 @@ await scenario("another device's change", ["open"], async ({ client }) => {
   await tick();
 });
 
-// A change from another device that commits during our save is dropped from
-// realtime but recovered by the next poll.
-await scenario("change during our save recovers on poll", ["open"], async ({ client, store }) => {
-  const save = store.save(LOCKED);
-  await tick();
-  const theirs = { entry: OPEN, updated_at: "2026-09-04T10:06:00.000Z" };
-  client.hearOther(theirs);
-  await tick();
-  client.answer("upsert");
-  await save;
-  client.state.row = theirs;
-  client.poll();
-  await tick();
-  client.answer("read");
-  await tick();
-});
+// A change from another device that commits just after our save, its realtime
+// event arriving before our save has come back: held back while the save is
+// out, and read back once it is done - with the socket up, so no poll was
+// going to find it.
+await scenario(
+  "change during our save is read back after it",
+  ["open"],
+  async ({ client, store }) => {
+    const save = store.save(LOCKED);
+    await tick();
+    client.answer("upsert");
+    const theirs = { entry: OPEN, updated_at: "2026-09-04T10:06:00.000Z" };
+    client.state.row = theirs;
+    client.hearOther(theirs);
+    await save;
+    await tick();
+    client.answer("read");
+    await tick();
+  },
+);
 
 // A failed save gives the version back, so the next poll is trusted again.
 await scenario("failed save then poll", ["open"], async ({ client, store }) => {
@@ -507,6 +519,56 @@ await race(
   client.answer("read");
   await assert.rejects(failed, /the network went/, "a read that would not go is reported");
   stop();
+}
+
+/* --- a board opened without its row --------------------------------------
+   No copy to open on and a read that would not go: the board shows an empty
+   pool that is nobody's. A change made on it was made without seeing what the
+   row holds, so it is not written over it - the save reads the row, hands it
+   to the board, and says the change did not go. */
+
+{
+  const client = fakeClient();
+  const store = await createSupabaseStore("BXQK7HRTM4WD", "nfl-win", { client });
+  client.state.readError = { message: "the network went" };
+  const init = store.init();
+  client.answer("read");
+  const opened = await init;
+  assert.deepEqual(opened.picks, {}, "a board that could not read its row opens empty");
+  const heard = [];
+  const stop = store.subscribe((entry) => heard.push(entry));
+
+  client.state.readError = null;
+  const blindPick = { picks: { "1-0": { team: "Chiefs" } }, swaps: {} };
+  const save = store.save(blindPick);
+  await tick();
+  assert.equal(client.waiting("upsert"), 0, "nothing is written from a board that never read");
+  client.answer("read");
+  await assert.rejects(save, /not saved/, "and the person is told the change did not go");
+  assert.deepEqual(client.state.row.entry, LOCKED, "the lock in the row stands");
+  assert.deepEqual(shown(heard), ["locked"], "the board is handed the row as it is");
+  stop();
+}
+
+/* --- a subscription let go of ---------------------------------------------
+   Removing the channel reports CLOSED, like a socket that dropped. Taken for
+   one, it started the recovery poll for a board nobody had open, and the poll
+   rescheduled itself for the rest of the session. */
+
+{
+  const client = fakeClient();
+  const store = await createSupabaseStore("BXQK7HRTM4WD", "nfl-win", { client });
+  const init = store.init();
+  client.answer("read");
+  await init;
+  const stop = store.subscribe(() => {});
+  client.connect();
+  await tick();
+  client.answer("read");
+  await tick();
+  stop();
+  await tick();
+  assert.equal(client.waiting("read"), 0, "a board let go of reads its row no more");
 }
 
 console.log(

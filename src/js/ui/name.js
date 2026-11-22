@@ -58,6 +58,12 @@ export function requireName(root, { name = "", heading, label, action, onClaim =
     };
     const inputOf = (mode) => fields[mode].querySelector("input");
     let mode = "name";
+    // "asking", "claiming" while an id is being looked up, or "passed" once
+    // the card is on its way out. Only asking takes a submit or a change of
+    // question: the links between the two used to stay live through a claim,
+    // so "enter your name instead" could be tapped and the claim still land.
+    let phase = "asking";
+    const alts = [...root.querySelectorAll(".gate__alt")];
 
     // Focus, but not on a phone: bringing the keyboard up over the stadium
     // before anyone has looked at it is a worse first frame than an empty
@@ -83,13 +89,16 @@ export function requireName(root, { name = "", heading, label, action, onClaim =
       focus(inputOf(next));
     };
 
-    for (const alt of root.querySelectorAll(".gate__alt")) {
-      alt.addEventListener("click", () => show(alt.dataset.show));
+    for (const alt of alts) {
+      alt.addEventListener("click", () => {
+        if (phase === "asking") show(alt.dataset.show);
+      });
     }
     focus(inputOf("name"));
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (phase !== "asking") return;
       if (mode === "claim") {
         await claim();
         return;
@@ -102,9 +111,16 @@ export function requireName(root, { name = "", heading, label, action, onClaim =
       }
       // The card leaves before the screen behind it changes: the door, the
       // name and the board are one sequence (ui/gate.js).
+      phase = "passed";
       await hideGate(root);
       resolve(value);
     });
+
+    /** Hold the card while a claim is out, or let it go again. */
+    const hold = (held) => {
+      button.disabled = held;
+      for (const alt of alts) alt.disabled = held;
+    };
 
     /**
      * The other phone's id. Found, this phone is that person and the card
@@ -119,19 +135,23 @@ export function requireName(root, { name = "", heading, label, action, onClaim =
         inputOf("claim").focus();
         return;
       }
-      button.disabled = true;
+      phase = "claiming";
+      hold(true);
       try {
         const claimed = await onClaim(normalisePersonId(typed));
         if (claimed) {
+          phase = "passed";
           await hideGate(root);
           resolve(claimed);
           return;
         }
+        phase = "asking";
         show("name", { title: "And your name?" });
       } catch (failure) {
+        phase = "asking";
         error.textContent = failure?.message || "That did not go through. Try again.";
       } finally {
-        button.disabled = false;
+        if (phase === "asking") hold(false);
       }
     }
   });

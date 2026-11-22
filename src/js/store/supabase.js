@@ -27,9 +27,9 @@
  *     dropped, the next poll will ask again;
  *   - and, as before, a row with the version already on screen is not news.
  *
- * The poll is also the safety net for the rare change from another device
- * that commits during one of our saves: dropped from realtime, it is picked up
- * on the next read.
+ * The rare change from another device that commits during one of our saves is
+ * held back like the rest, and noted: once the saves are done the row is read
+ * once more, so it lands even with the socket up and no poll running.
  *
  * All of which is about what reaches the screen. What reaches the ROW is a
  * separate promise, and the one this store makes is that a save never
@@ -155,8 +155,20 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
   const ownVersions = [];
   /** Saves on the wire right now. */
   let saving = 0;
+  /** Whether a row from somebody else arrived during one and was held back (publish). */
+  let missed = false;
   /** Whether the board opened on a copy of the row that has yet to be checked (see init). */
   let unchecked = false;
+  /**
+   * Whether the board opened without the row at all: no copy to open on, and
+   * the read that should have brought one would not go. The board is then
+   * showing an empty pool that is nobody's, and nothing on it was chosen
+   * against what the row holds - so the first save reads the row and hands it
+   * over rather than writing (see save). It used to look exactly like a pool
+   * nobody had picked in, and a pick made on it took the slot over in the row,
+   * a lock somebody else had made there included.
+   */
+  let blind = false;
 
   const isOwn = (version) => ownVersions.includes(versionKey(version));
 
@@ -175,14 +187,27 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
    */
   function publish(row, seenBefore = lastVersion) {
     const entry = row?.entry;
-    if (!entry || saving > 0) return;
+    if (!entry) return;
     // Realtime takes one filter, the code, so the league's other pools come
     // through the same channel; they are somebody else's board.
     if (row.sport && row.sport !== sport) return;
     if (row.objective && row.objective !== objective) return;
+    if (saving > 0) {
+      // Held back while our own save decides the row - but somebody else's
+      // change is owed a read once it has (see save), not left for a poll
+      // that, with the socket up, nothing was going to run.
+      if (!isOwn(row.updated_at)) missed = true;
+      return;
+    }
     if (seenBefore !== lastVersion) return;
     if (isOwn(row.updated_at) || sameVersion(row.updated_at, lastVersion)) return;
-    lastVersion = row.updated_at ?? lastVersion;
+    adopt(entry, row.updated_at ?? lastVersion);
+  }
+
+  /** Take a row as what the board shows, and tell the board. */
+  function adopt(entry, version) {
+    blind = false;
+    lastVersion = version;
     lastEntry = structuredClone(entry);
     learned(entry, lastVersion);
     for (const listener of listeners) listener({ ...emptyEntry(), ...entry });
@@ -229,7 +254,15 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
         unchecked = true;
         return { ...emptyEntry(), ...seed.entry };
       }
-      const row = await readRow();
+      let row = null;
+      try {
+        row = await fetchRow();
+      } catch {
+        // Not there to read, as opposed to not there: the channel's first read
+        // and the recovery poll go on asking (subscribe), and a save asks too.
+        blind = true;
+        return emptyEntry();
+      }
       if (!row) return emptyEntry();
       lastVersion = row.version;
       lastEntry = structuredClone(row.entry);
@@ -263,6 +296,14 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
 
       /** Whether realtime is carrying this row at the moment. */
       let connected = false;
+      /**
+       * Whether this subscription has been let go of. Not the same as the
+       * channel being down: removing the channel reports CLOSED like a socket
+       * that dropped, and taken for one it started the recovery poll for a
+       * board nobody had open any more, rescheduling itself for the rest of the
+       * session.
+       */
+      let closed = false;
       let timer = null;
       let wait = RECOVERY_MS;
       let polling = false;
@@ -270,7 +311,7 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
       const hidden = () => globalThis.document?.hidden === true;
 
       const poll = async () => {
-        if (polling) return;
+        if (polling || closed) return;
         polling = true;
         mark("sudden-death:store:poll");
         const seenBefore = lastVersion;
@@ -308,7 +349,7 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
 
       /** Keep reading while the channel is down, more slowly as it stays down. */
       const recover = () => {
-        if (timer || connected || hidden()) return;
+        if (timer || connected || closed || hidden()) return;
         timer = setTimeout(async () => {
           timer = null;
           await poll();
@@ -328,6 +369,7 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
           },
         )
         .subscribe((status) => {
+          if (closed) return;
           if (status === "SUBSCRIBED") {
             connected = true;
             rest();
@@ -365,6 +407,7 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
       globalThis.document?.addEventListener?.("visibilitychange", onVisibility);
 
       return () => {
+        closed = true;
         listeners.delete(listener);
         rest();
         checked();
@@ -390,6 +433,24 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
     async save(entry) {
       saving += 1;
       try {
+        // Made on a board that never had the row: read it, put it on the board,
+        // and send nothing. Whatever the change was, it was made without
+        // seeing what is there, and the person can make it again against the
+        // pool as it stands.
+        if (blind) {
+          let row = null;
+          try {
+            row = await fetchRow();
+          } catch {
+            throw new Error("This pool has not loaded yet. Try that again in a moment.");
+          }
+          if (!row) throw new Error("That pool could not be found to save to.");
+          adopt(row.entry, row.version);
+          throw new Error(
+            "This pool had not loaded when that was made, so it was not saved. The board is up to date now.",
+          );
+        }
+
         let mine = entry;
         let base = lastEntry;
         let expected = lastVersion;
@@ -453,6 +514,13 @@ export async function createSupabaseStore(code, kind, { client: given, seed = nu
         }
       } finally {
         saving -= 1;
+        if (saving === 0 && missed) {
+          missed = false;
+          const seenBefore = lastVersion;
+          readRow().then((row) => {
+            if (row) publish({ entry: row.entry, updated_at: row.version }, seenBefore);
+          });
+        }
       }
     },
   };

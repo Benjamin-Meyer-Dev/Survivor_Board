@@ -25,7 +25,7 @@ import {
 } from "./core/plan.js";
 import { poolStanding } from "./core/standing.js";
 import { amendable, amendEntry, amendImpact, fixableWeek } from "./core/amend.js";
-import { chooseRepair, confirmAmend } from "./ui/amend.js";
+import { chooseRepair, confirmAmend, dismissAmend } from "./ui/amend.js";
 import { readPlans, writePlans } from "./store/plans.js";
 import { onSearchSettled, searchRunner } from "./core/search.js";
 import { useWorkerForSearch } from "./worker-search.js";
@@ -58,7 +58,7 @@ import { renderLeagueBar, markPoolLoading, markRefreshing } from "./ui/league-ba
 import { renderSettings } from "./ui/settings.js";
 import { watchDrags } from "./ui/swipe.js";
 import { afterMotion, playOnce, prefersReducedMotion, twoFrames } from "./ui/motion.js";
-import { renderHome, closeHomePanels, markOpening, playLeagueExit } from "./ui/home.js";
+import { renderHome, closeHomePanels, playLeagueExit } from "./ui/home.js";
 import { renderPitch, markViewing } from "./ui/pitch.js";
 import { renderCall } from "./ui/call.js";
 import { renderCoach, leavingChain, stepChain } from "./ui/coach.js";
@@ -109,8 +109,19 @@ const el = {
 };
 
 const app = {
-  /** "home" or "board". The home page is where a launch with no link lands. */
-  view: "home",
+  /**
+   * "home" or "board": the page that is up. Null until the launch has put one
+   * up - the board a link opens is built behind the startup layer, and the home
+   * page is drawn only once no link has opened one - so that a launch is never
+   * mistaken for leaving a page that was never there.
+   */
+  view: null,
+  /**
+   * Whether the startup layer is still over the app. The page ships with
+   * `is-starting` on the body and finishStartup takes both down together; the
+   * class is for the stylesheet, this is for the script.
+   */
+  starting: true,
   /** The open league: {code, name, kinds}. Null on the home page. */
   league: null,
   /** Which of the open league's pools the board is showing: a kind id (see sports.js). */
@@ -123,6 +134,8 @@ const app = {
   name: "",
   /** A line for the home page: a code that did not open, a create that failed. */
   homeMessage: "",
+  /** The league being opened from the home page's list, whose card says so; null otherwise. */
+  opening: null,
   plan: null,
   teams: null,
   odds: null,
@@ -162,11 +175,22 @@ const app = {
    */
   repair: [],
   effect: null,
-  /** One line for the notices area, such as a league that failed to load. */
-  message: "",
+  /**
+   * One line for the notices area, and what put it there: null, or
+   * {from, text}. `from` names the action ("sync", "refresh", "rename",
+   * "delete", "remove", "switch") so that action going through later takes
+   * back its own failure and nobody else's (say / unsay).
+   */
+  message: null,
   tickTimer: null,
   unsubscribe: null,
   switching: false,
+  /**
+   * Whether the board on screen has been faded out for the one replacing it
+   * (fadeBoardOut). Inside a switch, not the whole of one: the board stays
+   * solid while the next is got ready, and goes only once there is one.
+   */
+  faded: false,
   recommendTimer: null,
   /** A rebuild owed to the bracket moving onto, or off, a pick pending (see followTheBracket). */
   previewTimer: null,
@@ -315,7 +339,7 @@ function applyTheme(sport, objective = "win") {
   document.documentElement.dataset.objective = objective === "lose" ? "lose" : "win";
   // Not while the startup layer is up: the bar keeps the launch screen's
   // colour (index.html) until the layer leaves, and finishStartup tints it.
-  if (!document.body.classList.contains("is-starting")) tintStatusBar();
+  if (!app.starting) tintStatusBar();
 }
 
 /** The status bar, in the colour of the ground the app is standing on. */
@@ -348,6 +372,32 @@ function playSwitch() {
  */
 function boardFaded() {
   return afterMotion(document.querySelector(".readout"), { subtree: false });
+}
+
+/**
+ * Take the board on screen away for the one replacing it, and resolve once it
+ * has gone. The two frames are what get the fade painted at all: a search that
+ * falls back to this thread would otherwise block it before the browser drew
+ * the first of them.
+ */
+async function fadeBoardOut() {
+  app.faded = true;
+  el.shell?.classList.add("is-swapping");
+  await twoFrames();
+  await boardFaded();
+}
+
+/**
+ * And put it back, whichever way the switch went.
+ *
+ * @returns {boolean} Whether it had been faded, so the caller knows whether an
+ *   entrance is owed: one over a board that never left is a board flinching.
+ */
+function unfadeBoard() {
+  const was = app.faded;
+  app.faded = false;
+  el.shell?.classList.remove("is-swapping");
+  return was;
 }
 
 /**
@@ -664,7 +714,7 @@ const warmed = new Map();
  */
 function canWarm() {
   if (!searchRunner() || app.switching) return false;
-  if (document.body.classList.contains("is-starting")) return false;
+  if (app.starting) return false;
   if (
     app.view === "board" &&
     (lastBoard?.recommendationPending || lastBoard?.previewPending || lastBoard?.routePending)
@@ -1011,13 +1061,7 @@ function playDataUpdates(previous, effect = null) {
   // it. In all three the search filling in is the board turning up, not the
   // board changing - and settled a second time it read as the whole page
   // playing its entrance twice, a beat after it had finished.
-  if (
-    previous.size === 0 ||
-    app.switching ||
-    app.arriving ||
-    document.body.classList.contains("is-starting")
-  )
-    return;
+  if (previous.size === 0 || app.starting || app.switching || app.arriving) return;
 
   const skip = new Set(effect?.nodes ?? []);
   const changed = [];
@@ -1049,8 +1093,9 @@ function playDataUpdates(previous, effect = null) {
  * @returns {object|null} The board that was painted, or null on the home page.
  */
 function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = null } = {}) {
-  if (app.view === "home") {
-    renderHomeView();
+  if (app.view !== "board") {
+    // Nothing is drawn before the launch has put a page up (app.view null).
+    if (app.view === "home") renderHomeView();
     return null;
   }
 
@@ -1097,7 +1142,14 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = 
     onRemovePool: removeCurrentPool,
     onDeleteLeague: deleteCurrentLeague,
   });
-  renderNotices(el.notices, { store: app.store, board, message: app.message });
+  renderNotices(el.notices, {
+    store: app.store,
+    board,
+    message: app.message?.text,
+    // Written rather than moved while something bigger is moving the board:
+    // the startup layer over it, the fade of a switch, the board arriving.
+    still: app.starting || app.faded || app.arriving,
+  });
   renderReview(el.review, board);
   renderPitch(el.pitch, board, app.viewWeek, {
     onWeekChange: lookAt,
@@ -1105,6 +1157,7 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = 
     // readout hands the figure it was quoting to the flag instead of blinking
     // to a dash (ui/pitch.js). Read before playEffect below takes the effect.
     locking: app.effect?.className === EFFECT_FOR.lock,
+    pool: openScope(),
   });
   renderSelection(board);
   // A run that is over empties the drawer: the lists go, the bar above them
@@ -1629,11 +1682,26 @@ function renderHomeView() {
   document.title = APP_NAME;
 
   renderSettings(el.settings, null, { canWrite: false, onSave: () => {} });
-  renderNotices(el.notices, { store: app.store, board: null, message: app.message });
+  // The message only. A board left open behind this page still has its store,
+  // and its banners used to come home with it: "Shared saving is off" under the
+  // home page's own line saying the same, and only after a board had been
+  // opened.
+  renderNotices(el.notices, {
+    message: app.message?.text,
+    still: app.starting || app.switching,
+  });
   // The drawer is the board's, and hidden with it - but a dead league left in
   // it would be the line the next one opens over.
   renderReview(el.review, null);
+  paintHome();
+}
 
+/**
+ * The home page's own content - the list, the menu, the sheets - and nothing
+ * else: renderHomeView is the page coming up, and this is the page changing
+ * where it stands, as it does on the tap that opens a league.
+ */
+function paintHome() {
   renderHome(
     el.home,
     {
@@ -1646,6 +1714,7 @@ function renderHomeView() {
       shared: sharingAvailable(),
       loading: app.leaguesLoading,
       message: app.homeMessage ?? "",
+      opening: app.opening,
     },
     {
       onOpen: (code, kind) => {
@@ -1680,7 +1749,7 @@ function renderHomeView() {
         // already (ui/home.js).
         const going = playLeagueExit(el.home, code);
         const { deleted, problem } = await leaveLeague(code);
-        if (app.league?.code === code) app.league = null;
+        if (app.league?.code === code) closeBoard();
         // Leaving says nothing - the card goes - except for the last one out,
         // whose league went with them, or should have and could not.
         if (deleted) app.homeMessage = `Nobody was left in ${name}, so it has been deleted.`;
@@ -1724,7 +1793,7 @@ function renderHomeView() {
         ME = myId();
         app.name = myName();
         if (app.league && left.some((league) => league.code === app.league.code)) {
-          app.league = null;
+          closeBoard();
         }
         const deleted = left.filter((league) => league.deleted).map((league) => league.name);
         const kept = left.filter((league) => league.problem).map((league) => league.name);
@@ -1777,8 +1846,15 @@ async function reloadLeagues() {
 /**
  * Show the home page. The hash goes with it, so Back and a reload both land
  * where the person is rather than back inside a league.
+ *
+ * The board stays open behind it - its league, its store, its subscription -
+ * so coming back is a page change rather than a load. `close` puts it down
+ * instead (closeBoard), on the beat the page stops being the board, for a
+ * league that is not there to come back to.
+ *
+ * @param {{close?:boolean}} [options]
  */
-async function goHome() {
+async function goHome({ close = false } = {}) {
   if (app.switching) return;
   // The address bar answers at once, whatever the board is still doing on
   // screen: the tap has been taken, and a URL that lags looks like it has not.
@@ -1791,6 +1867,7 @@ async function goHome() {
   try {
     await leavePage(el.board, "out");
     app.view = "home";
+    if (close) closeBoard();
     releaseBack();
     // Back from a board, the page starts folded: a form left open on the way
     // out is not what anyone came back for.
@@ -1827,13 +1904,18 @@ async function openBoard(code, kind = null, { league: have = null } = {}) {
   // two could overlap - but its fade is seventy milliseconds and the load is
   // not always, and every millisecond the load ran past it was spent looking
   // at nothing. The fade comes once there is a board to put up behind it.
-  const fromHome = !el.home?.hidden;
+  const fromHome = app.view === "home";
   // A link followed while a board is already open: that board is what we are
   // leaving, and it fades. From the home page there is nothing to fade, and
   // adding it there showed the topline of the new board for a frame over a
-  // readout still held at nothing.
-  const fromBoard = !el.board?.hidden;
-  if (fromHome) markOpening(el.home, clean);
+  // readout still held at nothing. Nor from a launch (app.view null), where the
+  // board element is unhidden but empty behind the startup layer: asking the
+  // DOM which page was up took that for a board and faded nothing out.
+  const fromBoard = app.view === "board";
+  if (fromHome) {
+    app.opening = clean;
+    paintHome();
+  }
   if (fromBoard) markPoolLoading(el.league, true);
   let left = false;
 
@@ -1856,9 +1938,7 @@ async function openBoard(code, kind = null, { league: have = null } = {}) {
     // up the moment it has gone.
     if (fromBoard) {
       markPoolLoading(el.league, false);
-      el.shell?.classList.add("is-swapping");
-      await twoFrames();
-      await boardFaded();
+      await fadeBoardOut();
     }
     const leaving = leavePage(el.home, "in");
     adoptLeague(ready);
@@ -1870,6 +1950,9 @@ async function openBoard(code, kind = null, { league: have = null } = {}) {
     // From here a swipe in from the edge of the screen is the board's own
     // gesture rather than the platform's (ui/back.js).
     holdBack();
+    // A home sheet left up - a link followed, or Back, with one open - would
+    // sit over the board and act on the home page from there.
+    closeHomePanels();
     el.home.hidden = true;
     el.board.hidden = false;
     el.board.classList.remove("is-page-leaving");
@@ -1895,7 +1978,8 @@ async function openBoard(code, kind = null, { league: have = null } = {}) {
   } catch (error) {
     app.view = "home";
     releaseBack();
-    app.league = null;
+    closeBoard();
+    app.opening = null;
     app.homeMessage = `Could not open that league: ${error.message}`;
     // Drawn again with the reason, which also takes the opening mark off the
     // card. It arrives only if it had left - or was never up, a link followed
@@ -1903,8 +1987,9 @@ async function openBoard(code, kind = null, { league: have = null } = {}) {
     renderHomeView();
     if (left || !fromHome) enterPage(el.home, "out");
   } finally {
+    app.opening = null;
     markPoolLoading(el.league, false);
-    el.shell?.classList.remove("is-swapping");
+    unfadeBoard();
     // Whichever way it went, neither page is still leaving: the board is up, or
     // the home page is back with the reason it did not open. The direction goes
     // with it, since a page left holding the scale it was travelling at would
@@ -2286,6 +2371,32 @@ function applyRules(rules) {
 }
 
 /**
+ * Put a line in the notices area for the board, saying which action it is
+ * about. One line at a time: the latest failure is the one worth reading.
+ *
+ * @param {"sync"|"refresh"|"rename"|"delete"|"remove"|"switch"} from
+ * @param {string} text
+ */
+function say(from, text) {
+  app.message = { from, text };
+}
+
+/**
+ * Take back the line an action put up, now that the action has gone through.
+ * Only its own: a rename that works says nothing about a change that did not
+ * sync. These used to be told apart by how the line began, and a rename that
+ * worked cleared every line there was.
+ *
+ * @param {string} from
+ * @returns {boolean} Whether a line came down, so the caller knows to repaint.
+ */
+function unsay(from) {
+  if (app.message?.from !== from) return false;
+  app.message = null;
+  return true;
+}
+
+/**
  * A new name for the league, for everyone in it.
  *
  * The name is the league's own column rather than part of its entry, so this
@@ -2301,9 +2412,9 @@ async function applyRename(name) {
       league.code === app.league.code ? { ...league, name: saved } : league,
     );
     document.title = titleFor(app.league, app.kind);
-    app.message = "";
+    unsay("rename");
   } catch (error) {
-    app.message = error.message;
+    say("rename", error.message);
   }
   render({ search: false });
 }
@@ -2319,17 +2430,16 @@ async function deleteCurrentLeague() {
   try {
     await deleteLeague(league.code);
   } catch (error) {
-    app.message = error.message;
+    say("delete", error.message);
     render({ search: false });
     return;
   }
-  app.unsubscribe?.();
-  app.unsubscribe = null;
-  app.league = null;
-  app.kind = null;
   app.homeMessage = `${league.name} has been deleted.`;
   await reloadLeagues();
-  goHome();
+  // Put down as the page changes rather than before: until then it is still
+  // the board on screen, and it used to sit there through the list's round
+  // trip with its league forgotten and the rest of it running.
+  await goHome({ close: true });
 }
 
 /**
@@ -2346,7 +2456,6 @@ async function removeCurrentPool(kind) {
   // which was the one way into a new board with no way in at all.
   app.switching = true;
   markPoolLoading(el.league, true);
-  let faded = false;
 
   try {
     await removePool(league.code, kind);
@@ -2359,23 +2468,19 @@ async function removeCurrentPool(kind) {
     const board = await readyBoard(ready);
 
     markPoolLoading(el.league, false);
-    el.shell?.classList.add("is-swapping");
-    faded = true;
-    await twoFrames();
-    await boardFaded();
+    await fadeBoardOut();
 
     adoptLeague(ready);
     paintLeague(board);
     window.history.replaceState(null, "", leagueHash(fresh.code, app.kind));
   } catch (error) {
-    app.message = error.message;
+    say("remove", error.message);
     render({ search: false });
   } finally {
     markPoolLoading(el.league, false);
-    el.shell?.classList.remove("is-swapping");
     // In the same task as the class coming off, so the browser never paints
     // the un-faded board in between.
-    if (faded) playSwitch();
+    if (unfadeBoard()) playSwitch();
     app.switching = false;
   }
 }
@@ -2433,13 +2538,11 @@ function sendSave() {
       // Another board is open now, so this one's notices are not ours to
       // clear and its render is not ours to ask for.
       if (openScope() !== save.scope) return;
-      if (!app.message.startsWith("Could not sync")) return;
-      app.message = "";
-      render({ search: false });
+      if (unsay("sync")) render({ search: false });
     })
     .catch((error) => {
       if (openScope() !== save.scope) return;
-      app.message = `Could not sync this change: ${error.message}`;
+      say("sync", `Could not sync this change: ${error.message}`);
       render({ search: false });
     });
 }
@@ -2635,6 +2738,39 @@ async function readyBoard(ready) {
 }
 
 /**
+ * Put the open board down, whole: the change it owes goes out before its store
+ * does, and its subscription, its timers, its line in the notices and any
+ * correction half made go with it. After this there is no board - no league,
+ * no pool, no store - rather than a league forgotten with the rest of it still
+ * running.
+ *
+ * Only once the board is not the page (app.view), or with another taking its
+ * place at once (adoptLeague): a render of the board reads all of it.
+ *
+ * It used to be done four ways. A league left from the home page, or given up
+ * by claiming another id, only forgot its name, and its row went on being
+ * watched for the rest of the session; a deleted one dropped its subscription
+ * but kept its store; a board that failed to open kept everything.
+ */
+function closeBoard() {
+  flushSave();
+  // A correction's question is about this board's season: answered "no".
+  dismissAmend();
+  app.unsubscribe?.();
+  app.unsubscribe = null;
+  clearTimeout(app.recommendTimer);
+  app.recommendTimer = null;
+  clearTimeout(app.previewTimer);
+  app.previewTimer = null;
+  app.message = null;
+  app.amend = null;
+  app.repair = [];
+  app.league = null;
+  app.kind = null;
+  app.store = null;
+}
+
+/**
  * Put a prepared league on the board: the old one goes, this one takes over,
  * and nothing is ever half of each.
  *
@@ -2645,15 +2781,7 @@ async function readyBoard(ready) {
  */
 function adoptLeague(ready) {
   const { league, kind } = ready;
-  // A change waiting on the board being left goes out before its store does.
-  flushSave();
-  app.unsubscribe?.();
-  app.unsubscribe = null;
-  clearTimeout(app.recommendTimer);
-  app.recommendTimer = null;
-  clearTimeout(app.previewTimer);
-  app.previewTimer = null;
-  app.message = "";
+  closeBoard();
 
   app.league = league;
   app.kind = kind;
@@ -2677,8 +2805,6 @@ function adoptLeague(ready) {
 
   app.store = ready.store;
   app.entry = ready.entry;
-  app.amend = null;
-  app.repair = [];
   app.unsubscribe = app.store.subscribe((entry) => {
     // A late push from the store we just replaced - another league, or this
     // league's other pool - must not land on this board.
@@ -2807,9 +2933,6 @@ function revalidateLeague(code) {
  */
 const REFRESH_TURN_MS = 1100;
 
-/** The head of the line a refresh that would not go puts on the board. */
-const REFRESH_FAILED = "Could not check for changes";
-
 /** How long the service worker gets to revalidate the shell before the check moves on without it. */
 const SHELL_CHECK_MS = 8000;
 
@@ -2913,7 +3036,7 @@ async function refreshBoard() {
     app.form = fresh.form;
     app.availability = fresh.availability;
     app.pool = fresh.pool;
-    if (app.message.startsWith(REFRESH_FAILED)) app.message = "";
+    unsay("refresh");
     render({ search: false });
   } catch (error) {
     await turned(started);
@@ -2922,7 +3045,7 @@ async function refreshBoard() {
     // the check came back with - and the news it failed to fetch is the first
     // thing the new one will go and get.
     if (await takeNewBuild()) return;
-    app.message = `${REFRESH_FAILED}: ${error.message}`;
+    say("refresh", `Could not check for changes: ${error.message}`);
     render({ search: false });
   } finally {
     refreshing = false;
@@ -3099,7 +3222,6 @@ async function switchPool(kind) {
   app.switching = true;
   renderLeagueBar(el.league, barState(kind), BAR_HANDLERS);
   markPoolLoading(el.league, true);
-  let faded = false;
 
   try {
     // The league as this device holds it, opened at once: it is the same
@@ -3115,10 +3237,7 @@ async function switchPool(kind) {
     // gone first, or borders and badges flash the incoming palette while they
     // are still visible.
     markPoolLoading(el.league, false);
-    el.shell?.classList.add("is-swapping");
-    faded = true;
-    await twoFrames();
-    await boardFaded();
+    await fadeBoardOut();
 
     adoptLeague(ready);
     paintLeague(board);
@@ -3131,16 +3250,15 @@ async function switchPool(kind) {
     // paints it again.
     renderLeagueBar(el.league, barState(app.kind), BAR_HANDLERS);
     themeFor(app.kind);
-    app.message = `Could not open that pool: ${error.message}`;
+    say("switch", `Could not open that pool: ${error.message}`);
     render();
   } finally {
     markPoolLoading(el.league, false);
-    el.shell?.classList.remove("is-swapping");
     // Removing the class and starting the entrance happen in the same task, so
     // the browser never paints the un-faded board in between. Only where there
     // was a fade: a switch that failed before it left the board standing, and
     // an entrance over a board that never left is a board flinching.
-    if (faded) playSwitch();
+    if (unfadeBoard()) playSwitch();
     app.switching = false;
   }
 }
@@ -3461,6 +3579,7 @@ async function finishStartup() {
   ]);
   layer.remove();
 
+  app.starting = false;
   document.body.classList.remove("is-starting");
   tintStatusBar();
   el.shell?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ARRIVE_MS, easing: "ease-out" });
@@ -3660,6 +3779,7 @@ async function settleBeforeReveal() {
 }
 
 main().catch((error) => {
+  app.starting = false;
   document.body.classList.remove("is-gated");
   document.body.classList.remove("is-starting");
   if (el.startup) el.startup.hidden = true;

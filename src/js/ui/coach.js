@@ -257,7 +257,8 @@ function renderRoute(current, markup) {
   // laying the whole board out, the card and the list freshly rewritten, before
   // the step's first frame. A morph still running is left to the capture: it
   // is the one thing that knows where it has got to.
-  const unchanged = sameWeek && !morphs.has(current) && plotsDrawn.get(current) === nextPlotMarkup;
+  const replotted = plotsDrawn.get(current) !== nextPlotMarkup;
+  const unchanged = sameWeek && !morphs.has(current) && !replotted;
   const was = sameWeek && !unchanged ? captureRoute(current) : null;
   plotsDrawn.set(current, nextPlotMarkup);
   settleRoute(current);
@@ -303,9 +304,12 @@ function renderRoute(current, markup) {
   if (was) morphRoute(current, was);
   slideBand(currentPlot?.querySelector(':scope > [data-key="band"]'), Number(next.dataset.at));
 
-  // A callout quotes one column. If the band moved to another one, close the
-  // old quote even though its stable node was deliberately retained.
-  if (previousWeek && previousWeek !== current.dataset.viewWeek) {
+  // A callout quotes one column of one drawing. If the band moved to another
+  // column, or the marks were drawn again - a plan landing, a lock from
+  // another phone, a refresh - close the old quote: its node is kept on
+  // purpose (its markup never changes), so nothing else takes it down, and it
+  // used to stand over the new marks still quoting the old team and figure.
+  if (previousWeek && (previousWeek !== current.dataset.viewWeek || replotted)) {
     const callout = current.querySelector('.route__callout[data-key="callout"]');
     if (callout) {
       callout.hidden = true;

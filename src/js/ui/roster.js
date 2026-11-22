@@ -30,9 +30,6 @@ const INFO = `<svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M12 7.75v.5" />
   </svg>`;
 
-/** Ids have to be unique on the page, and a card's code is not enough on its own. */
-let count = 0;
-
 /** Whether the document listener is on. It is bound once, for every panel. */
 let watching = false;
 
@@ -41,7 +38,13 @@ let watching = false;
  *
  * @param {Array<{id:string, name:string}>} people Everyone in the league.
  * @param {string} me This device's member id, so one row can say so.
- * @param {object} [options]
+ * @param {object} options
+ * @param {string} options.key Which panel this is on the page - the league's
+ *   code on a home card, the bar's own name in the topline - so its id is the
+ *   same every time it is drawn. A counter used to number them, which gave the
+ *   same card new markup on every render: the home list's patch saw a change
+ *   and replaced every card of two or more people, shutting any panel open on
+ *   it.
  * @param {string} [options.className] Extra classes for the button, so it can
  *   wear whatever its neighbours wear.
  * @param {boolean} [options.right] Hang the panel off the right edge instead,
@@ -52,11 +55,11 @@ let watching = false;
  * @returns {string} Empty when there is nobody else, which is the caller's
  *   answer to whether the button belongs there at all.
  */
-export function rosterMarkup(people, me, { className = "", right = false, face = INFO } = {}) {
+export function rosterMarkup(people, me, { key, className = "", right = false, face = INFO }) {
   const list = Array.isArray(people) ? people : [];
   if (list.length < 2) return "";
 
-  const id = `roster-${++count}`;
+  const id = `roster-${String(key).replace(/[^\w-]/g, "")}`;
   return `
     <div class="roster">
       <button type="button" class="roster__open ${className}" data-roster="${id}"

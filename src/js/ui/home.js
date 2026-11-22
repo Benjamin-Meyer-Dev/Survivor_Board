@@ -61,6 +61,7 @@ import {
   capturePlaces,
   closeDialog,
   grow,
+  isShutting,
   keepOpen,
   prefersReducedMotion,
   settleInto,
@@ -81,23 +82,6 @@ export function closeHomePanels() {
   for (const dialog of sheetsRoot?.querySelectorAll("dialog[open]") ?? []) {
     closeDialog(dialog, { now: true });
   }
-}
-
-/**
- * Say a league is opening: its card wears the state and its Open button says
- * so, until the board is up or the list is drawn again. app.js calls it on
- * the tap, ahead of the load it then waits on, so the page stays where it is
- * and still answers the tap - the list used to leave at once, and a load that
- * outran its fade was spent on a blank screen.
- */
-export function markOpening(root, code) {
-  const card = cardFor(root, code);
-  if (!card) return;
-  card.classList.add("is-opening");
-  const button = card.querySelector('[data-act="open"]');
-  if (!button) return;
-  button.setAttribute("aria-busy", "true");
-  button.innerHTML = `Opening… ${ICONS.go}`;
 }
 
 /**
@@ -127,23 +111,6 @@ function cardFor(root, code) {
   // Escaped anyway where the browser offers it (core/code.js).
   const safe = globalThis.CSS?.escape?.(code) ?? code;
   return root?.querySelector(`.home__card[data-league="${safe}"]`) ?? null;
-}
-
-/**
- * Put a card that said it was opening back the way it was.
- *
- * The mark is written straight onto the DOM rather than carried in the markup,
- * so the list keeping its cards would keep it too - and the one render that
- * follows a failed open is exactly the render that has to take it off.
- */
-function clearOpening(list) {
-  for (const card of list.querySelectorAll(".home__card.is-opening")) {
-    card.classList.remove("is-opening");
-    const button = card.querySelector('[data-act="open"]');
-    if (!button) continue;
-    button.removeAttribute("aria-busy");
-    button.innerHTML = `Open league ${ICONS.go}`;
-  }
 }
 
 /* Stroke icons: two sheets for copy, a door with an arrow out for leave, the
@@ -183,6 +150,23 @@ const SHEETS = [
 
 /** The league a leave is being asked about, while the question is up. */
 let leaving = null;
+/**
+ * The id a claim's warning is about, while it is up: what Switch anyway
+ * claims. The one that was looked up, not whatever the field says by then.
+ */
+let claimAsked = null;
+/**
+ * The sheets' forms whose request is out. A form in here takes no second
+ * submit and its button stays held, whatever is typed meanwhile: a create
+ * tapped twice while the first was still on the network made two leagues.
+ */
+const sending = new WeakSet();
+/**
+ * Each form error line on its way out, by the shrink taking it. A complaint
+ * arriving meanwhile calls the shrink off; it used to be written into the
+ * leaving line and wiped with it a moment later.
+ */
+const lineLeaving = new WeakMap();
 /** This person's name as last rendered, for the rename sheet to start from. */
 let me = "";
 /** And their id, for the same sheet to show. */
@@ -199,6 +183,13 @@ let meId = "";
  * @param {boolean} state.shared Whether leagues can be shared from this build.
  * @param {boolean} state.loading Whether the shared copy is still on its way.
  * @param {string} state.message A line to show above the list, or "".
+ * @param {string|null} [state.opening] The league being opened from the list,
+ *   whose card says so, until the board is up. app.js draws the page again with
+ *   it on the tap, ahead of the load it then waits on, so the page stays where
+ *   it is and still answers the tap - the list used to leave at once, and a
+ *   load that outran its fade was spent on a blank screen. It used to be
+ *   written onto the card rather than into its markup, so any other render of
+ *   the page in the meantime took it off while the league went on opening.
  * @param {object} given onOpen(code), onCreate({name, kinds}), onJoin(code),
  *   onLeave(code), onRenameMe(name), onClaimId(id). onCreate, onJoin and onClaimId
  *   may reject; the message is shown in their sheet.
@@ -238,7 +229,6 @@ export function renderHome(root, state, given, sheets = null) {
   reconcile(home, shellMarkup(state));
   const cards = home.querySelector(".home__list");
   reconcile(cards, listMarkup(state));
-  clearOpening(cards);
 
   if (first || prefersReducedMotion()) return;
   settleInto(cards.children, places);
@@ -290,8 +280,10 @@ function shellMarkup({ name, shared, message }) {
 }
 
 /** The cards, or the empty field where there are none. */
-function listMarkup({ leagues, loading, me }) {
-  if (leagues.length) return leagues.map((league) => card(league, me)).join("");
+function listMarkup({ leagues, loading, me, opening = null }) {
+  if (leagues.length) {
+    return leagues.map((league) => card(league, me, league.code === opening)).join("");
+  }
   return `<p class="home__empty" data-key="empty">
       ${loading ? "Looking for your leagues…" : "No leagues yet. Make one, or join one with a code someone sent you."}
     </p>`;
@@ -445,7 +437,7 @@ function sheetsMarkup() {
     </dialog>`;
 }
 
-function card(league, me) {
+function card(league, me, opening = false) {
   const kinds = kindsOf(league);
 
   // The pools are the tags; the rules are read inside the board, from the
@@ -456,14 +448,14 @@ function card(league, me) {
   const people = league.members > 1 ? `${league.members} people` : "";
 
   return `
-    <article class="home__card${league.missing ? " home__card--missing" : ""}"
+    <article class="home__card${league.missing ? " home__card--missing" : ""}${opening ? " is-opening" : ""}"
              data-league="${escapeHtml(league.code)}" data-key="${escapeHtml(league.code)}"
              data-name="${escapeHtml(league.name)}"
              data-members="${league.members ?? ""}">
       <div class="home__card-head">
         <h3 class="home__card-name">${escapeHtml(league.name)}</h3>
         <div class="home__card-tools">
-          ${rosterMarkup(league.people, me, { className: "home__icon", right: true })}
+          ${rosterMarkup(league.people, me, { key: `card-${league.code}`, className: "home__icon", right: true })}
           <button type="button" class="home__icon home__icon--leave" data-act="leave"
                   aria-label="Leave this league" title="Leave">${ICONS.leave}</button>
         </div>
@@ -496,8 +488,8 @@ function card(league, me) {
       }
 
       <div class="home__card-actions">
-        <button type="button" class="home__btn home__btn--go home__open" data-act="open">
-          Open league ${ICONS.go}
+        <button type="button" class="home__btn home__btn--go home__open" data-act="open"${opening ? ` aria-busy="true"` : ""}>
+          ${opening ? "Opening…" : "Open league"} ${ICONS.go}
         </button>
       </div>
     </article>`;
@@ -653,34 +645,44 @@ function wireSheets(sheets) {
   });
   claim.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (sending.has(claim)) return;
     const typed = claim.elements.id.value;
     if (!isPersonId(typed)) {
       showProblem(claim, "An ID is eight characters, like K7QM-3WXP.");
       return;
     }
     const id = normalisePersonId(typed);
-    const submit = claim.querySelector('button[type="submit"]');
-    submit.disabled = true;
+    const sheet = claim.closest("dialog");
+    markSending(claim, true);
     showProblem(claim, "");
     let leaving;
     try {
       ({ leaving } = await homeHandlers.onPreviewClaim(id));
     } catch (error) {
-      showProblem(claim, error?.message || "That did not go through. Try again.");
-      syncClaim(claim);
+      markSending(claim, false);
+      if (!isShutting(sheet)) {
+        showProblem(claim, error?.message || "That did not go through. Try again.");
+      }
       return;
     }
+    markSending(claim, false);
+    // The answer is to a question the sheet is no longer asking: shut while it
+    // was out - Cancel is a no, whatever came back, and this used to go on and
+    // make the phone somebody else - or another id typed since.
+    if (isShutting(sheet) || claim.elements.id.value !== typed) return;
     if (leaving.length === 0) {
       await attempt(claim, () => homeHandlers.onClaimId(id));
-      syncClaim(claim);
       return;
     }
+    claimAsked = id;
     showClaimWarning(claim, leaving);
   });
   claim.querySelector('[data-act="claim-yes"]').addEventListener("click", async (event) => {
+    const id = claimAsked;
+    if (!id) return;
     const button = event.currentTarget;
     button.disabled = true;
-    await attempt(claim, () => homeHandlers.onClaimId(normalisePersonId(claim.elements.id.value)));
+    await attempt(claim, () => homeHandlers.onClaimId(id));
     button.disabled = false;
   });
   claim.querySelector('[data-act="claim-no"]').addEventListener("click", () => {
@@ -799,18 +801,38 @@ function chosenKinds(form) {
  */
 function syncCreate(form) {
   const named = form.elements.name.value.trim().length > 0;
-  form.querySelector('button[type="submit"]').disabled = !named || chosenKinds(form).length === 0;
+  form.querySelector('button[type="submit"]').disabled =
+    sending.has(form) || !named || chosenKinds(form).length === 0;
 }
 
 /** Join is held until something has been typed into the code box. */
 function syncJoin(form) {
   form.querySelector('button[type="submit"]').disabled =
-    form.elements.code.value.trim().length === 0;
+    sending.has(form) || form.elements.code.value.trim().length === 0;
 }
 
 /** And the other phone's id until what is typed is the shape of one. */
 function syncClaim(form) {
-  form.querySelector('button[type="submit"]').disabled = !isPersonId(form.elements.id.value);
+  form.querySelector('button[type="submit"]').disabled =
+    sending.has(form) || !isPersonId(form.elements.id.value);
+}
+
+/** Each form's button rule, by the form's data-act. */
+const SYNC = { create: syncCreate, join: syncJoin, claim: syncClaim };
+
+/**
+ * Mark a form's request as out, or back, and put its button right for it.
+ *
+ * @param {HTMLFormElement} form
+ * @param {boolean} out
+ */
+function markSending(form, out) {
+  if (out) sending.add(form);
+  else sending.delete(form);
+  const submit = form.querySelector('button[type="submit"]');
+  if (out) submit?.setAttribute("aria-busy", "true");
+  else submit?.removeAttribute("aria-busy");
+  SYNC[form.dataset.act]?.(form);
 }
 
 /**
@@ -835,6 +857,7 @@ function showClaimWarning(form, leaving) {
 }
 
 function hideClaimWarning(form) {
+  claimAsked = null;
   form.querySelector(".home__claim-warn").hidden = true;
   form.querySelector('button[type="submit"]').hidden = false;
 }
@@ -849,12 +872,16 @@ function hideClaimWarning(form) {
  * opening behind it.
  */
 async function attempt(form, action) {
+  if (sending.has(form)) return;
+  markSending(form, true);
   showProblem(form, "");
   try {
     await action();
     closeDialog(form.closest("dialog"));
   } catch (error) {
     showProblem(form, error?.message || "That did not go through. Try again.");
+  } finally {
+    markSending(form, false);
   }
 }
 
@@ -874,26 +901,40 @@ async function attempt(form, action) {
  */
 function showProblem(form, message, { now = false } = {}) {
   const line = form.querySelector(".home__form-error");
-  const shown = !line.hidden;
-  if (message) {
-    line.textContent = message;
-    if (shown) return;
+  // Hidden, shown, or leaving: a line on its way out is not one that is up.
+  const going = lineLeaving.has(line);
+  const stay = () => {
+    lineLeaving.delete(line);
     line.classList.remove("is-shrinking");
+    line.style.removeProperty("--motion-from");
+  };
+  if (message) {
+    if (going) stay();
+    line.textContent = message;
+    if (!line.hidden && !going) return;
     line.hidden = false;
     if (!now) grow(line);
     return;
   }
-  if (!shown) return;
+  if (line.hidden) return;
+  // Already going, and going is what was asked for.
+  if (going && !now) return;
   if (now || prefersReducedMotion()) {
+    if (going) stay();
     line.textContent = "";
     line.hidden = true;
     return;
   }
   // Shrunk rather than removed: the line is part of the sheet's markup and has
-  // to be there for the next complaint, so it hides itself once it has gone.
+  // to be there for the next complaint, so it hides itself once it has gone -
+  // unless a complaint has called the shrink off in the meantime.
+  const shrinking = {};
+  lineLeaving.set(line, shrinking);
   line.style.setProperty("--motion-from", `${line.offsetHeight}px`);
   line.classList.add("is-shrinking");
   afterMotion(line, { subtree: false }).then(() => {
+    if (lineLeaving.get(line) !== shrinking) return;
+    lineLeaving.delete(line);
     line.classList.remove("is-shrinking");
     line.style.removeProperty("--motion-from");
     line.textContent = "";

@@ -43,10 +43,14 @@ export function requirePasscode(root, { check }) {
     // field is the only thing on screen to tap.
     if (!matchMedia("(hover: none)").matches) input.focus();
 
-    let checking = false;
+    // "typing", "checking", or "passed" once the code is right and the card is
+    // on its way out. Only typing takes a submit: an Enter pressed during the
+    // exit used to run a second check whose own exit then found the next card
+    // (the name, on a first run) in the same root and took that away instead.
+    let phase = "typing";
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      if (checking) return;
+      if (phase !== "typing") return;
       const typed = input.value;
       if (!typed.trim()) {
         error.textContent = "The code is what lets this device in.";
@@ -56,7 +60,7 @@ export function requirePasscode(root, { check }) {
 
       // The derivation takes a beat, and a button that did nothing for it
       // would be tapped again. `:disabled` wears the progress cursor.
-      checking = true;
+      phase = "checking";
       button.disabled = true;
       error.textContent = "";
       let passed = false;
@@ -65,10 +69,10 @@ export function requirePasscode(root, { check }) {
       } catch {
         passed = false;
       }
-      checking = false;
-      button.disabled = false;
 
       if (!passed) {
+        phase = "typing";
+        button.disabled = false;
         error.textContent = "That is not the code. Check it and try again.";
         input.select();
         input.focus();
@@ -76,7 +80,8 @@ export function requirePasscode(root, { check }) {
       }
       // The card leaves before the screen behind it changes: the door, the
       // name and the board are one sequence, and it is nothing but first
-      // impressions.
+      // impressions. The button stays held through it.
+      phase = "passed";
       await hideGate(root);
       resolve();
     });

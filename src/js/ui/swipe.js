@@ -94,8 +94,12 @@ export function watchDrags(
 
   for (const surface of surfaces.filter(Boolean)) {
     surface.addEventListener("pointerdown", (event) => {
+      // A second finger is not a new drag, and must not drop the one in hand:
+      // a drag let go of part way never reached finish(), so the week stayed
+      // half turned with its staged neighbour left in the clip.
+      if (!event.isPrimary) return;
       drag = null;
-      if (settling || !event.isPrimary) return;
+      if (settling) return;
       if (ignore.some((selector) => event.target?.closest?.(selector))) return;
       drag = { x: event.clientX, y: event.clientY, id: event.pointerId, surface, moving: false };
     });

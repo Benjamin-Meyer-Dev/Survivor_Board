@@ -60,6 +60,17 @@ let current = null;
 let draft = null;
 /** Which take-down - "remove" or "delete" - is waiting on its second tap. */
 let danger = null;
+/**
+ * The pool the open sheet was opened on, as code/kind. Its draft, its name and
+ * any question it is asking are that pool's, so a board that becomes another
+ * pool under it - Back to another league, a switch - shuts it rather than
+ * pointing it at the new one: Save used to write the first pool's draft into
+ * the second, and the delete question named one league and took down the other.
+ */
+let openFor = null;
+
+/** Which pool a render is about, in the form openFor holds. */
+const poolOf = ({ league, kind }) => (league && kind ? `${league.code}/${kind}` : null);
 /** The markup the take-down box is showing, so a paint that changed nothing does not swap it. */
 const takeShowing = new WeakMap();
 
@@ -141,6 +152,8 @@ export function renderSettings(
   // otherwise leave the old pool in the title until it opened.
   const pool = POOL_KINDS[kind];
   root.querySelector(".settings__title").textContent = pool ? `League · ${pool.label}` : "League";
+
+  if (dialog.open && openFor !== poolOf(current)) closeDialog(dialog, { now: true });
 
   // Mid-edit: the draft is the truth on screen, and a board arriving from
   // another device must not pull the fields out from under the person typing.
@@ -230,6 +243,7 @@ function buildSheet(root) {
   });
 
   root.querySelector(".settings__open").addEventListener("click", () => {
+    openFor = poolOf(current);
     draft = onlyEditable(current.board.rules);
     danger = null;
     keepOpen(dialog);

@@ -361,6 +361,17 @@ export async function closeDialog(dialog, { now = false } = {}) {
   dialog.classList.remove("is-closing");
 }
 
+/**
+ * Whether a sheet has been shut, or told to shut and is playing its way out.
+ * An answer that comes back after either is to a question nobody is asking any
+ * more: `open` alone says yes for the length of the exit.
+ *
+ * @param {HTMLDialogElement|null} dialog
+ */
+export function isShutting(dialog) {
+  return !dialog?.open || closing.has(dialog);
+}
+
 /** Call off an exit in flight, for a sheet being opened again. */
 export function keepOpen(dialog) {
   if (!dialog) return;

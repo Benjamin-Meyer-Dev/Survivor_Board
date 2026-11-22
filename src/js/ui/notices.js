@@ -33,7 +33,14 @@ import { prefersReducedMotion, swapContents } from "./motion.js";
  */
 const shown = new WeakMap();
 
-export function renderNotices(root, { store = null, board = null, message = "" }) {
+/**
+ * @param {HTMLElement|null} root
+ * @param {{store?:object|null, board?:object|null, message?:string,
+ *   still?:boolean}} state `still` writes the banners in place rather than
+ *   moving between the heights: app.js sets it while a page is arriving or
+ *   leaving, or the startup layer is over the app.
+ */
+export function renderNotices(root, { store = null, board = null, message = "", still = false }) {
   const notices = [];
 
   if (message) notices.push(message);
@@ -68,10 +75,7 @@ export function renderNotices(root, { store = null, board = null, message = "" }
 
   // Nothing to move from, or a page change already moving everything: write it
   // and let the page's own entrance carry it in.
-  const busy =
-    root.closest(".shell")?.classList.contains("is-swapping") ||
-    document.body.classList.contains("is-starting");
-  if (before === undefined || busy || prefersReducedMotion()) {
+  if (before === undefined || still || prefersReducedMotion()) {
     root.innerHTML = html;
     return;
   }

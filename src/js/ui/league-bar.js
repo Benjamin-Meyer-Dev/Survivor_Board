@@ -145,6 +145,7 @@ export function renderLeagueBar(
     // there to press.
     root.querySelector(".league-bar__who").innerHTML =
       rosterMarkup(people, me, {
+        key: "bar",
         className: "league-bar__face",
         face: faceMarkup("On the board", readout + CHEVRON),
       }) || `<div class="league-bar__face">${faceMarkup("On the board", readout)}</div>`;
