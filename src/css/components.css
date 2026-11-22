@@ -157,7 +157,6 @@
 
 .btn:active:not(:disabled),
 .settings__btn:active:not(:disabled),
-.home__menu-btn:active:not(:disabled),
 .home__btn:active:not(:disabled),
 .gate__btn:active:not(:disabled),
 .call__lock:active:not(:disabled) {
@@ -4317,9 +4316,9 @@ button.league-bar__face[aria-expanded="true"] {
   overflow-wrap: anywhere;
 }
 
-/* Changing your name: a pill built as a key, like everything else you can
-   press (the board's back and gear) - the neutral fill, a solid rim and a
-   little lift - so it reads as a button and not as print on the page. */
+/* Changing your name: a pill of solid grey, flat on the page, the label in
+   its dark ink - so it reads as a button and not as print. A press
+   darkens it rather than pushing it in. */
 .home__name {
   display: inline-flex;
   align-items: center;
@@ -4327,9 +4326,8 @@ button.league-bar__face[aria-expanded="true"] {
   padding: 0 14px;
   border: 1px solid var(--neutral);
   border-radius: 999px;
-  background: var(--neutral-bg);
-  box-shadow: var(--key-lift);
-  color: var(--neutral-2);
+  background: var(--neutral);
+  color: var(--on-neutral);
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 15px;
@@ -4338,22 +4336,19 @@ button.league-bar__face[aria-expanded="true"] {
   cursor: pointer;
   transition:
     background-color 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease,
-    box-shadow 120ms ease,
-    transform 120ms ease;
-}
-
-.home__name:active {
-  box-shadow: var(--key-pressed);
-  transform: translateY(1px);
+    border-color 160ms ease;
 }
 
 @media (hover: hover) {
   .home__name:hover {
     border-color: var(--neutral-2);
-    color: var(--chalk);
+    background: var(--neutral-2);
   }
+}
+
+.home__name:active {
+  border-color: var(--neutral-pressed);
+  background: var(--neutral-pressed);
 }
 
 /* No margin rule of its own. A line above the list is one of the page's bands
@@ -4783,26 +4778,25 @@ button.league-bar__face[aria-expanded="true"] {
   gap: 10px;
 }
 
-/* New league and Join: keys, as .home__name above - filled, rimmed and
-   lifted off the page, the label a step brighter than the outline it was. */
+/* New league and Join: solid grey and flat, as .home__name above. */
 .home__menu-btn {
   flex: 1 1 0;
   min-height: 50px;
   padding: 0 14px;
   border-color: var(--neutral);
-  background: var(--neutral-bg);
-  box-shadow: var(--key-lift);
-  color: var(--neutral-2);
+  background: var(--neutral);
+  color: var(--on-neutral);
 }
 
 .home__menu-btn:hover:not(:disabled) {
   border-color: var(--neutral-2);
-  background: var(--neutral-bg);
-  color: var(--chalk);
+  background: var(--neutral-2);
+  color: var(--on-neutral);
 }
 
 .home__menu-btn:active:not(:disabled) {
-  box-shadow: var(--key-pressed);
+  border-color: var(--neutral-pressed);
+  background: var(--neutral-pressed);
 }
 
 .home__menu-btn svg {

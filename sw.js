@@ -78,7 +78,10 @@
    v44 moves the startup layer's styles out of components.css and motion.css
    into index.html, so an old index.html beside the new stylesheets would
    draw the layer with no styles at all. v45 swaps the layer's logo for the
-   maskable icon in a circle, and PRECACHE with it.
+   maskable icon in a circle, and PRECACHE with it. v47 moves that logo up to
+   the middle of the whole screen, where Android's launch screen has it - an
+   index.html the worker would otherwise keep serving until it got round to
+   refreshing it.
 
    "Must not keep half of" is the whole point, and v4 is what that phrase was
    written for. Every shell file is cached first and refreshed on its own a few
@@ -95,7 +98,7 @@
    needs a hand here: ENGINE_VERSION in src/js/core/recommend.js is part of
    every plan's key, so a plan can only ever be read back by the engine that
    wrote it. Bump it there when the search or the ranking changes shape. */
-const CACHE = "sudden-death-v46";
+const CACHE = "sudden-death-v47";
 
 /**
  * Kept from install rather than on first use, so the first launch after an

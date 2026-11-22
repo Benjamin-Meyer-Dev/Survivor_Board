@@ -23,6 +23,26 @@
          the app's own colour as the layer leaves (tintStatusBar). -->
     <meta name="theme-color" content="#0f4d2c" />
 
+    <!-- Where Android's launch screen centres its icon: the middle of the
+         whole screen, status bar and gesture bar included (measured on a
+         Pixel 7, Android 17, Chrome 157). The page starts under the status
+         bar, so that is screen.height / 2 - screen.availTop down the page,
+         about 14px above the page's own middle. Both are whole pixels rounded
+         outwards (the top down, the height up), so each gives half a pixel
+         back. Only an installed app on Android opens on that screen; anywhere
+         else the startup layer centres in the safe area. In a function so
+         nothing lands on window. -->
+    <script>
+      (function () {
+        if (!/Android/.test(navigator.userAgent)) return;
+        if (matchMedia("(display-mode: browser)").matches) return;
+        const top = screen.availTop + 0.5;
+        const middle = (screen.height - 0.5) / 2 - top;
+        if (!(top >= 0 && top < 200 && middle > 0)) return;
+        document.documentElement.style.setProperty("--boot-middle", middle + "px");
+      })();
+    </script>
+
     <!-- The startup layer's logo, fetched at high priority ahead of the
          stylesheets. -->
     <link rel="preload" as="image" href="./icons/icon-maskable-512.png" fetchpriority="high" />
@@ -65,10 +85,8 @@
 
       /* Its own colours rather than the theme's: it paints before app.js has
          put a league on the root. --startup-middle is where the launch screen
-         centred its icon: the middle of the band between the status bar and
-         the navigation bar, which is the page's safe area. Where Chrome draws
-         the page under the gesture bar the safe-area insets say by how much;
-         elsewhere they are nought and this is the plain middle. */
+         centred its icon (--boot-middle, from the script in the head); with
+         no launch screen, the middle of the safe area. */
       .startup {
         --ground: #0f4d2c;
         --line: rgb(243 247 241 / 35%);
@@ -77,9 +95,10 @@
         --startup-accent: #ffe066;
         --startup-accent-soft: #0a3a20;
         --startup-logo: 240px;
-        --startup-art: 276px;
-        --startup-middle: calc(
-          50% + (env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) / 2
+        --startup-art: 274px;
+        --startup-middle: var(
+          --boot-middle,
+          calc(50% + (env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) / 2)
         );
         --startup-gap: 24px;
         --startup-scene: min(72vw, 310px);
@@ -108,10 +127,10 @@
       /* Android's launch screen, carried on, so Chrome's fade off it cannot
          be seen. Chrome's WebAPK draws the manifest's maskable icon as an
          adaptive icon in a 240dp box: the phone's icon mask (a circle) fills
-         the box, and the art is drawn half as large again behind it - the
-         icon padded to the launcher's 83 of 108 first, so 276px here - which
-         leaves the 240 circle showing the middle 87% of the picture. Nothing
-         moves or resizes it; everything else is placed around the circle
+         the box, and the art behind it measured 274 across on a Pixel 7 (its
+         yard lines 90.0 device pixels apart, against 90.5 at 276), so the
+         240 circle shows the middle 88% of the picture. Nothing moves or
+         resizes it; everything else is placed around the circle
          (--startup-logo). */
       .startup__logo {
         position: absolute;
@@ -123,10 +142,10 @@
         clip-path: circle(calc(var(--startup-logo) / 2));
       }
 
-      /* The name and the season, then the field and the status line, under
-         the logo. Placed off the logo rather than centred with it, so nothing
-         in it - a season still loading, a status that wraps - can move the
-         logo. */
+      /* The field and the status line under the logo, the name and the
+         season over it (.startup__title, below). Placed off the logo rather
+         than centred with it, so nothing in it - a season still loading, a
+         status that wraps - can move the logo. */
       .startup__copy {
         position: absolute;
         top: calc(var(--startup-middle) + var(--startup-logo) / 2 + var(--startup-gap));
@@ -148,20 +167,18 @@
         transform: translateY(12px);
       }
 
-      /* A screen too short to hang all of that under the logo: the name goes
-         above it, the same gap clear of it. */
-      @media (max-height: 719px) {
-        .startup__title {
-          position: absolute;
-          right: 0;
-          bottom: calc(100% + var(--startup-logo) + 2 * var(--startup-gap));
-          left: 0;
-          padding: 0 var(--sp-6);
-        }
+      /* The name and the season, lifted out of the copy to stand over the
+         logo, the same gap clear of it as the field is under it. */
+      .startup__title {
+        position: absolute;
+        right: 0;
+        bottom: calc(100% + var(--startup-logo) + 2 * var(--startup-gap));
+        left: 0;
+        padding: 0 var(--sp-6);
       }
 
-      /* Too short even for that - a phone held sideways - and wide enough to
-         stand it all beside the logo instead. */
+      /* A phone held sideways, too short to stack it all round the logo: it
+         stands beside the logo instead, the name back over the field. */
       @media (max-height: 551px) and (orientation: landscape) {
         .startup__copy {
           --startup-scene: min(310px, 50vw - var(--startup-logo) / 2 - 48px);
@@ -457,8 +474,8 @@
         class="startup__logo"
         src="./icons/icon-maskable-512.png"
         alt=""
-        width="276"
-        height="276"
+        width="274"
+        height="274"
         decoding="sync"
         fetchpriority="high"
       />

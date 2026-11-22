@@ -109,6 +109,8 @@
      league's paint, which on a losers pool is a burnt orange that would sit
      badly on this. */
   --on-neutral: #0c2a22;
+  /* A filled one pressed: the fill a fifth of the way to its ink. */
+  --neutral-pressed: #88a2aa;
 
   /* The kinds of pool, as the home page tells them apart: each season's
      paint, and burnt orange for any pool that wants its picks to lose. */
