@@ -83,7 +83,8 @@
    index.html the worker would otherwise keep serving until it got round to
    refreshing it. v48 doubles the drawer's grab in components.css and the
    shut drawer's height in layout.css with it - half of that pair clips the
-   tab bar.
+   tab bar. v49 puts the topline's keys back to neutral and the home page's
+   New league and Join on the flag.
 
    "Must not keep half of" is the whole point, and v4 is what that phrase was
    written for. Every shell file is cached first and refreshed on its own a few
@@ -100,7 +101,7 @@
    needs a hand here: ENGINE_VERSION in src/js/core/recommend.js is part of
    every plan's key, so a plan can only ever be read back by the engine that
    wrote it. Bump it there when the search or the ranking changes shape. */
-const CACHE = "sudden-death-v48";
+const CACHE = "sudden-death-v49";
 
 /**
  * Kept from install rather than on first use, so the first launch after an

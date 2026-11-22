@@ -318,12 +318,12 @@
   width: 32px;
   height: 32px;
   padding: 0;
-  border: 1px solid var(--flag);
+  border: 1px solid var(--neutral-line);
   border-radius: 50%;
   flex: none;
-  background: var(--flag);
+  background: var(--key);
   box-shadow: var(--key-lift);
-  color: var(--on-flag);
+  color: var(--neutral);
   cursor: pointer;
   transition:
     background-color 160ms ease,
@@ -347,19 +347,19 @@
 
 .league-bar__back:active,
 .settings__open:active {
-  border-color: var(--flag-2);
-  background: var(--flag-2);
+  border-color: var(--neutral);
+  background: var(--neutral-bg);
   box-shadow: var(--key-pressed);
-  color: var(--on-flag);
+  color: var(--neutral-2);
   transform: translateY(1px);
 }
 
 @media (hover: hover) {
   .league-bar__back:hover,
   .settings__open:hover {
-    border-color: var(--flag-2);
-    background: var(--flag-2);
-    color: var(--on-flag);
+    border-color: var(--neutral);
+    background: var(--neutral-bg);
+    color: var(--neutral-2);
   }
 }
 
@@ -466,10 +466,9 @@
 }
 
 button.league-bar__face:not(:disabled) {
-  border-color: var(--flag);
-  background: var(--flag);
+  border-color: var(--neutral-line);
+  background: var(--key);
   box-shadow: var(--key-lift);
-  color: var(--on-flag);
   cursor: pointer;
   transition:
     background-color 160ms ease,
@@ -481,27 +480,17 @@ button.league-bar__face:not(:disabled) {
 /* Pushed in while pressed, and held in while what it opened is open. */
 button.league-bar__face:not(:disabled):active,
 button.league-bar__face[aria-expanded="true"] {
-  border-color: var(--flag-2);
-  background: var(--flag-2);
+  border-color: var(--neutral);
+  background: var(--neutral-bg);
   box-shadow: var(--key-pressed);
   transform: translateY(1px);
 }
 
 @media (hover: hover) {
   button.league-bar__face:not(:disabled):hover {
-    border-color: var(--flag-2);
-    background: var(--flag-2);
+    border-color: var(--neutral);
+    background: var(--neutral-bg);
   }
-}
-
-/* On the flag the print goes dark: the key a step back from the value, and
-   the pool's lamp ringed so mint and blue still read against the yellow. */
-button.league-bar__face:not(:disabled) .league-bar__key {
-  color: color-mix(in srgb, var(--on-flag) 70%, transparent);
-}
-
-button.league-bar__face:not(:disabled) .league-bar__mark {
-  box-shadow: 0 0 0 1px var(--on-flag);
 }
 
 .league-bar__key {
@@ -562,7 +551,7 @@ button.league-bar__face:not(:disabled) .league-bar__mark {
   height: 11px;
   flex: none;
   fill: none;
-  stroke: currentcolor;
+  stroke: var(--neutral);
   stroke-width: 2.6;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -4550,7 +4539,7 @@ button.league-bar__face:not(:disabled) .league-bar__mark {
    while it is getting a board, which is also what says the cell is busy where
    motion is switched off and nothing turns. */
 .league-bar__refresh.is-refreshing {
-  color: color-mix(in srgb, var(--on-flag) 55%, transparent);
+  color: var(--chalk-3);
   pointer-events: none;
 }
 
@@ -4789,25 +4778,27 @@ button.league-bar__face:not(:disabled) .league-bar__mark {
   gap: 10px;
 }
 
-/* New league and Join: solid grey and flat, as .home__name above. */
+/* New league and Join: the flag, as the card's Open league is (.home__btn--go)
+   - flat, with no press-down, and a shade darker while held. */
 .home__menu-btn {
   flex: 1 1 0;
   min-height: 50px;
   padding: 0 14px;
-  border-color: var(--neutral);
-  background: var(--neutral);
-  color: var(--on-neutral);
+  border-color: var(--flag);
+  background: var(--flag);
+  color: var(--on-flag);
+  box-shadow: 0 8px 24px -10px rgb(255 224 102 / 55%);
 }
 
 .home__menu-btn:hover:not(:disabled) {
-  border-color: var(--neutral-2);
-  background: var(--neutral-2);
-  color: var(--on-neutral);
+  border-color: var(--flag-2);
+  background: var(--flag-2);
+  color: var(--on-flag);
 }
 
 .home__menu-btn:active:not(:disabled) {
-  border-color: var(--neutral-pressed);
-  background: var(--neutral-pressed);
+  border-color: color-mix(in srgb, var(--flag) 88%, black);
+  background: color-mix(in srgb, var(--flag) 88%, black);
 }
 
 .home__menu-btn svg {
