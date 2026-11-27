@@ -94,7 +94,9 @@
    the home page's leagues be held and carried into an order of your own (a
    new module, ui/reorder.js, and the cards' styles with it). v53 is the
    coach's ghost run for a pool that is out (core/ghost.js, a module every
-   board imports).
+   board imports). v54: the New league sheet split into fields and a foot
+   (ui/home.js markup with new rules in components.css), and resizeAround in
+   ui/motion.js, which home.js now imports.
 
    "Must not keep half of" is the whole point, and v4 is what that phrase was
    written for. Every shell file is cached first and refreshed on its own a few
@@ -111,7 +113,7 @@
    needs a hand here: ENGINE_VERSION in src/js/core/recommend.js is part of
    every plan's key, so a plan can only ever be read back by the engine that
    wrote it. Bump it there when the search or the ranking changes shape. */
-const CACHE = "sudden-death-v53";
+const CACHE = "sudden-death-v54";
 
 /**
  * Kept from install rather than on first use, so the first launch after an

@@ -4455,24 +4455,39 @@ button.league-bar__face[aria-expanded="true"] {
   -webkit-touch-callout: none;
 }
 
-/* Carried: drawn at the finger, lifted off the turf over the others, and
-   chalked full. Settling, it is still over them until it lands. */
-.home__card.is-lifted,
-.home__card.is-dropping {
-  z-index: 2;
+/* Carried: a copy of the card drawn at the finger, fixed to the screen and
+   over the whole page - the head included, which the list's own scroll box
+   would have clipped it under - while the card itself holds its place in the
+   list unseen. The copy lives on <body>, outside the home page's own markup,
+   so it takes nothing from the page's band rules and a render of the page
+   cannot sweep it away. Solid while it is carried: a card is chalked onto the
+   turf a little see-through, which reads as depth on the field and as a mess
+   the moment one is carried over another; --turf-2 is what it looks like on
+   the turf anyway, so lifting it changes nothing but what shows through.
+   Settling, it is still solid and still over everything until it lands. */
+.home__card.is-carried {
+  position: fixed;
+  z-index: 10;
+  margin: 0;
   translate: var(--lift-x, 0) var(--lift-y, 0);
   background-color: var(--turf-2);
+  pointer-events: none;
+  animation: none;
 }
 
-.home__card.is-lifted {
+.home__card.is-carried.is-lifted {
   scale: 1.03;
   border-color: var(--chalk);
-  /* Solid while it is carried. A card is chalked onto the turf a little
-     see-through, which reads as depth on the field and as a mess the moment
-     one is carried over another; --turf-2 is what it looks like on the turf
-     anyway, so lifting it changes nothing but what shows through. */
-  background-color: var(--turf-2);
   box-shadow: var(--shadow-lift);
+}
+
+.home__card.is-held {
+  visibility: hidden;
+}
+
+/* The copy cannot be pointed at, so the grabbing hand is the list's while one
+   is carried: it is what the mouse is over for most of the carry. */
+.is-reordering > .home__card {
   cursor: grabbing;
 }
 
@@ -5067,6 +5082,54 @@ button.league-bar__face[aria-expanded="true"] {
 
 .home__form .home__confirm-row {
   margin-top: calc(var(--form-gap) + 4px);
+}
+
+/* New league, in the settings sheet's three parts: the fields scroll between
+   the head and a foot that holds Create, so a pool's rules can run a screen
+   long and the button is still where the thumb left it. The form fills the
+   sheet and the fields take what the foot leaves, so while the sheet travels
+   to a new height (resizeAround in ui/motion.js) the foot rides its bottom
+   edge rather than waiting for it. */
+.home__form--split {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.home__form--split > * + * {
+  margin-block-start: 0;
+}
+
+.home__form-body {
+  display: grid;
+  align-content: start;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: var(--sp-5);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.home__form-body > * {
+  --motion-gap: var(--form-gap);
+}
+
+.home__form-body > * + * {
+  margin-block-start: var(--form-gap);
+}
+
+/* The chalk line closes the fields off the way the head's opens them. */
+.home__form-foot {
+  display: grid;
+  flex: none;
+  padding: var(--sp-4) var(--sp-5) calc(var(--sp-5) + env(safe-area-inset-bottom));
+  border-top: var(--dash);
+}
+
+.home__form-foot .home__btn--go {
+  margin-top: 0;
 }
 
 /* Two under a field, level with each other. */

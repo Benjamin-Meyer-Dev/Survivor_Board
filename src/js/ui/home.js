@@ -57,8 +57,11 @@ import {
   capturePlaces,
   closeDialog,
   grow,
+  isShutting,
   keepOpen,
+  playOnce,
   prefersReducedMotion,
+  resizeAround,
   settleInto,
   shrink,
 } from "./motion.js";
@@ -386,25 +389,29 @@ function sheetsMarkup() {
         <button type="button" class="home__icon home__sheet-close" data-close
                 aria-label="Close">${ICONS.close}</button>
       </div>
-      <form class="home__form" data-act="create">
-        <label class="home__label" for="home-name">What is it called?</label>
-        <input class="home__input" id="home-name" name="name" type="text" maxlength="60"
-               placeholder="The Office Pool" autocomplete="off" />
-        <p class="home__form-error" role="alert" hidden></p>
-        <fieldset class="home__choices-group">
-          <legend class="home__label">Which pools does it run?</legend>
-          <div class="home__options">
-            ${KIND_IDS.map(
-              (id) => `
-            <label class="home__option">
-              <input type="checkbox" name="kinds" value="${id}" />
-              <span class="home__option-name">${escapeHtml(POOL_KINDS[id].label)}</span>
-            </label>`,
-            ).join("")}
-          </div>
-        </fieldset>
-        <div class="home__rules" data-rules hidden></div>
-        <button type="submit" class="home__btn home__btn--go" disabled>Create league</button>
+      <form class="home__form home__form--split" data-act="create">
+        <div class="home__form-body">
+          <label class="home__label" for="home-name">What is it called?</label>
+          <input class="home__input" id="home-name" name="name" type="text" maxlength="60"
+                 placeholder="The Office Pool" autocomplete="off" />
+          <p class="home__form-error" role="alert" hidden></p>
+          <fieldset class="home__choices-group">
+            <legend class="home__label">Which pools does it run?</legend>
+            <div class="home__options">
+              ${KIND_IDS.map(
+                (id) => `
+              <label class="home__option">
+                <input type="checkbox" name="kinds" value="${id}" />
+                <span class="home__option-name">${escapeHtml(POOL_KINDS[id].label)}</span>
+              </label>`,
+              ).join("")}
+            </div>
+          </fieldset>
+          <div class="home__rules" data-rules hidden></div>
+        </div>
+        <div class="home__form-foot">
+          <button type="submit" class="home__btn home__btn--go" disabled>Create league</button>
+        </div>
       </form>
     </dialog>
 
@@ -808,12 +815,41 @@ function draftFor(kind, season) {
  * nothing else, and `keep` - the control just used - has its focus put back on
  * its replacement, the way the settings sheet does it.
  *
+ * A pool's rules are a screenful, so the sheet changes height with every tick:
+ * it travels to its new height rather than jumping there (resizeAround), and
+ * the rules a tick brought fade up into the room it makes. Create stays in the
+ * sheet's foot throughout, under the part that scrolls.
+ *
  * @param {HTMLFormElement} form
  * @param {HTMLElement|null} [keep]
  */
 function paintCreateRules(form, keep = null) {
   const box = form?.querySelector("[data-rules]");
   if (!box) return;
+  const dialog = form.closest("dialog");
+  // Shut, or on its way out after a create: nothing on screen to move.
+  if (isShutting(dialog)) {
+    fillCreateRules(form, box);
+    return;
+  }
+  const had = new Set([...box.children].map((node) => node.dataset.key));
+  resizeAround(dialog, () => fillCreateRules(form, box));
+  for (const node of box.children) {
+    if (!had.has(node.dataset.key)) playOnce(node, ["is-arriving"], { subtree: false });
+  }
+  if (!keep) return;
+  const { rule, step, value } = keep.dataset;
+  const pool = keep.closest("[data-pool]")?.dataset.pool;
+  const section = box.querySelector(`[data-pool="${pool}"]`);
+  const siblings = [...(section?.querySelectorAll(`[data-rule="${rule}"]`) ?? [])];
+  const same = step
+    ? siblings.find((control) => control.dataset.step === step && !control.disabled)
+    : siblings.find((control) => control.dataset.value === value);
+  (same ?? siblings.find((control) => !control.disabled))?.focus();
+}
+
+/** paintCreateRules' markup: a section of steppers for every pool ticked. */
+function fillCreateRules(form, box) {
   const kinds = chosenKinds(form).filter((kind) => seasonOf(kind));
   box.hidden = kinds.length === 0;
   // Several pools are told apart by name; one needs none, the sheet has just
@@ -849,15 +885,6 @@ function paintCreateRules(form, keep = null) {
       })
       .join(""),
   );
-  if (!keep) return;
-  const { rule, step, value } = keep.dataset;
-  const pool = keep.closest("[data-pool]")?.dataset.pool;
-  const section = box.querySelector(`[data-pool="${pool}"]`);
-  const siblings = [...(section?.querySelectorAll(`[data-rule="${rule}"]`) ?? [])];
-  const same = step
-    ? siblings.find((control) => control.dataset.step === step && !control.disabled)
-    : siblings.find((control) => control.dataset.value === value);
-  (same ?? siblings.find((control) => !control.disabled))?.focus();
 }
 
 /**

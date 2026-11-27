@@ -884,6 +884,14 @@
   animation: move-into-place 0.3s var(--ease-out) both;
 }
 
+/* A sheet whose contents changed height under a tap (resizeAround): the sheet
+   travels from the height it had to the one it has now, on the curve and the
+   beat it rose on. Before the exit below on purpose - a sheet shut while it is
+   still travelling plays its exit, which wins by coming later. */
+.home__sheet.is-sizing {
+  animation: box-resize 0.28s var(--ease-out) both;
+}
+
 /* --- a sheet on its way out ------------------------------------------------
    The open is a transition from @starting-style (above); the close cannot be,
    because close() takes the dialog out of the top layer on the spot and there
@@ -1025,20 +1033,21 @@
 }
 
 /* A card carried to a new place (ui/reorder.js). The lift is quick and lands,
-   so the hold reads as having taken; the card then follows the finger with no
-   transition at all, since anything eased there trails behind the thumb; and
-   the drop settles it into its slot on the same curve the neighbours stepped
-   aside on, from wherever it was let go. */
-.home__card.is-lifted {
+   so the hold reads as having taken; the copy then follows the finger with no
+   transition on its translate at all, since anything eased there trails
+   behind the thumb; and the drop shrinks it back to size on the curve the
+   script settles it into its slot on, from wherever it was let go. The
+   other cards rock while it is carried, from the script too (WAAPI on
+   `rotate`), since they must stop from wherever the rock had got to. */
+.home__card.is-carried.is-lifted {
   transition:
     scale 0.16s var(--ease-snap),
     box-shadow 0.16s ease,
     border-color 0.16s ease;
 }
 
-.home__card.is-dropping {
+.home__card.is-carried.is-dropping {
   transition:
-    translate 0.22s var(--ease-out),
     scale 0.22s var(--ease-out),
     box-shadow 0.22s ease,
     border-color 0.22s ease;

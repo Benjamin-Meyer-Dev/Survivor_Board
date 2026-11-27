@@ -452,6 +452,52 @@ export async function swapContents(box, html) {
   box.style.removeProperty("--motion-to");
 }
 
+/** The resize each box is playing, so an older one ending cannot undo a newer. */
+const resizing = new WeakMap();
+
+/**
+ * Make a change to what is in a box whose height is its contents' - a sheet -
+ * and have the box travel from the height it had to the one it now has, rather
+ * than jumping between the two in a frame.
+ *
+ * The change is made and laid out at once, so everything in the box is already
+ * where it ends up and the box is only catching up with it (`is-sizing` in
+ * motion.css). A change made while the last one is still travelling starts
+ * from wherever that one had got to, so a run of quick taps is one movement
+ * that changes its mind rather than a string of jumps.
+ *
+ * @param {HTMLElement|null} box
+ * @param {() => void} change
+ * @returns {Promise<void>} Resolves when the box is its own height again.
+ */
+export async function resizeAround(box, change) {
+  if (!box || prefersReducedMotion()) {
+    change();
+    return;
+  }
+  const from = box.offsetHeight;
+  box.classList.remove("is-sizing");
+  change();
+  const to = box.offsetHeight;
+  if (Math.abs(to - from) < 1) {
+    resizing.delete(box);
+    box.style.removeProperty("--motion-from");
+    box.style.removeProperty("--motion-to");
+    return;
+  }
+  const turn = {};
+  resizing.set(box, turn);
+  box.style.setProperty("--motion-from", `${from}px`);
+  box.style.setProperty("--motion-to", `${to}px`);
+  box.classList.add("is-sizing");
+  await afterMotion(box, { subtree: false });
+  if (resizing.get(box) !== turn) return;
+  resizing.delete(box);
+  box.classList.remove("is-sizing");
+  box.style.removeProperty("--motion-from");
+  box.style.removeProperty("--motion-to");
+}
+
 /**
  * Where a set of keyed nodes are on screen, to move them from there once a
  * render has put them somewhere else (`settleInto`).
