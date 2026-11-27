@@ -1313,6 +1313,19 @@ button.league-bar__face[aria-expanded="true"] {
   color: var(--chalk-2);
 }
 
+/* The playoffs: the first round is chalked where the regular season's field
+   ends, and every round is named rather than numbered - "WC", "SB" - in the
+   five-yard lines' brighter chalk. */
+.pitch__yard--playoffs {
+  border-left-width: 2px;
+  border-left-color: var(--line-strong);
+}
+
+.pitch__yard--round .pitch__num {
+  color: var(--chalk-2);
+  letter-spacing: 0.04em;
+}
+
 /* The week's marks and names run in lanes, one a slot, between the top of the
    column and the ball: one lane down the middle in a one-pick pool, two side
    by side in a two-pick one, so each pick carries its own mark over its own
@@ -3179,6 +3192,14 @@ button.league-bar__face[aria-expanded="true"] {
 
 .route__week--here {
   color: var(--chalk);
+}
+
+/* A playoff round on the axis: named rather than numbered, so set a size down
+   and tight - a season run into the Super Bowl is twenty-two columns on a
+   phone, and "CONF" must not run into "DIV" beside it. */
+.route__week--round {
+  font-size: 8px;
+  letter-spacing: 0;
 }
 
 /* A played week still owed its pick: its number in the flag, under the badge

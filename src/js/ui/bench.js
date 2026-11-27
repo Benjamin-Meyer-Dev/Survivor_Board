@@ -10,7 +10,7 @@
  * drift from what it describes.
  */
 
-import { escapeHtml } from "../core/format.js";
+import { escapeHtml, weekPhrase, weekTag } from "../core/format.js";
 import { frame, paint, reconcile } from "./patch.js";
 
 /**
@@ -44,7 +44,7 @@ export function renderBench(root, legendEl, board) {
             <span class="bench__name">${escapeHtml(team)}</span>
           </span>
           <span class="bench__rating">
-            ${mark ? `<span class="bench__week">W${mark.week}</span>` : ""}
+            ${mark ? `<span class="bench__week">${escapeHtml(badgeOf(board, mark.week))}</span>` : ""}
             <span class="bench__rank" aria-label="Power rank ${rank}">#${rank}</span>
           </span>
         </div>`;
@@ -55,19 +55,29 @@ export function renderBench(root, legendEl, board) {
   paint(legendEl, legendMarkup());
 }
 
+/** The week on a team's badge: "W7", or a playoff round's short name ("SB"). */
+function badgeOf(board, week) {
+  const tag = weekTag(board, week);
+  return tag.startsWith("Week ") ? `W${week}` : tag;
+}
+
 /** Locked beats picked beats planned, so a team shows its firmest commitment. */
 function markFor(board, team) {
   const spent = board.spentTeams[team];
   if (spent !== undefined) {
-    return { state: "spent", week: spent, title: `locked week ${spent}` };
+    return { state: "spent", week: spent, title: `locked ${weekPhrase(board, spent)}` };
   }
   const picked = board.pickedTeams[team];
   if (picked !== undefined) {
-    return { state: "picked", week: picked, title: `picked week ${picked}, not locked` };
+    return {
+      state: "picked",
+      week: picked,
+      title: `picked ${weekPhrase(board, picked)}, not locked`,
+    };
   }
   const planned = board.plannedTeams[team];
   if (planned !== undefined) {
-    return { state: "planned", week: planned, title: `coach plan week ${planned}` };
+    return { state: "planned", week: planned, title: `coach plan ${weekPhrase(board, planned)}` };
   }
   return null;
 }

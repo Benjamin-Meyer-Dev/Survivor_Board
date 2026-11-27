@@ -56,7 +56,7 @@
  * Handlers are injected; this module knows nothing about the store.
  */
 
-import { formatMatchup, formatKickoff, escapeHtml } from "../core/format.js";
+import { formatMatchup, formatKickoff, escapeHtml, weekPhrase } from "../core/format.js";
 import { TIER_LABEL } from "../core/probability.js";
 import { delegate } from "./events.js";
 import { frame, reconcile } from "./patch.js";
@@ -288,9 +288,12 @@ function isNow(week, board) {
   return week.week === board.currentWeek && !board.eliminated;
 }
 
-/** "Wk 01 · Sep 13, 2026 · on the clock", or how far off the week is. */
+/**
+ * "Wk 01 · Sep 13, 2026 · on the clock", or how far off the week is. A playoff
+ * round goes by its name: "Wild Card · Jan 17, 2027".
+ */
 function whenLine(week, board) {
-  const stamp = `Wk ${String(week.week).padStart(2, "0")} · ${week.labelFull}`;
+  const stamp = `${week.round ? week.name : `Wk ${String(week.week).padStart(2, "0")}`} · ${week.labelFull}`;
   if (board.eliminated) {
     // The week it ended has the chip beside it saying so, in the paint it
     // deserves. The line said it a second time in chalk, and the two together
@@ -328,6 +331,9 @@ function slotMarkup(pick, board, access) {
   const state = pick.team ? (status.locked ? "locked" : "picked") : "empty";
   const moot = board.eliminated && pick.week > board.eliminatedWeek;
   const pending = !shown && board.recommendationPending && pick.week >= board.currentWeek;
+  // A playoff round whose games nobody knows yet: the coach's likeliest pick
+  // there, which nobody can take until the round before has been played.
+  const projected = !pick.team && Boolean(pick.suggestion?.projected);
 
   const eyebrow = amending
     ? "Correcting · pick from the list"
@@ -335,20 +341,27 @@ function slotMarkup(pick, board, access) {
       ? status.locked
         ? "Locked in"
         : "Your pick"
-      : pick.suggestion
-        ? "Coach suggests"
-        : moot
-          ? "Not played"
-          : "Open slot";
+      : projected
+        ? "Coach's likely pick"
+        : pick.suggestion
+          ? "Coach suggests"
+          : moot
+            ? "Not played"
+            : "Open slot";
 
+  // A playoff round the run reaches with every team that could play in it
+  // already spent: the pool has no pick to give, and the run ends here.
+  const deadEnd = board.weeks.find((week) => week.week === pick.week)?.noTeamLeft;
   const blank = moot
-    ? { team: "Season over", text: `The run ended in week ${board.eliminatedWeek}.` }
-    : board.eliminated
-      ? { team: "No pick", text: "Nothing was picked here." }
-      : {
-          team: pending ? WORKING : "No pick yet",
-          text: pending ? "The coach is planning the season." : "Pick a team from the sideline.",
-        };
+    ? { team: "Season over", text: `The run ended in ${weekPhrase(board, board.eliminatedWeek)}.` }
+    : deadEnd && !board.eliminated
+      ? { team: "No team left", text: "Every team that could play here is already spent." }
+      : board.eliminated
+        ? { team: "No pick", text: "Nothing was picked here." }
+        : {
+            team: pending ? WORKING : "No pick yet",
+            text: pending ? "The coach is planning the season." : "Pick a team from the sideline.",
+          };
 
   // The coach's badge stays on a locked pick: the board clears isRecommended
   // once a lock is a constraint the coach plans around, but it keeps the call
@@ -407,9 +420,11 @@ function slotMarkup(pick, board, access) {
         ${actionsMarkup(pick, board, access)}
       </div>
       <div class="call__matchup">${
-        shown
-          ? `${escapeHtml(formatMatchup(shown.site, shown.opponent))} · ${escapeHtml(shown.conference)}${kickoffMarkup(shown)}`
-          : escapeHtml(blank.text)
+        projected
+          ? `Matchups not set yet · ${escapeHtml(shown.conference)}`
+          : shown
+            ? `${escapeHtml(formatMatchup(shown.site, shown.opponent))} · ${escapeHtml(shown.conference)}${kickoffMarkup(shown)}`
+            : escapeHtml(blank.text)
       }</div>
     </div>`;
 }
@@ -537,6 +552,14 @@ function actionsMarkup(pick, board, access) {
       action: "lock",
       pick,
       disabled: !canWrite,
+    });
+  } else if (pick.suggestion?.projected) {
+    // Nothing to take: the team is the coach's guess at a round whose games
+    // are not set, and a pick is a team with a game.
+    lock = button({
+      label: "Picks open when the matchups are set",
+      icon: LOCK_OPEN,
+      disabled: true,
     });
   } else if (pick.suggestion) {
     lock = button({

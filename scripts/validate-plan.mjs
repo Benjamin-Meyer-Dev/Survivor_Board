@@ -9,6 +9,9 @@
  *   4. every pick is a real game that week, at the site the plan claims
  *   5. every backup is a real, eligible team not already spent that week
  *   6. buy back weeks are weeks the season actually has
+ *   7. playoff weeks come after every regular week, one per round, in order,
+ *      and author no pick: nobody knows who plays in a round until the round
+ *      before is over, so there is nothing to author and no schedule to check
  */
 
 import { readFile } from "node:fs/promises";
@@ -19,6 +22,7 @@ import { CONFIG } from "../src/js/config.js";
 import { buildBoard } from "../src/js/core/plan.js";
 import { SPORTS, SPORT_IDS } from "../src/js/sports.js";
 import { objectiveOf } from "../src/js/core/objective.js";
+import { ROUND_ORDER } from "../src/js/core/playoffs.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -71,9 +75,38 @@ async function validate(league) {
     );
   }
 
+  // The playoff rounds: after the regular season, once each, in the order
+  // they are played, with nothing authored in them. Only the regular season
+  // is checked as a path below.
+  const rounds = plan.weeks.filter((week) => week.round !== undefined);
+  const regular = plan.weeks.filter((week) => week.round === undefined);
+  const lastRegular = Math.max(0, ...regular.map((week) => week.week));
+  rounds.forEach((week, index) => {
+    if (!ROUND_ORDER.includes(week.round)) {
+      failures.push(`week ${week.week}: "${week.round}" is not a playoff round`);
+    } else if (
+      index > 0 &&
+      ROUND_ORDER.indexOf(week.round) <= ROUND_ORDER.indexOf(rounds[index - 1].round)
+    ) {
+      failures.push(`week ${week.week}: ${week.round} is out of order`);
+    }
+    if (week.week <= lastRegular) {
+      failures.push(`week ${week.week}: a playoff round before the regular season is over`);
+    }
+    if ((week.picks ?? []).length || (week.backups ?? []).length) {
+      failures.push(`week ${week.week}: a playoff round authors no pick`);
+    }
+  });
+  if ((plan.rules.endWeek ?? lastRegular) > lastRegular) {
+    failures.push(
+      `the plan ends at week ${plan.rules.endWeek}: pools stop at the regular season ` +
+        `unless they choose the playoffs`,
+    );
+  }
+
   const spent = new Map();
 
-  for (const week of plan.weeks) {
+  for (const week of regular) {
     if (week.picks.length !== plan.rules.picksPerWeek) {
       failures.push(
         `week ${week.week}: expected ${plan.rules.picksPerWeek} picks, found ${week.picks.length}`,
@@ -120,7 +153,7 @@ async function validate(league) {
   // Every plan pick must be a game that actually exists that week, against a
   // rated opponent. This is the check that would catch a hand-edited plan
   // naming a matchup that is not on the schedule.
-  for (const week of plan.weeks) {
+  for (const week of regular) {
     const games = schedule.weeks[String(week.week)] ?? [];
     if (games.length === 0) {
       failures.push(`week ${week.week}: no games in schedule.json`);
@@ -192,7 +225,8 @@ async function validate(league) {
 
   if (failures.length === 0) {
     console.log(
-      `${SPORTS[league].label} plan OK: ${plan.weeks.length} weeks, ` +
+      `${SPORTS[league].label} plan OK: ${regular.length} weeks` +
+        `${rounds.length ? ` and ${rounds.length} playoff rounds` : ""}, ` +
         `${spent.size} distinct teams, no repeats.`,
     );
   }

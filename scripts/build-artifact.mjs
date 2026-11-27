@@ -45,6 +45,7 @@ const JS = [
   "core/survival.js",
   "core/assignment.js",
   "core/scenarios.js",
+  "core/playoffs.js",
   "core/availability.js",
   "core/equity.js",
   "core/recommend.js",

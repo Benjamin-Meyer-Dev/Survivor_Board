@@ -49,6 +49,45 @@ import { mergeRules, sameRules } from "./rules.js";
 import { nextRefreshAt } from "./refresh.js";
 import { survival } from "./survival.js";
 import { availabilityAdjustment, availabilityNote } from "./availability.js";
+import { ROUND_NAMES, conferenceOf, seedsFromBracket, validSeeds } from "./playoffs.js";
+
+/**
+ * The schedule with the playoff games the refresh job has found laid into it.
+ *
+ * Nobody can write a playoff round into schedule.json in the spring: who plays
+ * in it is decided by the round before. So the refresh job reads each round's
+ * games off the market feed as they are announced and keeps them in odds.json
+ * under `playoffs.games`, by week (scripts/refresh-odds.mjs), and every reader
+ * of the schedule reads it through here. A round a human has typed into the
+ * schedule is left as typed. The Super Bowl is played at a neutral site
+ * whatever the feed calls home.
+ *
+ * @param {object} schedule data/<league>/schedule.json
+ * @param {object|null} odds data/<league>/odds.json
+ * @param {object|null} [plan] The calendar, to know which week is the final.
+ */
+export function withPlayoffGames(schedule, odds, plan = null) {
+  const found = odds?.playoffs?.games;
+  if (!found || typeof found !== "object") return schedule;
+  const neutralWeeks = new Set(
+    (plan?.weeks ?? [])
+      .filter((week) => week.round === "superbowl")
+      .map((week) => String(week.week)),
+  );
+  const weeks = { ...(schedule.weeks ?? {}) };
+  for (const [week, games] of Object.entries(found)) {
+    if (!Array.isArray(games) || games.length === 0) continue;
+    if ((weeks[week] ?? []).length > 0) continue;
+    weeks[week] = games
+      .filter((game) => typeof game?.home === "string" && typeof game?.away === "string")
+      .map((game) => ({
+        home: game.home,
+        away: game.away,
+        ...(game.neutral || neutralWeeks.has(week) ? { neutral: true } : {}),
+      }));
+  }
+  return { ...schedule, weeks };
+}
 
 /**
  * The rules a board runs on: what data/<league>/plan.json ships, with the
@@ -499,6 +538,159 @@ function lineOf(pick) {
     kickoff: pick.kickoff ?? null,
     availability: pick.availability ?? null,
     pricing: pick.pricing ?? null,
+    // Set on the coach's pick for a playoff round still to be set: there is no
+    // game to describe, only how the coach came to the team (projectedPick).
+    projected: pick.projected ?? null,
+  };
+}
+
+/** The playoff round a calendar week is, or null for a regular week. */
+function roundOf(weekPlan) {
+  return weekPlan.round && ROUND_NAMES[weekPlan.round] ? weekPlan.round : null;
+}
+
+/**
+ * What a calendar week is called: "Week 12", "12" and "week 12", or "Wild
+ * Card", "WC" and "the Wild Card round" (see weekPhrase in core/format.js).
+ */
+function nameOf(weekPlan) {
+  const round = roundOf(weekPlan);
+  return round
+    ? { ...ROUND_NAMES[round] }
+    : {
+        name: `Week ${weekPlan.week}`,
+        short: String(weekPlan.week),
+        phrase: `week ${weekPlan.week}`,
+      };
+}
+
+/** The year of an ISO date, or null for anything that is not one. */
+function yearOf(date) {
+  const year = /^(\d{4})-/.exec(String(date ?? ""))?.[1];
+  return year ? Number(year) : null;
+}
+
+/**
+ * The playoffs a pool's run goes on into, as plain data for the search
+ * (core/playoffs.js), or null when the run stops at the regular season or the
+ * league is not one a bracket can be drawn for.
+ *
+ * Everything in it is a fact about the sport rather than the pool, but for the
+ * rounds the pool plays: every regular-season game - its winner where it has
+ * been played, and the chance the home side wins where it has not, priced the
+ * way the board prices it - because the bracket is seeded off all of them,
+ * whichever weeks this pool happens to play. Then the playoff games already
+ * announced, the bracket's seeds once the wild card games say what they are
+ * (or a hand-kept `playoffs.seeds` in odds.json, which wins), and the ratings
+ * a game nobody has posted a line for is priced off.
+ */
+function postseasonSpec({
+  plan,
+  schedule,
+  odds,
+  ratings,
+  eligible,
+  form,
+  model,
+  availability,
+  rules,
+  currentWeek,
+  weekByNumber,
+}) {
+  const playoffWeeks = plan.weeks.filter((weekPlan) => roundOf(weekPlan));
+  const inRun = (week) => week >= rules.startWeek && week <= rules.endWeek;
+  if (!playoffWeeks.some((weekPlan) => inRun(weekPlan.week))) return null;
+
+  // A bracket is two conferences of divisions: a roster that is not shaped
+  // like one has no playoffs this file can draw.
+  const teams = Object.fromEntries(
+    Object.entries(eligible).map(([team, { conference }]) => [team, conference]),
+  );
+  if (!Object.values(teams).every((division) => conferenceOf(division))) return null;
+
+  // Each team's chance of winning its game, whichever way the pool picks: the
+  // week's own list where the pool plays the week (turned back from the
+  // pool's terms in a losers pool), and the week priced for winners where it
+  // does not.
+  const homeWins = (week) => {
+    const played = weekByNumber.get(week);
+    const options = played
+      ? played.options
+      : weekOptions({
+          schedule,
+          ratings,
+          eligible,
+          odds,
+          form,
+          week,
+          currentWeek,
+          model,
+          availability,
+          objective: "win",
+        });
+    const flip = Boolean(played) && rules.objective === "lose";
+    return new Map(
+      options.map((option) => [option.team, flip ? 1 - option.winProb : option.winProb]),
+    );
+  };
+  const tidy = (p) => Number(p.toFixed(4));
+
+  const regular = [];
+  for (const weekPlan of plan.weeks) {
+    if (roundOf(weekPlan)) continue;
+    let chances = null;
+    for (const game of schedule.weeks?.[String(weekPlan.week)] ?? []) {
+      if (!(game.home in teams) || !(game.away in teams)) continue;
+      const result = odds.results?.[lineKey(weekPlan.week, game.home)];
+      const winner = result === "W" ? game.home : result === "L" ? game.away : null;
+      const margin = odds.scores?.[lineKey(weekPlan.week, game.home)];
+      const entry = { home: game.home, away: game.away, winner };
+      if (Number.isFinite(margin)) entry.margin = margin;
+      if (!winner) {
+        chances ??= homeWins(weekPlan.week);
+        entry.pHome = tidy(chances.get(game.home) ?? 0.5);
+      }
+      regular.push(entry);
+    }
+  }
+
+  const games = {};
+  for (const weekPlan of playoffWeeks) {
+    const list = schedule.weeks?.[String(weekPlan.week)] ?? [];
+    if (list.length === 0) continue;
+    const chances = homeWins(weekPlan.week);
+    games[weekPlan.week] = list.map((game) => {
+      const result = odds.results?.[lineKey(weekPlan.week, game.home)];
+      return {
+        home: game.home,
+        away: game.away,
+        winner: result === "W" ? game.home : result === "L" ? game.away : null,
+        pHome: tidy(chances.get(game.home) ?? 0.5),
+      };
+    });
+  }
+
+  const wildcardWeek = playoffWeeks.find((weekPlan) => weekPlan.round === "wildcard")?.week;
+  const kept = odds.playoffs?.seeds;
+  const seeds = validSeeds(kept, teams)
+    ? kept
+    : seedsFromBracket({ teams, regular, wildcard: games[wildcardWeek] ?? [] });
+
+  return {
+    rounds: playoffWeeks.map((weekPlan) => ({
+      week: weekPlan.week,
+      round: weekPlan.round,
+      inRun: inRun(weekPlan.week),
+    })),
+    teams,
+    regular,
+    games,
+    seeds: seeds ?? null,
+    rating: Object.fromEntries(
+      Object.keys(teams).map((team) => [team, ratingFor({ team, ratings, form, eligible })]),
+    ),
+    homeField: ratings.homeFieldPoints ?? 2.5,
+    currentWeek,
   };
 }
 
@@ -548,6 +740,9 @@ export function buildBoard({
   allowSearch = true,
   inHand = null,
 }) {
+  // The playoff rounds whose games have been announced, laid into the
+  // schedule like any other week's (withPlayoffGames).
+  schedule = withPlayoffGames(schedule, odds, plan);
   // The pool's own rules, and the plan's for comparison: the settings sheet
   // needs both, to show what a reset would go back to.
   const ruleDefaults = rulesOf(plan);
@@ -604,13 +799,25 @@ export function buildBoard({
         }),
       );
 
+      const round = roundOf(weekPlan);
       return {
         week: weekPlan.week,
         label: weekPlan.label,
         // Every date shown in the UI carries its year, so a label is never
-        // ambiguous once a screenshot leaves the app.
-        labelFull: `${weekPlan.label}, ${plan.season}`,
+        // ambiguous once a screenshot leaves the app. The year is the date's
+        // own: a season's last weeks and its playoffs are played in January.
+        labelFull: `${weekPlan.label}, ${yearOf(weekPlan.kickoff) ?? plan.season}`,
         kickoff: weekPlan.kickoff,
+        // What the week is called: "Week 12", or a playoff round's name, and
+        // the short form a yard line has room for ("12", "WC").
+        ...nameOf(weekPlan),
+        // The playoff round this week is, or null for a regular week.
+        round,
+        // A playoff round whose games nobody knows yet: the round before has
+        // not been played. Nothing can be picked in it, and the coach can only
+        // say who it would most likely take there (`projected` on its pick).
+        bracketPending:
+          Boolean(round) && (schedule.weeks?.[String(weekPlan.week)] ?? []).length === 0,
         options,
         // The week's options by team. Naming a team - the coach's call, a
         // ghost, the frontier's candidates - is a lookup rather than a scan
@@ -639,6 +846,11 @@ export function buildBoard({
       }
     }
   }
+
+  // What a week is called on a tag, for a team spent in it: "Week 12", or a
+  // playoff round's short name.
+  const tagOf = new Map(weeks.map((week) => [week.week, week.round ? week.short : week.name]));
+  const phraseOf = new Map(weeks.map((week) => [week.week, week.phrase]));
 
   // Pass two: annotate each slot's options with why one may be unavailable -
   // held by the other slot this week, or locked in another week. Whether the
@@ -699,6 +911,14 @@ export function buildBoard({
             heldBySibling: takenBySibling,
             /** The week a lock burned this team, for any week but this one. */
             spentWeek: usedElsewhere ? spentTeams[option.team] : null,
+            /** As a tag names it, "Week 12" or "WC"... */
+            spentTag: usedElsewhere
+              ? (tagOf.get(spentTeams[option.team]) ?? `Week ${spentTeams[option.team]}`)
+              : null,
+            /** ...and as a sentence says it: "week 12", "the Wild Card round". */
+            spentPhrase: usedElsewhere
+              ? (phraseOf.get(spentTeams[option.team]) ?? `week ${spentTeams[option.team]}`)
+              : null,
             reason: settled
               ? settled === "W"
                 ? "Won"
@@ -706,7 +926,7 @@ export function buildBoard({
               : takenBySibling
                 ? "Other Slot"
                 : usedElsewhere
-                  ? `Week ${spentTeams[option.team]}`
+                  ? (tagOf.get(spentTeams[option.team]) ?? `Week ${spentTeams[option.team]}`)
                   : "",
           };
         })
@@ -751,6 +971,9 @@ export function buildBoard({
     // settings sheet needs the whole season to offer a start and an end from,
     // and `weeks` above is only the run between them.
     seasonWeeks: plan.weeks.map((weekPlan) => weekPlan.week),
+    // What each of those weeks is called, long and short, by week: the
+    // settings sheet names a playoff round rather than numbering it.
+    weekNames: Object.fromEntries(plan.weeks.map((weekPlan) => [weekPlan.week, nameOf(weekPlan)])),
     rules,
     currentWeek,
     // The probability model the week was priced with, for the coach's futures
@@ -803,6 +1026,24 @@ export function buildBoard({
     // field is implied from the lines.
     pool,
   };
+
+  // The playoffs the run goes on into, as the search needs them: who plays
+  // whom in the regular season still to come, the bracket where it is set,
+  // and the ratings its games are priced on. Null for a run that stops at the
+  // end of the regular season, which is every run but one a pool extends.
+  board.postseason = postseasonSpec({
+    plan,
+    schedule,
+    odds,
+    ratings,
+    eligible,
+    form,
+    model,
+    availability,
+    rules,
+    currentWeek,
+    weekByNumber,
+  });
 
   // The recommendation is the expensive part of a build (a beam search over
   // the remaining weeks), and it depends only on the week, what is locked, and
@@ -967,6 +1208,55 @@ export function buildBoard({
   // pick is then the whole of what the week holds. Without this the week and
   // every week after it would drop their numbers, as if the path were unfinished.
   const shortWeeks = new Set(recommendation.shortfalls ?? []);
+  // A round still to be set is projected one pick deep whatever the pool asks
+  // for: the coach's likeliest team there carries the round's whole chance.
+  // In a two-pick pool that is a week short by nature, not an unfinished path.
+  if (rules.picksPerWeek > 1) {
+    for (const week of weeks) if (week.bracketPending) shortWeeks.add(week.week);
+  }
+  // A playoff round the run reaches with no team left to take - both sides of
+  // the Super Bowl spent - is where the run ends, and every number below
+  // prices it at nothing rather than leaving it out (deadEndsOf in
+  // core/recommend.js). `source` is the plan a figure is read from.
+  const deadEndsOf = (source) => new Set(source?.deadEnds ?? recommendation.deadEnds ?? []);
+  const deadEnds = deadEndsOf(recommendation);
+  for (const week of weeks) {
+    week.noTeamLeft = deadEnds.has(week.week) && week.week >= currentWeek;
+    if (week.noTeamLeft) shortWeeks.add(week.week);
+  }
+  /** What a dead end puts on a path: no team, and no way through. */
+  const deadEnd = (week) => ({ week: week.week, winProb: 0, result: null });
+  /**
+   * The coach's likeliest pick for a round nobody knows the games of, as an
+   * option the path can carry: its team and the chance the round holds once
+   * the run has got there, with no opponent, line or site, because there are
+   * none yet. From `source`'s plan when it made a projection, and the board's
+   * own plan when it did not (a preview, which has no time to solve a bracket).
+   */
+  const projectedPick = (week, source) => {
+    const entry = source?.projected?.[week.week] ?? recommendation.projected?.[week.week];
+    if (!entry?.team) return null;
+    return {
+      team: entry.team,
+      opponent: null,
+      site: null,
+      conference: eligible[entry.team]?.conference ?? "",
+      spread: null,
+      source: "bracket",
+      winProb: entry.winProb,
+      tier: confidenceTier(entry.winProb, rules.tiers),
+      weeksAhead: Math.max(0, week.week - currentWeek),
+      movement: null,
+      kickoff: null,
+      availability: null,
+      pricing: null,
+      total: null,
+      result: null,
+      // How the coach came to it: how often it takes this team there, the
+      // others it might, and how often the run reaches the round at all.
+      projected: { share: entry.share, reach: entry.reach, picks: entry.picks ?? [] },
+    };
+  };
   // The path the lock would leave: the locks, then what the rehearsal plans
   // around them. Gathered week by week below and priced as "if locked". Not the
   // path on screen: a second pick pending in another week is shown in its slot,
@@ -1039,6 +1329,13 @@ export function buildBoard({
       const option = week.optionByTeam.get(team);
       return option ? [{ ...option, tier: confidenceTier(option.winProb, rules.tiers) }] : [];
     });
+    // A playoff round nobody knows the games of has no team on the path, only
+    // the team the coach would most likely take there, at the chance the round
+    // holds once the run has got that far.
+    if (week.bracketPending) {
+      const projected = projectedPick(week, recommendation);
+      week.pathRecommendation = projected ? [projected] : [];
+    }
     // Short of fixtures rather than short of plan, as the plan speaking for
     // the week reported it.
     const shortOfGames = advice
@@ -1100,13 +1397,33 @@ export function buildBoard({
         entry: { week: week.week, winProb: option.winProb, result: lock?.status.result ?? null },
       };
     };
-    if (rehearsal) {
+    // A round still to be set rehearses as its projection: the rehearsal's own
+    // when it made one, the board's plan's when a preview did not.
+    const projectedFrom = (source) => {
+      const projected = projectedPick(week, source);
+      return projected ? [projected] : [];
+    };
+    if (rehearsal && deadEndsOf(preview).has(week.week) && week.week >= currentWeek) {
+      rehearsalPicks.push(deadEnd(week));
+    } else if (rehearsal && week.bracketPending) {
+      for (const projected of projectedFrom(preview)) {
+        rehearsalPicks.push({ week: week.week, winProb: projected.winProb, result: null });
+      }
+    } else if (rehearsal) {
       for (const team of pathOf(lockedTeams, preview)) {
         const hit = priced(team);
         if (hit) rehearsalPicks.push(hit.entry);
       }
     }
-    if (routeRehearsal) {
+    if (routeRehearsal && deadEndsOf(routePreview).has(week.week) && week.week >= currentWeek) {
+      week.rehearsalPath = [];
+      routePicks.push(deadEnd(week));
+    } else if (routeRehearsal && week.bracketPending) {
+      week.rehearsalPath = projectedFrom(routePreview);
+      for (const projected of week.rehearsalPath) {
+        routePicks.push({ week: week.week, winProb: projected.winProb, result: null });
+      }
+    } else if (routeRehearsal) {
       // The chart's route holds this week's pending picks too, as locks would.
       week.rehearsalPath = [];
       for (const team of pathOf(heldTeams, routePreview)) {
@@ -1313,6 +1630,7 @@ export function buildBoard({
         result: pick.status.result ?? null,
       })),
     );
+    if (week.noTeamLeft && weekPath.length === 0) cumulativePicks.push(deadEnd(week));
     week.seasonWinProb = pathComplete
       ? survival({
           picks: cumulativePicks,
@@ -1361,6 +1679,7 @@ export function buildBoard({
         result: locked?.status.result ?? null,
       });
     }
+    if (week.noTeamLeft && week.pathRecommendation.length === 0) committedPicks.push(deadEnd(week));
   }
 
   const committedOutcome = survival({

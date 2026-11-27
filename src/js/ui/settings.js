@@ -492,6 +492,10 @@ function paint(root, keep = null) {
   const wantsWeeks = rules.buyBacks > 0;
   const hadWeeks = body.querySelector('[data-key="buyBackWeeks"]');
 
+  // A week by what the calendar calls it: its number, or a playoff round's
+  // short name - a pool that ends at the Super Bowl ends at "SB", not at 22.
+  const weekName = (week) => board.weekNames?.[week]?.short ?? String(week);
+
   // No control for what a pick has to do: that is the kind of pool this is,
   // fixed when the league was made and named in the title above.
   reconcile(
@@ -502,6 +506,7 @@ function paint(root, keep = null) {
       controls: stepper("startWeek", rules.startWeek, {
         min: season[0] ?? rules.startWeek,
         max: rules.endWeek,
+        format: weekName,
       }),
     })}
     ${group({
@@ -510,6 +515,7 @@ function paint(root, keep = null) {
       controls: stepper("endWeek", rules.endWeek, {
         min: rules.startWeek,
         max: season.at(-1) ?? rules.endWeek,
+        format: weekName,
       }),
     })}
     ${group({
@@ -540,7 +546,7 @@ function paint(root, keep = null) {
   );
 
   const weeksBox = body.querySelector("[data-weeks]");
-  if (weeksBox) paintWeeks(weeksBox, weeks, rules, open && Boolean(hadWeeks));
+  if (weeksBox) paintWeeks(weeksBox, weeks, rules, open && Boolean(hadWeeks), weekName);
 
   // The group arriving with the pool's first buy back, and leaving with its
   // last. Only in an open sheet: on the way in the whole sheet is arriving,
@@ -614,7 +620,7 @@ function maxPicksPerWeek(weeks, totalTeams) {
  * @param {object} rules The draft.
  * @param {boolean} animate
  */
-function paintWeeks(box, weeks, rules, animate) {
+function paintWeeks(box, weeks, rules, animate, weekName = String) {
   const before = new Set([...box.children].map((pill) => pill.dataset.key));
   const gone = animate
     ? [...box.children].filter((pill) => !weeks.some((week) => String(week) === pill.dataset.key))
@@ -627,7 +633,7 @@ function paintWeeks(box, weeks, rules, animate) {
         (week) => `
       <button type="button" class="settings__week" data-rule="buyBackWeeks" data-key="${week}"
               data-value="${week}"
-              aria-pressed="${rules.buyBackWeeks.includes(week)}">${week}</button>`,
+              aria-pressed="${rules.buyBackWeeks.includes(week)}">${escapeHtml(weekName(week))}</button>`,
       )
       .join(""),
   );
@@ -704,8 +710,8 @@ function group({ legend, controls, key, stack = false }) {
  * a minus and a plus that go grey at the ends of the range. A zero is shown
  * as one, like every other count on a board.
  */
-function stepper(rule, value, { min, max }) {
-  const shown = String(value);
+function stepper(rule, value, { min, max, format = String }) {
+  const shown = format(value);
   const step = (to, direction, words) => `
         <button type="button" class="settings__step" data-rule="${rule}" data-step="${direction}"
                 data-value="${to}" aria-label="${escapeHtml(words)}"

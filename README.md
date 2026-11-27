@@ -15,18 +15,27 @@ A league is one or more pools. Each is a season, played for winners or for
 losers - which is decided when the league is made and cannot change - with its
 own rules on top:
 
-|          | College season       | NFL season |
-| -------- | -------------------- | ---------- |
-| Weeks    | 1-13                 | 1-18       |
-| Eligible | SEC, Big Ten, Big 12 | all 32     |
-| Opponent | must be FBS          | any        |
+|          | College season       | NFL season                         |
+| -------- | -------------------- | ---------------------------------- |
+| Weeks    | 1-13                 | 1-18, then optionally the playoffs |
+| Eligible | SEC, Big Ten, Big 12 | all 32                             |
+| Opponent | must be FBS          | any                                |
 
-and the rules its members set, from the gear beside its name - how many
-**picks a week**, how many **buy backs** and the weeks they cover. Those are
-the pool's, not the device's: saving them re-plans the season on every phone in
-it. No team can be used twice either way,
+and the rules its members set, from the gear beside its name - which weeks it
+**starts and ends** on, how many **picks a week**, how many **buy backs** and
+the weeks they cover. Those are the pool's, not the device's: saving them
+re-plans the season on every phone in it. No team can be used twice either way,
 and a buy back forgives a loss without giving the team back, so a week 1 loss
 costs both the team and the cushion.
+
+An NFL pool can play on into the playoffs: step its end week past 18 and it
+stops at the Wild Card round, the Divisional round, the conference title games
+or the Super Bowl. The no-repeat rule runs the whole way, so a team spent in
+October is gone for January too, and the coach plans the regular season with
+that in mind - a strong team can be worth more kept for a round where nothing
+else is left. A team knocked out is simply not in the next round's games, and a
+round whose games are not set yet shows the coach's likeliest pick until they
+are. See [Playoffs](docs/ARCHITECTURE.md#playoffs).
 
 Nothing about a league is built into the app. The repo carries the two seasons -
 the schedules, the lines, the ratings and the calibrated model - and every

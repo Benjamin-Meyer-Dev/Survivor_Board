@@ -56,11 +56,13 @@ import { DEFAULT_MODEL } from "./probability.js";
 import {
   equityOverlay,
   rankOpenings,
+  chooseCall,
   TIE_MARGIN,
   DEFAULT_FLOOR,
   COVERED_FLOOR,
   DEFAULT_MODE,
 } from "./equity.js";
+import { postseasonFor, FIELD_COUNT } from "./playoffs.js";
 
 /** Beams carried between weeks. Higher = better paths, slower. */
 const BEAM_WIDTH = 160;
@@ -106,6 +108,14 @@ const SCENARIO_COUNT = 128;
 
 /** Strongest complete-path openings retained beside the team-complete set. */
 const PATH_OPENINGS = 6;
+
+/**
+ * Finalists scored again on the bracket itself once the search is over, best
+ * on the prices first, for a run that goes on into the playoffs. Each is a
+ * bracket solved for the teams its path leaves (core/playoffs.js), so this is
+ * what a playoff run costs a search beyond the prices.
+ */
+const EXACT_FINALISTS = 6;
 
 /**
  * How many calls the coach makes for a week, as a multiple of the picks it has
@@ -155,7 +165,9 @@ export const ENGINE_VERSION = [
   // (judgeFrontier), which moves the coach's fallback order on a college week.
   // e3: a run that is over is planned from the week after its loss, played
   // weeks included (planScope), rather than from the week on the clock.
-  "e3",
+  // e4: a run into the playoffs prices every team for what it is worth in
+  // January (core/playoffs.js), and plans the rounds as a bracket.
+  "e4",
   DEFAULT_MODE,
   TIE_MARGIN,
   DEFAULT_FLOOR,
@@ -166,10 +178,259 @@ export const ENGINE_VERSION = [
   CANDIDATE_WIDTH,
   FINALISTS,
   COACH_DEPTH,
+  EXACT_FINALISTS,
+  FIELD_COUNT,
 ].join(",");
 
 /** Probabilities multiply, so we add logs and avoid underflow across 26 picks. */
 const logp = (p) => Math.log(Math.max(p, 1e-9));
+
+/** A run that stops before the playoffs: what it leaves is worth nothing extra. */
+const NO_POSTSEASON = Object.freeze({
+  active: false,
+  post: null,
+  prices: new Map(),
+  base: 1,
+  price: () => 0,
+  approx: () => 1,
+  exact: () => 1,
+});
+
+/** Every team spent once a path has been played: the burned set, and the path's. */
+function usedBy(burned, path) {
+  const used = new Set(burned);
+  for (const teams of Object.values(path)) for (const team of teams ?? []) used.add(team);
+  return used;
+}
+
+/** Whether a week still has a pick to make: an open slot, and a team to fill it. */
+function hasChoice(week, burned, picksPerWeek) {
+  const fixed = (week.fixed ?? []).filter(Boolean);
+  if (fixed.length >= picksPerWeek) return false;
+  return openOptions(week, fixed).some((option) => !burned.has(option.team));
+}
+
+/**
+ * The playoffs a regular-season search plans towards (core/playoffs.js): the
+ * bracket solved for what is spent already, each team's price for spending it
+ * before then, and the bracket itself for scoring the paths that come out.
+ */
+function seasonTerminal(
+  spec,
+  { burned, picksPerWeek = 2, model = DEFAULT_MODEL, objective = "win" },
+  from,
+) {
+  const post = postseasonFor(spec, { model, objective, picksPerWeek, fixed: {}, from });
+  if (!post) return NO_POSTSEASON;
+  const prices = post.prices(burned);
+  const base = post.value(burned);
+  return {
+    active: true,
+    post,
+    prices,
+    base,
+    price: (team) => prices.get(team) ?? 0,
+    approx: (used) => post.approx(burned, used),
+    exact: (used) => post.value(used),
+  };
+}
+
+/**
+ * The same, read off prices a full search has already worked out - for a
+ * preview, which answers a tap and has no time to solve a bracket. Without
+ * them the preview plans as if the season stopped at the regular season, and
+ * the rehearsal behind it puts that right a beat later.
+ */
+function pricedTerminal(given) {
+  if (!given?.prices || typeof given.prices !== "object") return NO_POSTSEASON;
+  const prices = new Map(
+    Object.entries(given.prices).filter(([, value]) => Number.isFinite(value)),
+  );
+  const base = Number.isFinite(given.base) ? given.base : 1;
+  const approx = (used) => {
+    let cost = 0;
+    for (const team of used) cost += prices.get(team) ?? 0;
+    return base * Math.exp(-cost);
+  };
+  return {
+    active: true,
+    post: null,
+    prices,
+    base,
+    price: (team) => prices.get(team) ?? 0,
+    approx,
+    exact: approx,
+  };
+}
+
+/**
+ * The playoff rounds a plan reaches, as the board shows a round nobody knows
+ * the games of yet: who the coach would most likely take there and how often,
+ * and the chance the round holds given the run got that far. Those chances
+ * multiply to the bracket's value.
+ *
+ * The team named for a round is the likeliest one the rounds before it have
+ * not already named. Taken round by round on its own, the likeliest pick can
+ * be the same team twice - the Bills are the coach's wild card pick in some
+ * brackets and its divisional pick in the others - and a line that spends a
+ * team twice is the one thing the pool forbids, so the board would show it
+ * that way and then refuse it. `taken` holds the teams already on the line.
+ */
+function projectedRounds(rounds, taken = new Set()) {
+  const out = {};
+  const named = new Set(taken);
+  for (const round of rounds) {
+    const pick = round.picks.find((entry) => !named.has(entry.team)) ?? null;
+    if (pick) named.add(pick.team);
+    out[round.week] = {
+      round: round.round,
+      team: pick?.team ?? null,
+      share: pick?.share ?? 0,
+      winProb: round.winProb,
+      reach: round.reach,
+      picks: round.picks.slice(0, 3),
+    };
+  }
+  return out;
+}
+
+/**
+ * The plan once the regular season has nothing left to decide: the bracket,
+ * played round by round (core/playoffs.js).
+ *
+ * The round being picked, once its games are posted, is called the way every
+ * other week is (chooseCall in core/equity.js): the best chance of coming
+ * through the rest of the bracket, among the picks at least `floor` likely to
+ * hold this week. The rounds after it are the coach's likeliest picks there,
+ * played on from that call. A round with no team left to take - both Super
+ * Bowl sides spent - is a round the run cannot get through, and says so.
+ */
+function bracketPlan({
+  weeks,
+  burned,
+  picksPerWeek = 2,
+  model = DEFAULT_MODEL,
+  objective = "win",
+  pool = null,
+  postseason,
+}) {
+  const empty = { picks: {}, pathProbability: 0, shortfalls: [], frontier: null, ranked: {} };
+  const fixedOf = (week) => (week.fixed ?? []).filter(Boolean);
+  const fixed = {};
+  for (const week of weeks) if (week.round) fixed[week.week] = fixedOf(week);
+  const from = weeks[0]?.week ?? postseason.currentWeek;
+  let post = postseasonFor(postseason, { model, objective, picksPerWeek, fixed, from });
+  if (!post) return empty;
+
+  const picks = {};
+  const ranked = {};
+  // A regular week left in the plan has nothing to decide, so it holds its locks.
+  for (const week of weeks) if (!week.round) picks[week.week] = fixedOf(week);
+
+  // The first round still to pick, when its games are up and the bracket is
+  // set: every pick it can take, valued through the rest of the bracket.
+  let rounds = post.project(burned);
+  // The round being picked: the first the run has a pick to make in. One
+  // played out unpicked is behind it, however recently.
+  const first = rounds.find((round) => !round.passed);
+  const posted = first && weeks.find((week) => week.week === first.week && week.options.length);
+  const choices = posted ? post.rank(burned) : null;
+  if (posted && choices?.length) {
+    const optionOf = (team) => posted.options.find((option) => option.team === team);
+    const candidates = choices.map((choice) => ({
+      teams: choice.teams,
+      weekWinProb: choice.teams.reduce(
+        (product, team) => product * (optionOf(team)?.winProb ?? choice.chance),
+        1,
+      ),
+      scenarioMean: choice.value,
+      season: choice.value,
+    }));
+    const call = chooseCall(candidates, {
+      mode: "safest",
+      floor: Number.isFinite(pool?.floor) ? pool.floor : DEFAULT_FLOOR,
+    });
+    const order = [call, ...rankOpenings(candidates.filter((candidate) => candidate !== call))];
+    const held = fixedOf(posted);
+    picks[first.week] = [...held, ...call.teams.filter((team) => !held.includes(team))];
+    const list = [];
+    for (const candidate of order) {
+      for (const team of candidate.teams) {
+        if (!held.includes(team) && !list.includes(team)) list.push(team);
+      }
+    }
+    const need = picksPerWeek - held.length;
+    if (need > 0 && list.length) ranked[first.week] = list.slice(0, need * COACH_DEPTH);
+    // The floor can call something the bracket alone would not. The rounds
+    // after are then played on from the call that was made.
+    if (!sameSet(call.teams, choices[0].teams)) {
+      post = postseasonFor(postseason, {
+        model,
+        objective,
+        picksPerWeek,
+        fixed: { ...fixed, [first.week]: picks[first.week] },
+        from,
+      });
+      rounds = post.project(burned);
+    }
+  } else if (posted && choices === null) {
+    // The round is up but the bracket is not yet one fact - the feed has five
+    // of the six wild card games, say, so the seeds are still a guess. The
+    // coach's likeliest picks there are still the best answer it has, and
+    // they are teams with a game.
+    const held = fixedOf(posted);
+    const playing = first.picks
+      .map((entry) => entry.team)
+      .filter((team) => posted.options.some((option) => option.team === team));
+    const open = playing.filter((team) => !held.includes(team));
+    const need = picksPerWeek - held.length;
+    picks[first.week] = [...held, ...open.slice(0, Math.max(0, need))];
+    if (need > 0 && open.length) ranked[first.week] = open.slice(0, need * COACH_DEPTH);
+  }
+
+  const projected = projectedRounds(
+    rounds.filter((round) => round.week !== first?.week || !posted),
+    new Set(Object.values(picks).flat()),
+  );
+  // A posted round with nothing the coach would take in it is no projection:
+  // the picks the bracket could make there are all spent.
+  const dead = deadEndsOf(rounds);
+  if (posted && !(picks[first.week] ?? []).length && !dead.includes(first.week)) {
+    dead.push(first.week);
+  }
+  // A regular week left in the plan with an open slot and nothing to fill it
+  // is short by nature, as the search would have reported it.
+  // So is a round played out with nothing locked in it: the pick was never
+  // made, and the run is carried through it the way a missed week is.
+  const shortfalls = [
+    ...weeks
+      .filter((week) => !week.round && fixedOf(week).length < picksPerWeek)
+      .map((week) => week.week),
+    ...rounds.filter((round) => round.passed).map((round) => round.week),
+  ];
+  return {
+    picks,
+    pathProbability: rounds.reduce((product, round) => product * round.winProb, 1),
+    shortfalls,
+    deadEnds: deadEndsOf(rounds),
+    frontier: null,
+    ranked,
+    projected,
+    postseason: { value: post.value(burned), prices: {}, base: post.value(burned) },
+  };
+}
+
+/**
+ * The rounds a run reaches with no team left to take: both sides of the Super
+ * Bowl spent, say. Not short by nature, the way a week down to one game is -
+ * the pool has no pick to give, and the run ends there. The board prices them
+ * at nothing (core/plan.js), as the bracket does.
+ */
+function deadEndsOf(rounds) {
+  return rounds
+    .filter((round) => round.reach > 0 && round.picks.length === 0 && !round.passed)
+    .map((round) => round.week);
+}
 
 /**
  * @param {object} args
@@ -198,21 +459,69 @@ const logp = (p) => Math.log(Math.max(p, 1e-9));
  *   the coach's calls for each week, best first and COACH_DEPTH times as many
  *   as the week needs (see rankCalls). Empty for a quick answer.
  */
-export function recommendPath({
-  weeks,
-  burned,
-  picksPerWeek = 2,
-  buyBackWeeks = [],
-  buyBacks = 0,
-  seed = null,
-  model = DEFAULT_MODEL,
-  scenarios = SCENARIO_COUNT,
-  quick = false,
-  objective = "win",
-  pool = null,
-  poolBuyBacks = buyBacks,
-}) {
+export function recommendPath({ postseason = null, postseasonPrices = null, ...args }) {
+  if (!postseason) return searchSeason(args, NO_POSTSEASON);
+
+  // A playoff round can only be planned as the bracket it is. Once no regular
+  // week has a choice left in it, the bracket is the whole of the plan.
+  const regular = args.weeks.filter((week) => !week.round);
+  const choosing = regular.some((week) => hasChoice(week, args.burned, args.picksPerWeek ?? 2));
+  if (!choosing) return bracketPlan({ ...args, postseason });
+
+  // Otherwise the regular season is searched as it always was, with what each
+  // team would be worth in January as the price of spending it now, and the
+  // rounds the plan reaches are the bracket played with what the path leaves.
+  const terminal = args.quick
+    ? pricedTerminal(postseasonPrices)
+    : seasonTerminal(postseason, args, regular[0]?.week ?? postseason.currentWeek);
+  const found = searchSeason({ ...args, weeks: regular }, terminal);
+  if (!terminal.post || !found.picks) return found;
+  const used = usedBy(args.burned, found.picks);
+  const rounds = terminal.post.project(used);
+  return {
+    ...found,
+    projected: projectedRounds(rounds, used),
+    deadEnds: deadEndsOf(rounds),
+    postseason: {
+      value: terminal.exact(used),
+      prices: Object.fromEntries(terminal.prices),
+      base: terminal.base,
+    },
+  };
+}
+
+/**
+ * The search over a run of weeks, with what the run leaves for the playoffs
+ * (`terminal`) priced in. Without a postseason the terminal is worth one and
+ * costs nothing, and this is the search as it was.
+ */
+function searchSeason(
+  {
+    weeks,
+    burned,
+    picksPerWeek = 2,
+    buyBackWeeks = [],
+    buyBacks = 0,
+    seed = null,
+    model = DEFAULT_MODEL,
+    scenarios = SCENARIO_COUNT,
+    quick = false,
+    objective = "win",
+    pool = null,
+    poolBuyBacks = buyBacks,
+  },
+  terminal,
+) {
   const forgiving = new Set(buyBacks > 0 ? buyBackWeeks : []);
+  /** A pick's weight: its week, less what spending the team costs January. */
+  const priced = (team, lp) => lp - terminal.price(team);
+  /** A finished path's survival, the playoffs it leaves included. */
+  const valueOf = (path, { exactly = false } = {}) => {
+    const regular = survivalOfPath({ weeks, path, buyBackWeeks, buyBacks });
+    if (!terminal.active || regular === 0) return regular;
+    const used = usedBy(burned, path);
+    return regular * (exactly ? terminal.exact(used) : terminal.approx(used));
+  };
 
   // The beam has to prune long before it knows how a path ends, and the score
   // it prunes on cannot express "a loss here is forgiven" - that is a property
@@ -255,10 +564,18 @@ export function recommendPath({
     return { picks: {}, pathProbability: 0, shortfalls: [], frontier: null, ranked: {} };
   }
 
-  for (const beam of finalists) {
-    beam.survival = survivalOfPath({ weeks, path: beam.picks, buyBackWeeks, buyBacks });
-  }
+  for (const beam of finalists) beam.survival = valueOf(beam.picks);
   finalists.sort((a, b) => b.survival - a.survival);
+  // What a path leaves for the playoffs is priced team by team while the
+  // search runs, and a price is a first-order reading: spending two teams that
+  // could each cover the Super Bowl costs more than the two prices say. So the
+  // leaders are scored again on the bracket itself, the way buy backs are.
+  if (terminal.active && !quick) {
+    const leaders = finalists.slice(0, EXACT_FINALISTS);
+    for (const beam of leaders) beam.survival = valueOf(beam.picks, { exactly: true });
+    leaders.sort((a, b) => b.survival - a.survival);
+    finalists.splice(0, leaders.length, ...leaders);
+  }
   let best = finalists[0];
 
   // This week's call, judged across futures rather than on one path.
@@ -276,6 +593,7 @@ export function recommendPath({
           objective,
           pool,
           poolBuyBacks,
+          terminal,
         })
       : null;
 
@@ -309,7 +627,10 @@ export function recommendPath({
 
   return {
     picks: best.picks,
-    pathProbability: best.survival,
+    // The path the frontier chose may have been scored on the prices; the
+    // number it goes out with is the bracket's own.
+    pathProbability:
+      terminal.active && !quick ? valueOf(best.picks, { exactly: true }) : best.survival,
     shortfalls: best.shortfalls,
     frontier: frontier ? { ...frontier, chosen: { teams: frontier.chosen.teams } } : null,
     // A preview is answering a tap and gets the path alone; the coach's ranked
@@ -389,15 +710,12 @@ export function recommendPath({
         burned,
         picksPerWeek,
         weightOf: (at, team, winProb) =>
-          at === week.week && barred.has(team) ? FORBIDDEN : logp(effective(at, winProb)),
+          at === week.week && barred.has(team)
+            ? FORBIDDEN
+            : priced(team, logp(effective(at, winProb))),
       });
       if (!assigned.complete || !conflictFree(weeks, assigned.picks)) continue;
-      const survived = survivalOfPath({
-        weeks,
-        path: assigned.picks,
-        buyBackWeeks,
-        buyBacks,
-      });
+      const survived = valueOf(assigned.picks);
       if (!found || survived > found.survival)
         found = { survival: survived, picks: assigned.picks };
     }
@@ -423,12 +741,15 @@ export function recommendPath({
       weeks,
       burned,
       picksPerWeek,
-      weightOf: (week, team, winProb) => logp(effective(week, winProb)),
+      weightOf: (week, team, winProb) => priced(team, logp(effective(week, winProb))),
     });
     if (!assigned.complete || !conflictFree(weeks, assigned.picks)) return null;
-    const used = new Set(burned);
-    for (const teams of Object.values(assigned.picks)) for (const team of teams) used.add(team);
-    return { used, score: assigned.value, picks: assigned.picks, shortfalls: [] };
+    return {
+      used: usedBy(burned, assigned.picks),
+      score: assigned.value,
+      picks: assigned.picks,
+      shortfalls: [],
+    };
   }
 
   /** The best complete path that opens with these teams, by a second beam. */
@@ -441,15 +762,18 @@ export function recommendPath({
     }
     while (open.length) slots.push(open.shift());
     const fixed = [{ ...first, fixed: slots }, ...rest];
-    const found = recommendPath({
-      weeks: fixed,
-      burned,
-      picksPerWeek,
-      buyBackWeeks,
-      buyBacks,
-      model,
-      scenarios: 0,
-    });
+    const found = searchSeason(
+      {
+        weeks: fixed,
+        burned,
+        picksPerWeek,
+        buyBackWeeks,
+        buyBacks,
+        model,
+        scenarios: 0,
+      },
+      terminal,
+    );
     if (!found.picks[first.week]) return null;
     return { picks: found.picks, survival: found.pathProbability, shortfalls: found.shortfalls };
   }
@@ -462,10 +786,13 @@ export function recommendPath({
     // Each beam is ranked on score PLUS an optimistic estimate of what it has
     // left, so paths are compared over the whole season.
     const pools = weeks.map((week) =>
-      [...week.options]
-        .sort((a, b) => b.winProb - a.winProb)
-        .slice(0, LOOKAHEAD_POOL)
-        .map((option) => ({ team: option.team, lp: logp(effective(week.week, option.winProb)) })),
+      week.options
+        .map((option) => ({
+          team: option.team,
+          lp: priced(option.team, logp(effective(week.week, option.winProb))),
+        }))
+        .sort((a, b) => b.lp - a.lp)
+        .slice(0, LOOKAHEAD_POOL),
     );
 
     // Each later week takes the best teams it has left, and a team taken by
@@ -496,6 +823,8 @@ export function recommendPath({
       const need = picksPerWeek - fixed.length;
 
       const lp = (winProb) => logp(effective(week.week, winProb));
+      /** What taking a team here scores: the week, less what it costs January. */
+      const take = (option) => priced(option.team, lp(option.winProb));
 
       // Fixed picks still score, so totals stay comparable between beams.
       const fixedScore = fixed.reduce((sum, team) => {
@@ -503,7 +832,12 @@ export function recommendPath({
         return sum + lp(option?.winProb ?? 0.5);
       }, 0);
 
-      const ranked = openOptions(week, fixed);
+      // Best first by what a pick scores, which is its chance until a playoff
+      // run puts a price on the team: a strong team worth more in January than
+      // this week is not one of the first twelve the week should look at.
+      const ranked = terminal.active
+        ? openOptions(week, fixed).sort((a, b) => take(b) - take(a))
+        : openOptions(week, fixed);
 
       // A two-pick week expands every beam into ~66 candidates, so this list
       // runs to ten thousand entries. They are proposals, not beams: just the
@@ -524,14 +858,14 @@ export function recommendPath({
 
         if (need === 1) {
           for (const option of available) {
-            next.push(propose(beam, [...fixed, option.team], fixedScore + lp(option.winProb)));
+            next.push(propose(beam, [...fixed, option.team], fixedScore + take(option)));
           }
           continue;
         }
 
         if (available.length === 1) {
           const only = available[0];
-          next.push(propose(beam, [...fixed, only.team], fixedScore + lp(only.winProb), true));
+          next.push(propose(beam, [...fixed, only.team], fixedScore + take(only), true));
           continue;
         }
 
@@ -546,17 +880,14 @@ export function recommendPath({
             const b = available[j];
             if (a.opponent === b.team) continue;
             paired = true;
-            next.push(
-              propose(beam, [...fixed, a.team, b.team], fixedScore + lp(a.winProb) + lp(b.winProb)),
-            );
+            next.push(propose(beam, [...fixed, a.team, b.team], fixedScore + take(a) + take(b)));
           }
         }
 
         if (!paired) {
-          // Sorted by win probability, so this is the better side of the one
-          // game left.
+          // Sorted best first, so this is the better side of the one game left.
           const top = available[0];
-          next.push(propose(beam, [...fixed, top.team], fixedScore + lp(top.winProb), true));
+          next.push(propose(beam, [...fixed, top.team], fixedScore + take(top), true));
         }
       }
 
@@ -648,9 +979,14 @@ function judgeFrontier({
   objective = "win",
   pool = null,
   poolBuyBacks = buyBacks,
+  terminal = NO_POSTSEASON,
 }) {
   const [first, ...rest] = weeks;
   if (!first) return null;
+  // What a future's path leaves for the playoffs, read off the prices: a
+  // hundred and twenty-eight futures for every opening is far too many
+  // brackets to solve, and every opening meets the same prices.
+  const leaves = (path) => (terminal.active ? terminal.approx(usedBy(burned, path)) : 1);
   const fixed = (first.fixed ?? []).filter(Boolean);
   const need = picksPerWeek - fixed.length;
   if (need <= 0) return null;
@@ -747,23 +1083,24 @@ function judgeFrontier({
     const opening = [...fixed, ...teams];
     const spent = new Set([...burned, ...opening]);
     const openingProb = weeklyProb(teams);
-    const weightOf = continuationWeights({
+    const weekly = continuationWeights({
       currentWeek: first.week,
       openingProb,
       weeks: rest,
       forgiving,
       buyBacks,
     });
+    const weightOf = terminal.active
+      ? (week, team, winProb) => weekly(week, team, winProb) - terminal.price(team)
+      : weekly;
 
     const survivals = futures.map((future) => {
       const continuation = assignPath({ weeks: future, burned: spent, picksPerWeek, weightOf });
       if (!continuation.complete || !conflictFree(future, continuation.picks)) return 0;
-      return survivalOfPath({
-        weeks: [first, ...future],
-        path: { ...continuation.picks, [first.week]: opening },
-        buyBackWeeks,
-        buyBacks,
-      });
+      const path = { ...continuation.picks, [first.week]: opening };
+      return (
+        survivalOfPath({ weeks: [first, ...future], path, buyBackWeeks, buyBacks }) * leaves(path)
+      );
     });
 
     // The point-estimate path through this opening, for the number the strip
@@ -777,7 +1114,8 @@ function judgeFrontier({
     const continuation = assignPath({ weeks: rest, burned: spent, picksPerWeek, weightOf });
     if (continuation.complete && conflictFree(rest, continuation.picks)) {
       const assigned = { ...continuation.picks, [first.week]: opening };
-      const assignedSurvival = survivalOfPath({ weeks, path: assigned, buyBackWeeks, buyBacks });
+      const assignedSurvival =
+        survivalOfPath({ weeks, path: assigned, buyBackWeeks, buyBacks }) * leaves(assigned);
       if (assignedSurvival > season) {
         season = assignedSurvival;
         path = assigned;
@@ -1047,6 +1385,9 @@ export function searchRequestFor(board, seed = null, { holdPicks = false, quick 
     const fixed = week.picks.map((pick) => (held(pick) ? pick.team : null));
     upcoming.push({
       week: week.week,
+      // A playoff round, which the search plans as a bracket rather than as a
+      // week of games (core/playoffs.js). Null for a regular week.
+      round: week.round ?? null,
       // A game already played is not a pick anyone can still make, so it is no
       // candidate: advising it would put a badge on a row the board disables.
       // A locked slot's team stays in the list even once its game is final,
@@ -1104,6 +1445,12 @@ export function searchRequestFor(board, seed = null, { holdPicks = false, quick 
     // of it survives a week is what leverage is measuring.
     pool: board.pool ?? null,
     poolBuyBacks: buyBacks,
+    // The playoffs the run goes on into, as plain data (core/plan.js
+    // postseasonSpec); null for a run that stops at the regular season. A
+    // preview has no time to solve a bracket, so it plans on the prices the
+    // board's own plan worked out.
+    postseason: board.postseason ?? null,
+    postseasonPrices: quick ? (board.recommendation?.postseason ?? null) : null,
   };
 }
 

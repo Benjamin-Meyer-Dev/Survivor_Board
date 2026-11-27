@@ -383,9 +383,33 @@ assert.deepEqual(
 );
 assert.deepEqual(
   short.seasonWeeks,
-  weeks18,
-  "and the whole calendar is still there for the sheet to offer a range from",
+  [...weeks18, 19, 20, 21, 22],
+  "and the whole calendar is still there for the sheet to offer a range from - " +
+    "the four playoff rounds included",
 );
+
+// The playoffs are on the calendar but off the run until a pool takes them:
+// the plan ends at week 18, so a pool that has saved nothing still does.
+assert.equal(plain.rules.endWeek, 18, "a pool nobody has extended stops at the regular season");
+assert.equal(plain.weeks.at(-1).week, 18);
+assert.equal(plain.postseason, null, "and has no playoffs for the search to plan towards");
+// The sheet names a round rather than numbering it.
+assert.deepEqual(
+  [19, 20, 21, 22].map((week) => short.weekNames[week].short),
+  ["WC", "DIV", "CONF", "SB"],
+);
+assert.equal(short.weekNames[12].short, "12");
+// And a pool can stop at any of them.
+for (const endWeek of [19, 20, 21, 22]) {
+  const extended = boardFor(nfl, withRules({ startWeek: 16, endWeek }));
+  assert.equal(extended.rules.endWeek, endWeek, `a run can end at week ${endWeek}`);
+  assert.equal(extended.weeks.at(-1).week, endWeek);
+  assert.ok(extended.postseason, "and plans towards the rounds it takes");
+  assert.deepEqual(
+    extended.postseason.rounds.filter((round) => round.inRun).map((round) => round.week),
+    Array.from({ length: endWeek - 18 }, (_, index) => 19 + index),
+  );
+}
 assert.equal(short.rules.startWeek, 4);
 assert.equal(short.rules.endWeek, 9);
 assert.deepEqual(short.rules.buyBackWeeks, [], "the plan's opening-week buy backs are outside it");

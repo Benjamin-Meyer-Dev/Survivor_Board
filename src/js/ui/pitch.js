@@ -347,9 +347,15 @@ function yardMarkup(week, board) {
   // Which yard line the bracket is on is not in the markup: markViewing puts
   // it on, so a week change never rewrites a yard line and a render never
   // rewrites two of them for a week change it did not make.
+  // A playoff round is named rather than numbered, and the first of them is
+  // where the regular season's field ends, chalked like a five-yard line.
+  const firstRound =
+    Boolean(week.round) && !board.weeks.some((other) => other.round && other.week < week.week);
   const classes = [
     "pitch__yard",
-    week.week % 5 === 0 ? "pitch__yard--five" : "",
+    week.week % 5 === 0 && !week.round ? "pitch__yard--five" : "",
+    week.round ? "pitch__yard--round" : "",
+    firstRound ? "pitch__yard--playoffs" : "",
     now ? "pitch__yard--now" : "",
     moot ? "pitch__yard--moot" : "",
   ]
@@ -370,9 +376,9 @@ function yardMarkup(week, board) {
   // pick claiming to be one either to the eye or to a screen reader.
   return `<button type="button" class="${classes}" data-yard="${week.week}" data-key="${week.week}" tabindex="-1"
       data-motion-key="yard-${week.week}" data-motion-signature="${escapeHtml(signature)}"
-      aria-label="Week ${week.week}, ${escapeHtml(week.labelFull)}${moot ? ", not played" : ""}${says ? `, ${escapeHtml(says)}` : ""}">
+      aria-label="${escapeHtml(week.name ?? `Week ${week.week}`)}, ${escapeHtml(week.labelFull)}${moot ? ", not played" : ""}${says ? `, ${escapeHtml(says)}` : ""}">
       <span class="pitch__lanes">${lanes.map((lane, slot) => laneMarkup(lane, slot, week.week)).join("")}</span>
-      <span class="pitch__num">${week.week}</span>
+      <span class="pitch__num">${escapeHtml(week.short ?? String(week.week))}</span>
       ${now ? BALL : ""}
     </button>`;
 }
@@ -469,7 +475,11 @@ function stats(board, now, crossing = null) {
   items.push(stat("Lines pull", `<span id="countdown"></span>`, { raw: true, figure: true }));
 
   if (board.eliminated) {
-    items.push(stat("Eliminated", `Wk ${board.eliminatedWeek}`, { figure: true }));
+    // A playoff round by its short name ("DIV"), any other week by its number.
+    const out = board.weeks.find((week) => week.week === board.eliminatedWeek);
+    items.push(
+      stat("Eliminated", out?.round ? out.short : `Wk ${board.eliminatedWeek}`, { figure: true }),
+    );
     items.push(stat("Final record", `${board.record.won}-${board.record.lost}`, { figure: true }));
   } else if (board.buyBack && board.buyBack.left > 0) {
     // Only while there is one to spend. Spent, the readout was a row of the

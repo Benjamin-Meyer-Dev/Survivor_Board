@@ -23,7 +23,7 @@
  * still play.
  */
 
-import { escapeHtml, formatPercent, formatSpread } from "../core/format.js";
+import { escapeHtml, formatPercent, formatSpread, weekPhrase } from "../core/format.js";
 import { prefersReducedMotion, swapContents } from "./motion.js";
 
 /**
@@ -144,7 +144,7 @@ function reviewMarkup(board) {
             `${loss.team} ${beat ? "beat" : "lost to"} ${loss.opponent}${byOf(gameOf(loss.team)?.margin)}`,
         )
         .join(" and ")
-    : `Eliminated in week ${week}`;
+    : `Eliminated in ${weekPhrase(board, week)}`;
 
   // The box score under the headline: a label over a figure, the way the
   // readout above sets its own, so the ending reads as the board's last stat
@@ -199,7 +199,7 @@ function reviewMarkup(board) {
   return `<div class="review" role="status">
     <span class="review__mark" aria-hidden="true">Survive</span>
     ${driveOf(board)}
-    <strong class="review__title"><span class="u-visually-hidden">Season over in week ${week} of ${last}: </span>${escapeHtml(title)}</strong>
+    <strong class="review__title"><span class="u-visually-hidden">Season over in ${escapeHtml(weekPhrase(board, week))}${ended?.round ? "" : ` of ${last}`}: </span>${escapeHtml(title)}</strong>
     <dl class="review__stats">${stats
       .map(
         (stat) =>

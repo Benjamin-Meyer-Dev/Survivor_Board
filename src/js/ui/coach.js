@@ -131,8 +131,8 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0, handlers = {}
   panel.dataset.motionSignature =
     state.kind === "working"
       ? readSignature(state)
-      : state.kind === "past"
-        ? `past|${state.week.week}|${state.subject?.team ?? ""}`
+      : state.kind === "past" || state.kind === "bracket"
+        ? `${state.kind}|${state.week.week}|${state.subject?.team ?? ""}`
         : "empty";
   panel.setAttribute("aria-live", "polite");
   panel.classList.toggle("coach--picked", state.selection === "picked");
@@ -781,6 +781,26 @@ function stateFor(board, week, activeSlot) {
   }
 
   const pick = week.picks[Math.min(activeSlot, week.picks.length - 1)];
+
+  // A playoff round whose games are not set yet. There is no line to price -
+  // nobody knows who plays - so there is no chain, but the season still has a
+  // shape and the round is a column of it: the chart stays, carrying the
+  // coach's likeliest pick there at the chance the round holds.
+  if (week.bracketPending) {
+    const projected = pick?.onPath ?? null;
+    return {
+      kind: "bracket",
+      week,
+      subject: projected,
+      opening: projected ? [projected] : [],
+      teams: projected ? [projected.team] : [],
+      frontier: null,
+      candidate: null,
+      coachOpening: week.pathRecommendation ?? [],
+      selection: "coach",
+    };
+  }
+
   // The team on the card for this slot, or failing that the coach's first
   // call for the week - whichever is priced.
   const subject = pick?.onPath?.pricing ? pick.onPath : (week.coachRanked ?? [])[0];
@@ -924,7 +944,7 @@ function head(state, leaving = null) {
       <span class="coach__focus-say">${focusMark(selection)}${focusWord(selection)}</span>
       ${leaving ? `<span class="coach__focus-say coach__focus-say--gone" aria-hidden="true">${focusMark(leaving)}${focusWord(leaving)}</span><i class="coach__focus-ring" aria-hidden="true"></i>` : ""}
     </span>
-    <span class="u-eyebrow coach__what">${what} · Wk ${String(week.week).padStart(2, "0")}</span>
+    <span class="u-eyebrow coach__what">${what} · ${week.round ? escapeHtml(week.short) : `Wk ${String(week.week).padStart(2, "0")}`}</span>
   </div>`;
 }
 
@@ -1648,7 +1668,7 @@ function route(state, board) {
   const axis = weeks
     .map(
       (week, index) =>
-        `<span class="route__week${index === at ? " route__week--here" : ""}${missing[index] ? " route__week--missed" : ""}" style="left:${pct(xAt(index))}" data-week="${week.week}">${week.week}</span>`,
+        `<span class="route__week${index === at ? " route__week--here" : ""}${missing[index] ? " route__week--missed" : ""}${week.round ? " route__week--round" : ""}" style="left:${pct(xAt(index))}" data-week="${week.week}" data-name="${escapeHtml(week.round ? week.short : `Wk ${week.week}`)}">${escapeHtml(week.short ?? String(week.week))}</span>`,
     )
     .join("");
 
@@ -1962,8 +1982,12 @@ function reveal(plot, clientX, { toggle = false } = {}) {
   const x = xOf(nearest);
   const y = Math.min(...column.map(yOf));
   callout.classList.toggle("route__callout--results", results);
+  // The week as the axis names it: "Wk 12", or a playoff round's short name.
+  const named = plot
+    .closest(".route")
+    ?.querySelector(`.route__week[data-week="${nearest.dataset.week}"]`)?.dataset.name;
   callout.innerHTML =
-    `<span class="route__callout-head"><b class="route__callout-week">Wk ${escapeHtml(nearest.dataset.week)}</b></span>` +
+    `<span class="route__callout-head"><b class="route__callout-week">${escapeHtml(named ?? `Wk ${nearest.dataset.week}`)}</b></span>` +
     blocks.join('<i class="route__callout-gap"></i>');
   callout.style.left = `${x.toFixed(2)}%`;
   callout.style.top = `${y.toFixed(2)}%`;

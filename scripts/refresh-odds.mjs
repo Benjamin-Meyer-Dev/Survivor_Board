@@ -51,8 +51,9 @@ import { readJsons, readOptionalJson, writeJson } from "./lib/json.mjs";
 import { currentWeekFor, resultsDueFor } from "./lib/weeks.mjs";
 import { fitForm, holdoutError, marketError, resolveRatingParams } from "./lib/rate.mjs";
 import { pullStatsForLeague } from "./pull-stats.mjs";
+import { findPlayoffGames } from "./lib/playoffs.mjs";
 import { marketWinProb, resolveModel } from "../src/js/core/probability.js";
-import { lineKey, buildBoard } from "../src/js/core/plan.js";
+import { lineKey, buildBoard, withPlayoffGames } from "../src/js/core/plan.js";
 import { objectiveOf, dangerSign } from "../src/js/core/objective.js";
 import { SPORTS, SPORT_IDS } from "../src/js/sports.js";
 
@@ -128,13 +129,19 @@ async function refreshLeague(league, apiKey) {
   // All at once. Nine files off a local disk is not the slow part of this job -
   // the market is - but reading them one after another for no reason is the
   // sort of thing the rest of the repo does not do.
-  const [plan, previous, schedule, ratings, teams] = await readJsons([
+  const [plan, previous, fixtures, ratings, teams] = await readJsons([
     pathFor(league, "plan.json"),
     oddsPath,
     pathFor(league, "schedule.json"),
     pathFor(league, "ratings.json"),
     pathFor(league, "teams.json"),
   ]);
+  // The playoff games found so far, kept in odds.json and laid into the
+  // schedule like any other week's (scripts/lib/playoffs.mjs). Everything below
+  // reads the schedule with them in it: the lines a round is priced from, the
+  // finals placed against it and the fit that learns from both.
+  const playoffs = { ...(previous.playoffs ?? {}), games: { ...(previous.playoffs?.games ?? {}) } };
+  let schedule = withPlayoffGames(fixtures, { playoffs }, plan);
   // form.json is absent until the first run that has something to fit, and
   // absent again if it is ever deleted. Both are fine: the board and this job
   // fall back to the ratings the league shipped with. The league's fitted model
@@ -188,13 +195,43 @@ async function refreshLeague(league, apiKey) {
       `sigma ${model.sigma}, moneyline weight ${model.moneylineWeight}, markets ${MARKETS.join("+")}.`,
   );
 
+  // Every name the league knows: the rated teams first, so theirs is the
+  // spelling a feed name resolves to, then every opponent the schedule names.
+  const resolve = teamResolver([
+    ...Object.keys(ratings.ratings ?? {}),
+    ...Object.values(fixtures.weeks ?? {})
+      .flat()
+      .flatMap((game) => [game.home, game.away]),
+  ]);
+  // Any playoff games the feed has announced since the last run, laid into the
+  // schedule before anything is priced or placed against it.
+  const discover = (events, from) => {
+    const { games, found } = findPlayoffGames({
+      plan,
+      events,
+      resolve,
+      isEligible,
+      known: playoffs.games,
+    });
+    if (found.length === 0) return;
+    playoffs.games = games;
+    schedule = withPlayoffGames(fixtures, { playoffs }, plan);
+    for (const game of found) {
+      console.log(
+        `  playoffs: week ${game.week} is ${game.away} at ${game.home} (from the ${from}).`,
+      );
+    }
+  };
+
   let priced = { lines: previous.lines, flags: [], count: 0, total: 0, fresh: {} };
   if (week === null) {
     console.log("Season is over. Reading the last scores; lines stay as they were.");
   } else {
+    const events = await fetchEvents(apiKey, sport);
+    console.log(`Odds API returned ${events.length} events.`);
+    discover(events, "odds feed");
     priced = await priceWeek({
-      apiKey,
-      sport,
+      events,
       week,
       plan,
       previous,
@@ -213,7 +250,17 @@ async function refreshLeague(league, apiKey) {
   const results = { ...(previous.results ?? {}) };
   const scores = { ...(previous.scores ?? {}) };
   if (scoresDue) {
-    await recordResults({ apiKey, sport, plan, schedule, ratings, isEligible, results, scores });
+    await recordResults({
+      apiKey,
+      sport,
+      plan,
+      schedule: () => schedule,
+      resolve,
+      discover,
+      isEligible,
+      results,
+      scores,
+    });
   } else {
     console.log("No games played yet. Skipping the scores call.");
   }
@@ -226,6 +273,9 @@ async function refreshLeague(league, apiKey) {
     lines: priced.lines,
     results,
     scores,
+    // The playoff games found in the feed, by week, and any seeds a human has
+    // written in to correct the ones the board works out (core/playoffs.js).
+    ...(Object.keys(playoffs.games).length || playoffs.seeds ? { playoffs } : {}),
     // Both settled below: the refit and the re-plan read this very object, so
     // they cannot run until it exists, and what they find goes back into it.
     flags: priced.flags,
@@ -249,7 +299,9 @@ async function refreshLeague(league, apiKey) {
   const moved = replan({
     plan,
     teams,
-    schedule,
+    // Each board lays in the playoff games its own odds know of, so yesterday's
+    // board is yesterday's bracket and a round found today is news.
+    schedule: fixtures,
     ratings,
     calibration,
     availability,
@@ -482,6 +534,11 @@ function replan({
   toForm,
   week,
 }) {
+  // The plan's own run stops at the regular season, so once the season is in
+  // the playoffs the job plans the rounds that are left, as a pool playing
+  // them from here with nothing spent would.
+  const lastWeek = Math.max(...plan.weeks.map((entry) => entry.week));
+  const inPlayoffs = week > (plan.rules?.endWeek ?? lastWeek);
   const boardArgs = {
     plan,
     teams,
@@ -490,7 +547,11 @@ function replan({
     calibration,
     availability,
     pool,
-    entry: { picks: {}, swaps: {} },
+    entry: {
+      picks: {},
+      swaps: {},
+      ...(inPlayoffs ? { rules: { startWeek: week, endWeek: lastWeek } } : {}),
+    },
   };
   const before = buildBoard({ ...boardArgs, odds: fromOdds, form: fromForm });
   const after = buildBoard({ ...boardArgs, odds: toOdds, form: toForm });
@@ -599,8 +660,7 @@ function replan({
  * shows how far the market has moved since the week was first priced.
  */
 async function priceWeek({
-  apiKey,
-  sport,
+  events,
   week,
   plan,
   previous,
@@ -617,9 +677,10 @@ async function priceWeek({
   const objective = objectiveOf(plan.rules);
   const moveFlag = SPORTS[league]?.lineMoveFlag ?? 3;
 
-  console.log(`Refreshing week ${week} (${weekPlan.label}, ${plan.season}).`);
-  const events = await fetchEvents(apiKey, sport);
-  console.log(`Odds API returned ${events.length} events.`);
+  console.log(`Refreshing week ${week} (${weekPlan.label}, ${weekPlan.kickoff.slice(0, 4)}).`);
+  if ((schedule.weeks[String(week)] ?? []).length === 0 && weekPlan.round) {
+    console.log(`  The ${weekPlan.round} round has no games posted yet.`);
+  }
 
   const lines = { ...previous.lines };
   const fresh = {};
@@ -796,7 +857,8 @@ async function recordResults({
   sport,
   plan,
   schedule,
-  ratings,
+  resolve,
+  discover,
   isEligible,
   results,
   scores,
@@ -804,18 +866,13 @@ async function recordResults({
   let recorded = 0;
   let margins = 0;
 
-  // Every name the league knows: the rated teams first, so theirs is the
-  // spelling a feed name resolves to, then every opponent the schedule names.
-  const resolve = teamResolver([
-    ...Object.keys(ratings.ratings ?? {}),
-    ...Object.values(schedule.weeks ?? {})
-      .flat()
-      .flatMap((game) => [game.home, game.away]),
-  ]);
-  const place = finalsPlacer({ plan, schedule, resolve });
-
   try {
     const scored = await fetchScores(apiKey, sport, 3);
+    // A playoff game can be played and gone from the odds feed before any run
+    // saw it there - a missed day is enough - so the scores are read for games
+    // too, and the schedule the finals are placed against has them in it.
+    discover(scored, "scores");
+    const place = finalsPlacer({ plan, schedule: schedule(), resolve });
     for (const event of scored) {
       const outcome = winnerOf(event);
       if (!outcome) {

@@ -92,19 +92,24 @@ export function renderSideline(root, board, viewWeek, activeSlot, handlers) {
   const available = pick.options.filter((option) => !option.disabled).length;
   const recordable =
     !locked && canFix && pick.options.some((option) => option.result && fixes(option));
+  // A playoff round whose games are not set has no teams to list yet: who
+  // plays in it is decided by the round before.
+  const waiting = Boolean(week.bracketPending);
   const label = amending
     ? `Correcting week ${pick.week} · pick the team you played`
-    : board.eliminated
-      ? locked
-        ? "Locked in"
-        : recordable
-          ? "In review · a played game can still be recorded"
-          : "In review: nothing more to pick"
-      : locked
-        ? "Unlock to change the team"
-        : recordable && available === 0
-          ? "Played · tap the team you picked to record it"
-          : `${pick.team ? "Change the team" : "Pick a team"} · ${available} available`;
+    : waiting
+      ? "Matchups not set yet · picks open when they are"
+      : board.eliminated
+        ? locked
+          ? "Locked in"
+          : recordable
+            ? "In review · a played game can still be recorded"
+            : "In review: nothing more to pick"
+        : locked
+          ? "Unlock to change the team"
+          : recordable && available === 0
+            ? "Played · tap the team you picked to record it"
+            : `${pick.team ? "Change the team" : "Pick a team"} · ${available} available`;
 
   // Patched rather than rebuilt (ui/patch.js): the label, the filter and the
   // list are kept while the slot is the same slot, and inside the list each
@@ -118,7 +123,7 @@ export function renderSideline(root, board, viewWeek, activeSlot, handlers) {
     panel,
     `<label class="u-eyebrow sideline__label" for="filter-${id}" data-key="label">${escapeHtml(label)}</label>
     <input class="sideline__filter" type="search" id="filter-${id}" placeholder="Find a team"
-           autocomplete="off" data-filter="${id}" data-key="filter" ${handlers.canWrite ? "" : "disabled"}>
+           autocomplete="off" data-filter="${id}" data-key="filter" ${handlers.canWrite && !waiting ? "" : "disabled"}>
     <div class="sideline__list" data-list="${id}" data-key="list"></div>`,
   );
   reconcile(
@@ -231,9 +236,9 @@ function rowMarkup(pick, option, canPick, fixes = false) {
       : held
         ? 'title="Locked in the other slot this week"'
         : fixes
-          ? `title="${spent ? `Record the ${escapeHtml(option.team)} here. Week ${option.spentWeek} loses them and needs a new pick` : `Record the ${escapeHtml(option.team)} as this week's pick`}"`
+          ? `title="${spent ? `Record the ${escapeHtml(option.team)} here. ${escapeHtml(capitalise(spentPhrase(option)))} loses them and needs a new pick` : `Record the ${escapeHtml(option.team)} as this week's pick`}"`
           : spent
-            ? `title="Locked in week ${option.spentWeek}. A team is only spent once"`
+            ? `title="Locked in ${escapeHtml(spentPhrase(option))}. A team is only spent once"`
             : "";
 
   // What the row is, for the settle that plays when it changes under no tap of
@@ -272,6 +277,15 @@ function rowMarkup(pick, option, canPick, fixes = false) {
     </button>`;
 }
 
+/** Where a burned team was spent, as a sentence says it: "week 12", "the Wild Card round". */
+function spentPhrase(option) {
+  return option.spentPhrase ?? `week ${option.spentWeek}`;
+}
+
+function capitalise(text) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 /**
  * The spread and the chance side by side in the tier's chalk, or why not.
  *
@@ -284,8 +298,8 @@ function rowMarkup(pick, option, canPick, fixes = false) {
 function line(option, spent) {
   if (spent) {
     return `<span class="sideline__line sideline__line--spent">
-        ${lockIcon(`Locked in week ${option.spentWeek}`)}
-        <span class="sideline__spent">Week ${option.spentWeek}</span>
+        ${lockIcon(`Locked in ${escapeHtml(spentPhrase(option))}`)}
+        <span class="sideline__spent">${escapeHtml(option.spentTag ?? `Week ${option.spentWeek}`)}</span>
       </span>`;
   }
   if (option.result) {

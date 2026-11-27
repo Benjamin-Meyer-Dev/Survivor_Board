@@ -17,6 +17,23 @@ export function formatMatchup(site, opponent) {
   return `${site === "Home" ? "vs" : "at"} ${opponent}`;
 }
 
+/**
+ * A week as a sentence names it: "week 12", or a playoff round's own name -
+ * "the Wild Card round", "the Super Bowl" (core/plan.js weekNames).
+ *
+ * @param {object} board Result of buildBoard().
+ * @param {number} week
+ */
+export function weekPhrase(board, week) {
+  return board?.weekNames?.[week]?.phrase ?? `week ${week}`;
+}
+
+/** A week as a tag names it: "Week 12", or a playoff round's short name - "WC". */
+export function weekTag(board, week) {
+  const names = board?.weekNames?.[week];
+  return names && names.short !== String(week) ? names.short : `Week ${week}`;
+}
+
 /** Escape untrusted text before it goes into innerHTML. */
 export function escapeHtml(value) {
   return String(value).replace(

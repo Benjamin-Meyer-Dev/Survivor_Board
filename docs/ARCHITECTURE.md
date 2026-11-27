@@ -48,14 +48,15 @@ job's clock lives outside GitHub, because GitHub's cron could not keep it.
 single piece of state in `app.js`; everything else falls out of the plan the
 pool ships:
 
-| Rule                    | Read from                 | Editable from the board |
-| ----------------------- | ------------------------- | ----------------------- |
-| picks per week          | `plan.rules.picksPerWeek` | yes                     |
-| weeks in the season     | `plan.weeks`              | no - the schedule says  |
-| eligible teams          | `teams.conferences`       | no                      |
-| what counts as a "Lock" | `plan.tiers`              | no - model, not rule    |
-| buy backs, and where    | `plan.rules.buyBack*`     | yes                     |
-| win or lose             | the pool's kind           | no - fixed at creation  |
+| Rule                    | Read from                  | Editable from the board |
+| ----------------------- | -------------------------- | ----------------------- |
+| picks per week          | `plan.rules.picksPerWeek`  | yes                     |
+| weeks in the season     | `plan.weeks`               | no - the schedule says  |
+| which of them it plays  | `plan.rules.start/endWeek` | yes, playoffs included  |
+| eligible teams          | `teams.conferences`        | no                      |
+| what counts as a "Lock" | `plan.tiers`               | no - model, not rule    |
+| buy backs, and where    | `plan.rules.buyBack*`      | yes                     |
+| win or lose             | the pool's kind            | no - fixed at creation  |
 
 ### Rules, and changing them
 
@@ -213,7 +214,7 @@ rows are still there.
 | `ratings.json`      | a human             | once a season                                  |
 | `availability.json` | a human             | when a report is worth writing down (optional) |
 | `pool.json`         | a human             | when the pool's numbers change (optional)      |
-| `odds.json`         | the refresh bot     | once a day                                     |
+| `odds.json`         | the refresh bot     | once a day, playoff games found included       |
 | `form.json`         | the refresh bot     | once a day                                     |
 | `stats.json`        | the refresh bot     | once a day, where the league has a source      |
 | `snapshots/`        | the refresh bot     | one new file a day, never rewritten            |
@@ -511,6 +512,79 @@ than the default says so there. The path
 shown is the best complete path through the opening called. Leverage is the
 standard one-week approximation of a season-long game whose proper treatment
 needs every rival's spent teams.
+
+## Playoffs
+
+An NFL pool can play on past week 18: the calendar (`data/nfl/plan.json`)
+carries the four playoff rounds as weeks 19 to 22, each naming its `round`, and
+a pool's end week can be any of them. The plan itself ends at 18, so a pool
+nobody extends is exactly the pool it was. The rule that makes this hard is the
+one that does not change: no team twice, the whole way. A team spent in October
+is gone for January, and the Super Bowl is one game between two teams - a run
+that has spent both of them cannot finish however well it has picked.
+
+**Where the games come from.** Nobody can write a playoff round into
+`schedule.json` in the spring, so the refresh job reads each round off the
+market feed as the books post it - any event between two of the league's teams
+kicking off within four days of a round's date, after the regular season's last
+
+- and keeps it in `odds.json` under `playoffs.games`, by week
+  (`scripts/lib/playoffs.mjs`). It reads the scores feed the same way, so a
+  round played on a day the job missed is still placed. Found once, kept, never
+  past the number of games a round has. Every reader lays them into the schedule
+  through `withPlayoffGames` in `core/plan.js`, and from there a round is a week
+  like any other: priced from the market, its finals placed by `finalsPlacer`,
+  its margins in the refit. A team knocked out has no game in the next round and
+  is simply not on its list. The Super Bowl is played at a neutral site.
+
+**The bracket** (`core/playoffs.js`). Once the wild card games are posted the
+bracket is a fact: the three home sides in a conference are seeds two to four,
+their opponents seven to five in that pairing, and the bye is the one
+conference team with the best record that is not playing (`seedsFromBracket`).
+A hand-kept `playoffs.seeds` in `odds.json` overrides that, for the day the
+league's tie-breakers disagree with the outline of them used here. Before the
+bracket is set it is a distribution: the rest of the regular season is played
+out thirty-two times off the board's own probabilities, and each finished
+season seeded the league's way - division winners one to four, the best three
+of the rest five to seven, on record, then head to head, division and
+conference record, then a coin (`simulateFields`).
+
+For each field the rounds are solved exactly, as a dynamic programme rather
+than a search: four rounds of at most six games is small enough to enumerate.
+A state is the round, who is still alive and which of the living have been
+spent, and its value is the best pick there carried through every way the rest
+of the bracket can go. The pick is made with the round's games in front of you,
+which is the whole point - a fixed path for January ("the Chiefs in the Super
+Bowl") is nearly worthless when you will know who is in it before you pick.
+The board shows a round still to be set as the coach's likeliest pick there,
+with the chance that round holds once the run has got that far; those chances
+multiply to the bracket's exact value, so the season number on the drive line
+is the regular season and the playoffs as one product. A round whose games are
+up is called like any other week (`chooseCall`, floor included), ranked by what
+each pick is worth through the rest of the bracket.
+
+**What January is worth in December.** The regular-season search scores a path
+one pick at a time, and the value of the teams it leaves for the playoffs is
+not like that: spending one of two teams that could each cover the Super Bowl
+costs little, spending both costs everything. So each team gets a price - how
+far the bracket's chance falls if that team is spent before it - and the beam,
+the exact assignment and the futures all pay it for every team they spend. The
+leading finalists are then scored again on the bracket itself, which is the
+same two-pass shape the buy backs have. The effect is the one a person would
+reach for by hand: on the week 11 board, extending the pool to the Super Bowl
+moved the plan off the Bills, 49ers, Jaguars and Chiefs - the four teams the
+bracket valued most - and onto weaker teams in weeks the regular season could
+spare. A preview has no time to solve a bracket, so it plans on the prices the
+board's own plan already worked out (`postseasonPrices`); the rehearsal behind
+it is exact.
+
+Cost: a bracket solved for each field and for each team's price is most of
+it, paid once per day's lines in the worker, about a quarter of a second on a
+desktop before the bracket is set and a few milliseconds after, when there is
+one field. `scripts/validate-playoffs.mjs` checks the solver against brackets
+small enough to work out by hand, the seeding against the posted games, the
+feed against dates, and the board end to end through a wild card round and
+into the divisional one.
 
 ## How the ratings learn
 

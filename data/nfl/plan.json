@@ -1,5 +1,5 @@
 {
-  "$comment": "The 18-week NFL survivor path. One pick a week, no team twice, and no buy back - a pool that grants one turns it on in the settings sheet. The weeks 1 and 2 picks below were seeded when the plan did grant one and still carry that week's risk; the board does not run this path, it recomputes its own (core/recommend.js), so this is a stale seed rather than advice anyone is given. Spreads are power-rating projections and act as the fallback when data/nfl/odds.json carries no market line.",
+  "$comment": "The NFL survivor calendar: the 18 regular-season weeks, then the four playoff rounds (weeks 19-22, each naming its `round`). A pool plays weeks 1-18 unless its settings carry it into the playoffs, which is why `endWeek` is 18 here while the calendar runs to the Super Bowl. One pick a week, no team twice - across the playoffs too - and no buy back; a pool that grants one turns it on in the settings sheet. The weeks 1 and 2 picks below were seeded when the plan did grant one and still carry that week's risk; the board does not run this path, it recomputes its own (core/recommend.js), so this is a stale seed rather than advice anyone is given. A playoff week has no authored pick: nobody knows who plays in it until the round before is over, and the refresh job finds its games in the market feed (odds.json `playoffs`). Spreads are power-rating projections and act as the fallback when data/nfl/odds.json carries no market line.",
   "league": "nfl",
   "season": 2026,
   "rules": {
@@ -10,7 +10,9 @@
     "winCondition": "straight-up",
     "buyBackWeeks": [],
     "buyBacks": 0,
-    "weeks": 18
+    "startWeek": 1,
+    "endWeek": 18,
+    "weeks": 22
   },
   "dangerThreshold": -6,
   "tiers": {
@@ -576,6 +578,38 @@
           "source": "projected"
         }
       ]
+    },
+    {
+      "week": 19,
+      "round": "wildcard",
+      "label": "Jan 17",
+      "kickoff": "2027-01-17",
+      "picks": [],
+      "backups": []
+    },
+    {
+      "week": 20,
+      "round": "divisional",
+      "label": "Jan 24",
+      "kickoff": "2027-01-24",
+      "picks": [],
+      "backups": []
+    },
+    {
+      "week": 21,
+      "round": "conference",
+      "label": "Jan 31",
+      "kickoff": "2027-01-31",
+      "picks": [],
+      "backups": []
+    },
+    {
+      "week": 22,
+      "round": "superbowl",
+      "label": "Feb 14",
+      "kickoff": "2027-02-14",
+      "picks": [],
+      "backups": []
     }
   ]
 }
