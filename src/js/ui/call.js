@@ -334,6 +334,10 @@ function slotMarkup(pick, board, access) {
   // A playoff round whose games nobody knows yet: the coach's likeliest pick
   // there, which nobody can take until the round before has been played.
   const projected = !pick.team && Boolean(pick.suggestion?.projected);
+  // The coach's ghost run, after the pool went out (core/ghost.js): its call
+  // for the week, and - once played - how it went. A call made after its game,
+  // from the lines it would have had, says so.
+  const ghost = !pick.team && Boolean(pick.suggestion?.ghost);
 
   const eyebrow = amending
     ? "Correcting · pick from the list"
@@ -343,11 +347,15 @@ function slotMarkup(pick, board, access) {
         : "Your pick"
       : projected
         ? "Coach's likely pick"
-        : pick.suggestion
-          ? "Coach suggests"
-          : moot
-            ? "Not played"
-            : "Open slot";
+        : ghost
+          ? pick.suggestion.rebuilt
+            ? "Coach's ghost pick · rebuilt"
+            : "Coach's ghost pick"
+          : pick.suggestion
+            ? "Coach suggests"
+            : moot
+              ? "Not played"
+              : "Open slot";
 
   // A playoff round the run reaches with every team that could play in it
   // already spent: the pool has no pick to give, and the run ends here.
@@ -402,6 +410,7 @@ function slotMarkup(pick, board, access) {
     shown?.source ?? "",
     status.result ?? "",
     coached ? "coach" : "",
+    ghost ? `ghost-${pick.suggestion.result ?? ""}` : "",
   ].join("|");
 
   return `
@@ -410,7 +419,7 @@ function slotMarkup(pick, board, access) {
          data-motion-key="slot-${pick.week}-${pick.slot}"
          data-motion-signature="${escapeHtml(signature)}">
       <div class="call__eyebrow${pick.suggestion && !pick.team ? " call__eyebrow--coach" : ""}">${eyebrow}</div>
-      <div class="call__marks">${resultStamp(status)}${marks}</div>
+      <div class="call__marks">${resultStamp(ghost ? { result: pick.suggestion.result } : status)}${marks}</div>
       <div class="call__team-row">
         ${
           shown

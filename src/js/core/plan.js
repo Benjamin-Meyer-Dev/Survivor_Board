@@ -50,6 +50,7 @@ import { nextRefreshAt } from "./refresh.js";
 import { survival } from "./survival.js";
 import { availabilityAdjustment, availabilityNote } from "./availability.js";
 import { ROUND_NAMES, conferenceOf, seedsFromBracket, validSeeds } from "./playoffs.js";
+import { validCall } from "./ghost.js";
 
 /**
  * The schedule with the playoff games the refresh job has found laid into it.
@@ -1038,6 +1039,12 @@ export function buildBoard({
     pool,
   };
 
+  // A pool that is out goes on as the coach's ghost (core/ghost.js): its calls
+  // for the weeks after the loss, as kept in the entry, by week. Null while
+  // the pool is alive, or out with no call kept yet - and then the weeks after
+  // the loss are the coach's account of them, as they always were.
+  board.ghost = ghostOf(entry, outcome, weekByNumber);
+
   // The playoffs the run goes on into, as the search needs them: who plays
   // whom in the regular season still to come, the bracket where it is set,
   // and the ratings its games are priced on. Null for a run that stops at the
@@ -1347,6 +1354,10 @@ export function buildBoard({
       const projected = projectedPick(week, recommendation);
       week.pathRecommendation = projected ? [projected] : [];
     }
+    // A week the ghost has called holds the call, whatever the plan says now:
+    // it is what the coach said then, priced at what it said, with how it went.
+    week.ghost = ghostWeek(week, board.ghost?.[week.week], rules.tiers);
+    if (week.ghost) week.pathRecommendation = week.ghost.options;
     // Short of fixtures rather than short of plan, as the plan speaking for
     // the week reported it.
     const shortOfGames = advice
@@ -1566,6 +1577,17 @@ export function buildBoard({
   const shownTeams = new Set(
     board.weeks.flatMap((week) => week.picks.map((pick) => pick.team).filter(Boolean)),
   );
+  // The ghost's calls stand in their weeks' open slots before anything else is
+  // handed out: they are the slots' teams on the ghost's run, played or not.
+  for (const week of board.weeks) {
+    if (!week.ghost) continue;
+    const open = week.picks.filter((pick) => !pick.team);
+    week.ghost.options.forEach((option, index) => {
+      if (!open[index]) return;
+      open[index].suggestion = option;
+      shownTeams.add(option.team);
+    });
+  }
   const handOut = (week, pool, fresh = true) => {
     for (const pick of week.picks) {
       if (pick.team || pick.suggestion) continue;
@@ -1735,6 +1757,12 @@ export function buildBoard({
   }
   board.pickedCount = Object.keys(board.pickedTeams).length;
   board.plannedCount = Object.keys(board.plannedTeams).length;
+
+  // How the ghost has done, and how the coach's calls have done in this pool
+  // all season - the weeks it was alive and the weeks after - for the review to
+  // quote and for anyone deciding whether the coach has earned its numbers.
+  board.ghostRecord = ghostRecordOf(board);
+  board.coachRecord = coachRecordOf(board);
 
   return board;
 }
@@ -2020,6 +2048,11 @@ function signatureBase(board, plan, odds, form, inputs) {
     inputs.calibration?.fittedAt ?? "",
     inputs.availability?.updatedAt ?? "",
     inputs.pool?.updatedAt ?? "",
+    // The ghost's calls spend teams the way locks do (core/ghost.js), so a new
+    // one is a new search for a pool that is out.
+    Object.entries(board.ghost ?? {})
+      .map(([week, call]) => `${week}:${call.teams.join("+")}`)
+      .join(","),
   ].join("|");
 }
 
@@ -2322,6 +2355,138 @@ function frontierOf(frontier, weekByNumber, rules) {
         .filter(Boolean)
         .map((option) => ({ ...option, tier: confidenceTier(option.winProb, rules.tiers) })),
     })),
+  };
+}
+
+/**
+ * The ghost's calls a board shows (core/ghost.js): a pool that is out, the
+ * weeks of its run after the loss, each kept call that is a call. Null where
+ * there are none.
+ */
+function ghostOf(entry, outcome, weekByNumber) {
+  if (!outcome.eliminated || !Number.isFinite(outcome.eliminatedWeek)) return null;
+  const calls = {};
+  for (const [at, call] of Object.entries(entry?.ghost ?? {})) {
+    const week = Number(at);
+    if (week <= outcome.eliminatedWeek || !weekByNumber.has(week) || !validCall(call)) continue;
+    calls[week] = call;
+  }
+  return Object.keys(calls).length ? calls : null;
+}
+
+/**
+ * One week of the ghost's run, as the board draws it: the teams it called,
+ * each as the week's list describes it but at the chance the coach put it at
+ * when it called it, and how the week went. Null for a week it has no call in,
+ * or one whose call names a team with no game that week.
+ */
+function ghostWeek(week, call, tiers) {
+  if (!call) return null;
+  const options = call.teams.flatMap((team, index) => {
+    const option = week.optionByTeam.get(team);
+    if (!option) return [];
+    const said = Number.isFinite(call.probs?.[index]) ? call.probs[index] : option.winProb;
+    return [
+      {
+        ...option,
+        winProb: said,
+        tier: confidenceTier(said, tiers),
+        ghost: true,
+        // Made after its game, from the lines it would have had (core/ghost.js).
+        rebuilt: !call.live,
+      },
+    ];
+  });
+  if (options.length === 0) return null;
+  const results = options.map((option) => option.result ?? null);
+  return {
+    options,
+    rebuilt: !call.live,
+    result: results.some((result) => result === "L")
+      ? "L"
+      : results.every((result) => result === "W")
+        ? "W"
+        : null,
+  };
+}
+
+/**
+ * The ghost's record: how many of its weeks it won and lost, the ones still
+ * to be played, how many of its calls were rebuilt after the fact, and the
+ * week it would itself have gone out - its first loss. Null with no ghost.
+ */
+function ghostRecordOf(board) {
+  const weeks = board.weeks.filter((week) => week.ghost);
+  if (weeks.length === 0) return null;
+  const lost = weeks.filter((week) => week.ghost.result === "L");
+  return {
+    won: weeks.filter((week) => week.ghost.result === "W").length,
+    lost: lost.length,
+    pending: weeks.filter((week) => week.ghost.result === null).length,
+    rebuilt: weeks.filter((week) => week.ghost.rebuilt).length,
+    weeks: weeks.length,
+    outWeek: lost[0]?.week ?? null,
+  };
+}
+
+/**
+ * The coach's own record in this pool: every week it made a call that has been
+ * played, graded on that call rather than on what the pool locked. Alive, the
+ * call is the one each lock saved (status.coachTeam), at the price its game
+ * closed at; out, it is the ghost's, at the price the coach put it at. A pool
+ * whose locks were made before calls were saved has fewer weeks to show.
+ *
+ * What it is for: whether the coach's numbers are earned. Calls it put at 80%
+ * should come through about four times in five, and a coach that is reliably
+ * worse than it says is one whose picks are leaning on teams it overrates.
+ * Read it with its count - a season is a handful of calls, and a handful
+ * proves little either way.
+ *
+ * @returns {{calls:number, won:number, lost:number, said:number,
+ *   brier:number, weeks:Array<{week:number, teams:string[], said:number,
+ *   result:"W"|"L", ghost:boolean}>}|null}
+ */
+function coachRecordOf(board) {
+  const weeks = [];
+  for (const week of board.weeks) {
+    let options;
+    let ghost = false;
+    if (week.ghost) {
+      options = week.ghost.options;
+      ghost = true;
+    } else {
+      const called = week.picks
+        .filter((pick) => pick.status.locked && pick.status.coachTeam)
+        .map((pick) => week.optionByTeam.get(pick.status.coachTeam))
+        .filter(Boolean);
+      // A week counts only where every slot saved the coach's call: half a
+      // week's call is not the call.
+      if (called.length !== week.picks.length) continue;
+      options = called;
+    }
+    const results = options.map((option) => option.result ?? null);
+    if (results.some((result) => result === null)) continue;
+    weeks.push({
+      week: week.week,
+      teams: options.map((option) => option.team),
+      said: options.reduce((product, option) => product * option.winProb, 1),
+      result: results.every((result) => result === "W") ? "W" : "L",
+      ghost,
+    });
+  }
+  if (weeks.length === 0) return null;
+  const won = weeks.filter((entry) => entry.result === "W").length;
+  return {
+    calls: weeks.length,
+    won,
+    lost: weeks.length - won,
+    said: weeks.reduce((total, entry) => total + entry.said, 0) / weeks.length,
+    brier:
+      weeks.reduce(
+        (total, entry) => total + (entry.said - (entry.result === "W" ? 1 : 0)) ** 2,
+        0,
+      ) / weeks.length,
+    weeks,
   };
 }
 

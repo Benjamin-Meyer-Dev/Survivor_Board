@@ -707,7 +707,12 @@ ratings of the day). It scores every line the board showed against the result
   old curve - lays the projections the board planned on against the lines those
   weeks eventually closed at by weeks ahead, next to the error the calibration
   promised, holds each week out of the rating fit with and without each layer,
-  and lists the coach's calls and how they went. Early in a season the tables
+  and lists the coach's calls and how they went - each the call its week's last
+  snapshot before the first game made, with the whole week to choose from, and
+  graded together as a scorecard of what the coach said against what came in,
+  by how sure it was. (It used to read the week's last snapshot, taken after
+  most of its games: in the NFL that was the Monday morning, and the "call" was
+  the best of the Monday night game.) Early in a season the tables
   are short and say so; by November they are the evidence for whether any of
   this earned its place. `scripts/validate-calibration.mjs` runs both on
   leagues whose answers are known, so a change to either has to recover a sigma
@@ -777,6 +782,42 @@ weeks after it read as not played, and the board opens looking at the week it
 ended. Nothing is deleted: the locks and results stay exactly as they
 were, so the season can be read back. Only the result itself changing, by a
 correction in `odds.json`, can bring the board out of review.
+
+### The ghost run
+
+A pool that is out is done, but the coach is not, and the season it would have
+played is the honest test of it - one the pool's own run, ended by one bad
+week, cannot give. So from the week after the loss the coach keeps a run of its
+own for the pool (`core/ghost.js`): each week its call is kept in the pool's
+shared entry under `ghost`, spends its team the way a lock would - no team
+twice, the pool's own locks included - and is graded by the same finals. It
+plays to the end of the run whatever happens to it, so the review banner can
+give both its record and the week its own first loss would have ended it, and
+the field and the card draw each call with how it went.
+
+What a ghost must not have is hindsight. Every call is made from the board as
+it stood when its week began (`ghostInputs`): the lines the books posted before
+the games, the weeks after it projected rather than priced, and no result
+anywhere. `app.js` makes them (`keepGhost`), on whichever member's phone opens
+the board: every week since the loss that has no call, in order, and the week
+on the clock again on each open until its call kicks off, so the call kept is
+the last one made before the game. A week nobody opened the app in is made
+afterwards the same way and marked rebuilt - the lines are the ones it would
+have had, but the ratings projecting the weeks after it are today's. Two phones
+keeping calls for different weeks both keep theirs (`store/merge.js`). Once the
+ghost has started, the plan the board draws for the weeks ahead is the ghost's
+(`planScope`), from the week on the clock with its teams spent.
+
+Beside it, the board grades the coach's own calls in the pool all season
+(`coachRecord`): the call each lock saved while the pool was alive, at the
+price its game closed at, and the ghost's after, at the price the coach put it
+at. Said against came in is the question - calls put at 80% should come
+through about four times in five - and the review quotes both. It changes
+nothing by itself: a season is a handful of calls, and a model tuned to a
+handful of calls is tuned to noise. Every game's result already reaches the
+ratings the next morning, ghost or no ghost; what this measures is the coach's
+choosing, and where it and the backtest's scorecard agree over enough calls is
+where a change is worth making.
 
 ## What the refresh job does with it
 

@@ -1379,10 +1379,17 @@ export function searchRequestFor(board, seed = null, { holdPicks = false, quick 
     for (const pick of week.picks) {
       if (held(pick)) burned.add(pick.team);
     }
+    // The ghost's calls spend their teams as locks do, and the one it has made
+    // for a week still being played holds its slot.
+    const ghostTeams = board.ghost?.[week.week]?.teams ?? [];
+    for (const team of ghostTeams) burned.add(team);
 
     if (isPast) continue;
 
-    const fixed = week.picks.map((pick) => (held(pick) ? pick.team : null));
+    const ghostLeft = ghostTeams.filter(
+      (team) => !week.picks.some((pick) => held(pick) && pick.team === team),
+    );
+    const fixed = week.picks.map((pick) => (held(pick) ? pick.team : (ghostLeft.shift() ?? null)));
     upcoming.push({
       week: week.week,
       // A playoff round, which the search plans as a bracket rather than as a
@@ -1472,6 +1479,11 @@ export function searchRequestFor(board, seed = null, { holdPicks = false, quick 
  *   a settled game stays a candidate.
  */
 export function planScope(board) {
+  // A run that is out and has a ghost playing it on (core/ghost.js) is planned
+  // the way a live one is: from the week on the clock, on games still to come.
+  // The ghost's calls behind it are its history, kept in the entry, and only
+  // what the ghost has spent reaches the search (searchRequestFor).
+  if (board.eliminated && board.ghost) return { from: board.currentWeek, played: false };
   if (board.eliminated && Number.isFinite(board.eliminatedWeek)) {
     return { from: Math.min(board.currentWeek, board.eliminatedWeek + 1), played: true };
   }

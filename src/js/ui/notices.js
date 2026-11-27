@@ -23,7 +23,7 @@
  * still play.
  */
 
-import { escapeHtml, formatPercent, formatSpread, weekPhrase } from "../core/format.js";
+import { escapeHtml, formatPercent, formatSpread, weekPhrase, weekTag } from "../core/format.js";
 import { prefersReducedMotion, swapContents } from "./motion.js";
 
 /**
@@ -189,6 +189,29 @@ function reviewMarkup(board) {
 
   const used = board.buyBack?.used ?? 0;
   if (used) stats.push({ label: "Buy backs", value: `${used} used` });
+
+  // The coach's ghost run since the loss (core/ghost.js): its record on the
+  // weeks played, and the week its own first loss would have ended it.
+  const ghost = board.ghostRecord;
+  if (ghost && ghost.won + ghost.lost > 0) {
+    stats.push({ label: "Ghost run", value: `${ghost.won}-${ghost.lost}` });
+    stats.push({
+      label: "Ghost out",
+      value: escapeHtml(ghost.outWeek ? weekTag(board, ghost.outWeek) : "Still in"),
+    });
+  }
+
+  // The coach's calls in this pool all season, graded on what it called rather
+  // than on what was locked: how many came through, and how often it said
+  // they would against how often they did.
+  const coach = board.coachRecord;
+  if (coach) {
+    stats.push({ label: "Coach's calls", value: `${coach.won}-${coach.lost}` });
+    stats.push({
+      label: "Said / came in",
+      value: `${formatPercent(coach.said, 0)} / ${formatPercent(coach.won / coach.calls, 0)}`,
+    });
+  }
 
   const last = board.weeks.at(-1)?.week ?? week;
 

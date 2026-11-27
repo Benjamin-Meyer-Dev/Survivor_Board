@@ -53,6 +53,15 @@ export function mergeEntries(base, ours, theirs) {
   const members = mergeMembers(from.members, ours.members, theirs.members);
   if (members) merged.members = members;
 
+  // The coach's ghost run for a pool that is out (core/ghost.js), by week: two
+  // phones keeping calls for different weeks both keep theirs, and the same
+  // week is the last write's, as a slot is.
+  if (from.ghost || ours.ghost || theirs.ghost) {
+    const ghost = mergeKeyed(from.ghost, ours.ghost, theirs.ghost);
+    if (Object.keys(ghost).length) merged.ghost = ghost;
+    else delete merged.ghost;
+  }
+
   return merged;
 }
 

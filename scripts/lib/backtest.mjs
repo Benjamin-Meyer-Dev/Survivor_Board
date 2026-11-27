@@ -211,14 +211,37 @@ export function walkForwardFit({ schedule, odds, stats, ratings, params }) {
 }
 
 /**
- * The coach's record: the call each week's closing snapshot made, and how it
- * went.
+ * The coach's record: the call each week made before its first game, and how
+ * it went.
+ *
+ * Before its first game, not at its last snapshot. A week stays on the clock
+ * until a few days before the next one, so its last snapshot is taken after
+ * most of its games are over - an NFL week's on the Monday morning, with only
+ * the Monday night game left to pick from - and the "call" read off it was the
+ * best of what was left rather than the call. Graded that way the coach went
+ * 6-5 on NFL calls it had put at 55-65%, none of which it had made. The last
+ * snapshot before the week's first kickoff is the call a person making the
+ * pick that week would have been given, with the whole week to choose from.
  */
 export function coachRecord(snapshots, results) {
-  const closingByWeek = new Map();
-  for (const snapshot of snapshots) closingByWeek.set(snapshot.week, snapshot);
+  const byWeek = new Map();
+  for (const snapshot of snapshots) {
+    if (!byWeek.has(snapshot.week)) byWeek.set(snapshot.week, []);
+    byWeek.get(snapshot.week).push(snapshot);
+  }
   const rows = [];
-  for (const [week, snapshot] of [...closingByWeek.entries()].sort((a, b) => a[0] - b[0])) {
+  for (const [week, list] of [...byWeek.entries()].sort((a, b) => a[0] - b[0])) {
+    const kickoffs = list.flatMap((snapshot) =>
+      Object.entries(snapshot.lines ?? {})
+        .filter(([key]) => key.startsWith(`${week}|`))
+        .map(([, line]) => Date.parse(line.kickoff ?? ""))
+        .filter(Number.isFinite),
+    );
+    const first = kickoffs.length ? Math.min(...kickoffs) : Infinity;
+    const sorted = [...list].sort((a, b) => String(a.at).localeCompare(String(b.at)));
+    const before = sorted.filter((snapshot) => Date.parse(snapshot.at) < first);
+    // With no snapshot before the first game, the earliest is the nearest thing.
+    const snapshot = before.at(-1) ?? sorted[0];
     const frontier = snapshot.recommendation?.frontier;
     const call = frontier?.candidates?.find((candidate) => candidate.chosen);
     const teams = call?.teams ?? snapshot.recommendation?.picks?.[week] ?? [];
@@ -228,6 +251,8 @@ export function coachRecord(snapshots, results) {
       week,
       teams,
       weekWinProb: call?.weekWinProb ?? null,
+      at: snapshot.at,
+      beforeKickoff: before.length > 0,
       outcome: outcomes.every((o) => o === "W")
         ? "W"
         : outcomes.some((o) => o === "L")
@@ -238,16 +263,57 @@ export function coachRecord(snapshots, results) {
   return rows;
 }
 
+/**
+ * The coach's calls as a scorecard: how many came through against how many it
+ * said would, overall and by how sure it was. The question it answers is
+ * whether the coach's numbers are earned - a band of 80% calls that wins 60%
+ * of the time is a coach leaning on teams it overrates - and the count beside
+ * every figure is the answer to how much that question has been answered.
+ *
+ * @param {Array<{weekWinProb:number|null, outcome:"W"|"L"|null}>} rows
+ */
+export function coachScorecard(rows) {
+  const decided = rows.filter((row) => row.outcome && Number.isFinite(row.weekWinProb));
+  const summarise = (list) => ({
+    n: list.length,
+    won: list.filter((row) => row.outcome === "W").length,
+    said: list.length
+      ? list.reduce((total, row) => total + row.weekWinProb, 0) / list.length
+      : null,
+    came: list.length ? list.filter((row) => row.outcome === "W").length / list.length : null,
+    brier: list.length
+      ? list.reduce(
+          (total, row) => total + (row.weekWinProb - (row.outcome === "W" ? 1 : 0)) ** 2,
+          0,
+        ) / list.length
+      : null,
+  });
+  const edges = [0, 0.7, 0.8, 0.9, 1.0001];
+  return {
+    ...summarise(decided),
+    bands: edges.slice(0, -1).map((low, index) => ({
+      low,
+      high: Math.min(1, edges[index + 1]),
+      ...summarise(
+        decided.filter((row) => row.weekWinProb >= low && row.weekWinProb < edges[index + 1]),
+      ),
+    })),
+  };
+}
+
 /** Whole report for one league. */
 export function backtest({ snapshots, odds, schedule, ratings, stats, calibration }) {
   const model = resolveModel(calibration);
   const sorted = [...snapshots].sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  const coach = coachRecord(sorted, odds.results ?? {});
   return {
     snapshots: sorted.length,
     lines: scoreSeasonLines(sorted, odds.results ?? {}, model),
     projections: scoreSeasonProjections({ snapshots: sorted, schedule, ratings, model }),
     fit: walkForwardFit({ schedule, odds, stats, ratings, params: calibration?.rating }),
-    coach: coachRecord(sorted, odds.results ?? {}),
+    coach,
+    // The calls, graded together.
+    scorecard: coachScorecard(coach),
   };
 }
 

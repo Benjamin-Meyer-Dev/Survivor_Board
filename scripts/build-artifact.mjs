@@ -51,7 +51,9 @@ const JS = [
   "core/recommend.js",
   "core/refresh.js",
   "core/search.js",
-
+  // Imports plan.js and plan.js imports it: the two only call each other's
+  // functions at run time, which hoisting covers in one flat script.
+  "core/ghost.js",
   "core/plan.js",
   "store/client.js",
   "store/artifact.js",

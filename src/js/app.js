@@ -25,6 +25,7 @@ import {
   weekNamesOf,
 } from "./core/plan.js";
 import { poolStanding } from "./core/standing.js";
+import { ghostCallFrom, ghostInputs, ghostOwed } from "./core/ghost.js";
 import { amendable, amendEntry, amendImpact, fixableWeek } from "./core/amend.js";
 import { chooseRepair, confirmAmend, dismissAmend } from "./ui/amend.js";
 import { readPlans, writePlans } from "./store/plans.js";
@@ -1169,6 +1170,9 @@ function render({ search = true, settle = RECOMMEND_DELAY_MS, board: prepared = 
   app.viewWeek = weekOnBoard(board, app.viewWeek);
 
   lastBoard = board;
+  // A pool that is out keeps the coach's ghost run going (keepGhost), once the
+  // board this render put up has had its moment on screen.
+  if (board.eliminated) setTimeout(keepGhost, RECOMMEND_DELAY_MS);
   // This pool's own standing, from the board that knows it, so the picker's
   // mark on the row showing is never a beat behind the field's own "Out".
   if (app.league) {
@@ -2544,6 +2548,59 @@ function openScope() {
  * write.
  */
 let pendingSave = null;
+
+/** The pool whose ghost calls are being worked out, so a run of renders starts one. */
+let ghosting = null;
+
+/**
+ * Keep the coach's ghost run going for the open pool, if it is out
+ * (core/ghost.js): a call for every week since the loss that has none, in
+ * order - each is made with the ones before it spent - and the week on the
+ * clock made again while its call has not kicked off. Each is kept in the
+ * pool's shared entry as it is made, a write like a lock, so the other phones
+ * have it and nobody's makes it twice.
+ *
+ * Every call is made from the board as it stood when its week began, which is
+ * a search of its own; on the worker it is a few hundred milliseconds a week,
+ * and a pool a long way past its loss catches up once and keeps the answers.
+ * Only a member who can write keeps the ghost, and it stops the moment the
+ * board is another pool's.
+ */
+async function keepGhost() {
+  const scope = openScope();
+  const board = lastBoard;
+  if (!scope || ghosting || !app.store?.canWrite || !board?.eliminated) return;
+  const owed = ghostOwed(board, app.entry);
+  if (owed.length === 0) return;
+  ghosting = scope;
+  let kept = false;
+  try {
+    for (const week of owed) {
+      const build = () =>
+        buildBoard({ ...ghostInputs(boardInputs(), week), allowSearch: true, inHand: null });
+      let built = build();
+      for (let tries = 0; built.recommendationPending && tries < 3; tries += 1) {
+        await searchesSettled();
+        if (openScope() !== scope) return;
+        built = build();
+      }
+      if (openScope() !== scope) return;
+      const call = ghostCallFrom(built, week);
+      if (!call) break;
+      const held = app.entry.ghost?.[week];
+      // The same call as last time is not news, and writing it again would be a
+      // save on every open for a week nobody has changed.
+      if (held && held.teams.join("+") === call.teams.join("+") && held.live === call.live)
+        continue;
+      app.entry = { ...app.entry, ghost: { ...(app.entry.ghost ?? {}), [week]: call } };
+      scheduleSave();
+      kept = true;
+    }
+  } finally {
+    ghosting = null;
+    if (kept && openScope() === scope) render({ search: false });
+  }
+}
 
 /** Coalesce rapid taps on one board into one write. */
 function scheduleSave() {

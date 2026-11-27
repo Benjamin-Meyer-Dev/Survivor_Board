@@ -450,6 +450,16 @@ function slotMark(pick, bought = false, missed = false) {
       : { mark: "missed", team: "", note: "No pick", says: "no pick locked in" };
   }
   if (pick.team) return { mark: "picked", team, says: `${team} picked` };
+  // The coach's ghost run after a loss (core/ghost.js): a call that has been
+  // played wears how it went, on a yard line still greyed as the pool's own.
+  if (pick.suggestion?.ghost && pick.suggestion.result) {
+    const won = pick.suggestion.result === "W";
+    return {
+      mark: won ? "won" : "lost",
+      team,
+      says: `the coach's ghost pick ${team} ${won ? "won" : "lost"}`,
+    };
+  }
   if (pick.suggestion) return { mark: "coach", team, says: `coach suggests ${team}` };
   return { mark: null, team: "", says: "" };
 }

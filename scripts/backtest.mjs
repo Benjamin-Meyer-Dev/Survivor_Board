@@ -114,16 +114,35 @@ async function report(league) {
     }
   }
 
-  console.log("\nThe coach's calls:");
+  console.log("\nThe coach's calls (made before each week's first game):");
   if (result.coach.length === 0) {
     console.log("  none recorded yet.");
   } else {
     for (const row of result.coach) {
       console.log(
         `  week ${String(row.week).padEnd(3)} ${row.teams.join(" + ").padEnd(34)} ` +
-          `${row.weekWinProb !== null ? pct(row.weekWinProb).padStart(6) : "      "}  ${row.outcome ?? "pending"}`,
+          `${row.weekWinProb !== null ? pct(row.weekWinProb).padStart(6) : "      "}  ${row.outcome ?? "pending"}` +
+          `${row.beforeKickoff ? "" : "   (no snapshot before the first game)"}`,
       );
     }
+    const card = result.scorecard;
+    console.log(
+      `\nScorecard: ${card.won}-${card.n - card.won} on ${card.n} decided call(s)` +
+        (card.n
+          ? `, said ${pct(card.said)}, came in ${pct(card.came)}, Brier ${fmt(card.brier)}`
+          : ""),
+    );
+    console.log("  band          n   said    came in");
+    for (const band of card.bands) {
+      console.log(
+        `  ${pct(band.low)}-${pct(band.high)}`.padEnd(15) +
+          `${String(band.n).padStart(3)}   ${band.n ? pct(band.said).padStart(6) : "     -"}   ${band.n ? pct(band.came).padStart(6) : "     -"}`,
+      );
+    }
+    console.log(
+      "  A season is a handful of calls: read each figure with its count beside it.\n" +
+        "  The board keeps the same card for each pool, the weeks after a loss included.",
+    );
   }
 }
 
