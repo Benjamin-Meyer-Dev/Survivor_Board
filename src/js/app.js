@@ -22,6 +22,7 @@ import {
   slotKey,
   sameEntry,
   searchesSettled,
+  weekNamesOf,
 } from "./core/plan.js";
 import { poolStanding } from "./core/standing.js";
 import { amendable, amendEntry, amendImpact, fixableWeek } from "./core/amend.js";
@@ -44,7 +45,6 @@ import {
   myLeagues,
   myName,
   myId,
-  previewClaim,
   refreshMyLeagues,
   removePool,
   renameMe,
@@ -136,6 +136,9 @@ const app = {
   homeMessage: "",
   /** The league being opened from the home page's list, whose card says so; null otherwise. */
   opening: null,
+  /** Each season's calendar for the new-league sheet, by sport, and its read (ensureSeasons). */
+  seasons: null,
+  seasonsLoad: null,
   plan: null,
   teams: null,
   odds: null,
@@ -541,6 +544,51 @@ async function startingNow(kinds) {
     if (Number.isInteger(week) && week > 1) rules[id] = { startWeek: week };
   }
   return rules;
+}
+
+/**
+ * What the new-league sheet needs to set a pool's rules before there is a
+ * board: each season's calendar and what its weeks are called, the week it is
+ * in now - which a new pool starts on, as startingNow says - and how many teams
+ * it has, which caps the picks a week. Read once, off the files a board reads
+ * anyway, and the home page painted again when they are in.
+ *
+ * A season whose files will not load is left out, and the sheet offers no rules
+ * for its pools: they are made on their defaults, as every league used to be,
+ * and the gear inside the board can still change them.
+ */
+function ensureSeasons() {
+  app.seasonsLoad ??= Promise.all(
+    SPORT_IDS.map(async (sport) => {
+      try {
+        const [plan, teams, odds] = await Promise.all([
+          loadJson("plan.json", sport),
+          loadJson("teams.json", sport),
+          loadJson("odds.json", sport).catch(() => null),
+        ]);
+        const names = weekNamesOf(plan);
+        const week = Number(odds?.currentWeek);
+        return [
+          sport,
+          {
+            weeks: plan.weeks.map((entry) => entry.week),
+            names: Object.fromEntries(Object.entries(names).map(([at, name]) => [at, name.short])),
+            currentWeek: Number.isInteger(week) && week > 1 ? week : 1,
+            totalTeams: Object.values(teams.conferences ?? {}).reduce(
+              (count, roster) => count + Object.keys(roster).length,
+              0,
+            ),
+          },
+        ];
+      } catch {
+        return null;
+      }
+    }),
+  ).then((entries) => {
+    app.seasons = Object.fromEntries(entries.filter(Boolean));
+    if (!el.home.hidden) paintHome();
+  });
+  return app.seasonsLoad;
 }
 
 async function loadJson(name, sport = POOL_KINDS[app.kind]?.sport) {
@@ -1694,6 +1742,7 @@ function renderHomeView() {
   // it would be the line the next one opens over.
   renderReview(el.review, null);
   paintHome();
+  ensureSeasons();
 }
 
 /**
@@ -1715,6 +1764,9 @@ function paintHome() {
       loading: app.leaguesLoading,
       message: app.homeMessage ?? "",
       opening: app.opening,
+      // Each season's calendar, for the new-league sheet's rules; null until
+      // read (ensureSeasons).
+      seasons: app.seasons ?? null,
     },
     {
       onOpen: (code, kind) => {
@@ -1728,9 +1780,16 @@ function paintHome() {
       // shows the reason under its own field. The message at the top of the
       // page is for what goes wrong away from the forms - an invite link that
       // did not open, a board that would not load.
-      onCreate: async ({ name, kinds }) => {
+      // The rules each pool was given in the sheet, where it could give them;
+      // a pool it could not (its season's files would not load) starts on the
+      // week its season is in now, on its defaults otherwise.
+      onCreate: async ({ name, kinds, rules = {} }) => {
         app.homeMessage = "";
-        const league = await createLeague({ name, kinds, rules: await startingNow(kinds) });
+        const league = await createLeague({
+          name,
+          kinds,
+          rules: { ...(await startingNow(kinds)), ...rules },
+        });
         await reloadLeagues();
         openBoard(league.code, null, { league });
       },
@@ -1742,13 +1801,17 @@ function paintHome() {
       },
       onLeave: async (code) => {
         const name = app.leagues.find((league) => league.code === code)?.name ?? "That league";
-        // The card starts going on the answer, not on the network: the leave
-        // is a round trip and the tap has already been taken. The render that
-        // draws the list without it waits for the card to have gone, so the
-        // cards under it move up into the space rather than being there
-        // already (ui/home.js).
-        const going = playLeagueExit(el.home, code);
-        const { deleted, problem } = await leaveLeague(code);
+        // The card starts going on the answer, not on the network, and the
+        // list closes up behind it the moment it has gone: the cards under it
+        // move up into the space (settleInto in ui/motion.js) rather than
+        // waiting out the leave and the refresh after it. Nothing the round
+        // trip says can bring the card back - leaveLeague takes the league off
+        // this device's list whatever the table answered.
+        const leaving = leaveLeague(code);
+        await playLeagueExit(el.home, code);
+        app.leagues = app.leagues.filter((league) => league.code !== code);
+        paintHome();
+        const { deleted, problem } = await leaving;
         if (app.league?.code === code) closeBoard();
         // Leaving says nothing - the card goes - except for the last one out,
         // whose league went with them, or should have and could not.
@@ -1757,7 +1820,6 @@ function paintHome() {
           app.homeMessage = `You have left ${name}. Nobody else was in it, but it could not be deleted: ${problem}`;
         else app.homeMessage = "";
         await reloadLeagues();
-        await going;
         renderHomeView();
       },
       onRenameMe: (name) => {
@@ -1778,36 +1840,6 @@ function paintHome() {
         if (app.league) {
           app.league = { ...app.league, people: renamedMe(app.league.people, app.name) };
         }
-        renderHomeView();
-      },
-      // Asked first, so the sheet can name the leagues a switch would leave.
-      onPreviewClaim: (typed) => previewClaim(typed),
-      onClaimId: async (typed) => {
-        // This phone becomes the person the id names: the directory has
-        // written the id, their name and their leagues before this returns,
-        // and the list is refreshed so their boards are warm and their head
-        // counts right. A rejection stays in the sheet (ui/home.js). The
-        // person this phone used to be has left whatever the id typed was not
-        // in, and a league that went with them is said, as a leave says it.
-        const { left } = await claimId(typed);
-        ME = myId();
-        app.name = myName();
-        if (app.league && left.some((league) => league.code === app.league.code)) {
-          closeBoard();
-        }
-        const deleted = left.filter((league) => league.deleted).map((league) => league.name);
-        const kept = left.filter((league) => league.problem).map((league) => league.name);
-        app.homeMessage = [
-          deleted.length
-            ? `Nobody else was in ${deleted.join(", ")}, so ${deleted.length > 1 ? "they have" : "it has"} been deleted.`
-            : "",
-          kept.length
-            ? `You have left ${kept.join(", ")}. Nobody else was in ${kept.length > 1 ? "them" : "it"}, but ${kept.length > 1 ? "they" : "it"} could not be deleted.`
-            : "",
-        ]
-          .filter(Boolean)
-          .join(" ");
-        await reloadLeagues();
         renderHomeView();
       },
     },

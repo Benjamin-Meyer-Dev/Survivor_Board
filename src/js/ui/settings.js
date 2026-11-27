@@ -286,35 +286,7 @@ function buildSheet(root) {
     }
     const control = event.target.closest("[data-rule]");
     if (!control || !draft) return;
-    const { rule, value } = control.dataset;
-
-    if (rule === "buyBackWeeks") {
-      const week = Number(value);
-      const weeks = new Set(draft.buyBackWeeks);
-      if (weeks.has(week)) weeks.delete(week);
-      else weeks.add(week);
-      draft.buyBackWeeks = [...weeks];
-    } else {
-      draft[rule] = Number(value);
-    }
-
-    // The count comes first and the weeks follow it: the weeks are only shown
-    // once there is a buy back to cover one, so a count stepped past the weeks
-    // chosen lights the earliest open weeks of the run to hold it, and the
-    // pills show which. Without this a pool granting none, with no weeks lit,
-    // could never be given one - the clamp below would put it straight back.
-    if (rule === "buyBacks") {
-      draft.buyBackWeeks = coverWeeks(draft, current.board.seasonWeeks);
-    }
-
-    // One rule bounds the next - the run of weeks decides which of them a buy
-    // back can cover, and those decide how many buy backs there can be - so
-    // the draft goes back through the model's own clamps rather than through a
-    // second set of them written out here. A week dropped by a narrowed run is
-    // dropped for good, and so is a count left with no week to spend itself in:
-    // the pills and the number show what is left, so nothing is hidden.
-    draft = onlyEditable(mergeRules(draft, draft, current.board.seasonWeeks));
-
+    draft = stepDraft(draft, control, current.board.seasonWeeks);
     paint(root, control);
   });
 
@@ -475,10 +447,6 @@ function paint(root, keep = null) {
   // and end being chosen instead of the ones last saved.
   const season = board.seasonWeeks;
   const weeks = season.filter((week) => week >= rules.startWeek && week <= rules.endWeek);
-  // As many buy backs as the run has weeks to spend them in: stepping the
-  // count up lights weeks as it goes, so the weeks already chosen are not the
-  // ceiling here the way they are in the model.
-  const maxBuyBacks = Math.min(MAX_BUY_BACKS, weeks.length);
 
   // Patched rather than rebuilt (ui/patch.js), so the one group that comes and
   // goes can be seen to. A group whose number changed is replaced as it always
@@ -500,37 +468,7 @@ function paint(root, keep = null) {
   // fixed when the league was made and named in the title above.
   reconcile(
     body,
-    `${group({
-      key: "startWeek",
-      legend: "Start week",
-      controls: stepper("startWeek", rules.startWeek, {
-        min: season[0] ?? rules.startWeek,
-        max: rules.endWeek,
-        format: weekName,
-      }),
-    })}
-    ${group({
-      key: "endWeek",
-      legend: "End week",
-      controls: stepper("endWeek", rules.endWeek, {
-        min: rules.startWeek,
-        max: season.at(-1) ?? rules.endWeek,
-        format: weekName,
-      }),
-    })}
-    ${group({
-      key: "picksPerWeek",
-      legend: "Picks a week",
-      controls: stepper("picksPerWeek", rules.picksPerWeek, {
-        min: 1,
-        max: maxPicksPerWeek(weeks.length, board.totalTeams),
-      }),
-    })}
-    ${group({
-      key: "buyBacks",
-      legend: "Buy backs",
-      controls: stepper("buyBacks", rules.buyBacks, { min: 0, max: maxBuyBacks }),
-    })}
+    `${ruleGroups(rules, { season, weekName, totalTeams: board.totalTeams })}
     ${
       wantsWeeks
         ? group({
@@ -591,6 +529,112 @@ function paint(root, keep = null) {
 }
 
 /**
+ * A pool's rules after one of their controls is used: a stepper's step or a
+ * buy back week's pill (`data-rule` and `data-value` on the control). The
+ * settings sheet and the new-league sheet (ui/home.js) both step their drafts
+ * through here, so a rule set when a league is made is held to the same
+ * bounds as one changed afterwards.
+ *
+ * @param {object} rules The draft, as onlyEditable gives it.
+ * @param {HTMLElement} control
+ * @param {number[]} seasonWeeks Every week the calendar has.
+ * @returns {object} The next draft; the one given is left alone.
+ */
+export function stepDraft(rules, control, seasonWeeks) {
+  const { rule, value } = control.dataset;
+  const next = { ...rules, buyBackWeeks: [...(rules.buyBackWeeks ?? [])] };
+
+  if (rule === "buyBackWeeks") {
+    const week = Number(value);
+    const weeks = new Set(next.buyBackWeeks);
+    if (weeks.has(week)) weeks.delete(week);
+    else weeks.add(week);
+    next.buyBackWeeks = [...weeks];
+  } else {
+    next[rule] = Number(value);
+  }
+
+  // The count comes first and the weeks follow it: the weeks are only shown
+  // once there is a buy back to cover one, so a count stepped past the weeks
+  // chosen lights the earliest open weeks of the run to hold it, and the
+  // pills show which. Without this a pool granting none, with no weeks lit,
+  // could never be given one - the clamp below would put it straight back.
+  if (rule === "buyBacks") next.buyBackWeeks = coverWeeks(next, seasonWeeks);
+
+  // One rule bounds the next - the run of weeks decides which of them a buy
+  // back can cover, and those decide how many buy backs there can be - so
+  // the draft goes back through the model's own clamps rather than through a
+  // second set of them written out here. A week dropped by a narrowed run is
+  // dropped for good, and so is a count left with no week to spend itself in:
+  // the pills and the number show what is left, so nothing is hidden.
+  return onlyEditable(mergeRules(next, next, seasonWeeks));
+}
+
+/**
+ * The run and the counts as steppers - start week, end week, picks a week and
+ * buy backs - for either sheet that sets a pool's rules (this one, and the
+ * new-league sheet in ui/home.js). Buy back weeks are the caller's: this sheet
+ * keys and animates their pills, and the new-league sheet draws them plain.
+ *
+ * @param {object} rules The draft.
+ * @param {{season:number[], weekName:(week:number)=>string, totalTeams:number,
+ *          scope?:string}} calendar `scope` keys the groups apart where one
+ *   sheet holds the rules of more than one pool.
+ */
+export function ruleGroups(rules, { season, weekName = String, totalTeams, scope = "" }) {
+  const weeks = season.filter((week) => week >= rules.startWeek && week <= rules.endWeek);
+  return `${group({
+    key: `${scope}startWeek`,
+    legend: "Start week",
+    controls: stepper("startWeek", rules.startWeek, {
+      min: season[0] ?? rules.startWeek,
+      max: rules.endWeek,
+      format: weekName,
+    }),
+  })}
+    ${group({
+      key: `${scope}endWeek`,
+      legend: "End week",
+      controls: stepper("endWeek", rules.endWeek, {
+        min: rules.startWeek,
+        max: season.at(-1) ?? rules.endWeek,
+        format: weekName,
+      }),
+    })}
+    ${group({
+      key: `${scope}picksPerWeek`,
+      legend: "Picks a week",
+      controls: stepper("picksPerWeek", rules.picksPerWeek, {
+        min: 1,
+        max: maxPicksPerWeek(weeks.length, totalTeams),
+      }),
+    })}
+    ${group({
+      key: `${scope}buyBacks`,
+      legend: "Buy backs",
+      // As many as the run has weeks to spend them in: stepping the count up
+      // lights weeks as it goes (stepDraft), so the weeks already chosen are
+      // not the ceiling here the way they are in the model.
+      controls: stepper("buyBacks", rules.buyBacks, {
+        min: 0,
+        max: Math.min(MAX_BUY_BACKS, weeks.length),
+      }),
+    })}`;
+}
+
+/** The weeks a buy back can cover, as pills: lit where the draft has one. */
+export function weekPills(weeks, rules, weekName = String) {
+  return weeks
+    .map(
+      (week) => `
+      <button type="button" class="settings__week" data-rule="buyBackWeeks" data-key="${week}"
+              data-value="${week}"
+              aria-pressed="${rules.buyBackWeeks.includes(week)}">${escapeHtml(weekName(week))}</button>`,
+    )
+    .join("");
+}
+
+/**
  * The most picks a week this pool has teams for.
  *
  * No team twice is the one rule that is not negotiable here, so a pool taking
@@ -626,17 +670,7 @@ function paintWeeks(box, weeks, rules, animate, weekName = String) {
     ? [...box.children].filter((pill) => !weeks.some((week) => String(week) === pill.dataset.key))
     : [];
 
-  reconcile(
-    box,
-    weeks
-      .map(
-        (week) => `
-      <button type="button" class="settings__week" data-rule="buyBackWeeks" data-key="${week}"
-              data-value="${week}"
-              aria-pressed="${rules.buyBackWeeks.includes(week)}">${escapeHtml(weekName(week))}</button>`,
-      )
-      .join(""),
-  );
+  reconcile(box, weekPills(weeks, rules, weekName));
 
   if (!animate) return;
 
@@ -696,7 +730,7 @@ function paintTake(root, animate) {
  * One rule: its name and its control beside it. A group that needs the width -
  * the weeks - stacks instead.
  */
-function group({ legend, controls, key, stack = false }) {
+export function group({ legend, controls, key, stack = false }) {
   return `
     <div class="settings__group${stack ? " settings__group--stack" : ""}" role="group"
          data-key="${escapeHtml(key)}" aria-label="${escapeHtml(legend)}">

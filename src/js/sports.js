@@ -36,15 +36,18 @@ export const SPORTS = Object.freeze({
     ratingLabel: "Power",
     /* The conferences a league on this sport can pick from. */
     conferences: ["AFC", "NFC"],
-    /* What a new league on this sport starts with, before anyone changes it in
-       the settings sheet: one pick a week over the regular season's eighteen
-       weeks, which are also the weeks a pool can start and end on. No buy
-       back, like college. Plenty of NFL pools do forgive an opening loss, but
+    /* What a new league on this sport starts with, before anyone changes it
+       when making the league or in the settings sheet: one pick a week over
+       the regular season's eighteen weeks. The calendar runs on through the
+       four playoff rounds (`calendarWeeks`, 22), so a pool can be made to end
+       at any of them. No buy back, like college. Plenty of NFL pools do forgive an
+       opening loss, but
        a cushion nobody asked for is the one default that cannot be noticed and
        undone later - it reads as real on the strip, the coach spends week 1 as
        though a loss there were covered, and the first anyone knows of it is a
        loss that was not. A pool that grants one turns it on in the sheet, and
        the weeks to cover appear with it. */
+    calendarWeeks: 22,
     defaultRules: {
       startWeek: 1,
       endWeek: 18,
@@ -71,6 +74,7 @@ export const SPORTS = Object.freeze({
        these boards were built for run. Thirteen weeks: the regular season the
        schedule carries, and the range a pool can pick its own start and end
        from. */
+    calendarWeeks: 13,
     defaultRules: {
       startWeek: 1,
       endWeek: 13,
@@ -123,8 +127,16 @@ export const POOL_KINDS = Object.freeze(
             /* The chip: the season's short name, marked when the pick has to lose. */
             short: objective === "lose" ? `${SPORTS[sport].short} losers` : SPORTS[sport].short,
             hint: OBJECTIVES[objective].hint,
-            /* What a new pool of this kind starts with: its season's rules, played this way. */
-            rules: Object.freeze({ ...SPORTS[sport].defaultRules, objective }),
+            /* What a new pool of this kind starts with: its season's rules, played
+               this way - and how far its calendar runs (`weeks`), which is no
+               rule a pool stores but is the bound a rule given without the
+               calendar to hand is held to (mergeRules in core/rules.js): a
+               pool made to end at the Super Bowl ends there. */
+            rules: Object.freeze({
+              ...SPORTS[sport].defaultRules,
+              weeks: SPORTS[sport].calendarWeeks,
+              objective,
+            }),
           }),
         ];
       }),

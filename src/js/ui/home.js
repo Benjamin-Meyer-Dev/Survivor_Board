@@ -44,16 +44,11 @@
 
 import { APP_NAME } from "../config.js";
 import { POOL_KINDS, KIND_IDS, normaliseKinds } from "../sports.js";
-import {
-  formatCode,
-  normaliseCode,
-  isCode,
-  formatPersonId,
-  normalisePersonId,
-  isPersonId,
-} from "../core/code.js";
+import { formatCode, normaliseCode, isCode, formatPersonId } from "../core/code.js";
 import { escapeHtml } from "../core/format.js";
+import { mergeRules, onlyEditable } from "../core/rules.js";
 import { delegate } from "./events.js";
+import { group, ruleGroups, stepDraft, weekPills } from "./settings.js";
 import { rosterMarkup } from "./roster.js";
 import { frame, reconcile } from "./patch.js";
 import {
@@ -61,7 +56,6 @@ import {
   capturePlaces,
   closeDialog,
   grow,
-  isShutting,
   keepOpen,
   prefersReducedMotion,
   settleInto,
@@ -151,11 +145,6 @@ const SHEETS = [
 /** The league a leave is being asked about, while the question is up. */
 let leaving = null;
 /**
- * The id a claim's warning is about, while it is up: what Switch anyway
- * claims. The one that was looked up, not whatever the field says by then.
- */
-let claimAsked = null;
-/**
  * The sheets' forms whose request is out. A form in here takes no second
  * submit and its button stays held, whatever is typed meanwhile: a create
  * tapped twice while the first was still on the network made two leagues.
@@ -167,6 +156,18 @@ const sending = new WeakSet();
  * leaving line and wiped with it a moment later.
  */
 const lineLeaving = new WeakMap();
+/**
+ * Each season's calendar, by sport, as app.js last handed it over: the weeks,
+ * what they are called, the week it is now and how many teams it has. Null
+ * until read.
+ */
+let seasons = null;
+/**
+ * The rules each pool in the new-league sheet has been stepped to, by kind.
+ * Kept while the sheet is shut, as what was typed into it is - the person may
+ * be coming back to finish - and cleared once the league is made.
+ */
+const createDrafts = new Map();
 /** This person's name as last rendered, for the rename sheet to start from. */
 let me = "";
 /** And their id, for the same sheet to show. */
@@ -190,9 +191,11 @@ let meId = "";
  *   load that outran its fade was spent on a blank screen. It used to be
  *   written onto the card rather than into its markup, so any other render of
  *   the page in the meantime took it off while the league went on opening.
- * @param {object} given onOpen(code), onCreate({name, kinds}), onJoin(code),
- *   onLeave(code), onRenameMe(name), onClaimId(id). onCreate, onJoin and onClaimId
- *   may reject; the message is shown in their sheet.
+ * @param {object|null} [state.seasons] Each season's calendar by sport, for the
+ *   new-league sheet to set its pools' rules from (ensureSeasons in app.js).
+ * @param {object} given onOpen(code), onCreate({name, kinds, rules}), onJoin(code),
+ *   onLeave(code), onRenameMe(name). onCreate and onJoin may reject; the
+ *   message is shown in their sheet.
  * @param {HTMLElement} [sheets] Where the two sheets live. Built once, on the
  *   first render that names it, and left alone after.
  */
@@ -208,6 +211,11 @@ export function renderHome(root, state, given, sheets = null) {
   }
   me = state.name ?? "";
   meId = state.id ?? "";
+  // The calendars arriving fill in the rules of any pool already ticked.
+  if ((state.seasons ?? null) !== seasons) {
+    seasons = state.seasons ?? null;
+    paintCreateRules(sheetsRoot?.querySelector('form[data-act="create"]'));
+  }
 
   // Built once and patched after (ui/patch.js), where it used to be rebuilt
   // from innerHTML on every render. A league's card is now the same element
@@ -350,6 +358,7 @@ function sheetsMarkup() {
             ).join("")}
           </div>
         </fieldset>
+        <div class="home__rules" data-rules hidden></div>
         <button type="submit" class="home__btn home__btn--go" disabled>Create league</button>
       </form>
     </dialog>
@@ -389,27 +398,6 @@ function sheetsMarkup() {
         <div class="home__confirm-row">
           <button type="submit" class="home__btn home__btn--go">Save</button>
           <button type="button" class="home__btn home__btn--quiet" data-close>Cancel</button>
-        </div>
-        <button type="button" class="home__link" data-act="show-claim">Picking on another phone already? Use that ID</button>
-      </form>
-      <form class="home__form home__form--claim" data-act="claim" hidden>
-        <label class="home__label" for="home-claim">The ID from your other phone</label>
-        <input class="home__input home__input--code" id="home-claim" name="id" type="text" maxlength="18"
-               placeholder="K7QM-3WXP" autocomplete="off" autocapitalize="characters" spellcheck="false" />
-        <p class="home__form-error" role="alert" hidden></p>
-        <button type="submit" class="home__btn home__btn--go" disabled>Use this ID</button>
-        <div class="home__claim-warn" hidden>
-          <p class="home__confirm-ask">
-            These leagues are only on this phone's ID. Switching leaves them:
-          </p>
-          <ul class="home__claim-list"></ul>
-          <p class="home__confirm-ask" data-claim-alone hidden>
-            Nobody else is in the ones marked, so leaving deletes them, every pick with them.
-          </p>
-          <div class="home__confirm-row">
-            <button type="button" class="home__btn home__btn--danger" data-act="claim-yes">Switch anyway</button>
-            <button type="button" class="home__btn home__btn--quiet" data-act="claim-no">Keep this ID</button>
-          </div>
         </div>
       </form>
     </dialog>
@@ -516,21 +504,11 @@ function kindsOf(league) {
 function wire(root) {
   delegate(root, "click", '[data-act="rename-me"]', () => {
     // The name as it stands, to edit rather than retype, and the id as it
-    // is, to read off. The other phone's id is asked for behind a line, so
-    // the sheet opens as the short question it usually is.
+    // is, to read off.
     const field = sheetsRoot?.querySelector("#home-me");
     if (field) field.value = me;
     const shown = sheetsRoot?.querySelector(".home__id");
     if (shown) shown.textContent = formatPersonId(meId);
-    const claim = sheetsRoot?.querySelector('form[data-act="claim"]');
-    if (claim) {
-      claim.reset();
-      claim.hidden = true;
-      showProblem(claim, "", { now: true });
-      hideClaimWarning(claim);
-      syncClaim(claim);
-      sheetsRoot.querySelector('[data-act="show-claim"]').hidden = false;
-    }
     openSheet("rename");
   });
 
@@ -580,11 +558,24 @@ function wireSheets(sheets) {
 
   const create = sheets.querySelector('form[data-act="create"]');
   syncCreate(create);
+  paintCreateRules(create);
   create.addEventListener("input", () => syncCreate(create));
   create.addEventListener("change", () => {
     syncCreate(create);
+    // A pool ticked brings its rules with it, and one unticked takes them away.
+    paintCreateRules(create);
     // The one complaint the sheet can make on its own is answered by a tick.
     if (chosenKinds(create).length) showProblem(create, "");
+  });
+  // A stepper or a buy back week: the same step the settings sheet makes
+  // (stepDraft), on the rules of the pool it sits under.
+  create.addEventListener("click", (event) => {
+    const control = event.target.closest("[data-rule]");
+    const kind = control?.closest("[data-pool]")?.dataset.pool;
+    const season = kind && seasonOf(kind);
+    if (!control || !season) return;
+    createDrafts.set(kind, stepDraft(draftFor(kind, season), control, season.weeks));
+    paintCreateRules(create, control);
   });
   create.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -593,7 +584,16 @@ function wireSheets(sheets) {
       showProblem(create, "Tick at least one pool for the league to run.");
       return;
     }
-    attempt(create, () => homeHandlers.onCreate({ name: create.elements.name.value, kinds }));
+    // Each pool's rules as set here, for the pools there were rules to set.
+    const rules = Object.fromEntries(
+      kinds.filter((kind) => seasonOf(kind)).map((kind) => [kind, draftFor(kind, seasonOf(kind))]),
+    );
+    attempt(create, async () => {
+      await homeHandlers.onCreate({ name: create.elements.name.value, kinds, rules });
+      // Made: the next league starts from the defaults again.
+      createDrafts.clear();
+      paintCreateRules(create);
+    });
   });
 
   const join = sheets.querySelector('form[data-act="join"]');
@@ -623,72 +623,11 @@ function wireSheets(sheets) {
     homeHandlers.onRenameMe(typed);
   });
 
-  // The id: copied off this phone, or the other phone's typed in. The second
-  // makes this device that person (claimId in store/directory.js), and the
-  // sheet closes on their leagues arriving; an id nobody has is refused under
-  // the field. When this phone is in leagues the id typed is not, the switch
-  // would leave them, so the form names them and asks before anything is
-  // written (previewClaim).
+  // The id, copied off this phone to type into the next one's first run.
   const idCopy = sheets.querySelector(".home__id-copy");
   idCopy.addEventListener("click", () =>
     copyText(idCopy, formatPersonId(meId), "ID copied", "Copy your ID"),
   );
-  const claim = sheets.querySelector('form[data-act="claim"]');
-  sheets.querySelector('[data-act="show-claim"]').addEventListener("click", (event) => {
-    event.currentTarget.hidden = true;
-    claim.hidden = false;
-    claim.elements.id.focus();
-  });
-  claim.elements.id.addEventListener("input", () => {
-    hideClaimWarning(claim);
-    syncClaim(claim);
-  });
-  claim.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (sending.has(claim)) return;
-    const typed = claim.elements.id.value;
-    if (!isPersonId(typed)) {
-      showProblem(claim, "An ID is eight characters, like K7QM-3WXP.");
-      return;
-    }
-    const id = normalisePersonId(typed);
-    const sheet = claim.closest("dialog");
-    markSending(claim, true);
-    showProblem(claim, "");
-    let leaving;
-    try {
-      ({ leaving } = await homeHandlers.onPreviewClaim(id));
-    } catch (error) {
-      markSending(claim, false);
-      if (!isShutting(sheet)) {
-        showProblem(claim, error?.message || "That did not go through. Try again.");
-      }
-      return;
-    }
-    markSending(claim, false);
-    // The answer is to a question the sheet is no longer asking: shut while it
-    // was out - Cancel is a no, whatever came back, and this used to go on and
-    // make the phone somebody else - or another id typed since.
-    if (isShutting(sheet) || claim.elements.id.value !== typed) return;
-    if (leaving.length === 0) {
-      await attempt(claim, () => homeHandlers.onClaimId(id));
-      return;
-    }
-    claimAsked = id;
-    showClaimWarning(claim, leaving);
-  });
-  claim.querySelector('[data-act="claim-yes"]').addEventListener("click", async (event) => {
-    const id = claimAsked;
-    if (!id) return;
-    const button = event.currentTarget;
-    button.disabled = true;
-    await attempt(claim, () => homeHandlers.onClaimId(id));
-    button.disabled = false;
-  });
-  claim.querySelector('[data-act="claim-no"]').addEventListener("click", () => {
-    hideClaimWarning(claim);
-    syncClaim(claim);
-  });
 
   // The leave question: the answer acts on whichever league asked it.
   const leave = sheets.querySelector("#home-leave");
@@ -793,6 +732,89 @@ function chosenKinds(form) {
   return [...form.querySelectorAll('input[name="kinds"]:checked')].map((input) => input.value);
 }
 
+/** The season a pool plays, as app.js read it for this sheet; null until it is in. */
+function seasonOf(kind) {
+  return seasons?.[POOL_KINDS[kind]?.sport] ?? null;
+}
+
+/**
+ * A pool's rules as the sheet holds them: what was stepped to, or what a new
+ * pool of its kind starts with - its season's defaults, from the week the
+ * season is in now (startingNow in app.js says why) - clamped to the season
+ * the way every rule a board runs on is.
+ */
+function draftFor(kind, season) {
+  const held = createDrafts.get(kind);
+  if (held) return held;
+  const start = season.currentWeek > 1 ? { startWeek: season.currentWeek } : null;
+  const fresh = onlyEditable(mergeRules(POOL_KINDS[kind].rules, start, season.weeks));
+  createDrafts.set(kind, fresh);
+  return fresh;
+}
+
+/**
+ * The rules of every pool ticked, under its name: the same steppers the
+ * settings sheet has (ruleGroups in ui/settings.js), so a league can be made
+ * the way it will be played rather than made and then put right from inside
+ * the board. A pool whose season has not been read yet has none to offer and
+ * is made on its defaults; the sheet fills them in as soon as it has them.
+ *
+ * Patched rather than rebuilt, so a step replaces the group it changed and
+ * nothing else, and `keep` - the control just used - has its focus put back on
+ * its replacement, the way the settings sheet does it.
+ *
+ * @param {HTMLFormElement} form
+ * @param {HTMLElement|null} [keep]
+ */
+function paintCreateRules(form, keep = null) {
+  const box = form?.querySelector("[data-rules]");
+  if (!box) return;
+  const kinds = chosenKinds(form).filter((kind) => seasonOf(kind));
+  box.hidden = kinds.length === 0;
+  // Several pools are told apart by name; one needs none, the sheet has just
+  // asked for it.
+  const named = kinds.length > 1;
+  reconcile(
+    box,
+    kinds
+      .map((kind) => {
+        const season = seasonOf(kind);
+        const rules = draftFor(kind, season);
+        const weekName = (week) => season.names?.[week] ?? String(week);
+        const run = season.weeks.filter((week) => week >= rules.startWeek && week <= rules.endWeek);
+        return `<section class="home__pool-rules" data-key="${kind}" data-pool="${kind}">
+          ${named ? `<p class="home__label">${escapeHtml(POOL_KINDS[kind].label)}</p>` : ""}
+          ${ruleGroups(rules, {
+            season: season.weeks,
+            weekName,
+            totalTeams: season.totalTeams,
+            scope: `${kind}-`,
+          })}
+          ${
+            rules.buyBacks > 0
+              ? group({
+                  key: `${kind}-buyBackWeeks`,
+                  legend: "Buy Back Weeks",
+                  stack: true,
+                  controls: `<div class="settings__weeks">${weekPills(run, rules, weekName)}</div>`,
+                })
+              : ""
+          }
+        </section>`;
+      })
+      .join(""),
+  );
+  if (!keep) return;
+  const { rule, step, value } = keep.dataset;
+  const pool = keep.closest("[data-pool]")?.dataset.pool;
+  const section = box.querySelector(`[data-pool="${pool}"]`);
+  const siblings = [...(section?.querySelectorAll(`[data-rule="${rule}"]`) ?? [])];
+  const same = step
+    ? siblings.find((control) => control.dataset.step === step && !control.disabled)
+    : siblings.find((control) => control.dataset.value === value);
+  (same ?? siblings.find((control) => !control.disabled))?.focus();
+}
+
 /**
  * Create is held until the league has a name and a pool is ticked. A league
  * of no pools would have no board to open, and one with no name nothing to
@@ -811,14 +833,8 @@ function syncJoin(form) {
     sending.has(form) || form.elements.code.value.trim().length === 0;
 }
 
-/** And the other phone's id until what is typed is the shape of one. */
-function syncClaim(form) {
-  form.querySelector('button[type="submit"]').disabled =
-    sending.has(form) || !isPersonId(form.elements.id.value);
-}
-
 /** Each form's button rule, by the form's data-act. */
-const SYNC = { create: syncCreate, join: syncJoin, claim: syncClaim };
+const SYNC = { create: syncCreate, join: syncJoin };
 
 /**
  * Mark a form's request as out, or back, and put its button right for it.
@@ -833,33 +849,6 @@ function markSending(form, out) {
   if (out) submit?.setAttribute("aria-busy", "true");
   else submit?.removeAttribute("aria-busy");
   SYNC[form.dataset.act]?.(form);
-}
-
-/**
- * The leagues a switch of id would leave, named in the claim form, with the
- * ones it would delete marked. The form's own button makes way for the
- * answer, so the only way on is to say yes or no to that list.
- */
-function showClaimWarning(form, leaving) {
-  const warn = form.querySelector(".home__claim-warn");
-  form.querySelector(".home__claim-list").innerHTML = leaving
-    .map(
-      (league) =>
-        `<li class="home__claim-item${league.alone ? " is-alone" : ""}">${escapeHtml(league.name)}${
-          league.alone ? " <span>· deleted</span>" : ""
-        }</li>`,
-    )
-    .join("");
-  form.querySelector("[data-claim-alone]").hidden = !leaving.some((league) => league.alone);
-  form.querySelector('button[type="submit"]').hidden = true;
-  warn.hidden = false;
-  grow(warn);
-}
-
-function hideClaimWarning(form) {
-  claimAsked = null;
-  form.querySelector(".home__claim-warn").hidden = true;
-  form.querySelector('button[type="submit"]').hidden = false;
 }
 
 /**

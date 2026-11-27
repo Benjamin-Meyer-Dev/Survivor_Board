@@ -87,7 +87,10 @@
    New league and Join on the flag. v50 is the playoffs: a new module
    (core/playoffs.js) every search imports, and a plan.json that runs to the
    Super Bowl - which is cached first like the shell, so a phone holding the
-   old one would offer a pool no playoffs until its next launch.
+   old one would offer a pool no playoffs until its next launch. v51 puts the
+   rules on the new-league sheet (ui/home.js, with the steppers shared out of
+   ui/settings.js), keeps the coach's line over a playoff round still to be
+   set, and takes the claim-an-ID form off the Who's picking? sheet.
 
    "Must not keep half of" is the whole point, and v4 is what that phrase was
    written for. Every shell file is cached first and refreshed on its own a few
@@ -104,7 +107,7 @@
    needs a hand here: ENGINE_VERSION in src/js/core/recommend.js is part of
    every plan's key, so a plan can only ever be read back by the engine that
    wrote it. Bump it there when the search or the ranking changes shape. */
-const CACHE = "sudden-death-v50";
+const CACHE = "sudden-death-v51";
 
 /**
  * Kept from install rather than on first use, so the first launch after an

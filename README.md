@@ -21,9 +21,10 @@ own rules on top:
 | Eligible | SEC, Big Ten, Big 12 | all 32                             |
 | Opponent | must be FBS          | any                                |
 
-and the rules its members set, from the gear beside its name - which weeks it
-**starts and ends** on, how many **picks a week**, how many **buy backs** and
-the weeks they cover. Those are the pool's, not the device's: saving them
+and the rules its members set - when the league is made, and later from the
+gear beside its name - which weeks it **starts and ends** on, how many **picks
+a week**, how many **buy backs** and the weeks they cover. Those are the
+pool's, not the device's: saving them
 re-plans the season on every phone in it. No team can be used twice either way,
 and a buy back forgives a loss without giving the team back, so a week 1 loss
 costs both the team and the cushion.

@@ -4916,77 +4916,6 @@ button.league-bar__face[aria-expanded="true"] {
   overflow-wrap: anywhere;
 }
 
-/* A quiet line that acts: the way to the other phone's id. */
-.home__link {
-  justify-self: start;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--chalk-3);
-  font-family: var(--font-body);
-  font-size: 12px;
-  line-height: 1.5;
-  text-align: left;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-
-.home__link:hover {
-  color: var(--chalk);
-}
-
-.home__link[hidden],
-.home__form--claim[hidden] {
-  display: none;
-}
-
-/* The second form carries on from the first, so the two read as one sheet. */
-.home__form--claim {
-  padding-top: 0;
-}
-
-/* What switching id would leave, asked in place of the form's own button. */
-.home__claim-warn {
-  display: grid;
-  gap: var(--form-gap);
-}
-
-.home__claim-warn[hidden],
-.home__form--claim .home__btn[hidden] {
-  display: none;
-}
-
-.home__claim-list {
-  display: grid;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.home__claim-item {
-  color: var(--chalk);
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 16px;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-
-.home__claim-item span {
-  color: var(--chalk-3);
-  font-family: var(--font-body);
-  font-weight: 400;
-  font-size: 12px;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.home__claim-warn .home__confirm-row {
-  margin-top: 4px;
-}
-
 .home__choices-group {
   border: 0;
   padding: 0;
@@ -5041,6 +4970,26 @@ button.league-bar__face[aria-expanded="true"] {
 
 .home__option:has(input:checked) .home__option-name {
   color: var(--chalk);
+}
+
+/* The rules of each pool ticked, under the pools: the settings sheet's own
+   steppers (ruleGroups in ui/settings.js), each pool's behind a dashed chalk
+   rule the way the settings sheet sets its rules apart. Gone while no pool is
+   ticked, so the button keeps its place under the pools. */
+.home__rules {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.home__rules[hidden] {
+  display: none;
+}
+
+.home__pool-rules {
+  display: grid;
+  gap: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px dashed var(--line);
 }
 
 /* Why a join or a create did not go through, under the field it is about. */

@@ -33,6 +33,25 @@ export function readLocalEntry(code, kind) {
   }
 }
 
+/**
+ * Put a pool's board on this device: what a league made with no backend starts
+ * from, since there is no row for its rules to be written into (createLeague in
+ * store/directory.js). Without it a league made that way opened on its
+ * season's defaults whatever the new-league sheet had set.
+ *
+ * @param {string} code
+ * @param {string} kind
+ * @param {object} entry
+ */
+export function writeLocalEntry(code, kind, entry) {
+  const { storageKey: key } = scopeFor(code, kind);
+  try {
+    localStorage.setItem(key, JSON.stringify(entry));
+  } catch {
+    /* private mode, quota, or blocked storage - the board opens on its defaults */
+  }
+}
+
 export function createLocalStore(code, kind) {
   const listeners = new Set();
   const { storageKey: key } = scopeFor(code, kind);

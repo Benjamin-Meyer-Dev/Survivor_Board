@@ -85,18 +85,19 @@ export function mergeRules(planRules = {}, overrides = null, weekNumbers = []) {
   // How much season there is to play: the calendar when the caller has one,
   // and otherwise the range the plan itself names. The pool's own range is cut
   // out of this and can never reach past it.
+  //
+  // Without a calendar the plan's own count of its weeks is the ceiling as
+  // well as its end week, whichever reaches further: an NFL plan ends its pools
+  // at week 18 but its calendar runs on through the playoffs to week 22, and a
+  // pool made to end at the Super Bowl must not be cut back to the regular
+  // season by a caller that has no calendar to hand (createLeague).
   const calendar = [...season].sort((a, b) => a - b);
   const ceilingWeek = Number.MAX_SAFE_INTEGER;
   const first = calendar[0] ?? bounded(planRules.startWeek, 1, ceilingWeek, 1);
+  const counted = bounded(planRules.weeks, first, ceilingWeek, first);
   const last = Math.max(
     first,
-    calendar.at(-1) ??
-      bounded(
-        planRules.endWeek,
-        first,
-        ceilingWeek,
-        bounded(planRules.weeks, first, ceilingWeek, first),
-      ),
+    calendar.at(-1) ?? Math.max(bounded(planRules.endWeek, first, ceilingWeek, counted), counted),
   );
 
   // The start is settled first and the end measured from it, so a range given

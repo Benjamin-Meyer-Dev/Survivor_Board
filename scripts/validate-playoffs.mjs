@@ -29,6 +29,8 @@ import {
   validSeeds,
 } from "../src/js/core/playoffs.js";
 import { resolveModel } from "../src/js/core/probability.js";
+import { mergeRules } from "../src/js/core/rules.js";
+import { POOL_KINDS } from "../src/js/sports.js";
 import { CONFIG } from "../src/js/config.js";
 import { findPlayoffGames } from "./lib/playoffs.mjs";
 import { teamResolver } from "./lib/odds-api.mjs";
@@ -320,6 +322,18 @@ const boardFor = (rules, picks = {}, feed = atKickoff(odds)) => {
   }
   return buildBoard({ ...league, odds: feed, entry, refreshSchedule: CONFIG.refresh });
 };
+
+// A league made to end at a playoff round ends there. createLeague clamps the
+// rules it is given with no calendar to hand, and the kind's own calendar is
+// what holds them then - not the regular season its pools stop at by default.
+assert.equal(mergeRules(POOL_KINDS["nfl-win"].rules, { endWeek: 22 }).endWeek, 22);
+assert.equal(mergeRules(POOL_KINDS["nfl-lose"].rules, { endWeek: 20 }).endWeek, 20);
+assert.equal(mergeRules(POOL_KINDS["nfl-win"].rules, null).endWeek, 18, "by default, week 18");
+assert.equal(mergeRules(POOL_KINDS["cfb-win"].rules, { endWeek: 22 }).endWeek, 13);
+assert.ok(
+  !("weeks" in mergeRules(POOL_KINDS["nfl-win"].rules, { endWeek: 22 })),
+  "and the calendar's length is no rule a pool stores",
+);
 
 // A pool nobody has extended stops at the regular season, and plans nothing
 // for January.

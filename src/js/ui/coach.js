@@ -153,10 +153,17 @@ export function renderCoach(root, board, viewWeek, activeSlot = 0, handlers = {}
   // empties itself the moment a week is over reads as the board losing the
   // thread rather than as the week being finished. It goes only where there is
   // nothing to quote - a week nobody priced.
+  //
+  // A playoff round whose games are not set keeps the page too, every figure a
+  // dash: the line is where the read will be once the round before is played,
+  // and a band that came and went with the bracket moved the chart under it
+  // every time the week turned onto a round or off one.
   const page =
     state.kind === "working" || (state.kind === "past" && closingPricing(state))
       ? `<div class="coach__page" data-key="page">${head(state, leaving)}${chain(state)}</div>`
-      : "";
+      : state.kind === "bracket"
+        ? `<div class="coach__page" data-key="page">${head(state, leaving)}${blankChain()}</div>`
+        : "";
   const routeMarkup = state.kind === "none" ? "" : route(state, board);
   // Keep the chart's outer frame independent of the markup inside it. The
   // selected week changes its band, figures and axis, but usually not the SVG
@@ -1149,6 +1156,23 @@ function chain(state) {
       <span class="chain__key">Tier</span>
       <span class="chain__value"><span class="chip chip--${tier}">${TIER_WORD[tier] ?? TIER_LABEL[tier] ?? tier}</span></span>
     </li>
+  </ol>`;
+}
+
+/**
+ * The four stops with nothing to quote yet: the same keys, each figure a dash,
+ * for a playoff round whose games are not set. Nobody knows who plays, so there
+ * is no line, no price and no tier - but the row keeps its place, and fills in
+ * the day the round is posted.
+ */
+function blankChain() {
+  const title = "Matchups not set yet: nothing is priced until the round before has been played";
+  const stop = (key) => `<li class="chain__stop" title="${title}">
+      <span class="chain__key">${key}</span>
+      <span class="chain__value">—</span>
+    </li>`;
+  return `<ol class="chain" data-key="chain" aria-label="Not priced yet: the matchups are not set">
+    ${["Model line", "Market line", "Win prob", "Tier"].map(stop).join("")}
   </ol>`;
 }
 

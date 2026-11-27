@@ -44,6 +44,7 @@ import { SPORTS, POOL_KINDS, KIND_IDS, kindId, normaliseKinds, kindsLabel } from
 import { mergeRules } from "../core/rules.js";
 import { supabaseClient } from "./client.js";
 import { rememberRow, forgetRows } from "./rows.js";
+import { writeLocalEntry } from "./local.js";
 
 export { sharingAvailable } from "./client.js";
 export { knownRow } from "./rows.js";
@@ -763,6 +764,10 @@ export async function createLeague({ name, kinds, rules = null }) {
   if (client) {
     const { error } = await client.from(CONFIG.supabase.table).insert(rows);
     if (error) throw new Error(`Could not create the league: ${explain(error)}`);
+  } else {
+    // No table to write the rows to, so each pool's board starts on this
+    // device instead - with the rules it was made with, not the defaults.
+    chosen.forEach((id, index) => writeLocalEntry(code, id, rows[index].entry));
   }
 
   const league = summary(groupPools(rows)[0]);

@@ -62,8 +62,15 @@ pool ships:
 
 What the plan ships is the default. The settings sheet behind the masthead gear
 (`ui/settings.js`) writes overrides into the shared entry under `rules`, and
-`core/rules.js` merges the two into the set the board runs on. Three properties
-hold it together:
+`core/rules.js` merges the two into the set the board runs on. The new-league
+sheet (`ui/home.js`) sets the same rules before there is a board, with the same
+steppers and the same step (`ruleGroups` and `stepDraft`, exported from
+`ui/settings.js`), off each season's calendar as `app.js` reads it
+(`ensureSeasons`); a pool starts on the week its season is in now, and goes into
+its row with whatever was set. Created with no calendar to hand, a rule is held
+to the kind's own (`calendarWeeks` in `sports.js`), so a pool made to end at the
+Super Bowl is not cut back to the regular season on the way in. Three
+properties hold it together:
 
 - **Shared, not per-device.** Rules belong to the pool, so they live in the
   same document the picks do and arrive on the other phone through the same
@@ -1052,12 +1059,13 @@ away cannot be trusted to have missed nothing.
   write that league. Nothing is verified and nobody signs in. A person is an
   eight-character id minted on their first phone (`myId`), carried on every
   lock and member row and shown under _Who's picking?_; typed into another
-  phone it is looked up by jsonb containment over every pool's members
-  (`claimId`) and that phone becomes the same member, so a second phone is
-  not a second person. A phone that was already somebody is folded in: its old
-  id drops out of the leagues both share and leaves the ones only it was in
-  (deleting any it was alone in), after `previewClaim` has let the sheet name
-  them and ask. It is as secret as a name: anyone holding it can pick
+  phone's first-run screen it is looked up by jsonb containment over every
+  pool's members (`claimId`) and that phone becomes the same member, so a
+  second phone is not a second person. A phone that was already somebody is
+  folded in: its old id drops out of the leagues both share and leaves the
+  ones only it was in (deleting any it was alone in). The _Who's picking?_
+  sheet only shows and copies the id; it has no way to type one in. It is as
+  secret as a name: anyone holding it can pick
   as you, which is the trust a league's code already extends. The publishable key ships in the
   page, so the policies cannot check a code and the obstacle is that codes are
   unguessable, which keeps out passers-by rather than anyone determined; the

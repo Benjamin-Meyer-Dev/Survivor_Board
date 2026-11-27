@@ -564,6 +564,17 @@ function nameOf(weekPlan) {
       };
 }
 
+/**
+ * What every week of a calendar is called, by week (nameOf): the board carries
+ * it as `weekNames`, and the new-league sheet reads it off the plan to name
+ * the weeks a pool can start and end on before there is a board.
+ */
+export function weekNamesOf(plan) {
+  return Object.fromEntries(
+    (plan?.weeks ?? []).map((weekPlan) => [weekPlan.week, nameOf(weekPlan)]),
+  );
+}
+
 /** The year of an ISO date, or null for anything that is not one. */
 function yearOf(date) {
   const year = /^(\d{4})-/.exec(String(date ?? ""))?.[1];
@@ -973,7 +984,7 @@ export function buildBoard({
     seasonWeeks: plan.weeks.map((weekPlan) => weekPlan.week),
     // What each of those weeks is called, long and short, by week: the
     // settings sheet names a playoff round rather than numbering it.
-    weekNames: Object.fromEntries(plan.weeks.map((weekPlan) => [weekPlan.week, nameOf(weekPlan)])),
+    weekNames: weekNamesOf(plan),
     rules,
     currentWeek,
     // The probability model the week was priced with, for the coach's futures
