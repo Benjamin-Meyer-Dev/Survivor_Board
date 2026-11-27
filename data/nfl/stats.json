@@ -1,6 +1,6 @@
 {
   "$comment": "Written by scripts/pull-stats.mjs from nflverse weekly team statistics. Never edit by hand. One record per team per game, keyed \"<week>|<team>\" like odds.json: `margin` is the team's offensive expected points added less its opponent's, capped, and is what the rating fit in form.json reads as an efficiency observation. The other fields say where it came from.",
-  "updatedAt": "2026-11-26T14:00:38Z",
+  "updatedAt": "2026-11-27T14:00:40Z",
   "source": "https://github.com/nflverse/nflverse-data/releases/download/stats_team/stats_team_week_2026.csv",
   "season": 2026,
   "games": {
@@ -3611,6 +3611,72 @@
       "passingEpa": -1.96,
       "rushingEpa": 2.19,
       "cpoe": 2.02828858579908
+    },
+    "12|Bills": {
+      "opponent": "Chiefs",
+      "margin": -6.57,
+      "offense": -7.77,
+      "defense": 1.2,
+      "offensePerPlay": -0.118,
+      "defensePerPlay": 0.024,
+      "passingEpa": -12.82,
+      "rushingEpa": 5.05,
+      "cpoe": -19.5477484166622
+    },
+    "12|Bears": {
+      "opponent": "Lions",
+      "margin": 8.47,
+      "offense": 17.58,
+      "defense": -9.11,
+      "offensePerPlay": 0.244,
+      "defensePerPlay": -0.134,
+      "passingEpa": 8.65,
+      "rushingEpa": 8.92,
+      "cpoe": -1.55917087739164
+    },
+    "12|Cowboys": {
+      "opponent": "Eagles",
+      "margin": 6.27,
+      "offense": 11.46,
+      "defense": -5.19,
+      "offensePerPlay": 0.169,
+      "defensePerPlay": -0.096,
+      "passingEpa": 11,
+      "rushingEpa": 0.46,
+      "cpoe": 7.55093683089529
+    },
+    "12|Lions": {
+      "opponent": "Bears",
+      "margin": -8.47,
+      "offense": 9.11,
+      "defense": -17.58,
+      "offensePerPlay": 0.134,
+      "defensePerPlay": -0.244,
+      "passingEpa": 0.48,
+      "rushingEpa": 8.63,
+      "cpoe": 1.82294903530015
+    },
+    "12|Chiefs": {
+      "opponent": "Bills",
+      "margin": 6.57,
+      "offense": -1.2,
+      "defense": 7.77,
+      "offensePerPlay": -0.024,
+      "defensePerPlay": 0.118,
+      "passingEpa": 0.03,
+      "rushingEpa": -1.23,
+      "cpoe": -8.11896856342043
+    },
+    "12|Eagles": {
+      "opponent": "Cowboys",
+      "margin": -6.27,
+      "offense": 5.19,
+      "defense": -11.46,
+      "offensePerPlay": 0.096,
+      "defensePerPlay": -0.169,
+      "passingEpa": 8.1,
+      "rushingEpa": -2.91,
+      "cpoe": 12.0963715513547
     }
   }
 }
