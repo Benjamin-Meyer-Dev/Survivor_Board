@@ -90,7 +90,9 @@
    old one would offer a pool no playoffs until its next launch. v51 puts the
    rules on the new-league sheet (ui/home.js, with the steppers shared out of
    ui/settings.js), keeps the coach's line over a playoff round still to be
-   set, and takes the claim-an-ID form off the Who's picking? sheet.
+   set, and takes the claim-an-ID form off the Who's picking? sheet. v52 lets
+   the home page's leagues be held and carried into an order of your own (a
+   new module, ui/reorder.js, and the cards' styles with it).
 
    "Must not keep half of" is the whole point, and v4 is what that phrase was
    written for. Every shell file is cached first and refreshed on its own a few
@@ -107,7 +109,7 @@
    needs a hand here: ENGINE_VERSION in src/js/core/recommend.js is part of
    every plan's key, so a plan can only ever be read back by the engine that
    wrote it. Bump it there when the search or the ranking changes shape. */
-const CACHE = "sudden-death-v51";
+const CACHE = "sudden-death-v52";
 
 /**
  * Kept from install rather than on first use, so the first launch after an

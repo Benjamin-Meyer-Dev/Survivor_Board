@@ -139,6 +139,50 @@ function remember(league) {
   return merged;
 }
 
+/**
+ * Put this device's leagues in the order given - the order the home page shows
+ * them in, set by carrying a card (ui/reorder.js). Only the order changes: a
+ * code the list does not hold is ignored, and a league the codes leave out
+ * keeps its place after the ones they name. Nobody else's list moves.
+ *
+ * @param {string[]} codes
+ * @returns {string[]} The codes in the order now kept.
+ */
+export function reorderMyLeagues(codes) {
+  const list = myLeagues();
+  const rank = new Map(codes.map((code, index) => [normaliseCode(code), index]));
+  const ordered = list
+    .map((league, index) => ({ league, index }))
+    .sort(
+      (a, b) =>
+        (rank.get(a.league.code) ?? codes.length + a.index) -
+        (rank.get(b.league.code) ?? codes.length + b.index),
+    )
+    .map(({ league }) => league);
+  writeMyLeagues(ordered);
+  return ordered.map((league) => league.code);
+}
+
+/**
+ * Any list of leagues, in this device's order: what a refresh that set out
+ * before a card was moved hands back is put in the order kept since.
+ *
+ * @template {{code:string}} T
+ * @param {T[]} leagues
+ * @returns {T[]}
+ */
+export function inMyOrder(leagues) {
+  const rank = new Map(myLeagues().map((league, index) => [league.code, index]));
+  return leagues
+    .map((league, index) => ({ league, index }))
+    .sort(
+      (a, b) =>
+        (rank.get(a.league.code) ?? Infinity) - (rank.get(b.league.code) ?? Infinity) ||
+        a.index - b.index,
+    )
+    .map(({ league }) => league);
+}
+
 /** Take a league off this device's list. The league itself stays where it is. */
 function forget(code) {
   writeMyLeagues(myLeagues().filter((league) => league.code !== normaliseCode(code)));

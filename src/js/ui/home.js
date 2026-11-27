@@ -49,6 +49,7 @@ import { escapeHtml } from "../core/format.js";
 import { mergeRules, onlyEditable } from "../core/rules.js";
 import { delegate } from "./events.js";
 import { group, ruleGroups, stepDraft, weekPills } from "./settings.js";
+import { watchReorder } from "./reorder.js";
 import { rosterMarkup } from "./roster.js";
 import { frame, reconcile } from "./patch.js";
 import {
@@ -168,6 +169,10 @@ let seasons = null;
  * be coming back to finish - and cleared once the league is made.
  */
 const createDrafts = new Map();
+/** The reordering on each list it was set up on (orderFor). */
+const ordering = new WeakMap();
+/** A render held back while a card was being carried, made when it is let go. */
+let heldRender = null;
 /** This person's name as last rendered, for the rename sheet to start from. */
 let me = "";
 /** And their id, for the same sheet to show. */
@@ -193,7 +198,7 @@ let meId = "";
  *   the page in the meantime took it off while the league went on opening.
  * @param {object|null} [state.seasons] Each season's calendar by sport, for the
  *   new-league sheet to set its pools' rules from (ensureSeasons in app.js).
- * @param {object} given onOpen(code), onCreate({name, kinds, rules}), onJoin(code),
+ * @param {object} given onOpen(code), onCreate({name, kinds, rules}), onReorder(codes), onJoin(code),
  *   onLeave(code), onRenameMe(name). onCreate and onJoin may reject; the
  *   message is shown in their sheet.
  * @param {HTMLElement} [sheets] Where the two sheets live. Built once, on the
@@ -236,12 +241,52 @@ export function renderHome(root, state, given, sheets = null) {
 
   reconcile(home, shellMarkup(state));
   const cards = home.querySelector(".home__list");
+  // A league being carried to a new place is not put back in the old order by
+  // a render landing under it - a refresh of the list, say. The render is held
+  // and made when the card is let go (orderFor).
+  if (orderFor(cards).lifted()) {
+    heldRender = { root, state, given };
+    return;
+  }
   reconcile(cards, listMarkup(state));
 
   if (first || prefersReducedMotion()) return;
   settleInto(cards.children, places);
   playArrivals(cards, hadCards);
   playMessages(home, hadMessages);
+}
+
+/**
+ * Putting the leagues in your own order: hold a card and carry it (ui/reorder.js).
+ *
+ * The order is this device's and nobody else's - it is the order of the list
+ * the device keeps (reorderMyLeagues in store/directory.js) - so a drop is
+ * saved at once and changes nothing for anyone else in the league. Nothing to
+ * hold while a card is opening or on its way out, and nothing to order with
+ * one league.
+ */
+function orderFor(list) {
+  let watcher = ordering.get(list);
+  if (!watcher) {
+    watcher = watchReorder(list, {
+      items: ".home__card",
+      // A roster open on the card is read, not carried.
+      ignore: ".roster__panel",
+      canStart: (card) =>
+        list.querySelectorAll(".home__card").length > 1 &&
+        !card.classList.contains("is-opening") &&
+        !card.classList.contains("is-leaving"),
+      onDrop: (codes) => homeHandlers.onReorder?.(codes),
+      onEnd: () => {
+        if (!heldRender) return;
+        const { root, state, given } = heldRender;
+        heldRender = null;
+        renderHome(root, state, given);
+      },
+    });
+    ordering.set(list, watcher);
+  }
+  return watcher;
 }
 
 /** The page itself: the head, whatever it has to say, the two buttons, the list. */

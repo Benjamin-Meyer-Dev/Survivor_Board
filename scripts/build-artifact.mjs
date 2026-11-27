@@ -64,6 +64,7 @@ const JS = [
   "ui/events.js",
   "ui/league-bar.js",
   "ui/settings.js",
+  "ui/reorder.js",
   "ui/home.js",
   "ui/stadium.js",
   "ui/name.js",

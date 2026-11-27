@@ -38,6 +38,7 @@ import {
   createLeague,
   deleteLeague,
   grantAccess,
+  inMyOrder,
   joinLeague,
   knownRow,
   leaveLeague,
@@ -48,6 +49,7 @@ import {
   refreshMyLeagues,
   removePool,
   renameMe,
+  reorderMyLeagues,
   renameLeague,
   setMyName,
   sharingAvailable,
@@ -1793,6 +1795,14 @@ function paintHome() {
         await reloadLeagues();
         openBoard(league.code, null, { league });
       },
+      // A card carried to a new place: this device's order, saved at once and
+      // shown as it now stands. The cards are already there - the drag put
+      // them there - so the render that follows moves nothing.
+      onReorder: (codes) => {
+        reorderMyLeagues(codes);
+        app.leagues = inMyOrder(app.leagues);
+        paintHome();
+      },
       onJoin: async (code) => {
         app.homeMessage = "";
         const league = await joinLeague(code);
@@ -1860,7 +1870,9 @@ async function reloadLeagues() {
   warmBoardData();
   app.leaguesLoading = true;
   try {
-    app.leagues = await refreshMyLeagues();
+    // In the order kept now, not the order the refresh set out with: a card
+    // carried to a new place while it was on the network stays there.
+    app.leagues = inMyOrder(await refreshMyLeagues());
   } catch {
     /* the cached list is still worth showing */
   } finally {

@@ -312,6 +312,35 @@ assert.deepEqual(
 );
 assert.equal(directory.myLeagues()[1].rules["nfl-lose"].objective, "lose");
 
+// The order is this device's to change: a card carried to a new place on the
+// home page (ui/reorder.js) rewrites the list in that order, and nothing else
+// about any league in it.
+const added = directory.myLeagues().map((league) => league.code);
+const moved = [added[2], added[0], added[1], added[3], added[4]];
+assert.deepEqual(directory.reorderMyLeagues(moved), moved, "a list put in a new order");
+assert.deepEqual(
+  directory.myLeagues().map((league) => league.code),
+  moved,
+  "keeps it",
+);
+assert.deepEqual(
+  directory.myLeagues().find((league) => league.code === trio.code).kinds,
+  ["nfl-win", "nfl-lose", "cfb-win"],
+  "and a league moved is the same league",
+);
+assert.deepEqual(
+  directory.reorderMyLeagues(["ZZZZZZZZZZZZ", added[4]]),
+  [added[4], ...moved.filter((code) => code !== added[4])],
+  "a code the list does not hold is ignored, and the ones left out keep their order behind",
+);
+// A refresh that set out before a card was moved lands in the order kept since.
+assert.deepEqual(
+  directory.inMyOrder(added.map((code) => ({ code }))).map((league) => league.code),
+  directory.myLeagues().map((league) => league.code),
+);
+// Back as they were, for what follows.
+directory.reorderMyLeagues(added);
+
 // Two leagues, two boards; one league of three pools, three boards. This is
 // the isolation the whole model rests on.
 assert.notEqual(
@@ -449,7 +478,11 @@ table.touch(crowd.code, "nfl-win", (row) => ({
   entry: { ...row.entry, members: [...row.entry.members, { id: "d-pat", name: "Pat" }] },
 }));
 await directory.refreshMyLeagues();
-assert.equal(table.row(hostCode, "nfl-win").entry.members.length, 3, "the second phone is a third member");
+assert.equal(
+  table.row(hostCode, "nfl-win").entry.members.length,
+  3,
+  "the second phone is a third member",
+);
 // A lock the second phone signed, and a league it is in but no longer lists:
 // the old person is deleted from the table, not only from this phone.
 table.touch(hostCode, "nfl-win", (row) => ({
@@ -458,7 +491,9 @@ table.touch(hostCode, "nfl-win", (row) => ({
 const hidden = await directory.createLeague({ name: "Forgotten", kinds: ["nfl-lose"] });
 storage.setItem(
   CONFIG.storage.leagues,
-  JSON.stringify(JSON.parse(storage.getItem(CONFIG.storage.leagues)).filter((l) => l.code !== hidden.code)),
+  JSON.stringify(
+    JSON.parse(storage.getItem(CONFIG.storage.leagues)).filter((l) => l.code !== hidden.code),
+  ),
 );
 
 const asked = await directory.previewClaim(formatPersonId(samId));

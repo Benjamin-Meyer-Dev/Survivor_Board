@@ -4396,6 +4396,16 @@ button.league-bar__face[aria-expanded="true"] {
   /* Cards start at the top of the box rather than stretching to fill it when
      there are only one or two. */
   align-content: start;
+  /* The cards' offset parent, so a card carried to a new place can be told
+     where its own slot is, scrolled or not (ui/reorder.js). */
+  position: relative;
+  /* Room either side for that card to be lifted into. A scroll box clips
+     sideways as well as up and down, and a card drawn three percent larger
+     overhangs its slot by five or six pixels a side, which took its border off.
+     The room comes out of the page's own gutter, so the cards stay where they
+     were. */
+  padding-inline: 6px;
+  margin-inline: -6px;
 }
 
 /* Nothing to show yet: an empty field, ruled and waiting. */
@@ -4434,6 +4444,36 @@ button.league-bar__face[aria-expanded="true"] {
 
 .home__card:hover {
   border-color: var(--chalk);
+}
+
+/* A card is held to be carried to a new place (ui/reorder.js), so a long
+   press on one is that and nothing else: no text picked up under the thumb,
+   and no callout. The code has its own copy button. */
+.home__card {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Carried: drawn at the finger, lifted off the turf over the others, and
+   chalked full. Settling, it is still over them until it lands. */
+.home__card.is-lifted,
+.home__card.is-dropping {
+  z-index: 2;
+  translate: var(--lift-x, 0) var(--lift-y, 0);
+  background-color: var(--turf-2);
+}
+
+.home__card.is-lifted {
+  scale: 1.03;
+  border-color: var(--chalk);
+  /* Solid while it is carried. A card is chalked onto the turf a little
+     see-through, which reads as depth on the field and as a mess the moment
+     one is carried over another; --turf-2 is what it looks like on the turf
+     anyway, so lifting it changes nothing but what shows through. */
+  background-color: var(--turf-2);
+  box-shadow: var(--shadow-lift);
+  cursor: grabbing;
 }
 
 /* A code that did not answer. Dimmed rather than hidden. */

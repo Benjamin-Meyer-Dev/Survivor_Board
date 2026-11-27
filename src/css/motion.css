@@ -1024,6 +1024,26 @@
   animation: card-enter 0.3s var(--ease-out) both;
 }
 
+/* A card carried to a new place (ui/reorder.js). The lift is quick and lands,
+   so the hold reads as having taken; the card then follows the finger with no
+   transition at all, since anything eased there trails behind the thumb; and
+   the drop settles it into its slot on the same curve the neighbours stepped
+   aside on, from wherever it was let go. */
+.home__card.is-lifted {
+  transition:
+    scale 0.16s var(--ease-snap),
+    box-shadow 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.home__card.is-dropping {
+  transition:
+    translate 0.22s var(--ease-out),
+    scale 0.22s var(--ease-out),
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+}
+
 /* --- the settings sheet ----------------------------------------------------
    The take-down question replacing the pair of buttons, and back again: the
    swap is the shared crossfade (is-resizing above), and the weeks group
