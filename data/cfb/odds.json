@@ -1,6 +1,6 @@
 {
   "$comment": "Written by .github/workflows/refresh-odds.yml. Never edit by hand - your change will be overwritten on the next run. Line keys are \"<week>|<team>\", so a market line is found for any team, not just the two the plan names. Same keys in `results`, which is W/L and is what the board marks a locked pick from, and in `scores`, which is the signed margin and is what the rating fit in form.json learns from.",
-  "updatedAt": "2026-11-27T14:00:41Z",
+  "updatedAt": "2026-11-28T14:01:00Z",
   "currentWeek": 13,
   "lines": {
     "1|South Carolina": {
@@ -8614,7 +8614,18 @@
     "12|Arizona State": "L",
     "12|Oklahoma State": "W",
     "13|Texas Tech": "W",
-    "13|TCU": "L"
+    "13|TCU": "L",
+    "13|Ole Miss": "W",
+    "13|Mississippi State": "L",
+    "13|Iowa": "W",
+    "13|Nebraska": "L",
+    "13|Florida": "W",
+    "13|Wisconsin": "W",
+    "13|Minnesota": "L",
+    "13|Texas A&M": "L",
+    "13|Texas": "W",
+    "13|Utah": "W",
+    "13|West Virginia": "L"
   },
   "scores": {
     "1|Rutgers": -16,
@@ -9150,32 +9161,34 @@
     "12|Arizona State": -3,
     "12|Oklahoma State": 3,
     "13|Texas Tech": 21,
-    "13|TCU": -21
+    "13|TCU": -21,
+    "13|Ole Miss": 24,
+    "13|Mississippi State": -24,
+    "13|Iowa": 24,
+    "13|Nebraska": -24,
+    "13|Florida": 16,
+    "13|Wisconsin": 23,
+    "13|Minnesota": -23,
+    "13|Texas A&M": -10,
+    "13|Texas": 10,
+    "13|Utah": 24,
+    "13|West Virginia": -24
   },
   "flags": [
     {
       "week": 13,
-      "team": "Wisconsin",
-      "spread": -9.5,
-      "kind": "movement",
-      "message": "Wisconsin has moved from -5.5 to -9.5 since the week was first priced."
-    },
-    {
-      "week": 13,
-      "team": "Minnesota",
-      "spread": 9.5,
-      "kind": "movement",
-      "message": "Minnesota has moved from +5.5 to +9.5 since the week was first priced."
+      "kind": "recommendation",
+      "message": "Recommendation moved in 1 week(s): wk13 Georgia + Indiana"
     }
   ],
   "recommendation": {
     "picks": {
       "13": [
         "Georgia",
-        "Utah"
+        "Indiana"
       ]
     },
-    "pathProbability": 0.938804,
+    "pathProbability": 0.927317,
     "frontier": {
       "week": 13,
       "scenarios": 128,
@@ -9189,62 +9202,17 @@
         {
           "teams": [
             "Georgia",
-            "Utah"
-          ],
-          "weekWinProb": 0.9388,
-          "season": 0.938804,
-          "scenarioMean": 0.938804,
-          "robust": 1,
-          "seasonCost": 0,
-          "scenarioCost": 0,
-          "leverage": 1.146,
-          "equity": 1.07572,
-          "chosen": true
-        },
-        {
-          "teams": [
-            "Georgia",
             "Indiana"
           ],
           "weekWinProb": 0.9273,
           "season": 0.927317,
           "scenarioMean": 0.927317,
           "robust": 1,
-          "seasonCost": 0.0122,
-          "scenarioCost": 0.0122,
-          "leverage": 1.145,
-          "equity": 1.061761,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Utah",
-            "Indiana"
-          ],
-          "weekWinProb": 0.8877,
-          "season": 0.887707,
-          "scenarioMean": 0.887707,
-          "robust": 0,
-          "seasonCost": 0.0544,
-          "scenarioCost": 0.0544,
-          "leverage": 1.13,
-          "equity": 1.002727,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Georgia",
-            "Ole Miss"
-          ],
-          "weekWinProb": 0.871,
-          "season": 0.870969,
-          "scenarioMean": 0.870969,
-          "robust": 0,
-          "seasonCost": 0.0723,
-          "scenarioCost": 0.0723,
-          "leverage": 1.149,
-          "equity": 1.000657,
-          "chosen": false
+          "seasonCost": 0,
+          "scenarioCost": 0,
+          "leverage": 1.132,
+          "equity": 1.050018,
+          "chosen": true
         },
         {
           "teams": [
@@ -9255,10 +9223,10 @@
           "season": 0.844627,
           "scenarioMean": 0.844627,
           "robust": 0,
-          "seasonCost": 0.1003,
-          "scenarioCost": 0.1003,
-          "leverage": 1.152,
-          "equity": 0.973287,
+          "seasonCost": 0.0892,
+          "scenarioCost": 0.0892,
+          "leverage": 1.142,
+          "equity": 0.964725,
           "chosen": false
         },
         {
@@ -9270,10 +9238,10 @@
           "season": 0.842646,
           "scenarioMean": 0.842646,
           "robust": 0,
-          "seasonCost": 0.1024,
-          "scenarioCost": 0.1024,
-          "leverage": 1.153,
-          "equity": 0.971223,
+          "seasonCost": 0.0913,
+          "scenarioCost": 0.0913,
+          "leverage": 1.143,
+          "equity": 0.962757,
           "chosen": false
         },
         {
@@ -9285,10 +9253,10 @@
           "season": 0.82997,
           "scenarioMean": 0.82997,
           "robust": 0,
-          "seasonCost": 0.1159,
-          "scenarioCost": 0.1159,
-          "leverage": 1.154,
-          "equity": 0.957972,
+          "seasonCost": 0.105,
+          "scenarioCost": 0.105,
+          "leverage": 1.145,
+          "equity": 0.950105,
           "chosen": false
         },
         {
@@ -9300,10 +9268,10 @@
           "season": 0.815413,
           "scenarioMean": 0.815413,
           "robust": 0,
-          "seasonCost": 0.1314,
-          "scenarioCost": 0.1314,
-          "leverage": 1.156,
-          "equity": 0.942635,
+          "seasonCost": 0.1207,
+          "scenarioCost": 0.1207,
+          "leverage": 1.147,
+          "equity": 0.935416,
           "chosen": false
         },
         {
@@ -9315,10 +9283,10 @@
           "season": 0.812838,
           "scenarioMean": 0.812838,
           "robust": 0,
-          "seasonCost": 0.1342,
-          "scenarioCost": 0.1342,
-          "leverage": 1.156,
-          "equity": 0.939907,
+          "seasonCost": 0.1235,
+          "scenarioCost": 0.1235,
+          "leverage": 1.148,
+          "equity": 0.932798,
           "chosen": false
         },
         {
@@ -9330,25 +9298,10 @@
           "season": 0.755401,
           "scenarioMean": 0.755401,
           "robust": 0,
-          "seasonCost": 0.1954,
-          "scenarioCost": 0.1954,
-          "leverage": 1.162,
-          "equity": 0.877791,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Georgia",
-            "Wisconsin"
-          ],
-          "weekWinProb": 0.7378,
-          "season": 0.737773,
-          "scenarioMean": 0.737774,
-          "robust": 0,
-          "seasonCost": 0.2141,
-          "scenarioCost": 0.2141,
-          "leverage": 1.163,
-          "equity": 0.85827,
+          "seasonCost": 0.1854,
+          "scenarioCost": 0.1854,
+          "leverage": 1.155,
+          "equity": 0.872693,
           "chosen": false
         },
         {
@@ -9360,10 +9313,10 @@
           "season": 0.698756,
           "scenarioMean": 0.698756,
           "robust": 0,
-          "seasonCost": 0.2557,
-          "scenarioCost": 0.2557,
-          "leverage": 1.166,
-          "equity": 0.814449,
+          "seasonCost": 0.2465,
+          "scenarioCost": 0.2465,
+          "leverage": 1.16,
+          "equity": 0.81061,
           "chosen": false
         },
         {
@@ -9375,10 +9328,10 @@
           "season": 0.686575,
           "scenarioMean": 0.686575,
           "robust": 0,
-          "seasonCost": 0.2687,
-          "scenarioCost": 0.2687,
-          "leverage": 1.166,
-          "equity": 0.800627,
+          "seasonCost": 0.2596,
+          "scenarioCost": 0.2596,
+          "leverage": 1.161,
+          "equity": 0.796988,
           "chosen": false
         },
         {
@@ -9390,10 +9343,10 @@
           "season": 0.671324,
           "scenarioMean": 0.671324,
           "robust": 0,
-          "seasonCost": 0.2849,
-          "scenarioCost": 0.2849,
-          "leverage": 1.167,
-          "equity": 0.783244,
+          "seasonCost": 0.2761,
+          "scenarioCost": 0.2761,
+          "leverage": 1.162,
+          "equity": 0.779828,
           "chosen": false
         },
         {
@@ -9405,10 +9358,10 @@
           "season": 0.670037,
           "scenarioMean": 0.670037,
           "robust": 0,
-          "seasonCost": 0.2863,
-          "scenarioCost": 0.2863,
-          "leverage": 1.167,
-          "equity": 0.781759,
+          "seasonCost": 0.2774,
+          "scenarioCost": 0.2774,
+          "leverage": 1.162,
+          "equity": 0.778356,
           "chosen": false
         },
         {
@@ -9420,10 +9373,10 @@
           "season": 0.656173,
           "scenarioMean": 0.656173,
           "robust": 0,
-          "seasonCost": 0.3011,
-          "scenarioCost": 0.3011,
-          "leverage": 1.167,
-          "equity": 0.7659,
+          "seasonCost": 0.2924,
+          "scenarioCost": 0.2924,
+          "leverage": 1.162,
+          "equity": 0.76268,
           "chosen": false
         },
         {
@@ -9435,10 +9388,10 @@
           "season": 0.621809,
           "scenarioMean": 0.621809,
           "robust": 0,
-          "seasonCost": 0.3377,
-          "scenarioCost": 0.3377,
-          "leverage": 1.168,
-          "equity": 0.72635,
+          "seasonCost": 0.3295,
+          "scenarioCost": 0.3295,
+          "leverage": 1.164,
+          "equity": 0.723498,
           "chosen": false
         },
         {
@@ -9450,25 +9403,10 @@
           "season": 0.608935,
           "scenarioMean": 0.608935,
           "robust": 0,
-          "seasonCost": 0.3514,
-          "scenarioCost": 0.3514,
-          "leverage": 1.168,
-          "equity": 0.711472,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Georgia",
-            "Iowa"
-          ],
-          "weekWinProb": 0.6032,
-          "season": 0.603192,
-          "scenarioMean": 0.603192,
-          "robust": 0,
-          "seasonCost": 0.3575,
-          "scenarioCost": 0.3575,
-          "leverage": 1.168,
-          "equity": 0.704826,
+          "seasonCost": 0.3433,
+          "scenarioCost": 0.3433,
+          "leverage": 1.164,
+          "equity": 0.708737,
           "chosen": false
         },
         {
@@ -9480,10 +9418,10 @@
           "season": 0.570809,
           "scenarioMean": 0.570809,
           "robust": 0,
-          "seasonCost": 0.392,
-          "scenarioCost": 0.392,
-          "leverage": 1.169,
-          "equity": 0.667279,
+          "seasonCost": 0.3845,
+          "scenarioCost": 0.3845,
+          "leverage": 1.165,
+          "equity": 0.664841,
           "chosen": false
         },
         {
@@ -9495,10 +9433,10 @@
           "season": 0.563283,
           "scenarioMean": 0.563283,
           "robust": 0,
-          "seasonCost": 0.4,
-          "scenarioCost": 0.4,
-          "leverage": 1.169,
-          "equity": 0.658537,
+          "seasonCost": 0.3926,
+          "scenarioCost": 0.3926,
+          "leverage": 1.165,
+          "equity": 0.656151,
           "chosen": false
         },
         {
@@ -9510,10 +9448,10 @@
           "season": 0.554172,
           "scenarioMean": 0.554172,
           "robust": 0,
-          "seasonCost": 0.4097,
-          "scenarioCost": 0.4097,
-          "leverage": 1.169,
-          "equity": 0.647949,
+          "seasonCost": 0.4024,
+          "scenarioCost": 0.4024,
+          "leverage": 1.165,
+          "equity": 0.645624,
           "chosen": false
         },
         {
@@ -9525,10 +9463,10 @@
           "season": 0.544566,
           "scenarioMean": 0.544566,
           "robust": 0,
-          "seasonCost": 0.4199,
-          "scenarioCost": 0.4199,
-          "leverage": 1.169,
-          "equity": 0.63678,
+          "seasonCost": 0.4128,
+          "scenarioCost": 0.4128,
+          "leverage": 1.165,
+          "equity": 0.634518,
           "chosen": false
         },
         {
@@ -9540,10 +9478,10 @@
           "season": 0.445734,
           "scenarioMean": 0.445734,
           "robust": 0,
-          "seasonCost": 0.5252,
-          "scenarioCost": 0.5252,
-          "leverage": 1.171,
-          "equity": 0.521751,
+          "seasonCost": 0.5193,
+          "scenarioCost": 0.5193,
+          "leverage": 1.167,
+          "equity": 0.520092,
           "chosen": false
         },
         {
@@ -9555,10 +9493,10 @@
           "season": 0.436128,
           "scenarioMean": 0.436128,
           "robust": 0,
-          "seasonCost": 0.5354,
-          "scenarioCost": 0.5354,
-          "leverage": 1.171,
-          "equity": 0.510582,
+          "seasonCost": 0.5297,
+          "scenarioCost": 0.5297,
+          "leverage": 1.167,
+          "equity": 0.508985,
           "chosen": false
         },
         {
@@ -9570,10 +9508,10 @@
           "season": 0.427017,
           "scenarioMean": 0.427017,
           "robust": 0,
-          "seasonCost": 0.5451,
-          "scenarioCost": 0.5451,
-          "leverage": 1.171,
-          "equity": 0.499994,
+          "seasonCost": 0.5395,
+          "scenarioCost": 0.5395,
+          "leverage": 1.167,
+          "equity": 0.498459,
           "chosen": false
         },
         {
@@ -9585,10 +9523,10 @@
           "season": 0.419491,
           "scenarioMean": 0.419491,
           "robust": 0,
-          "seasonCost": 0.5532,
-          "scenarioCost": 0.5532,
-          "leverage": 1.171,
-          "equity": 0.491253,
+          "seasonCost": 0.5476,
+          "scenarioCost": 0.5476,
+          "leverage": 1.168,
+          "equity": 0.48977,
           "chosen": false
         },
         {
@@ -9600,25 +9538,10 @@
           "season": 0.419293,
           "scenarioMean": 0.419293,
           "robust": 0,
-          "seasonCost": 0.5534,
-          "scenarioCost": 0.5534,
-          "leverage": 1.17,
-          "equity": 0.490459,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Georgia",
-            "Nebraska"
-          ],
-          "weekWinProb": 0.3871,
-          "season": 0.387108,
-          "scenarioMean": 0.387108,
-          "robust": 0,
-          "seasonCost": 0.5877,
-          "scenarioCost": 0.5877,
-          "leverage": 1.172,
-          "equity": 0.453706,
+          "seasonCost": 0.5478,
+          "scenarioCost": 0.5478,
+          "leverage": 1.166,
+          "equity": 0.488776,
           "chosen": false
         },
         {
@@ -9630,10 +9553,10 @@
           "season": 0.381365,
           "scenarioMean": 0.381365,
           "robust": 0,
-          "seasonCost": 0.5938,
-          "scenarioCost": 0.5938,
-          "leverage": 1.172,
-          "equity": 0.447061,
+          "seasonCost": 0.5887,
+          "scenarioCost": 0.5887,
+          "leverage": 1.169,
+          "equity": 0.445876,
           "chosen": false
         },
         {
@@ -9645,10 +9568,10 @@
           "season": 0.368491,
           "scenarioMean": 0.368491,
           "robust": 0,
-          "seasonCost": 0.6075,
-          "scenarioCost": 0.6075,
-          "leverage": 1.173,
-          "equity": 0.432184,
+          "seasonCost": 0.6026,
+          "scenarioCost": 0.6026,
+          "leverage": 1.17,
+          "equity": 0.431118,
           "chosen": false
         },
         {
@@ -9660,25 +9583,10 @@
           "season": 0.334127,
           "scenarioMean": 0.334127,
           "robust": 0,
-          "seasonCost": 0.6441,
-          "scenarioCost": 0.6441,
-          "leverage": 1.175,
-          "equity": 0.39264,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Georgia",
-            "Florida"
-          ],
-          "weekWinProb": 0.3212,
-          "season": 0.321154,
-          "scenarioMean": 0.321154,
-          "robust": 0,
-          "seasonCost": 0.6579,
-          "scenarioCost": 0.6579,
-          "leverage": 1.17,
-          "equity": 0.375698,
+          "seasonCost": 0.6397,
+          "scenarioCost": 0.6397,
+          "leverage": 1.173,
+          "equity": 0.391945,
           "chosen": false
         },
         {
@@ -9690,10 +9598,10 @@
           "season": 0.318976,
           "scenarioMean": 0.318976,
           "robust": 0,
-          "seasonCost": 0.6602,
-          "scenarioCost": 0.6602,
-          "leverage": 1.177,
-          "equity": 0.375301,
+          "seasonCost": 0.656,
+          "scenarioCost": 0.656,
+          "leverage": 1.175,
+          "equity": 0.374806,
           "chosen": false
         },
         {
@@ -9705,10 +9613,10 @@
           "season": 0.303725,
           "scenarioMean": 0.303725,
           "robust": 0,
-          "seasonCost": 0.6765,
-          "scenarioCost": 0.6765,
+          "seasonCost": 0.6725,
+          "scenarioCost": 0.6725,
           "leverage": 1.178,
-          "equity": 0.357924,
+          "equity": 0.357659,
           "chosen": false
         },
         {
@@ -9720,25 +9628,10 @@
           "season": 0.291544,
           "scenarioMean": 0.291544,
           "robust": 0,
-          "seasonCost": 0.6895,
-          "scenarioCost": 0.6895,
+          "seasonCost": 0.6856,
+          "scenarioCost": 0.6856,
           "leverage": 1.18,
-          "equity": 0.34411,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Georgia",
-            "Minnesota"
-          ],
-          "weekWinProb": 0.2525,
-          "season": 0.252526,
-          "scenarioMean": 0.252526,
-          "robust": 0,
-          "seasonCost": 0.731,
-          "scenarioCost": 0.731,
-          "leverage": 1.189,
-          "equity": 0.300342,
+          "equity": 0.344052,
           "chosen": false
         },
         {
@@ -9750,40 +9643,10 @@
           "season": 0.234899,
           "scenarioMean": 0.234899,
           "robust": 0,
-          "seasonCost": 0.7498,
-          "scenarioCost": 0.7498,
-          "leverage": 1.196,
-          "equity": 0.280868,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Georgia",
-            "Texas A&M"
-          ],
-          "weekWinProb": 0.2094,
-          "season": 0.209448,
-          "scenarioMean": 0.209448,
-          "robust": 0,
-          "seasonCost": 0.7769,
-          "scenarioCost": 0.7769,
-          "leverage": 1.17,
-          "equity": 0.245028,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Georgia",
-            "Texas"
-          ],
-          "weekWinProb": 0.2094,
-          "season": 0.209448,
-          "scenarioMean": 0.209448,
-          "robust": 0,
-          "seasonCost": 0.7769,
-          "scenarioCost": 0.7769,
-          "leverage": 1.17,
-          "equity": 0.245028,
+          "seasonCost": 0.7467,
+          "scenarioCost": 0.7467,
+          "leverage": 1.201,
+          "equity": 0.282155,
           "chosen": false
         },
         {
@@ -9795,10 +9658,10 @@
           "season": 0.177462,
           "scenarioMean": 0.177462,
           "robust": 0,
-          "seasonCost": 0.811,
-          "scenarioCost": 0.811,
-          "leverage": 1.235,
-          "equity": 0.219183,
+          "seasonCost": 0.8086,
+          "scenarioCost": 0.8086,
+          "leverage": 1.256,
+          "equity": 0.222856,
           "chosen": false
         },
         {
@@ -9810,10 +9673,10 @@
           "season": 0.174887,
           "scenarioMean": 0.174887,
           "robust": 0,
-          "seasonCost": 0.8137,
-          "scenarioCost": 0.8137,
-          "leverage": 1.238,
-          "equity": 0.216492,
+          "seasonCost": 0.8114,
+          "scenarioCost": 0.8114,
+          "leverage": 1.26,
+          "equity": 0.220307,
           "chosen": false
         },
         {
@@ -9825,10 +9688,10 @@
           "season": 0.16033,
           "scenarioMean": 0.16033,
           "robust": 0,
-          "seasonCost": 0.8292,
-          "scenarioCost": 0.8292,
-          "leverage": 1.256,
-          "equity": 0.201413,
+          "seasonCost": 0.8271,
+          "scenarioCost": 0.8271,
+          "leverage": 1.286,
+          "equity": 0.206107,
           "chosen": false
         },
         {
@@ -9840,10 +9703,10 @@
           "season": 0.147654,
           "scenarioMean": 0.147654,
           "robust": 0,
-          "seasonCost": 0.8427,
-          "scenarioCost": 0.8427,
-          "leverage": 1.276,
-          "equity": 0.188471,
+          "seasonCost": 0.8408,
+          "scenarioCost": 0.8408,
+          "leverage": 1.314,
+          "equity": 0.194041,
           "chosen": false
         },
         {
@@ -9855,25 +9718,10 @@
           "season": 0.145673,
           "scenarioMean": 0.145673,
           "robust": 0,
-          "seasonCost": 0.8448,
-          "scenarioCost": 0.8448,
-          "leverage": 1.28,
-          "equity": 0.186464,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Georgia",
-            "Mississippi State"
-          ],
-          "weekWinProb": 0.1193,
-          "season": 0.119331,
-          "scenarioMean": 0.119331,
-          "robust": 0,
-          "seasonCost": 0.8729,
-          "scenarioCost": 0.8729,
-          "leverage": 1.342,
-          "equity": 0.160144,
+          "seasonCost": 0.8429,
+          "scenarioCost": 0.8429,
+          "leverage": 1.319,
+          "equity": 0.192182,
           "chosen": false
         },
         {
@@ -9885,25 +9733,10 @@
           "season": 0.062983,
           "scenarioMean": 0.062983,
           "robust": 0,
-          "seasonCost": 0.9329,
-          "scenarioCost": 0.9329,
-          "leverage": 1.655,
-          "equity": 0.10423,
-          "chosen": false
-        },
-        {
-          "teams": [
-            "Georgia",
-            "West Virginia"
-          ],
-          "weekWinProb": 0.0515,
-          "season": 0.051496,
-          "scenarioMean": 0.051496,
-          "robust": 0,
-          "seasonCost": 0.9451,
-          "scenarioCost": 0.9451,
-          "leverage": 1.784,
-          "equity": 0.091874,
+          "seasonCost": 0.9321,
+          "scenarioCost": 0.9321,
+          "leverage": 1.901,
+          "equity": 0.11973,
           "chosen": false
         }
       ]
